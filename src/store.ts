@@ -75,6 +75,8 @@ interface AppState {
 
   selectedShapeId: string | null;
   selectShape: (id: string | null) => void;
+  secondarySelectedShapeId: string | null;
+  selectSecondaryShape: (id: string | null) => void;
 
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
@@ -198,6 +200,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   selectedShapeId: null,
   selectShape: (id) => set({ selectedShapeId: id }),
+  secondarySelectedShapeId: null,
+  selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
 
   activeTool: Tool.SELECT,
   setActiveTool: (tool) => set({ activeTool: tool }),

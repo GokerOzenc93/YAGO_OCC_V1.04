@@ -17,7 +17,17 @@ interface ParametersPanelProps {
 }
 
 export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
-  const { selectedShapeId, shapes, updateShape, vertexEditMode, setVertexEditMode, subtractShape, opencascadeInstance } = useAppStore();
+  const {
+    selectedShapeId,
+    secondarySelectedShapeId,
+    selectSecondaryShape,
+    shapes,
+    updateShape,
+    vertexEditMode,
+    setVertexEditMode,
+    subtractShape,
+    opencascadeInstance
+  } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -293,21 +303,29 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 return;
               }
               if (!selectedShapeId) {
-                alert('Please select a shape first.');
+                alert('Please select the first shape (the one to be subtracted FROM).');
                 return;
               }
-              const otherShapes = shapes.filter(s => s.id !== selectedShapeId && s.ocShape);
-              if (otherShapes.length === 0) {
-                alert('You need at least 2 shapes to perform subtraction. Please add another shape to the scene.');
+              if (!secondarySelectedShapeId) {
+                const otherShapes = shapes.filter(s => s.id !== selectedShapeId && s.ocShape);
+                if (otherShapes.length === 0) {
+                  alert('You need at least 2 shapes. Please add another shape to the scene.');
+                  return;
+                }
+                alert('Please select the second shape (the one to SUBTRACT). Click on another shape while holding Ctrl/Cmd.');
                 return;
               }
-              const targetShape = otherShapes[0];
-              if (confirm(`Subtract selected shape from "${targetShape.type}"?`)) {
-                subtractShape(targetShape.id, selectedShapeId);
+              if (confirm(`Subtract second shape from first shape?`)) {
+                subtractShape(selectedShapeId, secondarySelectedShapeId);
+                selectSecondaryShape(null);
               }
             }}
-            className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-red-600 text-white hover:bg-red-700"
-            title="Subtract from another shape"
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+              secondarySelectedShapeId
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-red-400 text-white hover:bg-red-500'
+            }`}
+            title="Subtract: Select first shape, then Ctrl+Click second shape"
           >
             <Minus size={12} />
           </button>

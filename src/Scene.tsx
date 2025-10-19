@@ -20,7 +20,7 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, updateShape, activeTool, viewMode } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -122,6 +122,7 @@ const ShapeWithTransform: React.FC<{
   };
 
   const isWireframe = viewMode === ViewMode.WIREFRAME;
+  const isSecondarySelected = shape.id === secondarySelectedShapeId;
 
   if (shape.isolated === false) {
     return null;
@@ -133,7 +134,12 @@ const ShapeWithTransform: React.FC<{
         ref={groupRef}
         onClick={(e) => {
           e.stopPropagation();
-          selectShape(shape.id);
+          if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
+            selectSecondaryShape(shape.id);
+          } else {
+            selectShape(shape.id);
+            selectSecondaryShape(null);
+          }
         }}
         onContextMenu={(e) => {
           e.stopPropagation();
@@ -148,14 +154,14 @@ const ShapeWithTransform: React.FC<{
             receiveShadow
           >
             <meshStandardMaterial
-              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
+              color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : shape.color || '#2563eb'}
               metalness={0.3}
               roughness={0.4}
             />
             <lineSegments>
               <edgesGeometry args={[localGeometry]} />
               <lineBasicMaterial
-                color={isSelected ? '#3b82f6' : '#1a1a1a'}
+                color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
                 linewidth={1}
                 opacity={0.3}
                 transparent
@@ -173,8 +179,8 @@ const ShapeWithTransform: React.FC<{
             <lineSegments>
               <edgesGeometry args={[localGeometry]} />
               <lineBasicMaterial
-                color={isSelected ? '#60a5fa' : '#1a1a1a'}
-                linewidth={isSelected ? 2 : 1}
+                color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
+                linewidth={isSelected || isSecondarySelected ? 2 : 1}
               />
             </lineSegments>
           </>
