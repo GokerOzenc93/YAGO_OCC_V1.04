@@ -178,7 +178,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       targetGeometry.applyMatrix4(targetMatrix);
       subtractGeometry.applyMatrix4(subtractMatrix);
 
-      console.log('Performing CSG subtraction...');
+      const offset = new THREE.Vector3(0.001, 0.001, 0.001);
+      subtractGeometry.translate(offset.x, offset.y, offset.z);
+
+      console.log('Performing CSG subtraction with offset to prevent degenerate geometry...');
       const resultGeometry = performCSGSubtraction(targetGeometry, subtractGeometry);
 
       console.log('After CSG:', {
