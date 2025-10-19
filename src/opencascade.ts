@@ -19,7 +19,9 @@ export const createOCGeometry = (
       const w = params.width || 600;
       const h = params.height || 600;
       const d = params.depth || 600;
-      const box = new oc.BRepPrimAPI_MakeBox_2(w, d, h);
+      const p1 = new oc.gp_Pnt_3(0, 0, 0);
+      const p2 = new oc.gp_Pnt_3(w, d, h);
+      const box = new oc.BRepPrimAPI_MakeBox_2(p1, p2);
       return box.Shape();
     }
 
