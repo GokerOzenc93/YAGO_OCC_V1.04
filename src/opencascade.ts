@@ -132,41 +132,61 @@ export const performOCBoolean = (
     shape2Type: shape2?.ShapeType?.()
   });
 
-  const createBooleanOp = (OpClass: string, fallbackMethod?: () => any) => {
-    const attempts = [
-      () => new (oc as any)[OpClass](shape1, shape2),
-      () => {
-        const op = new (oc as any)[OpClass]();
-        op.SetArguments([shape1]);
-        op.SetTools([shape2]);
-        op.Build();
-        return op;
-      },
-      () => {
-        const op = new (oc as any)[OpClass]();
-        op.SetArgument(shape1);
-        op.SetTool(shape2);
-        op.Build();
-        return op;
-      }
+  const booleanClasses = Object.keys(oc).filter(k =>
+    k.includes('BRepAlgoAPI') && (k.includes('Cut') || k.includes('Fuse') || k.includes('Common'))
+  );
+  console.log('📋 Available boolean classes:', booleanClasses);
+
+  const createBooleanOp = (baseClass: string, fallbackMethod?: () => any) => {
+    const variants = [
+      baseClass,
+      `${baseClass}_1`,
+      `${baseClass}_2`,
+      `${baseClass}_3`,
+      `${baseClass}_4`
     ];
 
-    if (fallbackMethod) {
-      attempts.push(fallbackMethod);
-    }
+    for (const className of variants) {
+      if (!(oc as any)[className]) continue;
 
-    let lastError;
-    for (const attempt of attempts) {
-      try {
-        const op = attempt();
-        console.log(`✅ Created ${OpClass} successfully`);
-        return op;
-      } catch (err) {
-        lastError = err;
-        console.log(`❌ ${OpClass} attempt failed:`, err);
+      const attempts = [
+        () => new (oc as any)[className](shape1, shape2),
+        () => {
+          const op = new (oc as any)[className]();
+          op.SetArguments([shape1]);
+          op.SetTools([shape2]);
+          op.Build();
+          return op;
+        },
+        () => {
+          const op = new (oc as any)[className]();
+          op.SetArgument(shape1);
+          op.SetTool(shape2);
+          op.Build();
+          return op;
+        }
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          const op = attempt();
+          console.log(`✅ Created ${className} successfully`);
+          return op;
+        } catch (err) {
+          console.log(`❌ ${className} attempt failed:`, (err as Error).message);
+        }
       }
     }
-    throw lastError;
+
+    if (fallbackMethod) {
+      try {
+        return fallbackMethod();
+      } catch (err) {
+        console.error('Fallback failed:', err);
+      }
+    }
+
+    throw new Error(`Could not create ${baseClass} with any variant`);
   };
 
   switch (operation) {
