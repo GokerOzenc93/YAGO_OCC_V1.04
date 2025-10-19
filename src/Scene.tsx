@@ -7,6 +7,7 @@ import SaveDialog from './ui/SaveDialog';
 import { catalogService } from './lib/supabase';
 import { createBoxGeometry, applyVertexModificationsToGeometry } from './utils/geometry';
 import { VertexEditor } from './ui/VertexEditor';
+import { SnapIndicator } from './ui/SnapIndicator';
 import * as THREE from 'three';
 
 const ShapeWithTransform: React.FC<{
@@ -556,6 +557,8 @@ const Scene: React.FC = () => {
           </React.Fragment>
         );
       })}
+
+      <SnapIndicator shapes={shapes} />
 
       <mesh
         position={[0, -1, 0]}
