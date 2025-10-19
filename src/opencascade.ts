@@ -203,8 +203,7 @@ export const performOCBoolean = (
       if (!fuse.IsDone()) {
         throw new Error('Boolean union failed');
       }
-      const result = new oc.TopoDS_Shape_1(fuse.Shape());
-      return result;
+      return fuse.Shape();
     }
 
     case 'subtract': {
@@ -221,10 +220,8 @@ export const performOCBoolean = (
         console.error('❌ Cut operation failed');
         throw new Error('Boolean subtract failed');
       }
-      const resultShape = cut.Shape();
-      console.log('✅ Shape retrieved, type:', resultShape?.ShapeType?.());
-      const result = new oc.TopoDS_Shape_1(resultShape);
-      console.log('✅ Subtract succeeded');
+      const result = cut.Shape();
+      console.log('✅ Subtract succeeded, result type:', result?.ShapeType?.());
       return result;
     }
 
@@ -241,8 +238,7 @@ export const performOCBoolean = (
       if (!common.IsDone()) {
         throw new Error('Boolean intersect failed');
       }
-      const result = new oc.TopoDS_Shape_1(common.Shape());
-      return result;
+      return common.Shape();
     }
 
     default:
