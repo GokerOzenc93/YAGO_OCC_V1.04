@@ -34,7 +34,10 @@ const ShapeWithTransform: React.FC<{
       if (shape.parameters?.modified && shape.geometry) {
         console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
         setLocalGeometry(shape.geometry);
-        setEdgeGeometry(null);
+
+        const thresholdAngle = 15;
+        const edges = new THREE.EdgesGeometry(shape.geometry, thresholdAngle);
+        setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
       }
@@ -174,10 +177,16 @@ const ShapeWithTransform: React.FC<{
               roughness={0.4}
             />
             <lineSegments>
-              <edgesGeometry args={[localGeometry]} />
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry]} />
+              )}
               <lineBasicMaterial
                 color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
-                linewidth={2}
+                linewidth={1}
+                opacity={0.3}
+                transparent
               />
             </lineSegments>
           </mesh>
@@ -190,7 +199,11 @@ const ShapeWithTransform: React.FC<{
               visible={false}
             />
             <lineSegments>
-              <edgesGeometry args={[localGeometry]} />
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry]} />
+              )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
                 linewidth={isSelected || isSecondarySelected ? 2 : 1}
