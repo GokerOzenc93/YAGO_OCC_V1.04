@@ -134,7 +134,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     const target = state.shapes.find((s) => s.id === targetId);
     const subtract = state.shapes.find((s) => s.id === subtractId);
 
-    console.log('🔍 CSG Subtraction:', { targetId, subtractId });
+    console.log('🔍 CSG Subtraction:', {
+      targetId,
+      subtractId,
+      targetPos: target?.position,
+      subtractPos: subtract?.position
+    });
 
     if (!target || !subtract) {
       console.error('Cannot perform subtraction: missing shapes');
@@ -146,6 +151,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const targetGeometry = target.geometry.clone();
       const subtractGeometry = subtract.geometry.clone();
+
+      console.log('Before transform:', {
+        targetVertices: targetGeometry.attributes.position.count,
+        subtractVertices: subtractGeometry.attributes.position.count
+      });
 
       const targetMatrix = new THREE.Matrix4().compose(
         new THREE.Vector3(...target.position),
@@ -162,7 +172,17 @@ export const useAppStore = create<AppState>((set, get) => ({
       targetGeometry.applyMatrix4(targetMatrix);
       subtractGeometry.applyMatrix4(subtractMatrix);
 
+      console.log('Performing CSG subtraction...');
       const resultGeometry = performCSGSubtraction(targetGeometry, subtractGeometry);
+
+      console.log('After CSG:', {
+        resultVertices: resultGeometry.attributes.position.count,
+        hasNormals: !!resultGeometry.attributes.normal
+      });
+
+      if (!resultGeometry.attributes.normal) {
+        resultGeometry.computeVertexNormals();
+      }
 
       const inverseMatrix = targetMatrix.clone().invert();
       resultGeometry.applyMatrix4(inverseMatrix);
