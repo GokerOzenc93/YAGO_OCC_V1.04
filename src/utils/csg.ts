@@ -1,5 +1,17 @@
 import * as THREE from 'three';
-import { SUBTRACTION, Brush, Evaluator } from 'three-bvh-csg';
+import { SUBTRACTION, ADDITION, INTERSECTION, Brush, Evaluator } from 'three-bvh-csg';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+
+export function cleanGeometry(geometry: THREE.BufferGeometry): THREE.BufferGeometry {
+  const merged = BufferGeometryUtils.mergeVertices(geometry, 1e-6);
+  merged.computeVertexNormals();
+  merged.deleteAttribute('uv');
+
+  const final = merged.clone();
+  final.computeVertexNormals();
+
+  return final;
+}
 
 export function performCSGSubtraction(
   targetGeometry: THREE.BufferGeometry,
@@ -13,9 +25,9 @@ export function performCSGSubtraction(
   const result = evaluator.evaluate(targetBrush, subtractBrush, SUBTRACTION);
 
   const resultGeometry = result.geometry;
-  resultGeometry.computeVertexNormals();
+  const cleaned = cleanGeometry(resultGeometry);
 
-  return resultGeometry;
+  return cleaned;
 }
 
 export function extractSharpEdges(
@@ -35,9 +47,10 @@ export function performCSGUnion(
   const brush1 = new Brush(geometry1);
   const brush2 = new Brush(geometry2);
 
-  const result = evaluator.evaluate(brush1, brush2, SUBTRACTION);
+  const result = evaluator.evaluate(brush1, brush2, ADDITION);
+  const cleaned = cleanGeometry(result.geometry);
 
-  return result.geometry;
+  return cleaned;
 }
 
 export function performCSGIntersection(
@@ -49,7 +62,8 @@ export function performCSGIntersection(
   const brush1 = new Brush(geometry1);
   const brush2 = new Brush(geometry2);
 
-  const result = evaluator.evaluate(brush1, brush2, SUBTRACTION);
+  const result = evaluator.evaluate(brush1, brush2, INTERSECTION);
+  const cleaned = cleanGeometry(result.geometry);
 
-  return result.geometry;
+  return cleaned;
 }
