@@ -177,7 +177,7 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry]} />
+                <edgesGeometry args={[localGeometry, 15]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
@@ -199,7 +199,7 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry]} />
+                <edgesGeometry args={[localGeometry, 15]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
