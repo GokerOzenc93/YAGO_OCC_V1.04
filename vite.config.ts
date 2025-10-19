@@ -2,16 +2,29 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'wasm-loader',
+      load(id) {
+        if (id.endsWith('.wasm')) {
+          return null;
+        }
+      }
+    }
+  ],
   optimizeDeps: {
     exclude: ['opencascade.js']
   },
   build: {
     target: 'esnext',
     rollupOptions: {
-      external: ['opencascade.js']
+      output: {
+        manualChunks: undefined
+      }
     }
   },
+  assetsInclude: ['**/*.wasm'],
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',

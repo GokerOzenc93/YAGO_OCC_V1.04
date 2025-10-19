@@ -8,6 +8,7 @@ import { useAppStore } from './store';
 import { catalogService, CatalogItem } from './lib/supabase';
 import { createGeometryFromType } from './utils/geometry';
 import * as THREE from 'three';
+import initOpenCascade from 'opencascade.js';
 
 function App() {
   const { setOpenCascadeInstance, setOpenCascadeLoading, opencascadeLoading, addShape } = useAppStore();
@@ -25,12 +26,6 @@ function App() {
       try {
         console.log('🔄 Starting OpenCascade load...');
         setOpenCascadeLoading(true);
-
-        const initOpenCascade = (window as any).initOpenCascade;
-
-        if (!initOpenCascade) {
-          throw new Error('OpenCascade initialization function not found');
-        }
 
         const oc = await initOpenCascade();
 
