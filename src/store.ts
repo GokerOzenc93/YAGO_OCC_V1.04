@@ -135,8 +135,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     const subtract = state.shapes.find((s) => s.id === subtractId);
     const oc = state.opencascadeInstance;
 
+    console.log('🔍 Subtraction debug:', {
+      targetId,
+      subtractId,
+      target: target ? { id: target.id, hasOcShape: !!target.ocShape } : null,
+      subtract: subtract ? { id: subtract.id, hasOcShape: !!subtract.ocShape } : null,
+      hasOC: !!oc
+    });
+
     if (!target || !subtract || !oc || !target.ocShape || !subtract.ocShape) {
       console.error('Cannot perform subtraction: missing shapes or OpenCascade');
+      if (!target) console.error('  ❌ Target shape not found');
+      if (!subtract) console.error('  ❌ Subtract shape not found');
+      if (!oc) console.error('  ❌ OpenCascade not loaded');
+      if (target && !target.ocShape) console.error('  ❌ Target missing ocShape');
+      if (subtract && !subtract.ocShape) console.error('  ❌ Subtract missing ocShape');
       return;
     }
 

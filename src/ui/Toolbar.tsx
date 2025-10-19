@@ -331,7 +331,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           height: h,
           depth: d
         });
-        console.log('✅ OpenCascade shape created for box');
+        console.log('✅ OpenCascade shape created for box:', !!ocShape);
       } catch (error) {
         console.error('❌ Failed to create OpenCascade shape:', error);
       }
@@ -339,7 +339,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       console.warn('⚠️ OpenCascade not loaded, adding box without OC shape');
     }
 
-    addShape({
+    const newShape = {
       id: `box-${Date.now()}`,
       type: 'box',
       geometry,
@@ -349,7 +349,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       color: '#2563eb',
       parameters: { width: w, height: h, depth: d },
       ocShape
-    });
+    };
+
+    console.log('📦 Adding shape with ocShape:', !!newShape.ocShape);
+    addShape(newShape);
     console.log('✅ Box geometry added');
   };
 
