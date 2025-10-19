@@ -132,13 +132,10 @@ export const performOCBoolean = (
     shape2Type: shape2?.ShapeType?.()
   });
 
-  const progressRange1 = new oc.Message_ProgressRange_1();
-  const progressRange2 = new oc.Message_ProgressRange_1();
-
   switch (operation) {
     case 'union': {
-      const fuse = new oc.BRepAlgoAPI_Fuse_3(shape1, shape2, progressRange1);
-      fuse.Build(progressRange2);
+      const fuse = new oc.BRepAlgoAPI_Fuse_1(shape1, shape2);
+      fuse.Build();
       console.log('🔧 Union IsDone:', fuse.IsDone());
       if (!fuse.IsDone()) {
         throw new Error('Boolean union failed');
@@ -147,8 +144,8 @@ export const performOCBoolean = (
     }
 
     case 'subtract': {
-      const cut = new oc.BRepAlgoAPI_Cut_3(shape1, shape2, progressRange1);
-      cut.Build(progressRange2);
+      const cut = new oc.BRepAlgoAPI_Cut_1(shape1, shape2);
+      cut.Build();
       console.log('🔧 Subtract IsDone:', cut.IsDone());
       if (!cut.IsDone()) {
         console.error('❌ Cut operation failed');
@@ -160,8 +157,8 @@ export const performOCBoolean = (
     }
 
     case 'intersect': {
-      const common = new oc.BRepAlgoAPI_Common_3(shape1, shape2, progressRange1);
-      common.Build(progressRange2);
+      const common = new oc.BRepAlgoAPI_Common_1(shape1, shape2);
+      common.Build();
       console.log('🔧 Intersect IsDone:', common.IsDone());
       if (!common.IsDone()) {
         throw new Error('Boolean intersect failed');
