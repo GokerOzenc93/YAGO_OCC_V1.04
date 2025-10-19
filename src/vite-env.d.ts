@@ -1,8 +1,7 @@
 /// <reference types="vite/client" />
 
 declare module 'opencascade.js' {
-  function initOpenCascade(): Promise<any>;
-  export default initOpenCascade;
+  export function initOpenCascade(): Promise<any>;
 }
 
 interface Window {
