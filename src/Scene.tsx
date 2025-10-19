@@ -26,39 +26,50 @@ const ShapeWithTransform: React.FC<{
   const groupRef = useRef<THREE.Group>(null);
   const isUpdatingRef = useRef(false);
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
+  const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
 
   useEffect(() => {
-    if (shape.parameters?.modified && shape.geometry) {
-      console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
-      setLocalGeometry(shape.geometry);
-      setGeometryKey(prev => prev + 1);
-      return;
-    }
+    const loadEdges = async () => {
+      if (shape.parameters?.modified && shape.geometry) {
+        console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
+        setLocalGeometry(shape.geometry);
 
-    if (shape.parameters?.width && shape.parameters?.height && shape.parameters?.depth) {
-      let newGeometry = createBoxGeometry(
-        shape.parameters.width,
-        shape.parameters.height,
-        shape.parameters.depth
-      );
-
-      if (shape.vertexModifications && shape.vertexModifications.length > 0) {
-        newGeometry = applyVertexModificationsToGeometry(
-          newGeometry,
-          shape.vertexModifications,
-          shape.parameters
-        );
-        console.log(`✨ Applied ${shape.vertexModifications.length} vertex modifications to shape ${shape.id}`);
+        const { extractSharpEdges } = await import('./utils/csg');
+        const sharpEdges = extractSharpEdges(shape.geometry, 30);
+        setEdgeGeometry(sharpEdges);
+        setGeometryKey(prev => prev + 1);
+        return;
       }
 
-      setLocalGeometry(newGeometry);
-      setGeometryKey(prev => prev + 1);
+      setEdgeGeometry(null);
 
-      return () => {
-        newGeometry.dispose();
-      };
-    }
+      if (shape.parameters?.width && shape.parameters?.height && shape.parameters?.depth) {
+        let newGeometry = createBoxGeometry(
+          shape.parameters.width,
+          shape.parameters.height,
+          shape.parameters.depth
+        );
+
+        if (shape.vertexModifications && shape.vertexModifications.length > 0) {
+          newGeometry = applyVertexModificationsToGeometry(
+            newGeometry,
+            shape.vertexModifications,
+            shape.parameters
+          );
+          console.log(`✨ Applied ${shape.vertexModifications.length} vertex modifications to shape ${shape.id}`);
+        }
+
+        setLocalGeometry(newGeometry);
+        setGeometryKey(prev => prev + 1);
+
+        return () => {
+          newGeometry.dispose();
+        };
+      }
+    };
+
+    loadEdges();
   }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.vertexModifications, shape.parameters?.modified, shape.geometry]);
 
   useEffect(() => {
@@ -166,7 +177,11 @@ const ShapeWithTransform: React.FC<{
               roughness={0.4}
             />
             <lineSegments>
-              <edgesGeometry args={[localGeometry]} />
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry]} />
+              )}
               <lineBasicMaterial
                 color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
                 linewidth={1}
@@ -184,7 +199,11 @@ const ShapeWithTransform: React.FC<{
               visible={false}
             />
             <lineSegments>
-              <edgesGeometry args={[localGeometry]} />
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry]} />
+              )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
                 linewidth={isSelected || isSecondarySelected ? 2 : 1}
