@@ -137,6 +137,7 @@ const ShapeWithTransform: React.FC<{
   };
 
   const isWireframe = viewMode === ViewMode.WIREFRAME;
+  const isXray = viewMode === ViewMode.XRAY;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
 
   if (shape.isolated === false) {
@@ -161,7 +162,7 @@ const ShapeWithTransform: React.FC<{
           onContextMenu(e, shape.id);
         }}
       >
-        {!isWireframe && (
+        {!isWireframe && !isXray && (
           <mesh
             ref={meshRef}
             geometry={localGeometry}
@@ -204,6 +205,35 @@ const ShapeWithTransform: React.FC<{
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
                 linewidth={isSelected || isSecondarySelected ? 2 : 1}
+              />
+            </lineSegments>
+          </>
+        )}
+        {isXray && (
+          <>
+            <mesh
+              ref={meshRef}
+              geometry={localGeometry}
+              castShadow
+              receiveShadow
+            >
+              <meshStandardMaterial
+                color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : shape.color || '#2563eb'}
+                metalness={0.3}
+                roughness={0.4}
+                transparent
+                opacity={0.15}
+              />
+            </mesh>
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
+                linewidth={isSelected || isSecondarySelected ? 2 : 1.5}
               />
             </lineSegments>
           </>

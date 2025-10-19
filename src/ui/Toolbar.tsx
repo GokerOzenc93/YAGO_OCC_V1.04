@@ -43,6 +43,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         return 'Solid';
       case ViewMode.WIREFRAME:
         return 'Wire';
+      case ViewMode.XRAY:
+        return 'X-Ray';
       default:
         return 'Solid';
     }
@@ -54,6 +56,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         return <Cube size={12} className="text-orange-600" />;
       case ViewMode.WIREFRAME:
         return <Wireframe size={12} className="text-orange-600" />;
+      case ViewMode.XRAY:
+        return <Eye size={12} className="text-orange-600" />;
       default:
         return <Cube size={12} className="text-orange-600" />;
     }
@@ -196,6 +200,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         { type: 'separator' },
         { icon: <Cube size={11} />, label: 'Solid View', shortcut: '1' },
         { icon: <Wireframe size={11} />, label: 'Wireframe View', shortcut: '2' },
+        { icon: <Eye size={11} />, label: 'X-Ray View', shortcut: '3' },
         { type: 'separator' },
         { label: 'Zoom In', shortcut: 'Ctrl++' },
         { label: 'Zoom Out', shortcut: 'Ctrl+-' },
@@ -406,7 +411,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
               console.log('🎯 View mode button clicked');
             }}
             className="flex items-center gap-1 px-2 py-1 rounded-md bg-stone-200 hover:bg-stone-300 transition-colors text-slate-800 font-medium"
-            title={`Current: ${getViewModeLabel()} View - Click to cycle (1/2/3 or V)`}
+            title={`Current: ${getViewModeLabel()} View - Click to cycle (V)`}
           >
             {getViewModeIcon()}
             <span className="text-xs font-semibold">
@@ -485,6 +490,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
                         onClick={() => {
                           if (item.label === 'Solid View') handleViewModeChange(ViewMode.SOLID);
                           else if (item.label === 'Wireframe View') handleViewModeChange(ViewMode.WIREFRAME);
+                          else if (item.label === 'X-Ray View') handleViewModeChange(ViewMode.XRAY);
                           setActiveMenu(null);
                         }}
                       >

@@ -44,7 +44,8 @@ export enum Tool {
 
 export enum ViewMode {
   WIREFRAME = 'wireframe',
-  SOLID = 'solid'
+  SOLID = 'solid',
+  XRAY = 'xray'
 }
 
 export enum ModificationType {
@@ -275,7 +276,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setViewMode: (mode) => set({ viewMode: mode }),
   cycleViewMode: () => {
     const state = get();
-    const modes = [ViewMode.SOLID, ViewMode.WIREFRAME];
+    const modes = [ViewMode.SOLID, ViewMode.WIREFRAME, ViewMode.XRAY];
     const currentIndex = modes.indexOf(state.viewMode);
     const nextIndex = (currentIndex + 1) % modes.length;
     set({ viewMode: modes[nextIndex] });
