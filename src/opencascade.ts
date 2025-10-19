@@ -192,35 +192,57 @@ export const performOCBoolean = (
   switch (operation) {
     case 'union': {
       const fuse = createBooleanOp('BRepAlgoAPI_Fuse');
-      if (fuse.Build) fuse.Build();
+      if (fuse.Build && typeof fuse.Build === 'function') {
+        try {
+          fuse.Build();
+        } catch (e) {
+          console.log('Build() already called or not needed');
+        }
+      }
       console.log('🔧 Union IsDone:', fuse.IsDone());
       if (!fuse.IsDone()) {
         throw new Error('Boolean union failed');
       }
-      return fuse.Shape();
+      const result = new oc.TopoDS_Shape_1(fuse.Shape());
+      return result;
     }
 
     case 'subtract': {
       const cut = createBooleanOp('BRepAlgoAPI_Cut');
-      if (cut.Build) cut.Build();
+      if (cut.Build && typeof cut.Build === 'function') {
+        try {
+          cut.Build();
+        } catch (e) {
+          console.log('Build() already called or not needed');
+        }
+      }
       console.log('🔧 Subtract IsDone:', cut.IsDone());
       if (!cut.IsDone()) {
         console.error('❌ Cut operation failed');
         throw new Error('Boolean subtract failed');
       }
-      const result = cut.Shape();
-      console.log('✅ Subtract succeeded, result type:', result?.ShapeType?.());
+      const resultShape = cut.Shape();
+      console.log('✅ Shape retrieved, type:', resultShape?.ShapeType?.());
+      const result = new oc.TopoDS_Shape_1(resultShape);
+      console.log('✅ Subtract succeeded');
       return result;
     }
 
     case 'intersect': {
       const common = createBooleanOp('BRepAlgoAPI_Common');
-      if (common.Build) common.Build();
+      if (common.Build && typeof common.Build === 'function') {
+        try {
+          common.Build();
+        } catch (e) {
+          console.log('Build() already called or not needed');
+        }
+      }
       console.log('🔧 Intersect IsDone:', common.IsDone());
       if (!common.IsDone()) {
         throw new Error('Boolean intersect failed');
       }
-      return common.Shape();
+      const result = new oc.TopoDS_Shape_1(common.Shape());
+      return result;
     }
 
     default:
