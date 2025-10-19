@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Minus, Eraser, Plus, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
 import { createBoxGeometry } from '../utils/geometry';
 import { ParametersPanel } from './ParametersPanel';
 
@@ -16,7 +16,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     addShape,
     selectedShapeId,
     modifyShape,
-    performBooleanOperation,
     cameraType,
     setCameraType,
     snapSettings,
@@ -697,37 +696,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             title="Panel"
           >
             <PanelLeft size={11} />
-          </button>
-          <button
-            onClick={() => {
-              const { selectedShapeId, secondarySelectedShapeId, subtractShape, selectSecondaryShape, opencascadeInstance, shapes } = useAppStore.getState();
-
-              if (!opencascadeInstance) {
-                alert('OpenCascade is not loaded yet. Please wait.');
-                return;
-              }
-              if (!selectedShapeId) {
-                alert('Please select the first shape (the one to be subtracted FROM).');
-                return;
-              }
-              if (!secondarySelectedShapeId) {
-                const otherShapes = shapes.filter(s => s.id !== selectedShapeId && s.ocShape);
-                if (otherShapes.length === 0) {
-                  alert('You need at least 2 shapes. Please add another shape to the scene.');
-                  return;
-                }
-                alert('Please select the second shape (the one to SUBTRACT). Click on another shape while holding Ctrl/Cmd.');
-                return;
-              }
-              if (confirm(`Subtract second shape from first shape?`)) {
-                subtractShape(selectedShapeId, secondarySelectedShapeId);
-                selectSecondaryShape(null);
-              }
-            }}
-            className="p-1.5 rounded transition-all bg-red-500 hover:bg-red-600 text-white shadow-sm"
-            title="Subtract: Select first shape, then Ctrl+Click second shape"
-          >
-            <Minus size={11} />
           </button>
         </div>
       </div>
