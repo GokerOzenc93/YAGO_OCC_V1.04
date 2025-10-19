@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SUBTRACTION, Brush, Evaluator } from 'three-bvh-csg';
+import { SUBTRACTION, ADDITION, INTERSECTION, Brush, Evaluator } from 'three-bvh-csg';
 
 export function performCSGSubtraction(
   targetGeometry: THREE.BufferGeometry,
@@ -20,7 +20,7 @@ export function performCSGSubtraction(
 
 export function extractSharpEdges(
   geometry: THREE.BufferGeometry,
-  thresholdAngle: number = 30
+  thresholdAngle: number = 0
 ): THREE.BufferGeometry {
   const edgeGeometry = new THREE.EdgesGeometry(geometry, thresholdAngle);
   return edgeGeometry;
@@ -35,7 +35,7 @@ export function performCSGUnion(
   const brush1 = new Brush(geometry1);
   const brush2 = new Brush(geometry2);
 
-  const result = evaluator.evaluate(brush1, brush2, SUBTRACTION);
+  const result = evaluator.evaluate(brush1, brush2, ADDITION);
 
   return result.geometry;
 }
@@ -49,7 +49,7 @@ export function performCSGIntersection(
   const brush1 = new Brush(geometry1);
   const brush2 = new Brush(geometry2);
 
-  const result = evaluator.evaluate(brush1, brush2, SUBTRACTION);
+  const result = evaluator.evaluate(brush1, brush2, INTERSECTION);
 
   return result.geometry;
 }
