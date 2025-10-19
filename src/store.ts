@@ -180,41 +180,26 @@ export const useAppStore = create<AppState>((set, get) => ({
         hasNormals: !!resultGeometry.attributes.normal
       });
 
-      if (resultGeometry.attributes.position.count === 0) {
-        console.error('❌ CSG operation resulted in empty geometry - shapes may not be intersecting');
-        targetGeometry.dispose();
-        subtractGeometry.dispose();
-        resultGeometry.dispose();
-        return;
-      }
-
       if (!resultGeometry.attributes.normal) {
         resultGeometry.computeVertexNormals();
       }
 
-      targetGeometry.dispose();
-      subtractGeometry.dispose();
+      const inverseMatrix = targetMatrix.clone().invert();
+      resultGeometry.applyMatrix4(inverseMatrix);
 
       set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === targetId) {
-            return {
-              ...s,
-              geometry: resultGeometry,
-              position: [0, 0, 0] as [number, number, number],
-              rotation: [0, 0, 0] as [number, number, number],
-              scale: [1, 1, 1] as [number, number, number],
-              parameters: { ...s.parameters, modified: true },
-              isolated: undefined
-            };
-          }
-          if (s.id === subtractId) {
-            return null;
-          }
-          return { ...s, isolated: undefined };
-        }).filter((s): s is Shape => s !== null),
-        selectedShapeId: targetId,
-        secondarySelectedShapeId: null
+        shapes: state.shapes
+          .filter((s) => s.id !== subtractId)
+          .map((s) =>
+            s.id === targetId
+              ? {
+                  ...s,
+                  geometry: resultGeometry,
+                  parameters: { ...s.parameters, modified: true }
+                }
+              : s
+          ),
+        selectedShapeId: targetId
       }));
 
       console.log('✅ CSG subtraction completed');
