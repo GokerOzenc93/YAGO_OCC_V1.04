@@ -32,17 +32,11 @@ const ShapeWithTransform: React.FC<{
   useEffect(() => {
     const loadEdges = async () => {
       if (shape.parameters?.modified && shape.geometry) {
-        console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`, {
-          vertices: shape.geometry.attributes.position.count,
-          hasIndex: !!shape.geometry.index
-        });
+        console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
         setLocalGeometry(shape.geometry);
 
         const { extractSharpEdges } = await import('./utils/csg');
-        const sharpEdges = extractSharpEdges(shape.geometry, 10);
-        console.log('Sharp edges created:', {
-          vertices: sharpEdges.attributes.position.count
-        });
+        const sharpEdges = extractSharpEdges(shape.geometry, 30);
         setEdgeGeometry(sharpEdges);
         setGeometryKey(prev => prev + 1);
         return;
