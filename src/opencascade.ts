@@ -132,10 +132,47 @@ export const performOCBoolean = (
     shape2Type: shape2?.ShapeType?.()
   });
 
+  const createBooleanOp = (OpClass: string, fallbackMethod?: () => any) => {
+    const attempts = [
+      () => new (oc as any)[OpClass](shape1, shape2),
+      () => {
+        const op = new (oc as any)[OpClass]();
+        op.SetArguments([shape1]);
+        op.SetTools([shape2]);
+        op.Build();
+        return op;
+      },
+      () => {
+        const op = new (oc as any)[OpClass]();
+        op.SetArgument(shape1);
+        op.SetTool(shape2);
+        op.Build();
+        return op;
+      }
+    ];
+
+    if (fallbackMethod) {
+      attempts.push(fallbackMethod);
+    }
+
+    let lastError;
+    for (const attempt of attempts) {
+      try {
+        const op = attempt();
+        console.log(`✅ Created ${OpClass} successfully`);
+        return op;
+      } catch (err) {
+        lastError = err;
+        console.log(`❌ ${OpClass} attempt failed:`, err);
+      }
+    }
+    throw lastError;
+  };
+
   switch (operation) {
     case 'union': {
-      const fuse = new oc.BRepAlgoAPI_Fuse_1(shape1, shape2);
-      fuse.Build();
+      const fuse = createBooleanOp('BRepAlgoAPI_Fuse');
+      if (fuse.Build) fuse.Build();
       console.log('🔧 Union IsDone:', fuse.IsDone());
       if (!fuse.IsDone()) {
         throw new Error('Boolean union failed');
@@ -144,8 +181,8 @@ export const performOCBoolean = (
     }
 
     case 'subtract': {
-      const cut = new oc.BRepAlgoAPI_Cut_1(shape1, shape2);
-      cut.Build();
+      const cut = createBooleanOp('BRepAlgoAPI_Cut');
+      if (cut.Build) cut.Build();
       console.log('🔧 Subtract IsDone:', cut.IsDone());
       if (!cut.IsDone()) {
         console.error('❌ Cut operation failed');
@@ -157,8 +194,8 @@ export const performOCBoolean = (
     }
 
     case 'intersect': {
-      const common = new oc.BRepAlgoAPI_Common_1(shape1, shape2);
-      common.Build();
+      const common = createBooleanOp('BRepAlgoAPI_Common');
+      if (common.Build) common.Build();
       console.log('🔧 Intersect IsDone:', common.IsDone());
       if (!common.IsDone()) {
         throw new Error('Boolean intersect failed');
