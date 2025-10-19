@@ -420,7 +420,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             }`}
             title={`Linear Mode: ${orthoMode === OrthoMode.ON ? 'ON' : 'OFF'} - Snap to axis directions`}
           >
-            <Grid size={14} className={orthoMode === OrthoMode.ON ? 'text-white' : 'text-slate-800'} />
+            <Grid size={14} className={orthoMode === OrthoMode.ON ? 'text-white' : 'text-slate-500'} />
             <span className="text-sm font-semibold">
               Linear
             </span>
