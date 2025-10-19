@@ -51,11 +51,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   const getViewModeIcon = () => {
     switch (viewMode) {
       case ViewMode.SOLID:
-        return <Cube size={14} className="text-orange-600" />;
+        return <Cube size={12} className="text-orange-600" />;
       case ViewMode.WIREFRAME:
-        return <Wireframe size={14} className="text-orange-600" />;
+        return <Wireframe size={12} className="text-orange-600" />;
       default:
-        return <Cube size={14} className="text-orange-600" />;
+        return <Cube size={12} className="text-orange-600" />;
     }
   };
 
@@ -383,15 +383,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={handleCameraToggle}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-100 hover:bg-orange-200 transition-colors text-orange-800 font-medium"
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-100 hover:bg-orange-200 transition-colors text-orange-800 font-medium"
             title={`Switch to ${cameraType === CameraType.PERSPECTIVE ? 'Orthographic' : 'Perspective'} Camera (C)`}
           >
             {cameraType === CameraType.PERSPECTIVE ? (
-              <Camera size={14} className="text-orange-700" />
+              <Camera size={12} className="text-orange-700" />
             ) : (
-              <CameraOff size={14} className="text-orange-700" />
+              <CameraOff size={12} className="text-orange-700" />
             )}
-            <span className="text-sm font-semibold">
+            <span className="text-xs font-semibold">
               {cameraType === CameraType.PERSPECTIVE ? 'Persp' : 'Ortho'}
             </span>
           </button>
@@ -402,26 +402,26 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
               cycleViewMode();
               console.log('🎯 View mode button clicked');
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-200 hover:bg-stone-300 transition-colors text-slate-800 font-medium"
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-stone-200 hover:bg-stone-300 transition-colors text-slate-800 font-medium"
             title={`Current: ${getViewModeLabel()} View - Click to cycle (1/2/3 or V)`}
           >
             {getViewModeIcon()}
-            <span className="text-sm font-semibold">
+            <span className="text-xs font-semibold">
               {getViewModeLabel()}
             </span>
           </button>
 
           <button
             onClick={handleOrthoModeToggle}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors font-medium ${
+            className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors font-medium ${
               orthoMode === OrthoMode.ON
                 ? 'bg-slate-800 text-white shadow-lg'
                 : 'bg-stone-200 hover:bg-stone-300 text-slate-800'
             }`}
             title={`Linear Mode: ${orthoMode === OrthoMode.ON ? 'ON' : 'OFF'} - Snap to axis directions`}
           >
-            <Grid size={14} className={orthoMode === OrthoMode.ON ? 'text-white' : 'text-slate-500'} />
-            <span className="text-sm font-semibold">
+            <Grid size={12} className={orthoMode === OrthoMode.ON ? 'text-white' : 'text-slate-800'} />
+            <span className="text-xs font-semibold">
               Linear
             </span>
           </button>
@@ -430,11 +430,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
           <button
             onClick={onOpenCatalog}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 transition-colors text-white font-medium shadow-md"
+            className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-600 hover:bg-orange-700 transition-colors text-white font-medium shadow-md"
             title="Open Geometry Catalog"
           >
-            <FolderOpen size={14} />
-            <span className="text-sm font-semibold">Catalog</span>
+            <FolderOpen size={12} />
+            <span className="text-xs font-semibold">Catalog</span>
           </button>
 
           <div className="relative">
