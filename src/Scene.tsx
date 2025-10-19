@@ -36,11 +36,7 @@ const ShapeWithTransform: React.FC<{
         setLocalGeometry(shape.geometry);
 
         const { extractSharpEdges } = await import('./utils/csg');
-        const sharpEdges = extractSharpEdges(shape.geometry, 10);
-        console.log(`📐 Extracted edges:`, {
-          vertexCount: sharpEdges.attributes.position?.count || 0,
-          hasPosition: !!sharpEdges.attributes.position
-        });
+        const sharpEdges = extractSharpEdges(shape.geometry, 30);
         setEdgeGeometry(sharpEdges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -180,14 +176,10 @@ const ShapeWithTransform: React.FC<{
               metalness={0.3}
               roughness={0.4}
             />
-            <lineSegments
-              geometry={
-                edgeGeometry && edgeGeometry.attributes.position?.count > 0
-                  ? edgeGeometry
-                  : undefined
-              }
-            >
-              {(!edgeGeometry || edgeGeometry.attributes.position?.count === 0) && (
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
                 <edgesGeometry args={[localGeometry]} />
               )}
               <lineBasicMaterial
@@ -206,14 +198,10 @@ const ShapeWithTransform: React.FC<{
               geometry={localGeometry}
               visible={false}
             />
-            <lineSegments
-              geometry={
-                edgeGeometry && edgeGeometry.attributes.position?.count > 0
-                  ? edgeGeometry
-                  : undefined
-              }
-            >
-              {(!edgeGeometry || edgeGeometry.attributes.position?.count === 0) && (
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
                 <edgesGeometry args={[localGeometry]} />
               )}
               <lineBasicMaterial

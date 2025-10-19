@@ -188,22 +188,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       resultGeometry.applyMatrix4(inverseMatrix);
 
       set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === targetId) {
-            return {
-              ...s,
-              geometry: resultGeometry,
-              parameters: { ...s.parameters, modified: true },
-              isolated: undefined
-            };
-          }
-          if (s.id === subtractId) {
-            return null;
-          }
-          return { ...s, isolated: undefined };
-        }).filter((s): s is Shape => s !== null),
-        selectedShapeId: targetId,
-        secondarySelectedShapeId: null
+        shapes: state.shapes
+          .filter((s) => s.id !== subtractId)
+          .map((s) =>
+            s.id === targetId
+              ? {
+                  ...s,
+                  geometry: resultGeometry,
+                  parameters: { ...s.parameters, modified: true }
+                }
+              : s
+          ),
+        selectedShapeId: targetId
       }));
 
       console.log('✅ CSG subtraction completed');
