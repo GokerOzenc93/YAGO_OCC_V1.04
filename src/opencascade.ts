@@ -19,19 +19,10 @@ export const createOCGeometry = (
       const w = params.width || 600;
       const h = params.height || 600;
       const d = params.depth || 600;
-
-      try {
-        const box = new oc.BRepPrimAPI_MakeBox_4(
-          new oc.gp_Pnt_3(0, 0, 0),
-          w, d, h
-        );
-        const shape = box.Shape();
-        console.log('✅ Box shape created successfully');
-        return shape;
-      } catch (error) {
-        console.error('❌ Failed to create box with BRepPrimAPI_MakeBox_4:', error);
-        throw error;
-      }
+      const box = new oc.BRepPrimAPI_MakeBox_1(w, d, h);
+      const shape = box.Shape();
+      console.log('✅ Box shape created successfully');
+      return shape;
     }
 
     case 'sphere': {
