@@ -20,7 +20,7 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, edgeSelectMode, addSelectedEdge, selectedEdges, smoothWithSelectedEdges, clearSelectedEdges } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -28,8 +28,6 @@ const ShapeWithTransform: React.FC<{
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
-  const [hoveredFaceIndex, setHoveredFaceIndex] = useState<number | null>(null);
-  const [highlightGeometry, setHighlightGeometry] = useState<THREE.BufferGeometry | null>(null);
 
   useEffect(() => {
     const loadEdges = async () => {
@@ -142,50 +140,6 @@ const ShapeWithTransform: React.FC<{
   const isXray = viewMode === ViewMode.XRAY;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
 
-  useEffect(() => {
-    if (edgeSelectMode && localGeometry) {
-      const positions = localGeometry.attributes.position;
-      const indices = localGeometry.index;
-
-      if (!positions || !indices) return;
-
-      const highlightPositions: number[] = [];
-
-      const myShapeEdges = selectedEdges.filter(e => e.shapeId === shape.id);
-      myShapeEdges.forEach(edge => {
-        const [v1, v2] = edge.vertices;
-        highlightPositions.push(
-          positions.getX(v1), positions.getY(v1), positions.getZ(v1),
-          positions.getX(v2), positions.getY(v2), positions.getZ(v2)
-        );
-      });
-
-      if (hoveredFaceIndex !== null && indices) {
-        const a = indices.getX(hoveredFaceIndex * 3);
-        const b = indices.getX(hoveredFaceIndex * 3 + 1);
-        const c = indices.getX(hoveredFaceIndex * 3 + 2);
-
-        const edges = [[a, b], [b, c], [c, a]];
-        edges.forEach(([v1, v2]) => {
-          highlightPositions.push(
-            positions.getX(v1), positions.getY(v1), positions.getZ(v1),
-            positions.getX(v2), positions.getY(v2), positions.getZ(v2)
-          );
-        });
-      }
-
-      if (highlightPositions.length > 0) {
-        const geo = new THREE.BufferGeometry();
-        geo.setAttribute('position', new THREE.Float32BufferAttribute(highlightPositions, 3));
-        setHighlightGeometry(geo);
-      } else {
-        setHighlightGeometry(null);
-      }
-    } else {
-      setHighlightGeometry(null);
-    }
-  }, [edgeSelectMode, selectedEdges, hoveredFaceIndex, localGeometry, shape.id]);
-
   if (shape.isolated === false) {
     return null;
   }
@@ -196,32 +150,6 @@ const ShapeWithTransform: React.FC<{
         ref={groupRef}
         onClick={(e) => {
           e.stopPropagation();
-
-          if (edgeSelectMode) {
-            const intersect = e.intersections[0];
-            if (intersect && intersect.face) {
-              const geometry = localGeometry;
-              const faceIndex = intersect.faceIndex!;
-
-              const a = intersect.face.a;
-              const b = intersect.face.b;
-              const c = intersect.face.c;
-
-              const edges = [
-                [a, b],
-                [b, c],
-                [c, a]
-              ];
-
-              edges.forEach(([v1, v2], idx) => {
-                addSelectedEdge(shape.id, faceIndex * 3 + idx, [v1, v2] as [number, number]);
-              });
-
-              console.log('✅ Edges selected:', edges);
-            }
-            return;
-          }
-
           if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
             selectSecondaryShape(shape.id);
           } else {
@@ -231,31 +159,7 @@ const ShapeWithTransform: React.FC<{
         }}
         onContextMenu={(e) => {
           e.stopPropagation();
-
-          if (edgeSelectMode) {
-            if (selectedEdges.length > 0 && confirm(`Apply smoothing with ${selectedEdges.length} selected edges?`)) {
-              smoothWithSelectedEdges();
-            }
-            return;
-          }
-
           onContextMenu(e, shape.id);
-        }}
-        onPointerMove={(e) => {
-          if (edgeSelectMode) {
-            e.stopPropagation();
-            const intersect = e.intersections[0];
-            if (intersect && intersect.face) {
-              setHoveredFaceIndex(intersect.faceIndex!);
-            } else {
-              setHoveredFaceIndex(null);
-            }
-          }
-        }}
-        onPointerOut={() => {
-          if (edgeSelectMode) {
-            setHoveredFaceIndex(null);
-          }
         }}
       >
         {!isWireframe && !isXray && (
@@ -284,49 +188,6 @@ const ShapeWithTransform: React.FC<{
               />
             </lineSegments>
           </mesh>
-        )}
-
-        {edgeSelectMode && highlightGeometry && hoveredFaceIndex !== null && (
-          <lineSegments geometry={highlightGeometry} position={[0, 0, 0]}>
-            <lineBasicMaterial
-              color="#ff0000"
-              linewidth={3}
-              depthTest={false}
-              transparent={true}
-              opacity={1}
-            />
-          </lineSegments>
-        )}
-
-        {edgeSelectMode && selectedEdges.filter(e => e.shapeId === shape.id).length > 0 && (
-          <lineSegments>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                count={selectedEdges.filter(e => e.shapeId === shape.id).length * 2}
-                array={new Float32Array(
-                  selectedEdges
-                    .filter(e => e.shapeId === shape.id)
-                    .flatMap(edge => {
-                      const positions = localGeometry.attributes.position;
-                      const [v1, v2] = edge.vertices;
-                      return [
-                        positions.getX(v1), positions.getY(v1), positions.getZ(v1),
-                        positions.getX(v2), positions.getY(v2), positions.getZ(v2)
-                      ];
-                    })
-                )}
-                itemSize={3}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial
-              color="#ffff00"
-              linewidth={4}
-              depthTest={false}
-              transparent={true}
-              opacity={1}
-            />
-          </lineSegments>
         )}
         {isWireframe && (
           <>

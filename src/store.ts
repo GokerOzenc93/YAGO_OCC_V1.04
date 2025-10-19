@@ -39,8 +39,7 @@ export enum Tool {
   CIRCLE = 'Circle',
   BOOLEAN_UNION = 'Boolean Union',
   BOOLEAN_SUBTRACT = 'Boolean Subtract',
-  DIMENSION = 'Dimension',
-  EDGE_SELECT = 'Edge Select'
+  DIMENSION = 'Dimension'
 }
 
 export enum ViewMode {
@@ -76,8 +75,6 @@ interface AppState {
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
   subtractShape: (targetId: string, subtractId: string) => void;
-  unionShape: (targetId: string, unionId: string) => void;
-  smoothShape: (shapeId: string) => void;
   copyShape: (id: string) => void;
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
@@ -124,13 +121,6 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
-
-  edgeSelectMode: boolean;
-  setEdgeSelectMode: (enabled: boolean) => void;
-  selectedEdges: Array<{ shapeId: string; edgeIndex: number; vertices: [number, number] }>;
-  addSelectedEdge: (shapeId: string, edgeIndex: number, vertices: [number, number]) => void;
-  clearSelectedEdges: () => void;
-  smoothWithSelectedEdges: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -235,141 +225,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.log('✅ CSG subtraction completed');
     } catch (error) {
       console.error('❌ CSG subtraction failed:', error);
-    }
-  },
-
-  unionShape: async (targetId: string, unionId: string) => {
-    const state = get();
-    const target = state.shapes.find((s) => s.id === targetId);
-    const unionShape = state.shapes.find((s) => s.id === unionId);
-
-    console.log('🔍 CSG Union:', {
-      targetId,
-      unionId,
-      targetPos: target?.position,
-      unionPos: unionShape?.position
-    });
-
-    if (!target || !unionShape) {
-      console.error('Cannot perform union: missing shapes');
-      return;
-    }
-
-    try {
-      const { performCSGUnion } = await import('./utils/csg');
-
-      const targetGeometry = target.geometry.clone();
-      const unionGeometry = unionShape.geometry.clone();
-
-      console.log('Before transform:', {
-        targetVertices: targetGeometry.attributes.position.count,
-        unionVertices: unionGeometry.attributes.position.count
-      });
-
-      const targetMatrix = new THREE.Matrix4().compose(
-        new THREE.Vector3(...target.position),
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(...target.rotation)),
-        new THREE.Vector3(...target.scale)
-      );
-
-      const unionMatrix = new THREE.Matrix4().compose(
-        new THREE.Vector3(...unionShape.position),
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(...unionShape.rotation)),
-        new THREE.Vector3(...unionShape.scale)
-      );
-
-      targetGeometry.applyMatrix4(targetMatrix);
-      unionGeometry.applyMatrix4(unionMatrix);
-
-      console.log('Performing CSG union...');
-      const resultGeometry = performCSGUnion(targetGeometry, unionGeometry);
-
-      console.log('After CSG:', {
-        resultVertices: resultGeometry.attributes.position.count,
-        hasNormals: !!resultGeometry.attributes.normal
-      });
-
-      if (!resultGeometry.attributes.normal) {
-        resultGeometry.computeVertexNormals();
-      }
-
-      const inverseMatrix = targetMatrix.clone().invert();
-      resultGeometry.applyMatrix4(inverseMatrix);
-
-      const existingBooleanOp = target.booleanOperation;
-      const unionIds = existingBooleanOp?.subtractIds || [];
-
-      set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === targetId) {
-            return {
-              ...s,
-              geometry: resultGeometry,
-              parameters: { ...s.parameters, modified: true },
-              booleanOperation: {
-                type: 'union' as const,
-                targetId,
-                subtractIds: [...unionIds, unionId]
-              }
-            };
-          }
-          if (s.id === unionId) {
-            return {
-              ...s,
-              isolated: false
-            };
-          }
-          return s;
-        }),
-        selectedShapeId: null,
-        secondarySelectedShapeId: null
-      }));
-
-      console.log('✅ CSG union completed');
-    } catch (error) {
-      console.error('❌ CSG union failed:', error);
-    }
-  },
-
-  smoothShape: (shapeId: string) => {
-    const state = get();
-    const shape = state.shapes.find((s) => s.id === shapeId);
-
-    if (!shape) {
-      console.error('Cannot smooth: shape not found');
-      return;
-    }
-
-    console.log('🧹 Smoothing geometry:', shapeId);
-
-    try {
-      const geometry = shape.geometry.clone();
-
-      geometry.deleteAttribute('normal');
-      geometry.computeVertexNormals();
-
-      const smoothedGeometry = new THREE.BufferGeometry();
-      const positions = geometry.attributes.position.array;
-      const normals = geometry.attributes.normal.array;
-
-      smoothedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-      smoothedGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-
-      if (geometry.index) {
-        smoothedGeometry.setIndex(geometry.index);
-      }
-
-      set((state) => ({
-        shapes: state.shapes.map((s) =>
-          s.id === shapeId
-            ? { ...s, geometry: smoothedGeometry }
-            : s
-        )
-      }));
-
-      console.log('✅ Geometry smoothed');
-    } catch (error) {
-      console.error('❌ Smoothing failed:', error);
     }
   },
 
@@ -498,86 +353,5 @@ export const useAppStore = create<AppState>((set, get) => ({
           vertexModifications: newMods
         };
       })
-    })),
-
-  edgeSelectMode: false,
-  setEdgeSelectMode: (enabled) => set({ edgeSelectMode: enabled }),
-  selectedEdges: [],
-  addSelectedEdge: (shapeId, edgeIndex, vertices) =>
-    set((state) => ({
-      selectedEdges: [...state.selectedEdges, { shapeId, edgeIndex, vertices }]
-    })),
-  clearSelectedEdges: () => set({ selectedEdges: [] }),
-
-  smoothWithSelectedEdges: () => {
-    const state = get();
-    if (state.selectedEdges.length === 0) {
-      console.warn('No edges selected for smoothing');
-      return;
-    }
-
-    const shapeId = state.selectedEdges[0].shapeId;
-    const shape = state.shapes.find(s => s.id === shapeId);
-
-    if (!shape) {
-      console.error('Shape not found');
-      return;
-    }
-
-    console.log('🧹 Smoothing with selected edges:', state.selectedEdges.length);
-
-    try {
-      const geometry = shape.geometry.clone();
-      const positions = geometry.attributes.position.array;
-      const indices = geometry.index?.array;
-
-      if (!indices) {
-        console.error('Geometry has no indices');
-        return;
-      }
-
-      const edgeVertexSet = new Set<number>();
-      state.selectedEdges.forEach(edge => {
-        edgeVertexSet.add(edge.vertices[0]);
-        edgeVertexSet.add(edge.vertices[1]);
-      });
-
-      const trianglesToKeep: number[] = [];
-
-      for (let i = 0; i < indices.length; i += 3) {
-        const v1 = indices[i];
-        const v2 = indices[i + 1];
-        const v3 = indices[i + 2];
-
-        const onEdge1 = edgeVertexSet.has(v1);
-        const onEdge2 = edgeVertexSet.has(v2);
-        const onEdge3 = edgeVertexSet.has(v3);
-
-        const edgeVertexCount = (onEdge1 ? 1 : 0) + (onEdge2 ? 1 : 0) + (onEdge3 ? 1 : 0);
-
-        if (edgeVertexCount >= 2) {
-          trianglesToKeep.push(v1, v2, v3);
-        }
-      }
-
-      const smoothedGeometry = new THREE.BufferGeometry();
-      smoothedGeometry.setAttribute('position', geometry.attributes.position.clone());
-      smoothedGeometry.setIndex(trianglesToKeep);
-      smoothedGeometry.computeVertexNormals();
-
-      set((state) => ({
-        shapes: state.shapes.map((s) =>
-          s.id === shapeId
-            ? { ...s, geometry: smoothedGeometry }
-            : s
-        ),
-        selectedEdges: [],
-        edgeSelectMode: false
-      }));
-
-      console.log('✅ Smoothing with edges completed');
-    } catch (error) {
-      console.error('❌ Edge smoothing failed:', error);
-    }
-  }
+    }))
 }));
