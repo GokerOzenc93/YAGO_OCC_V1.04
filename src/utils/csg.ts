@@ -20,24 +20,42 @@ export function performCSGSubtraction(
 
 export function extractSharpEdges(
   geometry: THREE.BufferGeometry,
-  thresholdAngle: number = 30
+  thresholdAngle: number = 10
 ): THREE.BufferGeometry {
-  const thresholdDot = Math.cos(THREE.MathUtils.degToRad(thresholdAngle));
-
-  const edges = new Map<string, { normal1: THREE.Vector3 | null; normal2: THREE.Vector3 | null }>();
+  console.log('🔍 Extracting sharp edges from geometry:', {
+    vertices: geometry.attributes.position?.count,
+    hasIndex: !!geometry.index,
+    hasNormals: !!geometry.attributes.normal
+  });
 
   const position = geometry.attributes.position;
-  const normal = geometry.attributes.normal;
   const index = geometry.index;
 
-  if (!index || !normal) {
-    return new THREE.BufferGeometry();
+  if (!index) {
+    console.warn('⚠️ No index found, creating EdgesGeometry fallback');
+    const edges = new THREE.EdgesGeometry(geometry, thresholdAngle);
+    return edges;
   }
 
+  if (!geometry.attributes.normal) {
+    geometry.computeVertexNormals();
+  }
+
+  const thresholdDot = Math.cos(THREE.MathUtils.degToRad(thresholdAngle));
+  const edges = new Map<string, {
+    normal1: THREE.Vector3 | null;
+    normal2: THREE.Vector3 | null;
+    v1: THREE.Vector3;
+    v2: THREE.Vector3;
+  }>();
+
+  const normal = geometry.attributes.normal;
   const v0 = new THREE.Vector3();
   const v1 = new THREE.Vector3();
   const v2 = new THREE.Vector3();
-  const n = new THREE.Vector3();
+  const faceNormal = new THREE.Vector3();
+  const edge1 = new THREE.Vector3();
+  const edge2 = new THREE.Vector3();
 
   for (let i = 0; i < index.count; i += 3) {
     const a = index.getX(i);
@@ -48,35 +66,38 @@ export function extractSharpEdges(
     v1.fromBufferAttribute(position, b);
     v2.fromBufferAttribute(position, c);
 
-    n.fromBufferAttribute(normal, a)
-      .add(new THREE.Vector3().fromBufferAttribute(normal, b))
-      .add(new THREE.Vector3().fromBufferAttribute(normal, c))
-      .normalize();
+    edge1.subVectors(v1, v0);
+    edge2.subVectors(v2, v0);
+    faceNormal.crossVectors(edge1, edge2).normalize();
 
-    const edgeKeys = [
-      [a, b].sort((x, y) => x - y).join('_'),
-      [b, c].sort((x, y) => x - y).join('_'),
-      [c, a].sort((x, y) => x - y).join('_')
-    ];
+    const processEdge = (i1: number, i2: number, vA: THREE.Vector3, vB: THREE.Vector3) => {
+      const key = [i1, i2].sort((x, y) => x - y).join('_');
 
-    edgeKeys.forEach(key => {
       if (!edges.has(key)) {
-        edges.set(key, { normal1: null, normal2: null });
+        edges.set(key, {
+          normal1: null,
+          normal2: null,
+          v1: vA.clone(),
+          v2: vB.clone()
+        });
       }
+
       const edge = edges.get(key)!;
       if (edge.normal1 === null) {
-        edge.normal1 = n.clone();
+        edge.normal1 = faceNormal.clone();
       } else if (edge.normal2 === null) {
-        edge.normal2 = n.clone();
+        edge.normal2 = faceNormal.clone();
       }
-    });
+    };
+
+    processEdge(a, b, v0, v1);
+    processEdge(b, c, v1, v2);
+    processEdge(c, a, v2, v0);
   }
 
   const sharpEdgeVertices: number[] = [];
 
-  edges.forEach((edge, key) => {
-    const [i1, i2] = key.split('_').map(Number);
-
+  edges.forEach((edge) => {
     let isSharp = false;
 
     if (edge.normal1 && edge.normal2) {
@@ -89,13 +110,12 @@ export function extractSharpEdges(
     }
 
     if (isSharp) {
-      v0.fromBufferAttribute(position, i1);
-      v1.fromBufferAttribute(position, i2);
-
-      sharpEdgeVertices.push(v0.x, v0.y, v0.z);
-      sharpEdgeVertices.push(v1.x, v1.y, v1.z);
+      sharpEdgeVertices.push(edge.v1.x, edge.v1.y, edge.v1.z);
+      sharpEdgeVertices.push(edge.v2.x, edge.v2.y, edge.v2.z);
     }
   });
+
+  console.log(`✅ Found ${sharpEdgeVertices.length / 6} sharp edges`);
 
   const edgeGeometry = new THREE.BufferGeometry();
   edgeGeometry.setAttribute(
