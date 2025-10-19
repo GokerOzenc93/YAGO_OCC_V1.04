@@ -26,7 +26,12 @@ function App() {
         console.log('🔄 Starting OpenCascade load...');
         setOpenCascadeLoading(true);
 
-        const initOpenCascade = (await import('opencascade.js')).default;
+        const initOpenCascade = (window as any).initOpenCascade;
+
+        if (!initOpenCascade) {
+          throw new Error('OpenCascade initialization function not found');
+        }
+
         const oc = await initOpenCascade();
 
         if (mounted) {
