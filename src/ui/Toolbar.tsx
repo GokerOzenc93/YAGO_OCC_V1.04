@@ -698,6 +698,37 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           >
             <PanelLeft size={11} />
           </button>
+          <button
+            onClick={() => {
+              const { selectedShapeId, secondarySelectedShapeId, subtractShape, selectSecondaryShape, opencascadeInstance, shapes } = useAppStore.getState();
+
+              if (!opencascadeInstance) {
+                alert('OpenCascade is not loaded yet. Please wait.');
+                return;
+              }
+              if (!selectedShapeId) {
+                alert('Please select the first shape (the one to be subtracted FROM).');
+                return;
+              }
+              if (!secondarySelectedShapeId) {
+                const otherShapes = shapes.filter(s => s.id !== selectedShapeId && s.ocShape);
+                if (otherShapes.length === 0) {
+                  alert('You need at least 2 shapes. Please add another shape to the scene.');
+                  return;
+                }
+                alert('Please select the second shape (the one to SUBTRACT). Click on another shape while holding Ctrl/Cmd.');
+                return;
+              }
+              if (confirm(`Subtract second shape from first shape?`)) {
+                subtractShape(selectedShapeId, secondarySelectedShapeId);
+                selectSecondaryShape(null);
+              }
+            }}
+            className="p-1.5 rounded transition-all bg-red-500 hover:bg-red-600 text-white shadow-sm"
+            title="Subtract: Select first shape, then Ctrl+Click second shape"
+          >
+            <Minus size={11} />
+          </button>
         </div>
       </div>
 

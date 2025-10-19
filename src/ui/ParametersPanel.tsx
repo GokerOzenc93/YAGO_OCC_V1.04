@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, GripVertical, Plus, Check, Minus } from 'lucide-react';
+import { X, GripVertical, Plus, Check } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
 
@@ -19,14 +19,10 @@ interface ParametersPanelProps {
 export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const {
     selectedShapeId,
-    secondarySelectedShapeId,
-    selectSecondaryShape,
     shapes,
     updateShape,
     vertexEditMode,
-    setVertexEditMode,
-    subtractShape,
-    opencascadeInstance
+    setVertexEditMode
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -295,39 +291,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             title="Edit Vertices"
           >
             VERTEX
-          </button>
-          <button
-            onClick={() => {
-              if (!opencascadeInstance) {
-                alert('OpenCascade is not loaded yet. Please wait.');
-                return;
-              }
-              if (!selectedShapeId) {
-                alert('Please select the first shape (the one to be subtracted FROM).');
-                return;
-              }
-              if (!secondarySelectedShapeId) {
-                const otherShapes = shapes.filter(s => s.id !== selectedShapeId && s.ocShape);
-                if (otherShapes.length === 0) {
-                  alert('You need at least 2 shapes. Please add another shape to the scene.');
-                  return;
-                }
-                alert('Please select the second shape (the one to SUBTRACT). Click on another shape while holding Ctrl/Cmd.');
-                return;
-              }
-              if (confirm(`Subtract second shape from first shape?`)) {
-                subtractShape(selectedShapeId, secondarySelectedShapeId);
-                selectSecondaryShape(null);
-              }
-            }}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
-              secondarySelectedShapeId
-                ? 'bg-red-600 text-white hover:bg-red-700'
-                : 'bg-red-400 text-white hover:bg-red-500'
-            }`}
-            title="Subtract: Select first shape, then Ctrl+Click second shape"
-          >
-            <Minus size={12} />
           </button>
           <button
             onClick={addCustomParameter}
