@@ -35,8 +35,7 @@ const ShapeWithTransform: React.FC<{
         console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
         setLocalGeometry(shape.geometry);
 
-        const thresholdAngle = 15;
-        const edges = new THREE.EdgesGeometry(shape.geometry, thresholdAngle);
+        const edges = new THREE.EdgesGeometry(shape.geometry);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
