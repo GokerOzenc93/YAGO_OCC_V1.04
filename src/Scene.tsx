@@ -36,7 +36,7 @@ const ShapeWithTransform: React.FC<{
         setLocalGeometry(shape.geometry);
 
         const { extractSharpEdges } = await import('./utils/csg');
-        const sharpEdges = extractSharpEdges(shape.geometry, 1);
+        const sharpEdges = extractSharpEdges(shape.geometry, 30);
         setEdgeGeometry(sharpEdges);
         setGeometryKey(prev => prev + 1);
         return;
