@@ -133,31 +133,39 @@ export const useAppStore = create<AppState>((set, get) => ({
     const state = get();
     const target = state.shapes.find((s) => s.id === targetId);
     const subtract = state.shapes.find((s) => s.id === subtractId);
-    const oc = state.opencascadeInstance;
 
-    console.log('🔍 Subtraction debug:', {
-      targetId,
-      subtractId,
-      target: target ? { id: target.id, hasOcShape: !!target.ocShape } : null,
-      subtract: subtract ? { id: subtract.id, hasOcShape: !!subtract.ocShape } : null,
-      hasOC: !!oc
-    });
+    console.log('🔍 CSG Subtraction:', { targetId, subtractId });
 
-    if (!target || !subtract || !oc || !target.ocShape || !subtract.ocShape) {
-      console.error('Cannot perform subtraction: missing shapes or OpenCascade');
-      if (!target) console.error('  ❌ Target shape not found');
-      if (!subtract) console.error('  ❌ Subtract shape not found');
-      if (!oc) console.error('  ❌ OpenCascade not loaded');
-      if (target && !target.ocShape) console.error('  ❌ Target missing ocShape');
-      if (subtract && !subtract.ocShape) console.error('  ❌ Subtract missing ocShape');
+    if (!target || !subtract) {
+      console.error('Cannot perform subtraction: missing shapes');
       return;
     }
 
     try {
-      const { performOCBoolean, convertOCShapeToThreeGeometry } = await import('./opencascade');
+      const { performCSGSubtraction } = await import('./utils/csg');
 
-      const resultShape = performOCBoolean(oc, target.ocShape, subtract.ocShape, 'subtract');
-      const resultGeometry = convertOCShapeToThreeGeometry(oc, resultShape);
+      const targetGeometry = target.geometry.clone();
+      const subtractGeometry = subtract.geometry.clone();
+
+      const targetMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(...target.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...target.rotation)),
+        new THREE.Vector3(...target.scale)
+      );
+
+      const subtractMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(...subtract.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...subtract.rotation)),
+        new THREE.Vector3(...subtract.scale)
+      );
+
+      targetGeometry.applyMatrix4(targetMatrix);
+      subtractGeometry.applyMatrix4(subtractMatrix);
+
+      const resultGeometry = performCSGSubtraction(targetGeometry, subtractGeometry);
+
+      const inverseMatrix = targetMatrix.clone().invert();
+      resultGeometry.applyMatrix4(inverseMatrix);
 
       set((state) => ({
         shapes: state.shapes
@@ -167,7 +175,6 @@ export const useAppStore = create<AppState>((set, get) => ({
               ? {
                   ...s,
                   geometry: resultGeometry,
-                  ocShape: resultShape,
                   parameters: { ...s.parameters, modified: true }
                 }
               : s
@@ -175,9 +182,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         selectedShapeId: targetId
       }));
 
-      console.log('✅ Boolean subtraction completed');
+      console.log('✅ CSG subtraction completed');
     } catch (error) {
-      console.error('❌ Boolean subtraction failed:', error);
+      console.error('❌ CSG subtraction failed:', error);
     }
   },
 
