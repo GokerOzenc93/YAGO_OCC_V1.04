@@ -75,6 +75,7 @@ interface AppState {
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
   subtractShape: (targetId: string, subtractId: string) => void;
+  unionShape: (targetId: string, unionId: string) => void;
   copyShape: (id: string) => void;
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
@@ -225,6 +226,99 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.log('✅ CSG subtraction completed');
     } catch (error) {
       console.error('❌ CSG subtraction failed:', error);
+    }
+  },
+
+  unionShape: async (targetId: string, unionId: string) => {
+    const state = get();
+    const target = state.shapes.find((s) => s.id === targetId);
+    const unionShape = state.shapes.find((s) => s.id === unionId);
+
+    console.log('🔍 CSG Union:', {
+      targetId,
+      unionId,
+      targetPos: target?.position,
+      unionPos: unionShape?.position
+    });
+
+    if (!target || !unionShape) {
+      console.error('Cannot perform union: missing shapes');
+      return;
+    }
+
+    try {
+      const { performCSGUnion } = await import('./utils/csg');
+
+      const targetGeometry = target.geometry.clone();
+      const unionGeometry = unionShape.geometry.clone();
+
+      console.log('Before transform:', {
+        targetVertices: targetGeometry.attributes.position.count,
+        unionVertices: unionGeometry.attributes.position.count
+      });
+
+      const targetMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(...target.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...target.rotation)),
+        new THREE.Vector3(...target.scale)
+      );
+
+      const unionMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(...unionShape.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...unionShape.rotation)),
+        new THREE.Vector3(...unionShape.scale)
+      );
+
+      targetGeometry.applyMatrix4(targetMatrix);
+      unionGeometry.applyMatrix4(unionMatrix);
+
+      console.log('Performing CSG union...');
+      const resultGeometry = performCSGUnion(targetGeometry, unionGeometry);
+
+      console.log('After CSG:', {
+        resultVertices: resultGeometry.attributes.position.count,
+        hasNormals: !!resultGeometry.attributes.normal
+      });
+
+      if (!resultGeometry.attributes.normal) {
+        resultGeometry.computeVertexNormals();
+      }
+
+      const inverseMatrix = targetMatrix.clone().invert();
+      resultGeometry.applyMatrix4(inverseMatrix);
+
+      const existingBooleanOp = target.booleanOperation;
+      const unionIds = existingBooleanOp?.subtractIds || [];
+
+      set((state) => ({
+        shapes: state.shapes.map((s) => {
+          if (s.id === targetId) {
+            return {
+              ...s,
+              geometry: resultGeometry,
+              parameters: { ...s.parameters, modified: true },
+              booleanOperation: {
+                type: 'union' as const,
+                targetId,
+                subtractIds: [...unionIds, unionId]
+              }
+            };
+          }
+          if (s.id === unionId) {
+            return {
+              ...s,
+              isolated: false
+            };
+          }
+          return s;
+        }),
+        selectedShapeId: null,
+        secondarySelectedShapeId: null
+      }));
+
+      console.log('✅ CSG union completed');
+    } catch (error) {
+      console.error('❌ CSG union failed:', error);
     }
   },
 

@@ -729,6 +729,37 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           >
             <Minus size={11} />
           </button>
+          <button
+            onClick={() => {
+              const { selectedShapeId, secondarySelectedShapeId, unionShape, selectSecondaryShape, opencascadeInstance, shapes } = useAppStore.getState();
+
+              if (!opencascadeInstance) {
+                alert('OpenCascade is not loaded yet. Please wait.');
+                return;
+              }
+              if (!selectedShapeId) {
+                alert('Please select the first shape.');
+                return;
+              }
+              if (!secondarySelectedShapeId) {
+                const otherShapes = shapes.filter(s => s.id !== selectedShapeId && s.ocShape);
+                if (otherShapes.length === 0) {
+                  alert('You need at least 2 shapes. Please add another shape to the scene.');
+                  return;
+                }
+                alert('Please select the second shape to UNION. Click on another shape while holding Ctrl/Cmd.');
+                return;
+              }
+              if (confirm(`Union two shapes into one?`)) {
+                unionShape(selectedShapeId, secondarySelectedShapeId);
+                selectSecondaryShape(null);
+              }
+            }}
+            className="p-1.5 rounded transition-all bg-blue-500 hover:bg-blue-600 text-white shadow-sm"
+            title="Union: Select first shape, then Ctrl+Click second shape"
+          >
+            <Plus size={11} />
+          </button>
         </div>
       </div>
 
