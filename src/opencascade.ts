@@ -134,7 +134,7 @@ export const performOCBoolean = (
 
   switch (operation) {
     case 'union': {
-      const fuse = new oc.BRepAlgoAPI_Fuse_2(shape1, shape2);
+      const fuse = new oc.BRepAlgoAPI_Fuse_1(shape1, shape2);
       console.log('🔧 Union IsDone:', fuse.IsDone());
       if (!fuse.IsDone()) {
         throw new Error('Boolean union failed');
@@ -143,7 +143,7 @@ export const performOCBoolean = (
     }
 
     case 'subtract': {
-      const cut = new oc.BRepAlgoAPI_Cut_2(shape1, shape2);
+      const cut = new oc.BRepAlgoAPI_Cut_1(shape1, shape2);
       console.log('🔧 Subtract IsDone:', cut.IsDone());
       if (!cut.IsDone()) {
         console.error('❌ Cut operation failed');
@@ -155,7 +155,7 @@ export const performOCBoolean = (
     }
 
     case 'intersect': {
-      const common = new oc.BRepAlgoAPI_Common_2(shape1, shape2);
+      const common = new oc.BRepAlgoAPI_Common_1(shape1, shape2);
       console.log('🔧 Intersect IsDone:', common.IsDone());
       if (!common.IsDone()) {
         throw new Error('Boolean intersect failed');
