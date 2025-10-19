@@ -196,27 +196,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       const subtractIds = existingBooleanOp?.subtractIds || [];
 
       set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === targetId) {
-            return {
-              ...s,
-              geometry: resultGeometry,
-              parameters: { ...s.parameters, modified: true },
-              booleanOperation: {
-                type: 'subtract' as const,
-                targetId,
-                subtractIds: [...subtractIds, subtractId]
-              }
-            };
-          }
-          if (s.id === subtractId) {
-            return {
-              ...s,
-              isolated: false
-            };
-          }
-          return s;
-        }),
+        shapes: state.shapes
+          .filter((s) => s.id !== subtractId)
+          .map((s) => {
+            if (s.id === targetId) {
+              return {
+                ...s,
+                geometry: resultGeometry,
+                parameters: { ...s.parameters, modified: true },
+                booleanOperation: {
+                  type: 'subtract' as const,
+                  targetId,
+                  subtractIds: [...subtractIds, subtractId]
+                }
+              };
+            }
+            return s;
+          }),
         selectedShapeId: null,
         secondarySelectedShapeId: null
       }));
