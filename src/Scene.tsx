@@ -176,12 +176,8 @@ const ShapeWithTransform: React.FC<{
               metalness={0.3}
               roughness={0.4}
             />
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry]} />
-              )}
+            <lineSegments geometry={edgeGeometry || undefined}>
+              {!edgeGeometry && <edgesGeometry args={[localGeometry]} />}
               <lineBasicMaterial
                 color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
                 linewidth={1}
@@ -198,12 +194,8 @@ const ShapeWithTransform: React.FC<{
               geometry={localGeometry}
               visible={false}
             />
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry]} />
-              )}
+            <lineSegments geometry={edgeGeometry || undefined}>
+              {!edgeGeometry && <edgesGeometry args={[localGeometry]} />}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
                 linewidth={isSelected || isSecondarySelected ? 2 : 1}
