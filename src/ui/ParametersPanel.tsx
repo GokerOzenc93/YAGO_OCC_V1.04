@@ -298,7 +298,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               }
               const otherShapes = shapes.filter(s => s.id !== selectedShapeId && s.ocShape);
               if (otherShapes.length === 0) {
-                alert('No other shapes available for subtraction.');
+                alert('You need at least 2 shapes to perform subtraction. Please add another shape to the scene.');
                 return;
               }
               const targetShape = otherShapes[0];
