@@ -126,12 +126,9 @@ export const performOCBoolean = (
   shape2: TopoDS_Shape,
   operation: 'union' | 'subtract' | 'intersect'
 ): TopoDS_Shape => {
-  const progressRange = new oc.Message_ProgressRange_1();
-
   switch (operation) {
     case 'union': {
-      const fuse = new oc.BRepAlgoAPI_Fuse_3(shape1, shape2, progressRange);
-      fuse.Build(progressRange);
+      const fuse = new oc.BRepAlgoAPI_Fuse_2(shape1, shape2);
       if (!fuse.IsDone()) {
         throw new Error('Boolean union failed');
       }
@@ -139,8 +136,7 @@ export const performOCBoolean = (
     }
 
     case 'subtract': {
-      const cut = new oc.BRepAlgoAPI_Cut_3(shape1, shape2, progressRange);
-      cut.Build(progressRange);
+      const cut = new oc.BRepAlgoAPI_Cut_2(shape1, shape2);
       if (!cut.IsDone()) {
         throw new Error('Boolean subtract failed');
       }
@@ -148,8 +144,7 @@ export const performOCBoolean = (
     }
 
     case 'intersect': {
-      const common = new oc.BRepAlgoAPI_Common_3(shape1, shape2, progressRange);
-      common.Build(progressRange);
+      const common = new oc.BRepAlgoAPI_Common_2(shape1, shape2);
       if (!common.IsDone()) {
         throw new Error('Boolean intersect failed');
       }
