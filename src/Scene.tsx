@@ -36,7 +36,11 @@ const ShapeWithTransform: React.FC<{
         setLocalGeometry(shape.geometry);
 
         const { extractSharpEdges } = await import('./utils/csg');
-        const sharpEdges = extractSharpEdges(shape.geometry, 1);
+        const sharpEdges = extractSharpEdges(shape.geometry, 10);
+        console.log(`📐 Extracted edges:`, {
+          vertexCount: sharpEdges.attributes.position?.count || 0,
+          hasPosition: !!sharpEdges.attributes.position
+        });
         setEdgeGeometry(sharpEdges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -176,8 +180,16 @@ const ShapeWithTransform: React.FC<{
               metalness={0.3}
               roughness={0.4}
             />
-            <lineSegments geometry={edgeGeometry || undefined}>
-              {!edgeGeometry && <edgesGeometry args={[localGeometry]} />}
+            <lineSegments
+              geometry={
+                edgeGeometry && edgeGeometry.attributes.position?.count > 0
+                  ? edgeGeometry
+                  : undefined
+              }
+            >
+              {(!edgeGeometry || edgeGeometry.attributes.position?.count === 0) && (
+                <edgesGeometry args={[localGeometry]} />
+              )}
               <lineBasicMaterial
                 color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
                 linewidth={1}
@@ -194,8 +206,16 @@ const ShapeWithTransform: React.FC<{
               geometry={localGeometry}
               visible={false}
             />
-            <lineSegments geometry={edgeGeometry || undefined}>
-              {!edgeGeometry && <edgesGeometry args={[localGeometry]} />}
+            <lineSegments
+              geometry={
+                edgeGeometry && edgeGeometry.attributes.position?.count > 0
+                  ? edgeGeometry
+                  : undefined
+              }
+            >
+              {(!edgeGeometry || edgeGeometry.attributes.position?.count === 0) && (
+                <edgesGeometry args={[localGeometry]} />
+              )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
                 linewidth={isSelected || isSecondarySelected ? 2 : 1}

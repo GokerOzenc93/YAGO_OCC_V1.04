@@ -105,6 +105,8 @@ export function extractSharpEdges(
     }
   });
 
+  console.log(`🔍 extractSharpEdges: Found ${edges.size} total edges, ${sharpEdgeVertices.length / 6} sharp edges`);
+
   const edgeGeometry = new THREE.BufferGeometry();
   edgeGeometry.setAttribute(
     'position',
