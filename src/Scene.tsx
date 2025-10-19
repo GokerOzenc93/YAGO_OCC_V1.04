@@ -20,7 +20,7 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, triangleCleanerMode, removeTriangleFromShape } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -28,6 +28,7 @@ const ShapeWithTransform: React.FC<{
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
+  const [hoveredTriangle, setHoveredTriangle] = useState<number | null>(null);
 
   useEffect(() => {
     const loadEdges = async () => {
@@ -136,29 +137,58 @@ const ShapeWithTransform: React.FC<{
     }
   };
 
-  const isWireframe = viewMode === ViewMode.WIREFRAME;
+  const isWireframe = viewMode === ViewMode.WIREFRAME || triangleCleanerMode;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
 
   if (shape.isolated === false) {
     return null;
   }
 
+  const handlePointerMove = (e: any) => {
+    if (!triangleCleanerMode) return;
+    e.stopPropagation();
+
+    if (e.faceIndex !== undefined) {
+      setHoveredTriangle(e.faceIndex);
+    }
+  };
+
+  const handlePointerOut = () => {
+    if (triangleCleanerMode) {
+      setHoveredTriangle(null);
+    }
+  };
+
+  const handleClick = (e: any) => {
+    e.stopPropagation();
+
+    if (triangleCleanerMode && e.faceIndex !== undefined) {
+      removeTriangleFromShape(shape.id, e.faceIndex);
+      setHoveredTriangle(null);
+      console.log(`🗑️ Triangle ${e.faceIndex} removed from shape ${shape.id}`);
+      return;
+    }
+
+    if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
+      selectSecondaryShape(shape.id);
+    } else {
+      selectShape(shape.id);
+      selectSecondaryShape(null);
+    }
+  };
+
   return (
     <>
       <group
         ref={groupRef}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
-            selectSecondaryShape(shape.id);
-          } else {
-            selectShape(shape.id);
-            selectSecondaryShape(null);
-          }
-        }}
+        onClick={handleClick}
+        onPointerMove={handlePointerMove}
+        onPointerOut={handlePointerOut}
         onContextMenu={(e) => {
           e.stopPropagation();
-          onContextMenu(e, shape.id);
+          if (!triangleCleanerMode) {
+            onContextMenu(e, shape.id);
+          }
         }}
       >
         {!isWireframe && (
@@ -195,6 +225,46 @@ const ShapeWithTransform: React.FC<{
               geometry={localGeometry}
               visible={false}
             />
+            {triangleCleanerMode && (
+              <>
+                <mesh geometry={localGeometry}>
+                  <meshBasicMaterial
+                    color="#ffffff"
+                    opacity={0.01}
+                    transparent
+                    side={THREE.DoubleSide}
+                  />
+                </mesh>
+                {hoveredTriangle !== null && (
+                  <mesh>
+                    <bufferGeometry>
+                      <bufferAttribute
+                        attach="attributes-position"
+                        count={3}
+                        array={new Float32Array([
+                          localGeometry.attributes.position.getX(hoveredTriangle * 3),
+                          localGeometry.attributes.position.getY(hoveredTriangle * 3),
+                          localGeometry.attributes.position.getZ(hoveredTriangle * 3),
+                          localGeometry.attributes.position.getX(hoveredTriangle * 3 + 1),
+                          localGeometry.attributes.position.getY(hoveredTriangle * 3 + 1),
+                          localGeometry.attributes.position.getZ(hoveredTriangle * 3 + 1),
+                          localGeometry.attributes.position.getX(hoveredTriangle * 3 + 2),
+                          localGeometry.attributes.position.getY(hoveredTriangle * 3 + 2),
+                          localGeometry.attributes.position.getZ(hoveredTriangle * 3 + 2)
+                        ])}
+                        itemSize={3}
+                      />
+                    </bufferGeometry>
+                    <meshBasicMaterial
+                      color="#ff0000"
+                      opacity={0.6}
+                      transparent
+                      side={THREE.DoubleSide}
+                    />
+                  </mesh>
+                )}
+              </>
+            )}
             <lineSegments>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />

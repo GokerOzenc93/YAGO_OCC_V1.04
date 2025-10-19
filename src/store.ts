@@ -39,7 +39,8 @@ export enum Tool {
   CIRCLE = 'Circle',
   BOOLEAN_UNION = 'Boolean Union',
   BOOLEAN_SUBTRACT = 'Boolean Subtract',
-  DIMENSION = 'Dimension'
+  DIMENSION = 'Dimension',
+  TRIANGLE_CLEANER = 'Triangle Cleaner'
 }
 
 export enum ViewMode {
@@ -120,6 +121,10 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
+
+  triangleCleanerMode: boolean;
+  setTriangleCleanerMode: (enabled: boolean) => void;
+  removeTriangleFromShape: (shapeId: string, faceIndex: number) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -352,5 +357,63 @@ export const useAppStore = create<AppState>((set, get) => ({
           vertexModifications: newMods
         };
       })
-    }))
+    })),
+
+  triangleCleanerMode: false,
+  setTriangleCleanerMode: (enabled) => set({ triangleCleanerMode: enabled }),
+  removeTriangleFromShape: (shapeId: string, faceIndex: number) => {
+    const state = get();
+    const shape = state.shapes.find(s => s.id === shapeId);
+    if (!shape || !shape.geometry) return;
+
+    const geometry = shape.geometry.clone();
+    const positions = geometry.attributes.position;
+    const normals = geometry.attributes.normal;
+
+    const newPositions: number[] = [];
+    const newNormals: number[] = [];
+
+    const vertexCount = positions.count;
+    const triangleCount = vertexCount / 3;
+
+    for (let i = 0; i < triangleCount; i++) {
+      if (i !== faceIndex) {
+        for (let j = 0; j < 3; j++) {
+          const idx = i * 3 + j;
+          newPositions.push(
+            positions.getX(idx),
+            positions.getY(idx),
+            positions.getZ(idx)
+          );
+          if (normals) {
+            newNormals.push(
+              normals.getX(idx),
+              normals.getY(idx),
+              normals.getZ(idx)
+            );
+          }
+        }
+      }
+    }
+
+    const newGeometry = new THREE.BufferGeometry();
+    newGeometry.setAttribute('position', new THREE.Float32BufferAttribute(newPositions, 3));
+    if (newNormals.length > 0) {
+      newGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(newNormals, 3));
+    } else {
+      newGeometry.computeVertexNormals();
+    }
+
+    geometry.dispose();
+
+    set((state) => ({
+      shapes: state.shapes.map((s) =>
+        s.id === shapeId
+          ? { ...s, geometry: newGeometry, parameters: { ...s.parameters, modified: true } }
+          : s
+      )
+    }));
+
+    console.log(`🗑️ Removed triangle ${faceIndex} from shape ${shapeId}`);
+  }
 }));
