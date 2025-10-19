@@ -20,7 +20,7 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, edgeSelectMode, addSelectedEdge, selectedEdges } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -150,6 +150,32 @@ const ShapeWithTransform: React.FC<{
         ref={groupRef}
         onClick={(e) => {
           e.stopPropagation();
+
+          if (edgeSelectMode) {
+            const intersect = e.intersections[0];
+            if (intersect && intersect.face) {
+              const geometry = localGeometry;
+              const faceIndex = intersect.faceIndex!;
+
+              const a = intersect.face.a;
+              const b = intersect.face.b;
+              const c = intersect.face.c;
+
+              const edges = [
+                [a, b],
+                [b, c],
+                [c, a]
+              ];
+
+              edges.forEach(([v1, v2], idx) => {
+                addSelectedEdge(shape.id, faceIndex * 3 + idx, [v1, v2] as [number, number]);
+              });
+
+              console.log('✅ Edges selected:', edges);
+            }
+            return;
+          }
+
           if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
             selectSecondaryShape(shape.id);
           } else {

@@ -26,7 +26,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     cycleViewMode,
     orthoMode,
     toggleOrthoMode,
-    opencascadeInstance
+    opencascadeInstance,
+    edgeSelectMode
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -762,18 +763,28 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           </button>
           <button
             onClick={() => {
-              const { selectedShapeId, smoothShape } = useAppStore.getState();
+              const { edgeSelectMode, setEdgeSelectMode, clearSelectedEdges, smoothWithSelectedEdges, selectedEdges } = useAppStore.getState();
 
-              if (!selectedShapeId) {
-                alert('Please select a shape to smooth.');
-                return;
-              }
-              if (confirm('Smooth surface and remove extra lines?')) {
-                smoothShape(selectedShapeId);
+              if (!edgeSelectMode) {
+                setEdgeSelectMode(true);
+                clearSelectedEdges();
+                alert('Edge Select Mode: Click on edges to select them. Click this button again to apply smoothing.');
+              } else {
+                if (selectedEdges.length === 0) {
+                  alert('No edges selected. Please click on edges first.');
+                  return;
+                }
+                if (confirm(`Apply smoothing with ${selectedEdges.length} selected edges?`)) {
+                  smoothWithSelectedEdges();
+                }
               }
             }}
-            className="p-1.5 rounded transition-all bg-green-500 hover:bg-green-600 text-white shadow-sm"
-            title="Smooth: Remove extra lines and smooth surface"
+            className={`p-1.5 rounded transition-all shadow-sm ${
+              edgeSelectMode
+                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
+            title="Smooth: Select edges then apply smoothing"
           >
             <Sparkles size={11} />
           </button>

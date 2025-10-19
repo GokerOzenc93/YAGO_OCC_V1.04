@@ -39,7 +39,8 @@ export enum Tool {
   CIRCLE = 'Circle',
   BOOLEAN_UNION = 'Boolean Union',
   BOOLEAN_SUBTRACT = 'Boolean Subtract',
-  DIMENSION = 'Dimension'
+  DIMENSION = 'Dimension',
+  EDGE_SELECT = 'Edge Select'
 }
 
 export enum ViewMode {
@@ -123,6 +124,13 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
+
+  edgeSelectMode: boolean;
+  setEdgeSelectMode: (enabled: boolean) => void;
+  selectedEdges: Array<{ shapeId: string; edgeIndex: number; vertices: [number, number] }>;
+  addSelectedEdge: (shapeId: string, edgeIndex: number, vertices: [number, number]) => void;
+  clearSelectedEdges: () => void;
+  smoothWithSelectedEdges: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -490,5 +498,86 @@ export const useAppStore = create<AppState>((set, get) => ({
           vertexModifications: newMods
         };
       })
-    }))
+    })),
+
+  edgeSelectMode: false,
+  setEdgeSelectMode: (enabled) => set({ edgeSelectMode: enabled }),
+  selectedEdges: [],
+  addSelectedEdge: (shapeId, edgeIndex, vertices) =>
+    set((state) => ({
+      selectedEdges: [...state.selectedEdges, { shapeId, edgeIndex, vertices }]
+    })),
+  clearSelectedEdges: () => set({ selectedEdges: [] }),
+
+  smoothWithSelectedEdges: () => {
+    const state = get();
+    if (state.selectedEdges.length === 0) {
+      console.warn('No edges selected for smoothing');
+      return;
+    }
+
+    const shapeId = state.selectedEdges[0].shapeId;
+    const shape = state.shapes.find(s => s.id === shapeId);
+
+    if (!shape) {
+      console.error('Shape not found');
+      return;
+    }
+
+    console.log('🧹 Smoothing with selected edges:', state.selectedEdges.length);
+
+    try {
+      const geometry = shape.geometry.clone();
+      const positions = geometry.attributes.position.array;
+      const indices = geometry.index?.array;
+
+      if (!indices) {
+        console.error('Geometry has no indices');
+        return;
+      }
+
+      const edgeVertexSet = new Set<number>();
+      state.selectedEdges.forEach(edge => {
+        edgeVertexSet.add(edge.vertices[0]);
+        edgeVertexSet.add(edge.vertices[1]);
+      });
+
+      const trianglesToKeep: number[] = [];
+
+      for (let i = 0; i < indices.length; i += 3) {
+        const v1 = indices[i];
+        const v2 = indices[i + 1];
+        const v3 = indices[i + 2];
+
+        const onEdge1 = edgeVertexSet.has(v1);
+        const onEdge2 = edgeVertexSet.has(v2);
+        const onEdge3 = edgeVertexSet.has(v3);
+
+        const edgeVertexCount = (onEdge1 ? 1 : 0) + (onEdge2 ? 1 : 0) + (onEdge3 ? 1 : 0);
+
+        if (edgeVertexCount >= 2) {
+          trianglesToKeep.push(v1, v2, v3);
+        }
+      }
+
+      const smoothedGeometry = new THREE.BufferGeometry();
+      smoothedGeometry.setAttribute('position', geometry.attributes.position.clone());
+      smoothedGeometry.setIndex(trianglesToKeep);
+      smoothedGeometry.computeVertexNormals();
+
+      set((state) => ({
+        shapes: state.shapes.map((s) =>
+          s.id === shapeId
+            ? { ...s, geometry: smoothedGeometry }
+            : s
+        ),
+        selectedEdges: [],
+        edgeSelectMode: false
+      }));
+
+      console.log('✅ Smoothing with edges completed');
+    } catch (error) {
+      console.error('❌ Edge smoothing failed:', error);
+    }
+  }
 }));
