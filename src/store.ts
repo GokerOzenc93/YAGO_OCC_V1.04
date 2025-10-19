@@ -76,6 +76,7 @@ interface AppState {
   deleteShape: (id: string) => void;
   subtractShape: (targetId: string, subtractId: string) => void;
   unionShape: (targetId: string, unionId: string) => void;
+  smoothShape: (shapeId: string) => void;
   copyShape: (id: string) => void;
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
@@ -319,6 +320,48 @@ export const useAppStore = create<AppState>((set, get) => ({
       console.log('✅ CSG union completed');
     } catch (error) {
       console.error('❌ CSG union failed:', error);
+    }
+  },
+
+  smoothShape: (shapeId: string) => {
+    const state = get();
+    const shape = state.shapes.find((s) => s.id === shapeId);
+
+    if (!shape) {
+      console.error('Cannot smooth: shape not found');
+      return;
+    }
+
+    console.log('🧹 Smoothing geometry:', shapeId);
+
+    try {
+      const geometry = shape.geometry.clone();
+
+      geometry.deleteAttribute('normal');
+      geometry.computeVertexNormals();
+
+      const smoothedGeometry = new THREE.BufferGeometry();
+      const positions = geometry.attributes.position.array;
+      const normals = geometry.attributes.normal.array;
+
+      smoothedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      smoothedGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+
+      if (geometry.index) {
+        smoothedGeometry.setIndex(geometry.index);
+      }
+
+      set((state) => ({
+        shapes: state.shapes.map((s) =>
+          s.id === shapeId
+            ? { ...s, geometry: smoothedGeometry }
+            : s
+        )
+      }));
+
+      console.log('✅ Geometry smoothed');
+    } catch (error) {
+      console.error('❌ Smoothing failed:', error);
     }
   },
 
