@@ -29,6 +29,13 @@ const ShapeWithTransform: React.FC<{
   const [geometryKey, setGeometryKey] = useState(0);
 
   useEffect(() => {
+    if (shape.parameters?.modified && shape.geometry) {
+      console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
+      setLocalGeometry(shape.geometry);
+      setGeometryKey(prev => prev + 1);
+      return;
+    }
+
     if (shape.parameters?.width && shape.parameters?.height && shape.parameters?.depth) {
       let newGeometry = createBoxGeometry(
         shape.parameters.width,
@@ -52,7 +59,7 @@ const ShapeWithTransform: React.FC<{
         newGeometry.dispose();
       };
     }
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.vertexModifications]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.vertexModifications, shape.parameters?.modified, shape.geometry]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
