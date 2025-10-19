@@ -126,9 +126,16 @@ export const performOCBoolean = (
   shape2: TopoDS_Shape,
   operation: 'union' | 'subtract' | 'intersect'
 ): TopoDS_Shape => {
+  console.log('🔧 performOCBoolean called:', {
+    operation,
+    shape1Type: shape1?.ShapeType?.(),
+    shape2Type: shape2?.ShapeType?.()
+  });
+
   switch (operation) {
     case 'union': {
       const fuse = new oc.BRepAlgoAPI_Fuse_2(shape1, shape2);
+      console.log('🔧 Union IsDone:', fuse.IsDone());
       if (!fuse.IsDone()) {
         throw new Error('Boolean union failed');
       }
@@ -137,14 +144,19 @@ export const performOCBoolean = (
 
     case 'subtract': {
       const cut = new oc.BRepAlgoAPI_Cut_2(shape1, shape2);
+      console.log('🔧 Subtract IsDone:', cut.IsDone());
       if (!cut.IsDone()) {
+        console.error('❌ Cut operation failed');
         throw new Error('Boolean subtract failed');
       }
-      return cut.Shape();
+      const result = cut.Shape();
+      console.log('✅ Subtract succeeded, result type:', result?.ShapeType?.());
+      return result;
     }
 
     case 'intersect': {
       const common = new oc.BRepAlgoAPI_Common_2(shape1, shape2);
+      console.log('🔧 Intersect IsDone:', common.IsDone());
       if (!common.IsDone()) {
         throw new Error('Boolean intersect failed');
       }
