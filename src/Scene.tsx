@@ -34,10 +34,7 @@ const ShapeWithTransform: React.FC<{
       if (shape.parameters?.modified && shape.geometry) {
         console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
         setLocalGeometry(shape.geometry);
-
-        const { extractSharpEdges } = await import('./utils/csg');
-        const sharpEdges = extractSharpEdges(shape.geometry, 30);
-        setEdgeGeometry(sharpEdges);
+        setEdgeGeometry(null);
         setGeometryKey(prev => prev + 1);
         return;
       }

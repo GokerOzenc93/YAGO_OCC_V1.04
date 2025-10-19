@@ -15,6 +15,11 @@ export interface Shape {
   ocShape?: any;
   isolated?: boolean;
   vertexModifications?: VertexModification[];
+  booleanOperation?: {
+    type: 'subtract' | 'union' | 'intersect';
+    targetId: string;
+    subtractIds: string[];
+  };
 }
 
 export enum CameraType {
@@ -187,19 +192,33 @@ export const useAppStore = create<AppState>((set, get) => ({
       const inverseMatrix = targetMatrix.clone().invert();
       resultGeometry.applyMatrix4(inverseMatrix);
 
+      const existingBooleanOp = target.booleanOperation;
+      const subtractIds = existingBooleanOp?.subtractIds || [];
+
       set((state) => ({
-        shapes: state.shapes
-          .filter((s) => s.id !== subtractId)
-          .map((s) =>
-            s.id === targetId
-              ? {
-                  ...s,
-                  geometry: resultGeometry,
-                  parameters: { ...s.parameters, modified: true }
-                }
-              : s
-          ),
-        selectedShapeId: targetId
+        shapes: state.shapes.map((s) => {
+          if (s.id === targetId) {
+            return {
+              ...s,
+              geometry: resultGeometry,
+              parameters: { ...s.parameters, modified: true },
+              booleanOperation: {
+                type: 'subtract' as const,
+                targetId,
+                subtractIds: [...subtractIds, subtractId]
+              }
+            };
+          }
+          if (s.id === subtractId) {
+            return {
+              ...s,
+              isolated: false
+            };
+          }
+          return s;
+        }),
+        selectedShapeId: null,
+        secondarySelectedShapeId: null
       }));
 
       console.log('✅ CSG subtraction completed');
