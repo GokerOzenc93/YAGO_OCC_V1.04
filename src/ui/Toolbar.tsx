@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Minus, Eraser, Plus, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, Trash2 } from 'lucide-react';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Minus, Eraser, Plus, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
 import { createBoxGeometry } from '../utils/geometry';
 import { ParametersPanel } from './ParametersPanel';
 
@@ -26,9 +26,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     cycleViewMode,
     orthoMode,
     toggleOrthoMode,
-    opencascadeInstance,
-    triangleCleanerMode,
-    setTriangleCleanerMode
+    opencascadeInstance
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -693,26 +691,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             title="Panel"
           >
             <PanelLeft size={11} />
-          </button>
-          <button
-            onClick={() => {
-              const newMode = !triangleCleanerMode;
-              setTriangleCleanerMode(newMode);
-              if (newMode) {
-                setActiveTool(Tool.TRIANGLE_CLEANER);
-              } else {
-                setActiveTool(Tool.SELECT);
-              }
-              console.log(`🧹 Triangle Cleaner ${newMode ? 'activated' : 'deactivated'}`);
-            }}
-            className={`p-1.5 rounded transition-all ${
-              triangleCleanerMode
-                ? 'bg-red-100 text-red-700 border border-red-300'
-                : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
-            }`}
-            title="Triangle Cleaner - Remove triangles from geometry"
-          >
-            <Trash2 size={11} />
           </button>
         </div>
       </div>
