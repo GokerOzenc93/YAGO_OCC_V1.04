@@ -20,7 +20,7 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -139,6 +139,8 @@ const ShapeWithTransform: React.FC<{
   const isWireframe = viewMode === ViewMode.WIREFRAME;
   const isXray = viewMode === ViewMode.XRAY;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
+  const isReferenceBox = shape.isReferenceBox;
+  const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
   if (shape.isolated === false) {
     return null;
@@ -151,7 +153,11 @@ const ShapeWithTransform: React.FC<{
         onClick={(e) => {
           e.stopPropagation();
           if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
-            selectSecondaryShape(shape.id);
+            if (shape.id === secondarySelectedShapeId) {
+              selectSecondaryShape(null);
+            } else {
+              selectSecondaryShape(shape.id);
+            }
           } else {
             selectShape(shape.id);
             selectSecondaryShape(null);
@@ -162,7 +168,7 @@ const ShapeWithTransform: React.FC<{
           onContextMenu(e, shape.id);
         }}
       >
-        {!isWireframe && !isXray && (
+        {!isWireframe && !isXray && !shouldShowAsReference && (
           <mesh
             ref={meshRef}
             geometry={localGeometry}
@@ -170,7 +176,7 @@ const ShapeWithTransform: React.FC<{
             receiveShadow
           >
             <meshStandardMaterial
-              color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : shape.color || '#2563eb'}
+              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
               metalness={0.3}
               roughness={0.4}
             />
@@ -181,7 +187,7 @@ const ShapeWithTransform: React.FC<{
                 <edgesGeometry args={[localGeometry]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
+                color={isSelected ? '#3b82f6' : '#1a1a1a'}
                 linewidth={1}
                 opacity={0.3}
                 transparent
@@ -203,13 +209,13 @@ const ShapeWithTransform: React.FC<{
                 <edgesGeometry args={[localGeometry]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
-                linewidth={isSelected || isSecondarySelected ? 2 : 1}
+                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
+                linewidth={isSelected || shouldShowAsReference ? 2 : 1}
               />
             </lineSegments>
           </>
         )}
-        {isXray && (
+        {(isXray || shouldShowAsReference) && (
           <>
             <mesh
               ref={meshRef}
@@ -218,7 +224,7 @@ const ShapeWithTransform: React.FC<{
               receiveShadow
             >
               <meshStandardMaterial
-                color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : shape.color || '#2563eb'}
+                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
                 metalness={0.3}
                 roughness={0.4}
                 transparent
@@ -232,15 +238,15 @@ const ShapeWithTransform: React.FC<{
                 <edgesGeometry args={[localGeometry]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
-                linewidth={isSelected || isSecondarySelected ? 2 : 1.5}
+                color={isSelected ? '#3b82f6' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
+                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
               />
             </lineSegments>
           </>
         )}
       </group>
 
-      {isSelected && activeTool !== Tool.SELECT && groupRef.current && (
+      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
         <TransformControls
           key={geometryKey}
           ref={transformRef}
@@ -260,6 +266,7 @@ const Scene: React.FC = () => {
     shapes,
     cameraType,
     selectedShapeId,
+    secondarySelectedShapeId,
     selectShape,
     deleteShape,
     copyShape,
@@ -284,12 +291,27 @@ const Scene: React.FC = () => {
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
+        e.preventDefault();
+        if (selectedShapeId && secondarySelectedShapeId) {
+          const { createGroup } = useAppStore.getState();
+          createGroup(selectedShapeId, secondarySelectedShapeId);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+        e.preventDefault();
+        if (selectedShapeId) {
+          const shape = shapes.find(s => s.id === selectedShapeId);
+          if (shape?.groupId) {
+            const { ungroupShapes } = useAppStore.getState();
+            ungroupShapes(shape.groupId);
+          }
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShapeId, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
+  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
 
   useEffect(() => {
     (window as any).handleVertexOffset = (newValue: number) => {
@@ -380,24 +402,49 @@ const Scene: React.FC = () => {
     if (!shape) return;
 
     try {
-      const geometryData = {
-        type: shape.type,
-        position: shape.position,
-        rotation: shape.rotation,
-        scale: shape.scale,
-        color: shape.color,
-        parameters: shape.parameters,
-        vertexModifications: shape.vertexModifications || []
-      };
+      let geometryData: any;
 
-      console.log('💾 Saving geometry:', {
-        code: data.code,
-        type: shape.type,
-        parameters: shape.parameters,
-        position: shape.position,
-        scale: shape.scale,
-        vertexModifications: shape.vertexModifications?.length || 0
-      });
+      if (shape.groupId) {
+        const groupShapes = shapes.filter(s => s.groupId === shape.groupId);
+        geometryData = {
+          type: 'group',
+          shapes: groupShapes.map(s => ({
+            type: s.type,
+            position: s.position,
+            rotation: s.rotation,
+            scale: s.scale,
+            color: s.color,
+            parameters: s.parameters,
+            vertexModifications: s.vertexModifications || [],
+            isReferenceBox: s.isReferenceBox
+          }))
+        };
+
+        console.log('💾 Saving group:', {
+          code: data.code,
+          shapeCount: groupShapes.length,
+          groupId: shape.groupId
+        });
+      } else {
+        geometryData = {
+          type: shape.type,
+          position: shape.position,
+          rotation: shape.rotation,
+          scale: shape.scale,
+          color: shape.color,
+          parameters: shape.parameters,
+          vertexModifications: shape.vertexModifications || []
+        };
+
+        console.log('💾 Saving geometry:', {
+          code: data.code,
+          type: shape.type,
+          parameters: shape.parameters,
+          position: shape.position,
+          scale: shape.scale,
+          vertexModifications: shape.vertexModifications?.length || 0
+        });
+      }
 
       await catalogService.save({
         code: data.code,

@@ -20,6 +20,8 @@ export interface Shape {
     targetId: string;
     subtractIds: string[];
   };
+  groupId?: string;
+  isReferenceBox?: boolean;
 }
 
 export enum CameraType {
@@ -83,6 +85,8 @@ interface AppState {
   selectShape: (id: string | null) => void;
   secondarySelectedShapeId: string | null;
   selectSecondaryShape: (id: string | null) => void;
+  createGroup: (primaryId: string, secondaryId: string) => void;
+  ungroupShapes: (groupId: string) => void;
 
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
@@ -127,9 +131,57 @@ export const useAppStore = create<AppState>((set, get) => ({
   shapes: [],
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
   updateShape: (id, updates) =>
-    set((state) => ({
-      shapes: state.shapes.map((s) => (s.id === id ? { ...s, ...updates } : s))
-    })),
+    set((state) => {
+      const shape = state.shapes.find(s => s.id === id);
+      if (!shape) return state;
+
+      const updatedShapes = state.shapes.map((s) => {
+        if (s.id === id) {
+          return { ...s, ...updates };
+        }
+        if (shape.groupId && s.groupId === shape.groupId && s.id !== id) {
+          if ('position' in updates || 'rotation' in updates || 'scale' in updates) {
+            const positionDelta = updates.position ? [
+              updates.position[0] - shape.position[0],
+              updates.position[1] - shape.position[1],
+              updates.position[2] - shape.position[2]
+            ] : [0, 0, 0];
+            const rotationDelta = updates.rotation ? [
+              updates.rotation[0] - shape.rotation[0],
+              updates.rotation[1] - shape.rotation[1],
+              updates.rotation[2] - shape.rotation[2]
+            ] : [0, 0, 0];
+            const scaleDelta = updates.scale ? [
+              updates.scale[0] / shape.scale[0],
+              updates.scale[1] / shape.scale[1],
+              updates.scale[2] / shape.scale[2]
+            ] : [1, 1, 1];
+
+            return {
+              ...s,
+              position: [
+                s.position[0] + positionDelta[0],
+                s.position[1] + positionDelta[1],
+                s.position[2] + positionDelta[2]
+              ] as [number, number, number],
+              rotation: [
+                s.rotation[0] + rotationDelta[0],
+                s.rotation[1] + rotationDelta[1],
+                s.rotation[2] + rotationDelta[2]
+              ] as [number, number, number],
+              scale: [
+                s.scale[0] * scaleDelta[0],
+                s.scale[1] * scaleDelta[1],
+                s.scale[2] * scaleDelta[2]
+              ] as [number, number, number]
+            };
+          }
+        }
+        return s;
+      });
+
+      return { shapes: updatedShapes };
+    }),
   deleteShape: (id) =>
     set((state) => ({
       shapes: state.shapes.filter((s) => s.id !== id),
@@ -262,6 +314,37 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectShape: (id) => set({ selectedShapeId: id }),
   secondarySelectedShapeId: null,
   selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
+
+  createGroup: (primaryId, secondaryId) => {
+    const groupId = `group-${Date.now()}`;
+    set((state) => ({
+      shapes: state.shapes.map((s) => {
+        if (s.id === primaryId) {
+          return { ...s, groupId };
+        }
+        if (s.id === secondaryId) {
+          return { ...s, groupId, isReferenceBox: true };
+        }
+        return s;
+      })
+    }));
+    console.log('✅ Created group:', groupId, { primaryId, secondaryId });
+  },
+
+  ungroupShapes: (groupId) => {
+    set((state) => ({
+      shapes: state.shapes.map((s) => {
+        if (s.groupId === groupId) {
+          const { groupId: _, isReferenceBox: __, ...rest } = s;
+          return rest as Shape;
+        }
+        return s;
+      }),
+      selectedShapeId: null,
+      secondarySelectedShapeId: null
+    }));
+    console.log('✅ Ungrouped:', groupId);
+  },
 
   activeTool: Tool.SELECT,
   setActiveTool: (tool) => set({ activeTool: tool }),
