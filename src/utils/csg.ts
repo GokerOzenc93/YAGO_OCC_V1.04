@@ -5,12 +5,34 @@ export function performCSGSubtraction(
   targetGeometry: THREE.BufferGeometry,
   subtractGeometry: THREE.BufferGeometry
 ): THREE.BufferGeometry {
+  console.log('🔧 CSG Input:', {
+    targetVertices: targetGeometry.attributes.position.count,
+    subtractVertices: subtractGeometry.attributes.position.count,
+    targetHasIndex: !!targetGeometry.index,
+    subtractHasIndex: !!subtractGeometry.index
+  });
+
+  targetGeometry.computeBoundsTree();
+  subtractGeometry.computeBoundsTree();
+
   const evaluator = new Evaluator();
+  evaluator.attributes = ['position', 'normal', 'uv'];
+  evaluator.useGroups = false;
 
   const targetBrush = new Brush(targetGeometry);
   const subtractBrush = new Brush(subtractGeometry);
 
+  console.log('🖌️ Brushes created:', {
+    targetBrush: !!targetBrush,
+    subtractBrush: !!subtractBrush
+  });
+
   const result = evaluator.evaluate(targetBrush, subtractBrush, SUBTRACTION);
+
+  console.log('✨ CSG Result:', {
+    hasGeometry: !!result.geometry,
+    vertices: result.geometry.attributes.position?.count || 0
+  });
 
   const resultGeometry = result.geometry;
   resultGeometry.computeVertexNormals();

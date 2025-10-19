@@ -154,6 +154,9 @@ const ShapeWithTransform: React.FC<{
     <>
       <group
         ref={groupRef}
+        position={shape.position as [number, number, number]}
+        rotation={shape.rotation as [number, number, number]}
+        scale={shape.scale as [number, number, number]}
         onClick={(e) => {
           e.stopPropagation();
           if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
