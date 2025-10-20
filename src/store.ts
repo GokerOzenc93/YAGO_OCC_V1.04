@@ -15,11 +15,6 @@ export interface Shape {
   ocShape?: any;
   isolated?: boolean;
   vertexModifications?: VertexModification[];
-  booleanOperation?: {
-    type: 'subtract' | 'union' | 'intersect';
-    targetId: string;
-    subtractIds: string[];
-  };
   groupId?: string;
   isReferenceBox?: boolean;
 }
@@ -39,8 +34,6 @@ export enum Tool {
   POLYLINE_EDIT = 'Polyline Edit',
   RECTANGLE = 'Rectangle',
   CIRCLE = 'Circle',
-  BOOLEAN_UNION = 'Boolean Union',
-  BOOLEAN_SUBTRACT = 'Boolean Subtract',
   DIMENSION = 'Dimension'
 }
 
@@ -76,7 +69,6 @@ interface AppState {
   addShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
-  subtractShape: (targetId: string, subtractId: string) => void;
   copyShape: (id: string) => void;
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
@@ -107,7 +99,6 @@ interface AppState {
   toggleSnapSetting: (snapType: SnapType) => void;
 
   modifyShape: (shapeId: string, modification: any) => void;
-  performBooleanOperation: (operation: 'union' | 'subtract') => void;
 
   pointToPointMoveState: any;
   setPointToPointMoveState: (state: any) => void;
@@ -187,98 +178,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       shapes: state.shapes.filter((s) => s.id !== id),
       selectedShapeId: state.selectedShapeId === id ? null : state.selectedShapeId
     })),
-  subtractShape: async (targetId: string, subtractId: string) => {
-    const state = get();
-    const target = state.shapes.find((s) => s.id === targetId);
-    const subtract = state.shapes.find((s) => s.id === subtractId);
-
-    console.log('🔍 CSG Subtraction:', {
-      targetId,
-      subtractId,
-      targetPos: target?.position,
-      subtractPos: subtract?.position
-    });
-
-    if (!target || !subtract) {
-      console.error('Cannot perform subtraction: missing shapes');
-      return;
-    }
-
-    try {
-      const { performCSGSubtraction } = await import('./utils/csg');
-
-      const targetGeometry = target.geometry.clone();
-      const subtractGeometry = subtract.geometry.clone();
-
-      console.log('Before transform:', {
-        targetVertices: targetGeometry.attributes.position.count,
-        subtractVertices: subtractGeometry.attributes.position.count
-      });
-
-      const targetMatrix = new THREE.Matrix4().compose(
-        new THREE.Vector3(...target.position),
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(...target.rotation)),
-        new THREE.Vector3(...target.scale)
-      );
-
-      const subtractMatrix = new THREE.Matrix4().compose(
-        new THREE.Vector3(...subtract.position),
-        new THREE.Quaternion().setFromEuler(new THREE.Euler(...subtract.rotation)),
-        new THREE.Vector3(...subtract.scale)
-      );
-
-      targetGeometry.applyMatrix4(targetMatrix);
-      subtractGeometry.applyMatrix4(subtractMatrix);
-
-      console.log('Performing CSG subtraction...');
-      const resultGeometry = performCSGSubtraction(targetGeometry, subtractGeometry);
-
-      console.log('After CSG:', {
-        resultVertices: resultGeometry.attributes.position.count,
-        hasNormals: !!resultGeometry.attributes.normal
-      });
-
-      if (!resultGeometry.attributes.normal) {
-        resultGeometry.computeVertexNormals();
-      }
-
-      const inverseMatrix = targetMatrix.clone().invert();
-      resultGeometry.applyMatrix4(inverseMatrix);
-
-      const existingBooleanOp = target.booleanOperation;
-      const subtractIds = existingBooleanOp?.subtractIds || [];
-
-      set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === targetId) {
-            return {
-              ...s,
-              geometry: resultGeometry,
-              parameters: { ...s.parameters, modified: true },
-              booleanOperation: {
-                type: 'subtract' as const,
-                targetId,
-                subtractIds: [...subtractIds, subtractId]
-              }
-            };
-          }
-          if (s.id === subtractId) {
-            return {
-              ...s,
-              isolated: false
-            };
-          }
-          return s;
-        }),
-        selectedShapeId: null,
-        secondarySelectedShapeId: null
-      }));
-
-      console.log('✅ CSG subtraction completed');
-    } catch (error) {
-      console.error('❌ CSG subtraction failed:', error);
-    }
-  },
 
   copyShape: (id) => {
     const state = get();
@@ -372,8 +271,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
 
   snapSettings: {
-    [SnapType.ENDPOINT]: false,
-    [SnapType.MIDPOINT]: false,
+    [SnapType.ENDPOINT]: true,
+    [SnapType.MIDPOINT]: true,
     [SnapType.CENTER]: false,
     [SnapType.PERPENDICULAR]: false,
     [SnapType.INTERSECTION]: false,
@@ -389,10 +288,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   modifyShape: (shapeId, modification) => {
     console.log('Modify shape:', shapeId, modification);
-  },
-
-  performBooleanOperation: (operation) => {
-    console.log('Boolean operation:', operation);
   },
 
   pointToPointMoveState: null,

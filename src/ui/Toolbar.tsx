@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Minus, Eraser, Plus, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
+import { EndpointSnapIcon, MidpointSnapIcon, CenterSnapIcon, QuadrantSnapIcon, PerpendicularSnapIcon, IntersectionSnapIcon, NearestSnapIcon } from './SnapIcons';
 import { createBoxGeometry } from '../utils/geometry';
 import { ParametersPanel } from './ParametersPanel';
 
@@ -16,7 +17,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     addShape,
     selectedShapeId,
     modifyShape,
-    performBooleanOperation,
     cameraType,
     setCameraType,
     snapSettings,
@@ -573,67 +573,67 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             onClick={() => handleSnapToggle(SnapType.ENDPOINT)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.ENDPOINT]
-                ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                ? 'bg-green-100 text-green-700 border border-green-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Endpoint Snap"
+            title="Endpoint Snap (End)"
           >
-            <Target size={11} />
+            <EndpointSnapIcon size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.MIDPOINT)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.MIDPOINT]
-                ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                ? 'bg-blue-100 text-blue-700 border border-blue-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Midpoint Snap"
+            title="Midpoint Snap (Mid)"
           >
-            <Navigation size={11} />
+            <MidpointSnapIcon size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.CENTER)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.CENTER]
-                ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                ? 'bg-amber-100 text-amber-700 border border-amber-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Center Snap"
+            title="Center Snap (Cen)"
           >
-            <Crosshair size={11} />
+            <CenterSnapIcon size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.PERPENDICULAR)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.PERPENDICULAR]
-                ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                ? 'bg-purple-100 text-purple-700 border border-purple-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Perpendicular Snap"
+            title="Perpendicular Snap (Per)"
           >
-            <Zap size={11} />
+            <PerpendicularSnapIcon size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.INTERSECTION)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.INTERSECTION]
-                ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                ? 'bg-red-100 text-red-700 border border-red-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Intersection Snap"
+            title="Intersection Snap (Int)"
           >
-            <Intersection size={11} />
+            <IntersectionSnapIcon size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.NEAREST)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.NEAREST]
-                ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                ? 'bg-cyan-100 text-cyan-700 border border-cyan-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Nearest Snap"
+            title="Nearest Snap (Nea)"
           >
-            <MapPin size={11} />
+            <NearestSnapIcon size={11} />
           </button>
         </div>
 
@@ -697,37 +697,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             title="Panel"
           >
             <PanelLeft size={11} />
-          </button>
-          <button
-            onClick={() => {
-              const { selectedShapeId, secondarySelectedShapeId, subtractShape, selectSecondaryShape, opencascadeInstance, shapes } = useAppStore.getState();
-
-              if (!opencascadeInstance) {
-                alert('OpenCascade is not loaded yet. Please wait.');
-                return;
-              }
-              if (!selectedShapeId) {
-                alert('Please select the first shape (the one to be subtracted FROM).');
-                return;
-              }
-              if (!secondarySelectedShapeId) {
-                const otherShapes = shapes.filter(s => s.id !== selectedShapeId && s.ocShape);
-                if (otherShapes.length === 0) {
-                  alert('You need at least 2 shapes. Please add another shape to the scene.');
-                  return;
-                }
-                alert('Please select the second shape (the one to SUBTRACT). Click on another shape while holding Ctrl/Cmd.');
-                return;
-              }
-              if (confirm(`Subtract second shape from first shape?`)) {
-                subtractShape(selectedShapeId, secondarySelectedShapeId);
-                selectSecondaryShape(null);
-              }
-            }}
-            className="p-1.5 rounded transition-all bg-red-500 hover:bg-red-600 text-white shadow-sm"
-            title="Subtract: Select first shape, then Ctrl+Click second shape"
-          >
-            <Minus size={11} />
           </button>
         </div>
       </div>
