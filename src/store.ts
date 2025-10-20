@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
-import { VertexModification } from './types/vertex';
+import { VertexModification } from './services/vertexEditor';
 
 export interface Shape {
   id: string;

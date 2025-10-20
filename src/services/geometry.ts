@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VertexModification } from '../types/vertex';
+import { VertexModification } from './vertexEditor';
 
 export interface BoxParameters {
   width: number;

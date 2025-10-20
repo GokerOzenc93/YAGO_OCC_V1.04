@@ -1,5 +1,29 @@
 import * as THREE from 'three';
-import { VertexModification } from '../types/vertex';
+
+export interface VertexModification {
+  vertexIndex: number;
+  originalPosition: [number, number, number];
+  newPosition: [number, number, number];
+  direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
+  expression?: string;
+  description?: string;
+  offset: [number, number, number];
+}
+
+export interface ShapeVertexData {
+  shapeId: string;
+  modifications: VertexModification[];
+}
+
+export type VertexEditMode = 'select' | 'direction' | 'input';
+
+export interface VertexState {
+  selectedVertexIndex: number | null;
+  hoveredVertexIndex: number | null;
+  currentDirection: 'x' | 'y' | 'z';
+  editMode: VertexEditMode;
+  pendingOffset: number;
+}
 
 export function getBoxVertices(width: number, height: number, depth: number): THREE.Vector3[] {
   const w2 = width / 2;
