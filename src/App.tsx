@@ -8,7 +8,7 @@ import { useAppStore } from './store';
 import { catalogService, CatalogItem } from './lib/supabase';
 import { createGeometryFromType } from './utils/geometry';
 import * as THREE from 'three';
-import { initOpenCascade } from 'opencascade.js';
+import initOpenCascade from 'opencascade.js';
 
 function App() {
   const { setOpenCascadeInstance, setOpenCascadeLoading, opencascadeLoading, addShape } = useAppStore();
