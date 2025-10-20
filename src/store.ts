@@ -15,8 +15,11 @@ export interface Shape {
   ocShape?: any;
   isolated?: boolean;
   vertexModifications?: VertexModification[];
-  groupId?: string;
-  isReferenceBox?: boolean;
+  booleanOperation?: {
+    type: 'subtract' | 'union' | 'intersect';
+    targetId: string;
+    subtractIds: string[];
+  };
 }
 
 export enum CameraType {
@@ -34,7 +37,10 @@ export enum Tool {
   POLYLINE_EDIT = 'Polyline Edit',
   RECTANGLE = 'Rectangle',
   CIRCLE = 'Circle',
-  DIMENSION = 'Dimension'
+  BOOLEAN_UNION = 'Boolean Union',
+  BOOLEAN_SUBTRACT = 'Boolean Subtract',
+  DIMENSION = 'Dimension',
+  EDGE_SELECT = 'Edge Select'
 }
 
 export enum ViewMode {
@@ -69,6 +75,9 @@ interface AppState {
   addShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
+  subtractShape: (targetId: string, subtractId: string) => void;
+  unionShape: (targetId: string, unionId: string) => void;
+  smoothShape: (shapeId: string) => void;
   copyShape: (id: string) => void;
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
@@ -77,8 +86,6 @@ interface AppState {
   selectShape: (id: string | null) => void;
   secondarySelectedShapeId: string | null;
   selectSecondaryShape: (id: string | null) => void;
-  createGroup: (primaryId: string, secondaryId: string) => void;
-  ungroupShapes: (groupId: string) => void;
 
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
@@ -99,6 +106,7 @@ interface AppState {
   toggleSnapSetting: (snapType: SnapType) => void;
 
   modifyShape: (shapeId: string, modification: any) => void;
+  performBooleanOperation: (operation: 'union' | 'subtract') => void;
 
   pointToPointMoveState: any;
   setPointToPointMoveState: (state: any) => void;
@@ -116,68 +124,254 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
+
+  edgeSelectMode: boolean;
+  setEdgeSelectMode: (enabled: boolean) => void;
+  selectedEdges: Array<{ shapeId: string; edgeIndex: number; vertices: [number, number] }>;
+  addSelectedEdge: (shapeId: string, edgeIndex: number, vertices: [number, number]) => void;
+  clearSelectedEdges: () => void;
+  smoothWithSelectedEdges: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   shapes: [],
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
   updateShape: (id, updates) =>
-    set((state) => {
-      const shape = state.shapes.find(s => s.id === id);
-      if (!shape) return state;
-
-      const updatedShapes = state.shapes.map((s) => {
-        if (s.id === id) {
-          return { ...s, ...updates };
-        }
-        if (shape.groupId && s.groupId === shape.groupId && s.id !== id) {
-          if ('position' in updates || 'rotation' in updates || 'scale' in updates) {
-            const positionDelta = updates.position ? [
-              updates.position[0] - shape.position[0],
-              updates.position[1] - shape.position[1],
-              updates.position[2] - shape.position[2]
-            ] : [0, 0, 0];
-            const rotationDelta = updates.rotation ? [
-              updates.rotation[0] - shape.rotation[0],
-              updates.rotation[1] - shape.rotation[1],
-              updates.rotation[2] - shape.rotation[2]
-            ] : [0, 0, 0];
-            const scaleDelta = updates.scale ? [
-              updates.scale[0] / shape.scale[0],
-              updates.scale[1] / shape.scale[1],
-              updates.scale[2] / shape.scale[2]
-            ] : [1, 1, 1];
-
-            return {
-              ...s,
-              position: [
-                s.position[0] + positionDelta[0],
-                s.position[1] + positionDelta[1],
-                s.position[2] + positionDelta[2]
-              ] as [number, number, number],
-              rotation: [
-                s.rotation[0] + rotationDelta[0],
-                s.rotation[1] + rotationDelta[1],
-                s.rotation[2] + rotationDelta[2]
-              ] as [number, number, number],
-              scale: [
-                s.scale[0] * scaleDelta[0],
-                s.scale[1] * scaleDelta[1],
-                s.scale[2] * scaleDelta[2]
-              ] as [number, number, number]
-            };
-          }
-        }
-        return s;
-      });
-
-      return { shapes: updatedShapes };
-    }),
+    set((state) => ({
+      shapes: state.shapes.map((s) => (s.id === id ? { ...s, ...updates } : s))
+    })),
   deleteShape: (id) =>
     set((state) => ({
       shapes: state.shapes.filter((s) => s.id !== id),
       selectedShapeId: state.selectedShapeId === id ? null : state.selectedShapeId
     })),
+  subtractShape: async (targetId: string, subtractId: string) => {
+    const state = get();
+    const target = state.shapes.find((s) => s.id === targetId);
+    const subtract = state.shapes.find((s) => s.id === subtractId);
+
+    console.log('🔍 CSG Subtraction:', {
+      targetId,
+      subtractId,
+      targetPos: target?.position,
+      subtractPos: subtract?.position
+    });
+
+    if (!target || !subtract) {
+      console.error('Cannot perform subtraction: missing shapes');
+      return;
+    }
+
+    try {
+      const { performCSGSubtraction } = await import('./utils/csg');
+
+      const targetGeometry = target.geometry.clone();
+      const subtractGeometry = subtract.geometry.clone();
+
+      console.log('Before transform:', {
+        targetVertices: targetGeometry.attributes.position.count,
+        subtractVertices: subtractGeometry.attributes.position.count
+      });
+
+      const targetMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(...target.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...target.rotation)),
+        new THREE.Vector3(...target.scale)
+      );
+
+      const subtractMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(...subtract.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...subtract.rotation)),
+        new THREE.Vector3(...subtract.scale)
+      );
+
+      targetGeometry.applyMatrix4(targetMatrix);
+      subtractGeometry.applyMatrix4(subtractMatrix);
+
+      console.log('Performing CSG subtraction...');
+      const resultGeometry = performCSGSubtraction(targetGeometry, subtractGeometry);
+
+      console.log('After CSG:', {
+        resultVertices: resultGeometry.attributes.position.count,
+        hasNormals: !!resultGeometry.attributes.normal
+      });
+
+      if (!resultGeometry.attributes.normal) {
+        resultGeometry.computeVertexNormals();
+      }
+
+      const inverseMatrix = targetMatrix.clone().invert();
+      resultGeometry.applyMatrix4(inverseMatrix);
+
+      const existingBooleanOp = target.booleanOperation;
+      const subtractIds = existingBooleanOp?.subtractIds || [];
+
+      set((state) => ({
+        shapes: state.shapes.map((s) => {
+          if (s.id === targetId) {
+            return {
+              ...s,
+              geometry: resultGeometry,
+              parameters: { ...s.parameters, modified: true },
+              booleanOperation: {
+                type: 'subtract' as const,
+                targetId,
+                subtractIds: [...subtractIds, subtractId]
+              }
+            };
+          }
+          if (s.id === subtractId) {
+            return {
+              ...s,
+              isolated: false
+            };
+          }
+          return s;
+        }),
+        selectedShapeId: null,
+        secondarySelectedShapeId: null
+      }));
+
+      console.log('✅ CSG subtraction completed');
+    } catch (error) {
+      console.error('❌ CSG subtraction failed:', error);
+    }
+  },
+
+  unionShape: async (targetId: string, unionId: string) => {
+    const state = get();
+    const target = state.shapes.find((s) => s.id === targetId);
+    const unionShape = state.shapes.find((s) => s.id === unionId);
+
+    console.log('🔍 CSG Union:', {
+      targetId,
+      unionId,
+      targetPos: target?.position,
+      unionPos: unionShape?.position
+    });
+
+    if (!target || !unionShape) {
+      console.error('Cannot perform union: missing shapes');
+      return;
+    }
+
+    try {
+      const { performCSGUnion } = await import('./utils/csg');
+
+      const targetGeometry = target.geometry.clone();
+      const unionGeometry = unionShape.geometry.clone();
+
+      console.log('Before transform:', {
+        targetVertices: targetGeometry.attributes.position.count,
+        unionVertices: unionGeometry.attributes.position.count
+      });
+
+      const targetMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(...target.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...target.rotation)),
+        new THREE.Vector3(...target.scale)
+      );
+
+      const unionMatrix = new THREE.Matrix4().compose(
+        new THREE.Vector3(...unionShape.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...unionShape.rotation)),
+        new THREE.Vector3(...unionShape.scale)
+      );
+
+      targetGeometry.applyMatrix4(targetMatrix);
+      unionGeometry.applyMatrix4(unionMatrix);
+
+      console.log('Performing CSG union...');
+      const resultGeometry = performCSGUnion(targetGeometry, unionGeometry);
+
+      console.log('After CSG:', {
+        resultVertices: resultGeometry.attributes.position.count,
+        hasNormals: !!resultGeometry.attributes.normal
+      });
+
+      if (!resultGeometry.attributes.normal) {
+        resultGeometry.computeVertexNormals();
+      }
+
+      const inverseMatrix = targetMatrix.clone().invert();
+      resultGeometry.applyMatrix4(inverseMatrix);
+
+      const existingBooleanOp = target.booleanOperation;
+      const unionIds = existingBooleanOp?.subtractIds || [];
+
+      set((state) => ({
+        shapes: state.shapes.map((s) => {
+          if (s.id === targetId) {
+            return {
+              ...s,
+              geometry: resultGeometry,
+              parameters: { ...s.parameters, modified: true },
+              booleanOperation: {
+                type: 'union' as const,
+                targetId,
+                subtractIds: [...unionIds, unionId]
+              }
+            };
+          }
+          if (s.id === unionId) {
+            return {
+              ...s,
+              isolated: false
+            };
+          }
+          return s;
+        }),
+        selectedShapeId: null,
+        secondarySelectedShapeId: null
+      }));
+
+      console.log('✅ CSG union completed');
+    } catch (error) {
+      console.error('❌ CSG union failed:', error);
+    }
+  },
+
+  smoothShape: (shapeId: string) => {
+    const state = get();
+    const shape = state.shapes.find((s) => s.id === shapeId);
+
+    if (!shape) {
+      console.error('Cannot smooth: shape not found');
+      return;
+    }
+
+    console.log('🧹 Smoothing geometry:', shapeId);
+
+    try {
+      const geometry = shape.geometry.clone();
+
+      geometry.deleteAttribute('normal');
+      geometry.computeVertexNormals();
+
+      const smoothedGeometry = new THREE.BufferGeometry();
+      const positions = geometry.attributes.position.array;
+      const normals = geometry.attributes.normal.array;
+
+      smoothedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      smoothedGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+
+      if (geometry.index) {
+        smoothedGeometry.setIndex(geometry.index);
+      }
+
+      set((state) => ({
+        shapes: state.shapes.map((s) =>
+          s.id === shapeId
+            ? { ...s, geometry: smoothedGeometry }
+            : s
+        )
+      }));
+
+      console.log('✅ Geometry smoothed');
+    } catch (error) {
+      console.error('❌ Smoothing failed:', error);
+    }
+  },
 
   copyShape: (id) => {
     const state = get();
@@ -213,37 +407,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectShape: (id) => set({ selectedShapeId: id }),
   secondarySelectedShapeId: null,
   selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
-
-  createGroup: (primaryId, secondaryId) => {
-    const groupId = `group-${Date.now()}`;
-    set((state) => ({
-      shapes: state.shapes.map((s) => {
-        if (s.id === primaryId) {
-          return { ...s, groupId };
-        }
-        if (s.id === secondaryId) {
-          return { ...s, groupId, isReferenceBox: true };
-        }
-        return s;
-      })
-    }));
-    console.log('✅ Created group:', groupId, { primaryId, secondaryId });
-  },
-
-  ungroupShapes: (groupId) => {
-    set((state) => ({
-      shapes: state.shapes.map((s) => {
-        if (s.groupId === groupId) {
-          const { groupId: _, isReferenceBox: __, ...rest } = s;
-          return rest as Shape;
-        }
-        return s;
-      }),
-      selectedShapeId: null,
-      secondarySelectedShapeId: null
-    }));
-    console.log('✅ Ungrouped:', groupId);
-  },
 
   activeTool: Tool.SELECT,
   setActiveTool: (tool) => set({ activeTool: tool }),
@@ -290,6 +453,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('Modify shape:', shapeId, modification);
   },
 
+  performBooleanOperation: (operation) => {
+    console.log('Boolean operation:', operation);
+  },
+
   pointToPointMoveState: null,
   setPointToPointMoveState: (state) => set({ pointToPointMoveState: state }),
 
@@ -331,5 +498,86 @@ export const useAppStore = create<AppState>((set, get) => ({
           vertexModifications: newMods
         };
       })
-    }))
+    })),
+
+  edgeSelectMode: false,
+  setEdgeSelectMode: (enabled) => set({ edgeSelectMode: enabled }),
+  selectedEdges: [],
+  addSelectedEdge: (shapeId, edgeIndex, vertices) =>
+    set((state) => ({
+      selectedEdges: [...state.selectedEdges, { shapeId, edgeIndex, vertices }]
+    })),
+  clearSelectedEdges: () => set({ selectedEdges: [] }),
+
+  smoothWithSelectedEdges: () => {
+    const state = get();
+    if (state.selectedEdges.length === 0) {
+      console.warn('No edges selected for smoothing');
+      return;
+    }
+
+    const shapeId = state.selectedEdges[0].shapeId;
+    const shape = state.shapes.find(s => s.id === shapeId);
+
+    if (!shape) {
+      console.error('Shape not found');
+      return;
+    }
+
+    console.log('🧹 Smoothing with selected edges:', state.selectedEdges.length);
+
+    try {
+      const geometry = shape.geometry.clone();
+      const positions = geometry.attributes.position.array;
+      const indices = geometry.index?.array;
+
+      if (!indices) {
+        console.error('Geometry has no indices');
+        return;
+      }
+
+      const edgeVertexSet = new Set<number>();
+      state.selectedEdges.forEach(edge => {
+        edgeVertexSet.add(edge.vertices[0]);
+        edgeVertexSet.add(edge.vertices[1]);
+      });
+
+      const trianglesToKeep: number[] = [];
+
+      for (let i = 0; i < indices.length; i += 3) {
+        const v1 = indices[i];
+        const v2 = indices[i + 1];
+        const v3 = indices[i + 2];
+
+        const onEdge1 = edgeVertexSet.has(v1);
+        const onEdge2 = edgeVertexSet.has(v2);
+        const onEdge3 = edgeVertexSet.has(v3);
+
+        const edgeVertexCount = (onEdge1 ? 1 : 0) + (onEdge2 ? 1 : 0) + (onEdge3 ? 1 : 0);
+
+        if (edgeVertexCount >= 2) {
+          trianglesToKeep.push(v1, v2, v3);
+        }
+      }
+
+      const smoothedGeometry = new THREE.BufferGeometry();
+      smoothedGeometry.setAttribute('position', geometry.attributes.position.clone());
+      smoothedGeometry.setIndex(trianglesToKeep);
+      smoothedGeometry.computeVertexNormals();
+
+      set((state) => ({
+        shapes: state.shapes.map((s) =>
+          s.id === shapeId
+            ? { ...s, geometry: smoothedGeometry }
+            : s
+        ),
+        selectedEdges: [],
+        edgeSelectMode: false
+      }));
+
+      console.log('✅ Smoothing with edges completed');
+    } catch (error) {
+      console.error('❌ Edge smoothing failed:', error);
+    }
+  }
 }));

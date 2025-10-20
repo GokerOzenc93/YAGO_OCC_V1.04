@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Copy, RotateCcw, Trash2, Navigation, Save, FileDown, Link, Unlink } from 'lucide-react';
+import { Edit, Copy, RotateCcw, Trash2, Navigation, Save, FileDown } from 'lucide-react';
 import { useAppStore, Tool } from '../store';
 
 interface ContextMenuProps {
@@ -29,10 +29,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   onToggleVisibility,
   onSave,
 }) => {
-  const { setActiveTool, setPointToPointMoveState, selectShape, selectedShapeId, secondarySelectedShapeId, createGroup, ungroupShapes, shapes } = useAppStore();
-  const currentShape = shapes.find(s => s.id === shapeId);
-  const hasGroup = !!currentShape?.groupId;
-  const canCreateGroup = selectedShapeId && secondarySelectedShapeId && !hasGroup;
+  const { setActiveTool, setPointToPointMoveState, selectShape } = useAppStore();
 
   const handlePointToPointMove = () => {
     setActiveTool(Tool.POINT_TO_POINT_MOVE);
@@ -57,22 +54,6 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 
   const handleSaveAs = () => {
     console.log('Save As shape:', shapeId);
-    onClose();
-  };
-
-  const handleCreateGroup = () => {
-    if (selectedShapeId && secondarySelectedShapeId) {
-      createGroup(selectedShapeId, secondarySelectedShapeId);
-      console.log('Group created:', { selectedShapeId, secondarySelectedShapeId });
-    }
-    onClose();
-  };
-
-  const handleUngroup = () => {
-    if (currentShape?.groupId) {
-      ungroupShapes(currentShape.groupId);
-      console.log('Group removed:', currentShape.groupId);
-    }
     onClose();
   };
 
@@ -112,22 +93,6 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
       action: handlePointToPointMove,
       enabled: true,
       shortcut: 'P2P'
-    },
-    { type: 'separator' },
-    {
-      icon: <Link size={12} />,
-      label: 'Create Group',
-      action: handleCreateGroup,
-      enabled: !!canCreateGroup,
-      shortcut: 'Ctrl+G',
-      badge: canCreateGroup ? undefined : undefined
-    },
-    {
-      icon: <Unlink size={12} />,
-      label: 'Ungroup',
-      action: handleUngroup,
-      enabled: hasGroup,
-      shortcut: 'Ctrl+U'
     },
     { type: 'separator' },
     {

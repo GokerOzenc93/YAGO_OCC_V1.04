@@ -20,7 +20,7 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, edgeSelectMode, addSelectedEdge, selectedEdges, smoothWithSelectedEdges, clearSelectedEdges } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -28,6 +28,8 @@ const ShapeWithTransform: React.FC<{
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
+  const [hoveredFaceIndex, setHoveredFaceIndex] = useState<number | null>(null);
+  const [highlightGeometry, setHighlightGeometry] = useState<THREE.BufferGeometry | null>(null);
 
   useEffect(() => {
     const loadEdges = async () => {
@@ -139,8 +141,50 @@ const ShapeWithTransform: React.FC<{
   const isWireframe = viewMode === ViewMode.WIREFRAME;
   const isXray = viewMode === ViewMode.XRAY;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
-  const isReferenceBox = shape.isReferenceBox;
-  const shouldShowAsReference = isReferenceBox || isSecondarySelected;
+
+  useEffect(() => {
+    if (edgeSelectMode && localGeometry) {
+      const positions = localGeometry.attributes.position;
+      const indices = localGeometry.index;
+
+      if (!positions || !indices) return;
+
+      const highlightPositions: number[] = [];
+
+      const myShapeEdges = selectedEdges.filter(e => e.shapeId === shape.id);
+      myShapeEdges.forEach(edge => {
+        const [v1, v2] = edge.vertices;
+        highlightPositions.push(
+          positions.getX(v1), positions.getY(v1), positions.getZ(v1),
+          positions.getX(v2), positions.getY(v2), positions.getZ(v2)
+        );
+      });
+
+      if (hoveredFaceIndex !== null && indices) {
+        const a = indices.getX(hoveredFaceIndex * 3);
+        const b = indices.getX(hoveredFaceIndex * 3 + 1);
+        const c = indices.getX(hoveredFaceIndex * 3 + 2);
+
+        const edges = [[a, b], [b, c], [c, a]];
+        edges.forEach(([v1, v2]) => {
+          highlightPositions.push(
+            positions.getX(v1), positions.getY(v1), positions.getZ(v1),
+            positions.getX(v2), positions.getY(v2), positions.getZ(v2)
+          );
+        });
+      }
+
+      if (highlightPositions.length > 0) {
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(highlightPositions, 3));
+        setHighlightGeometry(geo);
+      } else {
+        setHighlightGeometry(null);
+      }
+    } else {
+      setHighlightGeometry(null);
+    }
+  }, [edgeSelectMode, selectedEdges, hoveredFaceIndex, localGeometry, shape.id]);
 
   if (shape.isolated === false) {
     return null;
@@ -152,12 +196,34 @@ const ShapeWithTransform: React.FC<{
         ref={groupRef}
         onClick={(e) => {
           e.stopPropagation();
-          if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
-            if (shape.id === secondarySelectedShapeId) {
-              selectSecondaryShape(null);
-            } else {
-              selectSecondaryShape(shape.id);
+
+          if (edgeSelectMode) {
+            const intersect = e.intersections[0];
+            if (intersect && intersect.face) {
+              const geometry = localGeometry;
+              const faceIndex = intersect.faceIndex!;
+
+              const a = intersect.face.a;
+              const b = intersect.face.b;
+              const c = intersect.face.c;
+
+              const edges = [
+                [a, b],
+                [b, c],
+                [c, a]
+              ];
+
+              edges.forEach(([v1, v2], idx) => {
+                addSelectedEdge(shape.id, faceIndex * 3 + idx, [v1, v2] as [number, number]);
+              });
+
+              console.log('✅ Edges selected:', edges);
             }
+            return;
+          }
+
+          if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
+            selectSecondaryShape(shape.id);
           } else {
             selectShape(shape.id);
             selectSecondaryShape(null);
@@ -165,10 +231,34 @@ const ShapeWithTransform: React.FC<{
         }}
         onContextMenu={(e) => {
           e.stopPropagation();
+
+          if (edgeSelectMode) {
+            if (selectedEdges.length > 0 && confirm(`Apply smoothing with ${selectedEdges.length} selected edges?`)) {
+              smoothWithSelectedEdges();
+            }
+            return;
+          }
+
           onContextMenu(e, shape.id);
         }}
+        onPointerMove={(e) => {
+          if (edgeSelectMode) {
+            e.stopPropagation();
+            const intersect = e.intersections[0];
+            if (intersect && intersect.face) {
+              setHoveredFaceIndex(intersect.faceIndex!);
+            } else {
+              setHoveredFaceIndex(null);
+            }
+          }
+        }}
+        onPointerOut={() => {
+          if (edgeSelectMode) {
+            setHoveredFaceIndex(null);
+          }
+        }}
       >
-        {!isWireframe && !isXray && !shouldShowAsReference && (
+        {!isWireframe && !isXray && (
           <mesh
             ref={meshRef}
             geometry={localGeometry}
@@ -176,7 +266,7 @@ const ShapeWithTransform: React.FC<{
             receiveShadow
           >
             <meshStandardMaterial
-              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
+              color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : shape.color || '#2563eb'}
               metalness={0.3}
               roughness={0.4}
             />
@@ -187,13 +277,56 @@ const ShapeWithTransform: React.FC<{
                 <edgesGeometry args={[localGeometry]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#3b82f6' : '#1a1a1a'}
+                color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
                 linewidth={1}
                 opacity={0.3}
                 transparent
               />
             </lineSegments>
           </mesh>
+        )}
+
+        {edgeSelectMode && highlightGeometry && hoveredFaceIndex !== null && (
+          <lineSegments geometry={highlightGeometry} position={[0, 0, 0]}>
+            <lineBasicMaterial
+              color="#ff0000"
+              linewidth={3}
+              depthTest={false}
+              transparent={true}
+              opacity={1}
+            />
+          </lineSegments>
+        )}
+
+        {edgeSelectMode && selectedEdges.filter(e => e.shapeId === shape.id).length > 0 && (
+          <lineSegments>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={selectedEdges.filter(e => e.shapeId === shape.id).length * 2}
+                array={new Float32Array(
+                  selectedEdges
+                    .filter(e => e.shapeId === shape.id)
+                    .flatMap(edge => {
+                      const positions = localGeometry.attributes.position;
+                      const [v1, v2] = edge.vertices;
+                      return [
+                        positions.getX(v1), positions.getY(v1), positions.getZ(v1),
+                        positions.getX(v2), positions.getY(v2), positions.getZ(v2)
+                      ];
+                    })
+                )}
+                itemSize={3}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial
+              color="#ffff00"
+              linewidth={4}
+              depthTest={false}
+              transparent={true}
+              opacity={1}
+            />
+          </lineSegments>
         )}
         {isWireframe && (
           <>
@@ -209,13 +342,13 @@ const ShapeWithTransform: React.FC<{
                 <edgesGeometry args={[localGeometry]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? 2 : 1}
+                color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : '#1a1a1a'}
+                linewidth={isSelected || isSecondarySelected ? 2 : 1}
               />
             </lineSegments>
           </>
         )}
-        {(isXray || shouldShowAsReference) && (
+        {isXray && (
           <>
             <mesh
               ref={meshRef}
@@ -224,7 +357,7 @@ const ShapeWithTransform: React.FC<{
               receiveShadow
             >
               <meshStandardMaterial
-                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
+                color={isSelected ? '#60a5fa' : isSecondarySelected ? '#f97316' : shape.color || '#2563eb'}
                 metalness={0.3}
                 roughness={0.4}
                 transparent
@@ -238,15 +371,15 @@ const ShapeWithTransform: React.FC<{
                 <edgesGeometry args={[localGeometry]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#3b82f6' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
+                color={isSelected ? '#3b82f6' : isSecondarySelected ? '#ea580c' : '#1a1a1a'}
+                linewidth={isSelected || isSecondarySelected ? 2 : 1.5}
               />
             </lineSegments>
           </>
         )}
       </group>
 
-      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
+      {isSelected && activeTool !== Tool.SELECT && groupRef.current && (
         <TransformControls
           key={geometryKey}
           ref={transformRef}
@@ -266,7 +399,6 @@ const Scene: React.FC = () => {
     shapes,
     cameraType,
     selectedShapeId,
-    secondarySelectedShapeId,
     selectShape,
     deleteShape,
     copyShape,
@@ -291,27 +423,12 @@ const Scene: React.FC = () => {
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
-        e.preventDefault();
-        if (selectedShapeId && secondarySelectedShapeId) {
-          const { createGroup } = useAppStore.getState();
-          createGroup(selectedShapeId, secondarySelectedShapeId);
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
-        e.preventDefault();
-        if (selectedShapeId) {
-          const shape = shapes.find(s => s.id === selectedShapeId);
-          if (shape?.groupId) {
-            const { ungroupShapes } = useAppStore.getState();
-            ungroupShapes(shape.groupId);
-          }
-        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
+  }, [selectedShapeId, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
 
   useEffect(() => {
     (window as any).handleVertexOffset = (newValue: number) => {
@@ -402,49 +519,24 @@ const Scene: React.FC = () => {
     if (!shape) return;
 
     try {
-      let geometryData: any;
+      const geometryData = {
+        type: shape.type,
+        position: shape.position,
+        rotation: shape.rotation,
+        scale: shape.scale,
+        color: shape.color,
+        parameters: shape.parameters,
+        vertexModifications: shape.vertexModifications || []
+      };
 
-      if (shape.groupId) {
-        const groupShapes = shapes.filter(s => s.groupId === shape.groupId);
-        geometryData = {
-          type: 'group',
-          shapes: groupShapes.map(s => ({
-            type: s.type,
-            position: s.position,
-            rotation: s.rotation,
-            scale: s.scale,
-            color: s.color,
-            parameters: s.parameters,
-            vertexModifications: s.vertexModifications || [],
-            isReferenceBox: s.isReferenceBox
-          }))
-        };
-
-        console.log('💾 Saving group:', {
-          code: data.code,
-          shapeCount: groupShapes.length,
-          groupId: shape.groupId
-        });
-      } else {
-        geometryData = {
-          type: shape.type,
-          position: shape.position,
-          rotation: shape.rotation,
-          scale: shape.scale,
-          color: shape.color,
-          parameters: shape.parameters,
-          vertexModifications: shape.vertexModifications || []
-        };
-
-        console.log('💾 Saving geometry:', {
-          code: data.code,
-          type: shape.type,
-          parameters: shape.parameters,
-          position: shape.position,
-          scale: shape.scale,
-          vertexModifications: shape.vertexModifications?.length || 0
-        });
-      }
+      console.log('💾 Saving geometry:', {
+        code: data.code,
+        type: shape.type,
+        parameters: shape.parameters,
+        position: shape.position,
+        scale: shape.scale,
+        vertexModifications: shape.vertexModifications?.length || 0
+      });
 
       await catalogService.save({
         code: data.code,
