@@ -271,8 +271,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
 
   snapSettings: {
-    [SnapType.ENDPOINT]: true,
-    [SnapType.MIDPOINT]: true,
+    [SnapType.ENDPOINT]: false,
+    [SnapType.MIDPOINT]: false,
     [SnapType.CENTER]: false,
     [SnapType.PERPENDICULAR]: false,
     [SnapType.INTERSECTION]: false,

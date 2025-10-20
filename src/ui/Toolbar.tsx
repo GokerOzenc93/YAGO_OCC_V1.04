@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
-import { EndpointSnapIcon, MidpointSnapIcon, CenterSnapIcon, QuadrantSnapIcon, PerpendicularSnapIcon, IntersectionSnapIcon, NearestSnapIcon } from './SnapIcons';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
 import { createBoxGeometry } from '../utils/geometry';
 import { ParametersPanel } from './ParametersPanel';
 
@@ -573,67 +572,67 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             onClick={() => handleSnapToggle(SnapType.ENDPOINT)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.ENDPOINT]
-                ? 'bg-green-100 text-green-700 border border-green-300'
+                ? 'bg-orange-100 text-orange-700 border border-orange-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Endpoint Snap (End)"
+            title="Endpoint Snap"
           >
-            <EndpointSnapIcon size={11} />
+            <Target size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.MIDPOINT)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.MIDPOINT]
-                ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                ? 'bg-orange-100 text-orange-700 border border-orange-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Midpoint Snap (Mid)"
+            title="Midpoint Snap"
           >
-            <MidpointSnapIcon size={11} />
+            <Navigation size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.CENTER)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.CENTER]
-                ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                ? 'bg-orange-100 text-orange-700 border border-orange-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Center Snap (Cen)"
+            title="Center Snap"
           >
-            <CenterSnapIcon size={11} />
+            <Crosshair size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.PERPENDICULAR)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.PERPENDICULAR]
-                ? 'bg-purple-100 text-purple-700 border border-purple-300'
+                ? 'bg-orange-100 text-orange-700 border border-orange-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Perpendicular Snap (Per)"
+            title="Perpendicular Snap"
           >
-            <PerpendicularSnapIcon size={11} />
+            <Zap size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.INTERSECTION)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.INTERSECTION]
-                ? 'bg-red-100 text-red-700 border border-red-300'
+                ? 'bg-orange-100 text-orange-700 border border-orange-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Intersection Snap (Int)"
+            title="Intersection Snap"
           >
-            <IntersectionSnapIcon size={11} />
+            <Intersection size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.NEAREST)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.NEAREST]
-                ? 'bg-cyan-100 text-cyan-700 border border-cyan-300'
+                ? 'bg-orange-100 text-orange-700 border border-orange-300'
                 : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
             }`}
-            title="Nearest Snap (Nea)"
+            title="Nearest Snap"
           >
-            <NearestSnapIcon size={11} />
+            <MapPin size={11} />
           </button>
         </div>
 
