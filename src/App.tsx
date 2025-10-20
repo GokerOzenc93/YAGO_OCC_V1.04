@@ -63,47 +63,93 @@ function App() {
 
   const handleLoadFromCatalog = (item: CatalogItem) => {
     const geometryData = item.geometry_data;
-    const params = geometryData.parameters || {};
 
-    console.log('📥 Loading geometry from catalog:', {
-      code: item.code,
-      type: geometryData.type,
-      parameters: params,
-      position: geometryData.position,
-      scale: geometryData.scale,
-      vertexModifications: geometryData.vertexModifications?.length || 0
-    });
+    if (geometryData.type === 'group' && geometryData.shapes) {
+      console.log('📥 Loading group from catalog:', {
+        code: item.code,
+        shapeCount: geometryData.shapes.length
+      });
 
-    const geometry = createGeometryFromType(geometryData.type, params);
+      const groupId = `group-${Date.now()}`;
 
-    const newPosition: [number, number, number] = [
-      geometryData.position?.[0] ?? 0,
-      geometryData.position?.[1] ?? 0,
-      geometryData.position?.[2] ?? 0
-    ];
+      geometryData.shapes.forEach((shapeData: any, index: number) => {
+        const params = shapeData.parameters || {};
+        const geometry = createGeometryFromType(shapeData.type, params);
 
-    addShape({
-      id: `${geometryData.type}-${Date.now()}`,
-      type: geometryData.type || 'box',
-      geometry,
-      position: newPosition,
-      rotation: [
-        geometryData.rotation?.[0] ?? 0,
-        geometryData.rotation?.[1] ?? 0,
-        geometryData.rotation?.[2] ?? 0
-      ],
-      scale: [
-        geometryData.scale?.[0] ?? 1,
-        geometryData.scale?.[1] ?? 1,
-        geometryData.scale?.[2] ?? 1
-      ],
-      color: geometryData.color || '#2563eb',
-      parameters: params,
-      vertexModifications: geometryData.vertexModifications || []
-    });
+        const newPosition: [number, number, number] = [
+          shapeData.position?.[0] ?? 0,
+          shapeData.position?.[1] ?? 0,
+          shapeData.position?.[2] ?? 0
+        ];
+
+        addShape({
+          id: `${shapeData.type}-${Date.now()}-${index}`,
+          type: shapeData.type || 'box',
+          geometry,
+          position: newPosition,
+          rotation: [
+            shapeData.rotation?.[0] ?? 0,
+            shapeData.rotation?.[1] ?? 0,
+            shapeData.rotation?.[2] ?? 0
+          ],
+          scale: [
+            shapeData.scale?.[0] ?? 1,
+            shapeData.scale?.[1] ?? 1,
+            shapeData.scale?.[2] ?? 1
+          ],
+          color: shapeData.color || '#2563eb',
+          parameters: params,
+          vertexModifications: shapeData.vertexModifications || [],
+          groupId: groupId,
+          isReferenceBox: shapeData.isReferenceBox
+        });
+      });
+
+      console.log('✅ Loaded group from catalog:', item.code);
+    } else {
+      const params = geometryData.parameters || {};
+
+      console.log('📥 Loading geometry from catalog:', {
+        code: item.code,
+        type: geometryData.type,
+        parameters: params,
+        position: geometryData.position,
+        scale: geometryData.scale,
+        vertexModifications: geometryData.vertexModifications?.length || 0
+      });
+
+      const geometry = createGeometryFromType(geometryData.type, params);
+
+      const newPosition: [number, number, number] = [
+        geometryData.position?.[0] ?? 0,
+        geometryData.position?.[1] ?? 0,
+        geometryData.position?.[2] ?? 0
+      ];
+
+      addShape({
+        id: `${geometryData.type}-${Date.now()}`,
+        type: geometryData.type || 'box',
+        geometry,
+        position: newPosition,
+        rotation: [
+          geometryData.rotation?.[0] ?? 0,
+          geometryData.rotation?.[1] ?? 0,
+          geometryData.rotation?.[2] ?? 0
+        ],
+        scale: [
+          geometryData.scale?.[0] ?? 1,
+          geometryData.scale?.[1] ?? 1,
+          geometryData.scale?.[2] ?? 1
+        ],
+        color: geometryData.color || '#2563eb',
+        parameters: params,
+        vertexModifications: geometryData.vertexModifications || []
+      });
+
+      console.log('✅ Loaded geometry from catalog:', item.code);
+    }
 
     setCatalogOpen(false);
-    console.log('✅ Loaded geometry from catalog:', item.code);
   };
 
   const handleDeleteFromCatalog = async (id: string) => {

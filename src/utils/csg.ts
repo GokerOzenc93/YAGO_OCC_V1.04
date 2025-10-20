@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SUBTRACTION, ADDITION, Brush, Evaluator } from 'three-bvh-csg';
+import { SUBTRACTION, Brush, Evaluator } from 'three-bvh-csg';
 
 export function performCSGSubtraction(
   targetGeometry: THREE.BufferGeometry,
@@ -35,12 +35,9 @@ export function performCSGUnion(
   const brush1 = new Brush(geometry1);
   const brush2 = new Brush(geometry2);
 
-  const result = evaluator.evaluate(brush1, brush2, ADDITION);
+  const result = evaluator.evaluate(brush1, brush2, SUBTRACTION);
 
-  const resultGeometry = result.geometry;
-  resultGeometry.computeVertexNormals();
-
-  return resultGeometry;
+  return result.geometry;
 }
 
 export function performCSGIntersection(
