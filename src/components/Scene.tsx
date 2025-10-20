@@ -1,12 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls } from '@react-three/drei';
-import { useAppStore, CameraType, Tool, ViewMode } from './store';
-import ContextMenu from './ui/ContextMenu';
-import SaveDialog from './ui/SaveDialog';
-import { catalogService } from './lib/supabase';
-import { createBoxGeometry, applyVertexModificationsToGeometry } from './utils/geometry';
-import { VertexEditor } from './ui/VertexEditor';
+import { useAppStore, CameraType, Tool, ViewMode } from '../store';
+import ContextMenu from './ContextMenu';
+import SaveDialog from './SaveDialog';
+import { catalogService } from '../services/supabase';
+import { createBoxGeometry, applyVertexModificationsToGeometry } from '../services/geometry';
+import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
 
 const ShapeWithTransform: React.FC<{

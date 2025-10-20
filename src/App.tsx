@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import Scene from './Scene';
-import Toolbar from './ui/Toolbar';
-import Terminal from './ui/Terminal';
-import StatusBar from './ui/StatusBar';
-import CatalogPanel from './ui/CatalogPanel';
+import Scene from './components/Scene';
+import Toolbar from './components/Toolbar';
+import Terminal from './components/Terminal';
+import StatusBar from './components/StatusBar';
+import CatalogPanel from './components/CatalogPanel';
 import { useAppStore } from './store';
-import { catalogService, CatalogItem } from './lib/supabase';
-import { createGeometryFromType } from './utils/geometry';
+import { catalogService, CatalogItem } from './services/supabase';
+import { createGeometryFromType } from './services/geometry';
 import * as THREE from 'three';
 import initOpenCascade from 'opencascade.js';
 

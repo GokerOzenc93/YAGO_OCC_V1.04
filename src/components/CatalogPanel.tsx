@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
-import { createGeometryFromType } from '../utils/geometry';
+import { createGeometryFromType } from '../services/geometry';
 import * as THREE from 'three';
 
 interface CatalogItem {
