@@ -1,5 +1,5 @@
 import React from 'react';
-import { Edit, Copy, RotateCcw, Trash2, Navigation, Save, FileDown, Link, Unlink, Minus } from 'lucide-react';
+import { Edit, Copy, RotateCcw, Trash2, Navigation, Save, FileDown, Link, Unlink } from 'lucide-react';
 import { useAppStore, Tool } from '../store';
 
 interface ContextMenuProps {
@@ -14,7 +14,6 @@ interface ContextMenuProps {
   onDelete: () => void;
   onToggleVisibility: () => void;
   onSave: () => void;
-  onSubtract?: () => void;
 }
 
 const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -29,13 +28,11 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
   onDelete,
   onToggleVisibility,
   onSave,
-  onSubtract,
 }) => {
   const { setActiveTool, setPointToPointMoveState, selectShape, selectedShapeId, secondarySelectedShapeId, createGroup, ungroupShapes, shapes } = useAppStore();
   const currentShape = shapes.find(s => s.id === shapeId);
   const hasGroup = !!currentShape?.groupId;
   const canCreateGroup = selectedShapeId && secondarySelectedShapeId && !hasGroup;
-  const canSubtract = selectedShapeId && secondarySelectedShapeId && selectedShapeId !== secondarySelectedShapeId;
 
   const handlePointToPointMove = () => {
     setActiveTool(Tool.POINT_TO_POINT_MOVE);
@@ -79,13 +76,6 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
     onClose();
   };
 
-  const handleSubtract = () => {
-    if (onSubtract) {
-      onSubtract();
-    }
-    onClose();
-  };
-
   const menuItems = [
     {
       icon: <Edit size={12} />,
@@ -122,15 +112,6 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
       action: handlePointToPointMove,
       enabled: true,
       shortcut: 'P2P'
-    },
-    { type: 'separator' },
-    {
-      icon: <Minus size={12} />,
-      label: 'Subtract',
-      action: handleSubtract,
-      enabled: !!canSubtract,
-      shortcut: '-',
-      badge: canSubtract ? 'CSG' : undefined
     },
     { type: 'separator' },
     {

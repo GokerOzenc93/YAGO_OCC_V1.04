@@ -408,18 +408,120 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   };
 
   const handleSubtract = () => {
-    const { selectedShapeId, secondarySelectedShapeId } = useAppStore.getState();
+    console.log('🔪 Subtract button clicked');
 
-    if (!selectedShapeId || !secondarySelectedShapeId) {
-      console.warn('⚠️ Please select two shapes for CSG subtraction:');
-      console.warn('  1️⃣ Click on primary shape (target) - will turn yellow');
-      console.warn('  2️⃣ Ctrl+Click on secondary shape (cutting tool) - will turn green');
-      console.warn('  3️⃣ Right-click and select "Subtract" from context menu');
-      alert('Please select two shapes:\n1. Click on primary shape (yellow)\n2. Ctrl+Click on secondary shape (green)\n3. Right-click and select "Subtract"');
+    if (!selectedShapeId) {
+      console.warn('⚠️ No shape selected for subtraction');
       return;
     }
 
-    console.log('ℹ️ Use right-click context menu to perform subtraction');
+    const selectedShape = shapes.find(s => s.id === selectedShapeId);
+
+    if (!selectedShape) {
+      console.warn('⚠️ Selected shape not found');
+      return;
+    }
+
+    console.log('📦 Selected shape:', selectedShapeId);
+    console.log('📦 Selected shape position:', selectedShape.position);
+    console.log('📦 Selected shape rotation:', selectedShape.rotation);
+    console.log('📦 Selected shape scale:', selectedShape.scale);
+
+    const selectedMesh = new THREE.Mesh(selectedShape.geometry);
+    selectedMesh.position.set(...selectedShape.position);
+    selectedMesh.rotation.set(...selectedShape.rotation);
+    selectedMesh.scale.set(...selectedShape.scale);
+    selectedMesh.updateMatrixWorld(true);
+
+    const selectedBox = new THREE.Box3().setFromObject(selectedMesh);
+
+    console.log('📦 Selected bounding box:', selectedBox);
+
+    const intersectingShapes = shapes.filter(s => {
+      if (s.id === selectedShapeId) return false;
+
+      const otherMesh = new THREE.Mesh(s.geometry);
+      otherMesh.position.set(...s.position);
+      otherMesh.rotation.set(...s.rotation);
+      otherMesh.scale.set(...s.scale);
+      otherMesh.updateMatrixWorld(true);
+
+      const otherBox = new THREE.Box3().setFromObject(otherMesh);
+
+      const intersects = selectedBox.intersectsBox(otherBox);
+
+      if (!intersects) {
+        console.log(`  📦 Shape ${s.id}: No bounding box intersection`);
+        return false;
+      }
+
+      const intersection = selectedBox.clone().intersect(otherBox);
+
+      const penetrationX = intersection.max.x - intersection.min.x;
+      const penetrationY = intersection.max.y - intersection.min.y;
+      const penetrationZ = intersection.max.z - intersection.min.z;
+
+      const minPenetrationThreshold = 0.01;
+
+      const hasRealIntersection =
+        penetrationX > minPenetrationThreshold &&
+        penetrationY > minPenetrationThreshold &&
+        penetrationZ > minPenetrationThreshold;
+
+      const intersectionVolume = penetrationX * penetrationY * penetrationZ;
+
+      console.log(`  📦 Checking shape ${s.id}:`, {
+        position: s.position,
+        penetration: { x: penetrationX, y: penetrationY, z: penetrationZ },
+        intersectionVolume,
+        hasRealIntersection
+      });
+
+      return hasRealIntersection;
+    });
+
+    console.log(`🔍 Found ${intersectingShapes.length} intersecting shape(s)`);
+
+    if (intersectingShapes.length === 0) {
+      console.warn('⚠️ No intersecting shapes found');
+      return;
+    }
+
+    console.log(`🔪 Performing CSG subtraction on ${intersectingShapes.length} intersecting shape(s)`);
+    console.log(`🗑️ Selected shape (tool to subtract) will be deleted: ${selectedShapeId}`);
+
+    const { updateShape, deleteShape } = useAppStore.getState();
+
+    intersectingShapes.forEach((targetShape, index) => {
+      console.log(`  ➖ Subtracting from shape ${index + 1}/${intersectingShapes.length}: ${targetShape.id}`);
+
+      const relativePosition = new THREE.Vector3()
+        .subVectors(
+          new THREE.Vector3(...selectedShape.position),
+          new THREE.Vector3(...targetShape.position)
+        );
+
+      const transformedSubtractGeometry = selectedShape.geometry.clone();
+      transformedSubtractGeometry.translate(relativePosition.x, relativePosition.y, relativePosition.z);
+
+      const resultGeometry = performCSGSubtraction(targetShape.geometry, transformedSubtractGeometry);
+      console.log(`  ✅ Subtraction ${index + 1} completed`);
+
+      updateShape(targetShape.id, {
+        geometry: resultGeometry,
+        parameters: {
+          ...targetShape.parameters,
+          modified: true,
+          csgOperation: 'subtraction'
+        }
+      });
+      console.log(`  📦 Updated shape with new geometry: ${targetShape.id}`);
+    });
+
+    deleteShape(selectedShapeId);
+    console.log(`🗑️ Deleted selected shape (cutting tool): ${selectedShapeId}`);
+
+    console.log('✅ CSG subtraction completed successfully');
   };
 
   return (
