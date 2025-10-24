@@ -31,6 +31,14 @@ const ShapeWithTransform: React.FC<{
 
   useEffect(() => {
     const loadEdges = async () => {
+      if (shape.geometry && shape.geometry !== localGeometry) {
+        console.log(`🔄 Geometry updated for shape ${shape.id}`);
+        setLocalGeometry(shape.geometry);
+        setEdgeGeometry(null);
+        setGeometryKey(prev => prev + 1);
+        return;
+      }
+
       if (shape.parameters?.modified && shape.geometry) {
         console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
         setLocalGeometry(shape.geometry);
@@ -67,7 +75,7 @@ const ShapeWithTransform: React.FC<{
     };
 
     loadEdges();
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.vertexModifications, shape.parameters?.modified, shape.geometry]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.vertexModifications, shape.parameters?.modified, shape.geometry, shape.id]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;

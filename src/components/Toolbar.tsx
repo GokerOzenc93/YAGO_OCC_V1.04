@@ -486,7 +486,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       const resultGeometry = performCSGSubtraction(targetShape.geometry, transformedSubtractGeometry);
       console.log(`  ✅ Subtraction ${index + 1} completed`);
 
-      updateShape(targetShape.id, { geometry: resultGeometry });
+      updateShape(targetShape.id, {
+        geometry: resultGeometry,
+        parameters: {
+          ...targetShape.parameters,
+          modified: true,
+          csgOperation: 'subtraction'
+        }
+      });
       console.log(`  📦 Updated shape with new geometry: ${targetShape.id}`);
     });
 
