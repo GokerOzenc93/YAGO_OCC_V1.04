@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import * as THREE from 'three';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
 import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, Minus } from 'lucide-react';
 import { createBoxGeometry } from '../services/geometry';
 import { ParametersPanel } from './ParametersPanel';
+import { performCSGSubtraction } from '../services/csg';
 
 interface ToolbarProps {
   onOpenCatalog: () => void;
@@ -466,7 +468,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
     console.log(`🔪 Performing CSG subtraction on ${intersectingShapes.length} intersecting shape(s)`);
 
-    const { performCSGSubtraction } = require('../services/csg');
     let resultGeometry = selectedShape.geometry.clone();
 
     intersectingShapes.forEach((shape, index) => {
