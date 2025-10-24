@@ -456,17 +456,23 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       }
 
       const intersection = selectedBox.clone().intersect(otherBox);
-      const intersectionVolume =
-        (intersection.max.x - intersection.min.x) *
-        (intersection.max.y - intersection.min.y) *
-        (intersection.max.z - intersection.min.z);
 
-      const hasRealIntersection = intersectionVolume > 0.0001;
+      const penetrationX = intersection.max.x - intersection.min.x;
+      const penetrationY = intersection.max.y - intersection.min.y;
+      const penetrationZ = intersection.max.z - intersection.min.z;
+
+      const minPenetrationThreshold = 0.01;
+
+      const hasRealIntersection =
+        penetrationX > minPenetrationThreshold &&
+        penetrationY > minPenetrationThreshold &&
+        penetrationZ > minPenetrationThreshold;
+
+      const intersectionVolume = penetrationX * penetrationY * penetrationZ;
 
       console.log(`  📦 Checking shape ${s.id}:`, {
         position: s.position,
-        boundingBox: otherBox,
-        intersects,
+        penetration: { x: penetrationX, y: penetrationY, z: penetrationZ },
         intersectionVolume,
         hasRealIntersection
       });
