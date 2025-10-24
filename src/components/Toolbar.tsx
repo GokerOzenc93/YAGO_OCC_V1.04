@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, ArrowUpFromLine } from 'lucide-react';
 import { createBoxGeometry } from '../services/geometry';
 import { ParametersPanel } from './ParametersPanel';
 
@@ -25,7 +25,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     cycleViewMode,
     orthoMode,
     toggleOrthoMode,
-    opencascadeInstance
+    opencascadeInstance,
+    extrudeShape
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -360,6 +361,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     console.log('✅ Box geometry added');
   };
 
+  const handleExtrude = () => {
+    if (!selectedShapeId) {
+      console.warn('⚠️ No shape selected for extrusion');
+      return;
+    }
+
+    const extrudeDistance = 100;
+    extrudeShape(selectedShapeId, extrudeDistance);
+    console.log('✅ Shape extruded:', selectedShapeId, 'distance:', extrudeDistance);
+  };
+
   return (
     <div className="flex flex-col font-inter">
       <div className="flex items-center h-12 px-4 bg-stone-50 border-b border-stone-200 shadow-sm">
@@ -442,6 +454,20 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           >
             <FolderOpen size={12} />
             <span className="text-xs font-semibold">Catalog</span>
+          </button>
+
+          <button
+            onClick={handleExtrude}
+            disabled={!selectedShapeId}
+            className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors font-medium shadow-md ${
+              selectedShapeId
+                ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                : 'bg-stone-300 text-stone-500 cursor-not-allowed'
+            }`}
+            title="Extrude Selected Shape"
+          >
+            <ArrowUpFromLine size={12} />
+            <span className="text-xs font-semibold">Extrude</span>
           </button>
 
           <div className="relative">

@@ -72,6 +72,7 @@ interface AppState {
   copyShape: (id: string) => void;
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
+  extrudeShape: (id: string, distance: number) => void;
 
   selectedShapeId: string | null;
   selectShape: (id: string | null) => void;
@@ -208,6 +209,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       shapes: state.shapes.map((s) => ({ ...s, isolated: undefined }))
     })),
+
+  extrudeShape: (id, distance) =>
+    set((state) => {
+      const shape = state.shapes.find((s) => s.id === id);
+      if (!shape) return state;
+
+      const { extrudeGeometry } = require('./services/csg');
+      const extrudedGeometry = extrudeGeometry(shape.geometry, distance);
+
+      return {
+        shapes: state.shapes.map((s) =>
+          s.id === id
+            ? { ...s, geometry: extrudedGeometry }
+            : s
+        )
+      };
+    }),
 
   selectedShapeId: null,
   selectShape: (id) => set({ selectedShapeId: id }),
