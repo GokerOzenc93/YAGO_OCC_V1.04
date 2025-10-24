@@ -40,28 +40,43 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     if (!selectedShapeId) return false;
 
     const selectedShape = shapes.find(s => s.id === selectedShapeId);
-    if (!selectedShape) return false;
+    if (!selectedShape || !selectedShape.geometry) return false;
 
-    const selectedMesh = new THREE.Mesh(selectedShape.geometry);
-    selectedMesh.position.set(...selectedShape.position);
-    selectedMesh.rotation.set(...selectedShape.rotation);
-    selectedMesh.scale.set(...selectedShape.scale);
-    selectedMesh.updateMatrixWorld(true);
+    try {
+      const selectedBox = new THREE.Box3().setFromBufferAttribute(
+        selectedShape.geometry.getAttribute('position')
+      );
 
-    const selectedBox = new THREE.Box3().setFromObject(selectedMesh);
+      const selectedMin = selectedBox.min.clone();
+      const selectedMax = selectedBox.max.clone();
+      selectedMin.add(new THREE.Vector3(...selectedShape.position));
+      selectedMax.add(new THREE.Vector3(...selectedShape.position));
+      selectedBox.set(selectedMin, selectedMax);
 
-    return shapes.some(s => {
-      if (s.id === selectedShapeId) return false;
+      return shapes.some(s => {
+        if (s.id === selectedShapeId || !s.geometry) return false;
 
-      const otherMesh = new THREE.Mesh(s.geometry);
-      otherMesh.position.set(...s.position);
-      otherMesh.rotation.set(...s.rotation);
-      otherMesh.scale.set(...s.scale);
-      otherMesh.updateMatrixWorld(true);
+        try {
+          const otherBox = new THREE.Box3().setFromBufferAttribute(
+            s.geometry.getAttribute('position')
+          );
 
-      const otherBox = new THREE.Box3().setFromObject(otherMesh);
-      return selectedBox.intersectsBox(otherBox);
-    });
+          const otherMin = otherBox.min.clone();
+          const otherMax = otherBox.max.clone();
+          otherMin.add(new THREE.Vector3(...s.position));
+          otherMax.add(new THREE.Vector3(...s.position));
+          otherBox.set(otherMin, otherMax);
+
+          return selectedBox.intersectsBox(otherBox);
+        } catch (e) {
+          console.warn('Error checking intersection for shape:', s.id, e);
+          return false;
+        }
+      });
+    } catch (e) {
+      console.warn('Error calculating intersections:', e);
+      return false;
+    }
   }, [selectedShapeId, shapes]);
 
   const shouldDisableSnap = ['Select', 'Move', 'Rotate', 'Scale'].includes(activeTool);
