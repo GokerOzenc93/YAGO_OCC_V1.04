@@ -20,7 +20,8 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, selectedShapeId, updateShape, activeTool, viewMode, createGroup } = useAppStore();
+  const isSecondarySelected = secondarySelectedShapeId === shape.id;
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -146,7 +147,6 @@ const ShapeWithTransform: React.FC<{
 
   const isWireframe = viewMode === ViewMode.WIREFRAME;
   const isXray = viewMode === ViewMode.XRAY;
-  const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
@@ -184,7 +184,7 @@ const ShapeWithTransform: React.FC<{
             receiveShadow
           >
             <meshStandardMaterial
-              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
+              color={isSelected ? '#eab308' : isSecondarySelected ? '#22c55e' : shape.color || '#2563eb'}
               metalness={0.3}
               roughness={0.4}
             />
@@ -286,7 +286,8 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification
+    addVertexModification,
+    updateShape
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -401,6 +402,54 @@ const Scene: React.FC = () => {
     const canvas = document.querySelector('canvas');
     if (!canvas) return '';
     return canvas.toDataURL('image/png');
+  };
+
+  const handleSubtract = () => {
+    if (!selectedShapeId || !secondarySelectedShapeId) {
+      console.warn('⚠️ Both primary and secondary shapes must be selected for subtraction');
+      return;
+    }
+
+    const primaryShape = shapes.find(s => s.id === selectedShapeId);
+    const secondaryShape = shapes.find(s => s.id === secondarySelectedShapeId);
+
+    if (!primaryShape || !secondaryShape) {
+      console.warn('⚠️ Could not find selected shapes');
+      return;
+    }
+
+    console.log('🔪 Starting CSG subtraction:');
+    console.log(`  🟡 Primary shape (target): ${selectedShapeId}`);
+    console.log(`  🟢 Secondary shape (tool to subtract): ${secondarySelectedShapeId}`);
+
+    const { performCSGSubtraction } = require('../services/csg');
+
+    const relativePosition = new THREE.Vector3()
+      .subVectors(
+        new THREE.Vector3(...secondaryShape.position),
+        new THREE.Vector3(...primaryShape.position)
+      );
+
+    const transformedSubtractGeometry = secondaryShape.geometry.clone();
+    transformedSubtractGeometry.translate(relativePosition.x, relativePosition.y, relativePosition.z);
+
+    const resultGeometry = performCSGSubtraction(primaryShape.geometry, transformedSubtractGeometry);
+    console.log(`  ✅ Subtraction completed`);
+
+    updateShape(primaryShape.id, {
+      geometry: resultGeometry,
+      parameters: {
+        ...primaryShape.parameters,
+        modified: true,
+        csgOperation: 'subtraction'
+      }
+    });
+    console.log(`  📦 Updated primary shape with new geometry: ${primaryShape.id}`);
+
+    deleteShape(secondarySelectedShapeId);
+    console.log(`  🗑️ Deleted secondary shape (cutting tool): ${secondarySelectedShapeId}`);
+
+    console.log('✅ CSG subtraction completed successfully');
   };
 
   const handleSave = async (data: { code: string; description: string; tags: string[]; previewImage?: string }) => {
@@ -614,6 +663,10 @@ const Scene: React.FC = () => {
         }}
         onSave={() => {
           setSaveDialog({ isOpen: true, shapeId: contextMenu.shapeId });
+          setContextMenu(null);
+        }}
+        onSubtract={() => {
+          handleSubtract();
           setContextMenu(null);
         }}
       />
