@@ -26,7 +26,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     orthoMode,
     toggleOrthoMode,
     opencascadeInstance,
-    extrudeShape
+    extrudeShape,
+    shapes
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -34,6 +35,34 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const [polylineMenuPosition, setPolylineMenuPosition] = useState({ x: 0, y: 0 });
   const [showParametersPanel, setShowParametersPanel] = useState(false);
+
+  const hasIntersectingShapes = React.useMemo(() => {
+    if (!selectedShapeId) return false;
+
+    const selectedShape = shapes.find(s => s.id === selectedShapeId);
+    if (!selectedShape) return false;
+
+    const selectedMesh = new THREE.Mesh(selectedShape.geometry);
+    selectedMesh.position.set(...selectedShape.position);
+    selectedMesh.rotation.set(...selectedShape.rotation);
+    selectedMesh.scale.set(...selectedShape.scale);
+    selectedMesh.updateMatrixWorld(true);
+
+    const selectedBox = new THREE.Box3().setFromObject(selectedMesh);
+
+    return shapes.some(s => {
+      if (s.id === selectedShapeId) return false;
+
+      const otherMesh = new THREE.Mesh(s.geometry);
+      otherMesh.position.set(...s.position);
+      otherMesh.rotation.set(...s.rotation);
+      otherMesh.scale.set(...s.scale);
+      otherMesh.updateMatrixWorld(true);
+
+      const otherBox = new THREE.Box3().setFromObject(otherMesh);
+      return selectedBox.intersectsBox(otherBox);
+    });
+  }, [selectedShapeId, shapes]);
 
   const shouldDisableSnap = ['Select', 'Move', 'Rotate', 'Scale'].includes(activeTool);
 
@@ -362,12 +391,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   };
 
   const handleSubtract = () => {
+    console.log('🔪 Subtract button clicked');
+
     if (!selectedShapeId) {
       console.warn('⚠️ No shape selected for subtraction');
       return;
     }
 
-    const { shapes } = useAppStore.getState();
     const selectedShape = shapes.find(s => s.id === selectedShapeId);
 
     if (!selectedShape) {
@@ -375,18 +405,44 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       return;
     }
 
+    console.log('📦 Selected shape:', selectedShapeId);
+    console.log('📦 Selected shape position:', selectedShape.position);
+    console.log('📦 Selected shape rotation:', selectedShape.rotation);
+    console.log('📦 Selected shape scale:', selectedShape.scale);
+
+    const selectedMesh = new THREE.Mesh(selectedShape.geometry);
+    selectedMesh.position.set(...selectedShape.position);
+    selectedMesh.rotation.set(...selectedShape.rotation);
+    selectedMesh.scale.set(...selectedShape.scale);
+    selectedMesh.updateMatrixWorld(true);
+
+    const selectedBox = new THREE.Box3().setFromObject(selectedMesh);
+
+    console.log('📦 Selected bounding box:', selectedBox);
+
     const intersectingShapes = shapes.filter(s => {
       if (s.id === selectedShapeId) return false;
 
-      const selectedBox = new THREE.Box3().setFromObject(
-        new THREE.Mesh(selectedShape.geometry)
-      );
-      const otherBox = new THREE.Box3().setFromObject(
-        new THREE.Mesh(s.geometry)
-      );
+      const otherMesh = new THREE.Mesh(s.geometry);
+      otherMesh.position.set(...s.position);
+      otherMesh.rotation.set(...s.rotation);
+      otherMesh.scale.set(...s.scale);
+      otherMesh.updateMatrixWorld(true);
 
-      return selectedBox.intersectsBox(otherBox);
+      const otherBox = new THREE.Box3().setFromObject(otherMesh);
+
+      const intersects = selectedBox.intersectsBox(otherBox);
+
+      console.log(`  📦 Checking shape ${s.id}:`, {
+        position: s.position,
+        boundingBox: otherBox,
+        intersects
+      });
+
+      return intersects;
     });
+
+    console.log(`🔍 Found ${intersectingShapes.length} intersecting shape(s)`);
 
     if (intersectingShapes.length === 0) {
       console.warn('⚠️ No intersecting shapes found');
@@ -399,14 +455,37 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     let resultGeometry = selectedShape.geometry.clone();
 
     intersectingShapes.forEach((shape, index) => {
-      console.log(`  ➖ Subtracting shape ${index + 1}/${intersectingShapes.length}`);
-      resultGeometry = performCSGSubtraction(resultGeometry, shape.geometry);
+      console.log(`  ➖ Subtracting shape ${index + 1}/${intersectingShapes.length}: ${shape.id}`);
+
+      const subtractMesh = new THREE.Mesh(shape.geometry);
+      subtractMesh.position.set(...shape.position);
+      subtractMesh.rotation.set(...shape.rotation);
+      subtractMesh.scale.set(...shape.scale);
+      subtractMesh.updateMatrixWorld(true);
+
+      const selectedMeshForCSG = new THREE.Mesh(resultGeometry);
+      selectedMeshForCSG.position.set(...selectedShape.position);
+      selectedMeshForCSG.rotation.set(...selectedShape.rotation);
+      selectedMeshForCSG.scale.set(...selectedShape.scale);
+      selectedMeshForCSG.updateMatrixWorld(true);
+
+      const relativePosition = new THREE.Vector3()
+        .subVectors(
+          new THREE.Vector3(...shape.position),
+          new THREE.Vector3(...selectedShape.position)
+        );
+
+      const transformedSubtractGeometry = shape.geometry.clone();
+      transformedSubtractGeometry.translate(relativePosition.x, relativePosition.y, relativePosition.z);
+
+      resultGeometry = performCSGSubtraction(resultGeometry, transformedSubtractGeometry);
+      console.log(`  ✅ Subtraction ${index + 1} completed`);
     });
 
     const { updateShape } = useAppStore.getState();
     updateShape(selectedShapeId, { geometry: resultGeometry });
 
-    console.log('✅ CSG subtraction completed');
+    console.log('✅ CSG subtraction completed successfully');
   };
 
   return (
@@ -743,11 +822,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           <button
             onClick={handleSubtract}
             className={`p-1.5 rounded transition-all ${
-              selectedShapeId
-                ? 'hover:bg-red-50 text-red-600 hover:text-red-800'
+              hasIntersectingShapes
+                ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
+                : selectedShapeId
+                ? 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
                 : 'text-stone-300 cursor-not-allowed'
             }`}
-            title={selectedShapeId ? "Subtract Intersecting Shapes" : "Select a shape first"}
+            title={
+              hasIntersectingShapes
+                ? "Subtract Intersecting Shapes"
+                : selectedShapeId
+                ? "No intersecting shapes"
+                : "Select a shape first"
+            }
             disabled={!selectedShapeId}
           >
             <Minus size={11} />
