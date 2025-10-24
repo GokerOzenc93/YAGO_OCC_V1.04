@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, ArrowUpFromLine } from 'lucide-react';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, Minus } from 'lucide-react';
 import { createBoxGeometry } from '../services/geometry';
 import { ParametersPanel } from './ParametersPanel';
 
@@ -361,15 +361,52 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     console.log('✅ Box geometry added');
   };
 
-  const handleExtrude = () => {
+  const handleSubtract = () => {
     if (!selectedShapeId) {
-      console.warn('⚠️ No shape selected for extrusion');
+      console.warn('⚠️ No shape selected for subtraction');
       return;
     }
 
-    const extrudeDistance = 100;
-    extrudeShape(selectedShapeId, extrudeDistance);
-    console.log('✅ Shape extruded:', selectedShapeId, 'distance:', extrudeDistance);
+    const { shapes } = useAppStore.getState();
+    const selectedShape = shapes.find(s => s.id === selectedShapeId);
+
+    if (!selectedShape) {
+      console.warn('⚠️ Selected shape not found');
+      return;
+    }
+
+    const intersectingShapes = shapes.filter(s => {
+      if (s.id === selectedShapeId) return false;
+
+      const selectedBox = new THREE.Box3().setFromObject(
+        new THREE.Mesh(selectedShape.geometry)
+      );
+      const otherBox = new THREE.Box3().setFromObject(
+        new THREE.Mesh(s.geometry)
+      );
+
+      return selectedBox.intersectsBox(otherBox);
+    });
+
+    if (intersectingShapes.length === 0) {
+      console.warn('⚠️ No intersecting shapes found');
+      return;
+    }
+
+    console.log(`🔪 Performing CSG subtraction on ${intersectingShapes.length} intersecting shape(s)`);
+
+    const { performCSGSubtraction } = require('../services/csg');
+    let resultGeometry = selectedShape.geometry.clone();
+
+    intersectingShapes.forEach((shape, index) => {
+      console.log(`  ➖ Subtracting shape ${index + 1}/${intersectingShapes.length}`);
+      resultGeometry = performCSGSubtraction(resultGeometry, shape.geometry);
+    });
+
+    const { updateShape } = useAppStore.getState();
+    updateShape(selectedShapeId, { geometry: resultGeometry });
+
+    console.log('✅ CSG subtraction completed');
   };
 
   return (
@@ -454,20 +491,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           >
             <FolderOpen size={12} />
             <span className="text-xs font-semibold">Catalog</span>
-          </button>
-
-          <button
-            onClick={handleExtrude}
-            disabled={!selectedShapeId}
-            className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors font-medium shadow-md ${
-              selectedShapeId
-                ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                : 'bg-stone-300 text-stone-500 cursor-not-allowed'
-            }`}
-            title="Extrude Selected Shape"
-          >
-            <ArrowUpFromLine size={12} />
-            <span className="text-xs font-semibold">Extrude</span>
           </button>
 
           <div className="relative">
@@ -716,6 +739,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             disabled={!selectedShapeId}
           >
             <Settings size={11} />
+          </button>
+          <button
+            onClick={handleSubtract}
+            className={`p-1.5 rounded transition-all ${
+              selectedShapeId
+                ? 'hover:bg-red-50 text-red-600 hover:text-red-800'
+                : 'text-stone-300 cursor-not-allowed'
+            }`}
+            title={selectedShapeId ? "Subtract Intersecting Shapes" : "Select a shape first"}
+            disabled={!selectedShapeId}
+          >
+            <Minus size={11} />
           </button>
           <button
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
