@@ -498,8 +498,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       console.log(`  ✅ Subtraction ${index + 1} completed`);
     });
 
-    const { updateShape } = useAppStore.getState();
+    const { updateShape, deleteShape } = useAppStore.getState();
+
     updateShape(selectedShapeId, { geometry: resultGeometry });
+    console.log(`📦 Updated selected shape with new geometry: ${selectedShapeId}`);
+
+    intersectingShapes.forEach((shape) => {
+      deleteShape(shape.id);
+      console.log(`🗑️ Deleted intersecting shape: ${shape.id}`);
+    });
 
     console.log('✅ CSG subtraction completed successfully');
   };
