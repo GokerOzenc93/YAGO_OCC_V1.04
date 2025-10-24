@@ -450,13 +450,28 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
       const intersects = selectedBox.intersectsBox(otherBox);
 
+      if (!intersects) {
+        console.log(`  📦 Shape ${s.id}: No bounding box intersection`);
+        return false;
+      }
+
+      const intersection = selectedBox.clone().intersect(otherBox);
+      const intersectionVolume =
+        (intersection.max.x - intersection.min.x) *
+        (intersection.max.y - intersection.min.y) *
+        (intersection.max.z - intersection.min.z);
+
+      const hasRealIntersection = intersectionVolume > 0.0001;
+
       console.log(`  📦 Checking shape ${s.id}:`, {
         position: s.position,
         boundingBox: otherBox,
-        intersects
+        intersects,
+        intersectionVolume,
+        hasRealIntersection
       });
 
-      return intersects;
+      return hasRealIntersection;
     });
 
     console.log(`🔍 Found ${intersectingShapes.length} intersecting shape(s)`);
