@@ -34,7 +34,9 @@ const ShapeWithTransform: React.FC<{
       if (shape.geometry && shape.geometry !== localGeometry) {
         console.log(`🔄 Geometry updated for shape ${shape.id}`);
         setLocalGeometry(shape.geometry);
-        setEdgeGeometry(null);
+
+        const edges = new THREE.EdgesGeometry(shape.geometry, 1);
+        setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
       }
@@ -42,7 +44,9 @@ const ShapeWithTransform: React.FC<{
       if (shape.parameters?.modified && shape.geometry) {
         console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
         setLocalGeometry(shape.geometry);
-        setEdgeGeometry(null);
+
+        const edges = new THREE.EdgesGeometry(shape.geometry, 1);
+        setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
       }
