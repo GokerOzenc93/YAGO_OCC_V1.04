@@ -196,13 +196,14 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry]} />
+                <edgesGeometry args={[localGeometry, 1]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#3b82f6' : '#1a1a1a'}
-                linewidth={1}
-                opacity={0.3}
+                color={isSelected ? '#1e3a8a' : '#0a0a0a'}
+                linewidth={1.5}
+                opacity={0.8}
                 transparent
+                depthTest={true}
               />
             </lineSegments>
           </mesh>
@@ -218,11 +219,27 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry]} />
+                <edgesGeometry args={[localGeometry, 1]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? 2 : 1}
+                linewidth={isSelected || shouldShowAsReference ? 3 : 2}
+                depthTest={true}
+                depthWrite={true}
+              />
+            </lineSegments>
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 1]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
+                linewidth={isSelected || shouldShowAsReference ? 1.5 : 1}
+                transparent
+                opacity={0.3}
+                depthTest={true}
               />
             </lineSegments>
           </>
@@ -247,11 +264,14 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry]} />
+                <edgesGeometry args={[localGeometry, 1]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#3b82f6' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
+                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
+                linewidth={isSelected || shouldShowAsReference ? 2.5 : 2}
+                depthTest={true}
+                transparent
+                opacity={0.9}
               />
             </lineSegments>
           </>
