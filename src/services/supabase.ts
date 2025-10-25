@@ -3,11 +3,11 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+const hasSupabaseConfig = supabaseUrl && supabaseAnonKey;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = hasSupabaseConfig
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 export interface CatalogItem {
   id: string;
@@ -21,6 +21,11 @@ export interface CatalogItem {
 
 export const catalogService = {
   async getAll(): Promise<CatalogItem[]> {
+    if (!supabase) {
+      console.warn('Supabase not configured - running in local mode');
+      return [];
+    }
+
     const { data, error } = await supabase
       .from('geometry_catalog')
       .select('*')
@@ -41,6 +46,11 @@ export const catalogService = {
     geometry_data: any;
     preview_image?: string;
   }): Promise<CatalogItem | null> {
+    if (!supabase) {
+      console.warn('Supabase not configured - cannot save to catalog');
+      throw new Error('Database not configured');
+    }
+
     const { data: existing } = await supabase
       .from('geometry_catalog')
       .select('id')
@@ -87,6 +97,11 @@ export const catalogService = {
   },
 
   async delete(id: string): Promise<boolean> {
+    if (!supabase) {
+      console.warn('Supabase not configured - cannot delete from catalog');
+      return false;
+    }
+
     const { error } = await supabase
       .from('geometry_catalog')
       .delete()
@@ -101,6 +116,11 @@ export const catalogService = {
   },
 
   async update(id: string, updates: Partial<CatalogItem>): Promise<CatalogItem | null> {
+    if (!supabase) {
+      console.warn('Supabase not configured - cannot update catalog');
+      return null;
+    }
+
     const { data, error } = await supabase
       .from('geometry_catalog')
       .update({
