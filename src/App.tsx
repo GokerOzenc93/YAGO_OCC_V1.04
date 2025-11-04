@@ -14,18 +14,18 @@ function App() {
   const { setOpenCascadeInstance, setOpenCascadeLoading, opencascadeLoading, addShape } = useAppStore();
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
+  const [ocInitialized, setOcInitialized] = useState(false);
 
   useEffect(() => {
+    if (ocInitialized) {
+      return;
+    }
+
+    setOcInitialized(true);
     let mounted = true;
 
     const loadOpenCascade = async () => {
-      if ((window as any).opencascadeLoaded || (window as any).opencascadeLoading) {
-        console.log('✅ OpenCascade already loaded or loading, skipping...');
-        return;
-      }
-
       try {
-        (window as any).opencascadeLoading = true;
         console.log('🔄 Starting OpenCascade load...');
         setOpenCascadeLoading(true);
 
@@ -34,13 +34,10 @@ function App() {
         if (mounted) {
           setOpenCascadeInstance(oc);
           setOpenCascadeLoading(false);
-          (window as any).opencascadeLoaded = true;
-          (window as any).opencascadeLoading = false;
           console.log('✅ OpenCascade.js ready');
         }
       } catch (error) {
         console.error('❌ Failed to initialize OpenCascade:', error);
-        (window as any).opencascadeLoading = false;
         if (mounted) {
           setOpenCascadeLoading(false);
         }
@@ -52,7 +49,7 @@ function App() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [ocInitialized, setOpenCascadeInstance, setOpenCascadeLoading]);
 
   useEffect(() => {
     if (catalogOpen) {
