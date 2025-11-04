@@ -20,6 +20,7 @@ function App() {
 
     const loadOpenCascade = async () => {
       if ((window as any).opencascadeLoaded) {
+        console.log('✅ OpenCascade already loaded, skipping...');
         return;
       }
 
@@ -48,7 +49,7 @@ function App() {
     return () => {
       mounted = false;
     };
-  }, [setOpenCascadeInstance, setOpenCascadeLoading]);
+  }, []);
 
   useEffect(() => {
     if (catalogOpen) {
