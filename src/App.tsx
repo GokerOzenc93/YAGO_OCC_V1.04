@@ -14,17 +14,15 @@ function App() {
   const { setOpenCascadeInstance, setOpenCascadeLoading, opencascadeLoading, addShape } = useAppStore();
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
-  const [ocInitialized, setOcInitialized] = useState(false);
 
   useEffect(() => {
-    if (ocInitialized) {
-      return;
-    }
-
-    setOcInitialized(true);
     let mounted = true;
 
     const loadOpenCascade = async () => {
+      if ((window as any).opencascadeLoaded) {
+        return;
+      }
+
       try {
         console.log('🔄 Starting OpenCascade load...');
         setOpenCascadeLoading(true);
@@ -34,6 +32,7 @@ function App() {
         if (mounted) {
           setOpenCascadeInstance(oc);
           setOpenCascadeLoading(false);
+          (window as any).opencascadeLoaded = true;
           console.log('✅ OpenCascade.js ready');
         }
       } catch (error) {
@@ -49,7 +48,7 @@ function App() {
     return () => {
       mounted = false;
     };
-  }, [ocInitialized, setOpenCascadeInstance, setOpenCascadeLoading]);
+  }, [setOpenCascadeInstance, setOpenCascadeLoading]);
 
   useEffect(() => {
     if (catalogOpen) {
