@@ -221,63 +221,33 @@ const ShapeWithTransform: React.FC<{
               geometry={localGeometry}
               visible={false}
             />
-            {shape.parameters?.modified ? (
-              <>
-                <lineSegments>
-                  <wireframeGeometry args={[localGeometry]} />
-                  <lineBasicMaterial
-                    color={isSelected ? '#3b82f6' : shouldShowAsReference ? '#dc2626' : '#6b7280'}
-                    linewidth={1}
-                    transparent
-                    opacity={0.15}
-                    depthTest={true}
-                  />
-                </lineSegments>
-                <lineSegments>
-                  {edgeGeometry ? (
-                    <bufferGeometry {...edgeGeometry} />
-                  ) : (
-                    <edgesGeometry args={[localGeometry, 1]} />
-                  )}
-                  <lineBasicMaterial
-                    color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                    linewidth={isSelected || shouldShowAsReference ? 3 : 2}
-                    depthTest={true}
-                    depthWrite={true}
-                  />
-                </lineSegments>
-              </>
-            ) : (
-              <>
-                <lineSegments>
-                  {edgeGeometry ? (
-                    <bufferGeometry {...edgeGeometry} />
-                  ) : (
-                    <edgesGeometry args={[localGeometry, 1]} />
-                  )}
-                  <lineBasicMaterial
-                    color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                    linewidth={isSelected || shouldShowAsReference ? 3 : 2}
-                    depthTest={true}
-                    depthWrite={true}
-                  />
-                </lineSegments>
-                <lineSegments>
-                  {edgeGeometry ? (
-                    <bufferGeometry {...edgeGeometry} />
-                  ) : (
-                    <edgesGeometry args={[localGeometry, 1]} />
-                  )}
-                  <lineBasicMaterial
-                    color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
-                    linewidth={isSelected || shouldShowAsReference ? 1.5 : 1}
-                    transparent
-                    opacity={0.3}
-                    depthTest={true}
-                  />
-                </lineSegments>
-              </>
-            )}
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 1]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
+                linewidth={isSelected || shouldShowAsReference ? 3 : 2}
+                depthTest={true}
+                depthWrite={true}
+              />
+            </lineSegments>
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 1]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
+                linewidth={isSelected || shouldShowAsReference ? 1.5 : 1}
+                transparent
+                opacity={0.3}
+                depthTest={true}
+              />
+            </lineSegments>
           </>
         )}
         {(isXray || shouldShowAsReference) && (
