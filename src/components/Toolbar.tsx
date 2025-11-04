@@ -509,35 +509,65 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         let targetOCShape = targetShape.ocShape;
         if (!targetOCShape) {
-          console.log('  🔄 Creating OC shape for target from parameters');
+          console.log('  🔄 Creating OC shape for target from parameters', {
+            type: targetShape.type,
+            parameters: targetShape.parameters
+          });
           targetOCShape = createOCGeometry(opencascadeInstance, {
             type: targetShape.type as any,
             width: targetShape.parameters?.width,
             height: targetShape.parameters?.height,
-            depth: targetShape.parameters?.depth
+            depth: targetShape.parameters?.depth,
+            radius: targetShape.parameters?.radius
           });
         }
 
         let subtractOCShape = selectedShape.ocShape;
         if (!subtractOCShape) {
-          console.log('  🔄 Creating OC shape for subtract tool from parameters');
+          console.log('  🔄 Creating OC shape for subtract tool from parameters', {
+            type: selectedShape.type,
+            parameters: selectedShape.parameters
+          });
           subtractOCShape = createOCGeometry(opencascadeInstance, {
             type: selectedShape.type as any,
             width: selectedShape.parameters?.width,
             height: selectedShape.parameters?.height,
-            depth: selectedShape.parameters?.depth
+            depth: selectedShape.parameters?.depth,
+            radius: selectedShape.parameters?.radius
           });
         }
 
-        const gp_Vec = new opencascadeInstance.gp_Vec_4(
-          relativePosition.x,
-          relativePosition.y,
-          relativePosition.z
-        );
-        const translation = new opencascadeInstance.gp_Trsf_1();
-        translation.SetTranslation_1(gp_Vec);
-        const transform = new opencascadeInstance.BRepBuilderAPI_Transform_2(subtractOCShape, translation, true);
-        const transformedOCShape = transform.Shape();
+        const targetPos = new THREE.Vector3(...targetShape.position);
+        const subtractPos = new THREE.Vector3(...selectedShape.position);
+
+        console.log('  📍 Positions:', {
+          target: targetPos,
+          subtract: subtractPos,
+          relative: relativePosition
+        });
+
+        let transformedOCShape = subtractOCShape;
+
+        if (Math.abs(relativePosition.x) > 0.01 ||
+            Math.abs(relativePosition.y) > 0.01 ||
+            Math.abs(relativePosition.z) > 0.01) {
+          const gp_Vec = new opencascadeInstance.gp_Vec_4(
+            relativePosition.x,
+            relativePosition.y,
+            relativePosition.z
+          );
+          const translation = new opencascadeInstance.gp_Trsf_1();
+          translation.SetTranslation_1(gp_Vec);
+          const transform = new opencascadeInstance.BRepBuilderAPI_Transform_2(
+            subtractOCShape,
+            translation,
+            false
+          );
+          transformedOCShape = transform.Shape();
+          console.log('  ✅ Applied transformation');
+        } else {
+          console.log('  ℹ️ No transformation needed');
+        }
 
         console.log('  🔧 Performing OpenCascade boolean subtraction');
         const resultOCShape = performOCBoolean(

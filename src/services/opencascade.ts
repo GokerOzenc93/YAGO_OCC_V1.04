@@ -55,9 +55,11 @@ export const createOCGeometry = (
       const w = params.width || 600;
       const h = params.height || 600;
       const d = params.depth || 600;
-      const box = new oc.BRepPrimAPI_MakeBox_1(w, d, h);
+
+      const corner = new oc.gp_Pnt_3(-w/2, -d/2, -h/2);
+      const box = new oc.BRepPrimAPI_MakeBox_2(corner, w, d, h);
       const shape = box.Shape();
-      console.log('✅ Box shape created successfully');
+      console.log('✅ Box shape created successfully', { w, h, d });
       return shape;
     }
 
