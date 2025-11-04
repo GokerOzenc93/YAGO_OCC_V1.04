@@ -8,6 +8,7 @@ import { catalogService } from '../services/supabase';
 import { createBoxGeometry, applyVertexModificationsToGeometry } from '../services/geometry';
 import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const ShapeWithTransform: React.FC<{
   shape: any;
@@ -45,6 +46,7 @@ const ShapeWithTransform: React.FC<{
         console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
         let geom = shape.geometry.clone();
 
+        geom = BufferGeometryUtils.mergeVertices(geom);
         geom.computeVertexNormals();
         geom.computeBoundingBox();
         geom.computeBoundingSphere();
@@ -197,6 +199,7 @@ const ShapeWithTransform: React.FC<{
               color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
               metalness={0.3}
               roughness={0.4}
+              flatShading={false}
             />
             <lineSegments>
               {edgeGeometry ? (
