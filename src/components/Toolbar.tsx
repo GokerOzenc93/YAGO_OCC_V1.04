@@ -382,9 +382,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           height: h,
           depth: d
         });
-        console.log('✅ OpenCascade shape created for box:', !!ocShape);
+
+        if (!ocShape || !ocShape.IsNull || ocShape.IsNull()) {
+          console.error('❌ Failed to create valid OpenCascade shape');
+          ocShape = undefined;
+        } else {
+          console.log('✅ OpenCascade shape created and validated for box');
+        }
       } catch (error) {
         console.error('❌ Failed to create OpenCascade shape:', error);
+        ocShape = undefined;
       }
     } else {
       console.warn('⚠️ OpenCascade not loaded, adding box without OC shape');
@@ -520,6 +527,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             depth: targetShape.parameters?.depth,
             radius: targetShape.parameters?.radius
           });
+
+          if (!targetOCShape || !targetOCShape.IsNull || targetOCShape.IsNull()) {
+            console.error('  ❌ Failed to create target OC shape');
+            return;
+          }
         }
 
         let subtractOCShape = selectedShape.ocShape;
@@ -535,7 +547,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             depth: selectedShape.parameters?.depth,
             radius: selectedShape.parameters?.radius
           });
+
+          if (!subtractOCShape || !subtractOCShape.IsNull || subtractOCShape.IsNull()) {
+            console.error('  ❌ Failed to create subtract OC shape');
+            return;
+          }
         }
+
+        console.log('  ✅ Both OC shapes are valid');
 
         const targetPos = new THREE.Vector3(...targetShape.position);
         const subtractPos = new THREE.Vector3(...selectedShape.position);

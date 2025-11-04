@@ -164,10 +164,24 @@ export const performOCBoolean = (
   shape2: TopoDS_Shape,
   operation: 'union' | 'subtract' | 'intersect'
 ): TopoDS_Shape => {
+  if (!shape1 || !shape2) {
+    throw new Error('Invalid shapes: one or both shapes are null or undefined');
+  }
+
+  if (shape1.IsNull && shape1.IsNull()) {
+    throw new Error('Shape1 is null');
+  }
+
+  if (shape2.IsNull && shape2.IsNull()) {
+    throw new Error('Shape2 is null');
+  }
+
   console.log('🔧 performOCBoolean called:', {
     operation,
     shape1Type: shape1?.ShapeType?.(),
-    shape2Type: shape2?.ShapeType?.()
+    shape2Type: shape2?.ShapeType?.(),
+    shape1Valid: !shape1.IsNull(),
+    shape2Valid: !shape2.IsNull()
   });
 
   const booleanClasses = Object.keys(oc).filter(k =>
@@ -245,22 +259,50 @@ export const performOCBoolean = (
     }
 
     case 'subtract': {
-      const cut = createBooleanOp('BRepAlgoAPI_Cut');
-      if (cut.Build && typeof cut.Build === 'function') {
-        try {
-          cut.Build();
-        } catch (e) {
-          console.log('Build() already called or not needed');
+      console.log('🔪 Attempting to create BRepAlgoAPI_Cut...');
+
+      try {
+        const cut = new (oc as any).BRepAlgoAPI_Cut_1(shape1, shape2);
+        console.log('✅ BRepAlgoAPI_Cut_1 created');
+
+        if (cut.IsDone && typeof cut.IsDone === 'function') {
+          const isDone = cut.IsDone();
+          console.log('🔧 Subtract IsDone:', isDone);
+
+          if (!isDone) {
+            console.error('❌ Cut operation failed - IsDone returned false');
+            throw new Error('Boolean subtract failed');
+          }
         }
+
+        const result = cut.Shape();
+
+        if (!result || (result.IsNull && result.IsNull())) {
+          throw new Error('Result shape is null');
+        }
+
+        console.log('✅ Subtract succeeded, result type:', result?.ShapeType?.());
+        return result;
+      } catch (error) {
+        console.error('❌ BRepAlgoAPI_Cut_1 failed, trying fallback...', error);
+
+        const cut = createBooleanOp('BRepAlgoAPI_Cut');
+        if (cut.Build && typeof cut.Build === 'function') {
+          try {
+            cut.Build();
+          } catch (e) {
+            console.log('Build() already called or not needed');
+          }
+        }
+        console.log('🔧 Subtract IsDone:', cut.IsDone());
+        if (!cut.IsDone()) {
+          console.error('❌ Cut operation failed');
+          throw new Error('Boolean subtract failed');
+        }
+        const result = cut.Shape();
+        console.log('✅ Subtract succeeded, result type:', result?.ShapeType?.());
+        return result;
       }
-      console.log('🔧 Subtract IsDone:', cut.IsDone());
-      if (!cut.IsDone()) {
-        console.error('❌ Cut operation failed');
-        throw new Error('Boolean subtract failed');
-      }
-      const result = cut.Shape();
-      console.log('✅ Subtract succeeded, result type:', result?.ShapeType?.());
-      return result;
     }
 
     case 'intersect': {
