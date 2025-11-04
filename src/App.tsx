@@ -19,12 +19,13 @@ function App() {
     let mounted = true;
 
     const loadOpenCascade = async () => {
-      if ((window as any).opencascadeLoaded) {
-        console.log('✅ OpenCascade already loaded, skipping...');
+      if ((window as any).opencascadeLoaded || (window as any).opencascadeLoading) {
+        console.log('✅ OpenCascade already loaded or loading, skipping...');
         return;
       }
 
       try {
+        (window as any).opencascadeLoading = true;
         console.log('🔄 Starting OpenCascade load...');
         setOpenCascadeLoading(true);
 
@@ -34,10 +35,12 @@ function App() {
           setOpenCascadeInstance(oc);
           setOpenCascadeLoading(false);
           (window as any).opencascadeLoaded = true;
+          (window as any).opencascadeLoading = false;
           console.log('✅ OpenCascade.js ready');
         }
       } catch (error) {
         console.error('❌ Failed to initialize OpenCascade:', error);
+        (window as any).opencascadeLoading = false;
         if (mounted) {
           setOpenCascadeLoading(false);
         }
