@@ -4,7 +4,7 @@ import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, Or
 import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, Minus } from 'lucide-react';
 import { createBoxGeometry } from '../services/geometry';
 import { ParametersPanel } from './ParametersPanel';
-import { performCSGSubtraction } from '../services/csg';
+import { performOCBoolean, convertOCShapeToThreeGeometry, createOCGeometry, convertThreeGeometryToOCShape } from '../services/opencascade';
 
 interface ToolbarProps {
   onOpenCatalog: () => void;
@@ -487,7 +487,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       return;
     }
 
-    console.log(`🔪 Performing CSG subtraction on ${intersectingShapes.length} intersecting shape(s)`);
+    console.log(`🔪 Performing OpenCascade boolean subtraction on ${intersectingShapes.length} intersecting shape(s)`);
     console.log(`🗑️ Selected shape (tool to subtract) will be deleted: ${selectedShapeId}`);
 
     const { updateShape, deleteShape } = useAppStore.getState();
@@ -495,33 +495,81 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     intersectingShapes.forEach((targetShape, index) => {
       console.log(`  ➖ Subtracting from shape ${index + 1}/${intersectingShapes.length}: ${targetShape.id}`);
 
-      const relativePosition = new THREE.Vector3()
-        .subVectors(
-          new THREE.Vector3(...selectedShape.position),
-          new THREE.Vector3(...targetShape.position)
+      if (!opencascadeInstance) {
+        console.error('❌ OpenCascade not loaded');
+        return;
+      }
+
+      try {
+        const relativePosition = new THREE.Vector3()
+          .subVectors(
+            new THREE.Vector3(...selectedShape.position),
+            new THREE.Vector3(...targetShape.position)
+          );
+
+        let targetOCShape = targetShape.ocShape;
+        if (!targetOCShape) {
+          console.log('  🔄 Creating OC shape for target from parameters');
+          targetOCShape = createOCGeometry(opencascadeInstance, {
+            type: targetShape.type as any,
+            width: targetShape.parameters?.width,
+            height: targetShape.parameters?.height,
+            depth: targetShape.parameters?.depth
+          });
+        }
+
+        let subtractOCShape = selectedShape.ocShape;
+        if (!subtractOCShape) {
+          console.log('  🔄 Creating OC shape for subtract tool from parameters');
+          subtractOCShape = createOCGeometry(opencascadeInstance, {
+            type: selectedShape.type as any,
+            width: selectedShape.parameters?.width,
+            height: selectedShape.parameters?.height,
+            depth: selectedShape.parameters?.depth
+          });
+        }
+
+        const gp_Vec = new opencascadeInstance.gp_Vec_4(
+          relativePosition.x,
+          relativePosition.y,
+          relativePosition.z
+        );
+        const translation = new opencascadeInstance.gp_Trsf_1();
+        translation.SetTranslation_1(gp_Vec);
+        const transform = new opencascadeInstance.BRepBuilderAPI_Transform_2(subtractOCShape, translation, true);
+        const transformedOCShape = transform.Shape();
+
+        console.log('  🔧 Performing OpenCascade boolean subtraction');
+        const resultOCShape = performOCBoolean(
+          opencascadeInstance,
+          targetOCShape,
+          transformedOCShape,
+          'subtract'
         );
 
-      const transformedSubtractGeometry = selectedShape.geometry.clone();
-      transformedSubtractGeometry.translate(relativePosition.x, relativePosition.y, relativePosition.z);
+        console.log('  📐 Converting result to Three.js geometry');
+        const resultGeometry = convertOCShapeToThreeGeometry(opencascadeInstance, resultOCShape);
+        console.log(`  ✅ Subtraction ${index + 1} completed`);
 
-      const resultGeometry = performCSGSubtraction(targetShape.geometry, transformedSubtractGeometry);
-      console.log(`  ✅ Subtraction ${index + 1} completed`);
-
-      updateShape(targetShape.id, {
-        geometry: resultGeometry,
-        parameters: {
-          ...targetShape.parameters,
-          modified: true,
-          csgOperation: 'subtraction'
-        }
-      });
-      console.log(`  📦 Updated shape with new geometry: ${targetShape.id}`);
+        updateShape(targetShape.id, {
+          geometry: resultGeometry,
+          ocShape: resultOCShape,
+          parameters: {
+            ...targetShape.parameters,
+            modified: true,
+            csgOperation: 'subtraction'
+          }
+        });
+        console.log(`  📦 Updated shape with new geometry: ${targetShape.id}`);
+      } catch (error) {
+        console.error(`  ❌ Subtraction ${index + 1} failed:`, error);
+      }
     });
 
     deleteShape(selectedShapeId);
     console.log(`🗑️ Deleted selected shape (cutting tool): ${selectedShapeId}`);
 
-    console.log('✅ CSG subtraction completed successfully');
+    console.log('✅ OpenCascade boolean subtraction completed successfully');
   };
 
   return (

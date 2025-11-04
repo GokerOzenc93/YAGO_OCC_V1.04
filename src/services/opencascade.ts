@@ -1,6 +1,42 @@
 import type { OpenCascadeInstance, TopoDS_Shape } from './vite-env';
 import * as THREE from 'three';
 
+export const convertThreeGeometryToOCShape = (
+  oc: OpenCascadeInstance,
+  geometry: THREE.BufferGeometry,
+  position: THREE.Vector3 = new THREE.Vector3()
+): TopoDS_Shape | null => {
+  try {
+    const bbox = geometry.boundingBox;
+    if (!bbox) {
+      geometry.computeBoundingBox();
+    }
+
+    const size = new THREE.Vector3();
+    geometry.boundingBox!.getSize(size);
+
+    const center = new THREE.Vector3();
+    geometry.boundingBox!.getCenter(center);
+
+    const box = new oc.BRepPrimAPI_MakeBox_1(size.x, size.y, size.z);
+    const shape = box.Shape();
+
+    const gp_Vec = new oc.gp_Vec_4(
+      position.x + center.x - size.x / 2,
+      position.y + center.y - size.y / 2,
+      position.z + center.z - size.z / 2
+    );
+    const translation = new oc.gp_Trsf_1();
+    translation.SetTranslation_1(gp_Vec);
+
+    const transform = new oc.BRepBuilderAPI_Transform_2(shape, translation, true);
+    return transform.Shape();
+  } catch (error) {
+    console.error('Failed to convert Three.js geometry to OpenCascade shape:', error);
+    return null;
+  }
+};
+
 export interface OCGeometryParams {
   type: 'box' | 'sphere' | 'cylinder' | 'cone';
   width?: number;
