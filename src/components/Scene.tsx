@@ -5,7 +5,6 @@ import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
-import { createBoxGeometry, applyVertexModificationsToGeometry } from '../services/geometry';
 import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
 
@@ -58,30 +57,6 @@ const ShapeWithTransform: React.FC<{
       }
 
       setEdgeGeometry(null);
-
-      if (shape.parameters?.width && shape.parameters?.height && shape.parameters?.depth) {
-        let newGeometry = createBoxGeometry(
-          shape.parameters.width,
-          shape.parameters.height,
-          shape.parameters.depth
-        );
-
-        if (shape.vertexModifications && shape.vertexModifications.length > 0) {
-          newGeometry = applyVertexModificationsToGeometry(
-            newGeometry,
-            shape.vertexModifications,
-            shape.parameters
-          );
-          console.log(`✨ Applied ${shape.vertexModifications.length} vertex modifications to shape ${shape.id}`);
-        }
-
-        setLocalGeometry(newGeometry);
-        setGeometryKey(prev => prev + 1);
-
-        return () => {
-          newGeometry.dispose();
-        };
-      }
     };
 
     loadEdges();

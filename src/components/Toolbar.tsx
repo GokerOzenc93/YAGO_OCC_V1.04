@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import * as THREE from 'three';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
 import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, Minus } from 'lucide-react';
-import { createBoxGeometry } from '../services/geometry';
 import { ParametersPanel } from './ParametersPanel';
-import { performCSGSubtraction } from '../services/csg';
 
 interface ToolbarProps {
   onOpenCatalog: () => void;
@@ -369,159 +367,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   ];
 
   const handleAddGeometry = async () => {
-    const w = 600, h = 600, d = 600;
-    const geometry = createBoxGeometry(w, h, d);
-
-    let ocShape = null;
-    if (opencascadeInstance) {
-      try {
-        const { createOCGeometry } = await import('../services/opencascade');
-        ocShape = createOCGeometry(opencascadeInstance, {
-          type: 'box',
-          width: w,
-          height: h,
-          depth: d
-        });
-        console.log('✅ OpenCascade shape created for box:', !!ocShape);
-      } catch (error) {
-        console.error('❌ Failed to create OpenCascade shape:', error);
-      }
-    } else {
-      console.warn('⚠️ OpenCascade not loaded, adding box without OC shape');
-    }
-
-    const newShape = {
-      id: `box-${Date.now()}`,
-      type: 'box',
-      geometry,
-      position: [0, 0, 0],
-      rotation: [0, 0, 0],
-      scale: [1, 1, 1],
-      color: '#2563eb',
-      parameters: { width: w, height: h, depth: d },
-      ocShape
-    };
-
-    console.log('📦 Adding shape with ocShape:', !!newShape.ocShape);
-    addShape(newShape);
-    console.log('✅ Box geometry added');
+    console.log('Add geometry button clicked - but functionality is disabled');
   };
 
   const handleSubtract = () => {
-    console.log('🔪 Subtract button clicked');
-
-    if (!selectedShapeId) {
-      console.warn('⚠️ No shape selected for subtraction');
-      return;
-    }
-
-    const selectedShape = shapes.find(s => s.id === selectedShapeId);
-
-    if (!selectedShape) {
-      console.warn('⚠️ Selected shape not found');
-      return;
-    }
-
-    console.log('📦 Selected shape:', selectedShapeId);
-    console.log('📦 Selected shape position:', selectedShape.position);
-    console.log('📦 Selected shape rotation:', selectedShape.rotation);
-    console.log('📦 Selected shape scale:', selectedShape.scale);
-
-    const selectedMesh = new THREE.Mesh(selectedShape.geometry);
-    selectedMesh.position.set(...selectedShape.position);
-    selectedMesh.rotation.set(...selectedShape.rotation);
-    selectedMesh.scale.set(...selectedShape.scale);
-    selectedMesh.updateMatrixWorld(true);
-
-    const selectedBox = new THREE.Box3().setFromObject(selectedMesh);
-
-    console.log('📦 Selected bounding box:', selectedBox);
-
-    const intersectingShapes = shapes.filter(s => {
-      if (s.id === selectedShapeId) return false;
-
-      const otherMesh = new THREE.Mesh(s.geometry);
-      otherMesh.position.set(...s.position);
-      otherMesh.rotation.set(...s.rotation);
-      otherMesh.scale.set(...s.scale);
-      otherMesh.updateMatrixWorld(true);
-
-      const otherBox = new THREE.Box3().setFromObject(otherMesh);
-
-      const intersects = selectedBox.intersectsBox(otherBox);
-
-      if (!intersects) {
-        console.log(`  📦 Shape ${s.id}: No bounding box intersection`);
-        return false;
-      }
-
-      const intersection = selectedBox.clone().intersect(otherBox);
-
-      const penetrationX = intersection.max.x - intersection.min.x;
-      const penetrationY = intersection.max.y - intersection.min.y;
-      const penetrationZ = intersection.max.z - intersection.min.z;
-
-      const minPenetrationThreshold = 0.01;
-
-      const hasRealIntersection =
-        penetrationX > minPenetrationThreshold &&
-        penetrationY > minPenetrationThreshold &&
-        penetrationZ > minPenetrationThreshold;
-
-      const intersectionVolume = penetrationX * penetrationY * penetrationZ;
-
-      console.log(`  📦 Checking shape ${s.id}:`, {
-        position: s.position,
-        penetration: { x: penetrationX, y: penetrationY, z: penetrationZ },
-        intersectionVolume,
-        hasRealIntersection
-      });
-
-      return hasRealIntersection;
-    });
-
-    console.log(`🔍 Found ${intersectingShapes.length} intersecting shape(s)`);
-
-    if (intersectingShapes.length === 0) {
-      console.warn('⚠️ No intersecting shapes found');
-      return;
-    }
-
-    console.log(`🔪 Performing CSG subtraction on ${intersectingShapes.length} intersecting shape(s)`);
-    console.log(`🗑️ Selected shape (tool to subtract) will be deleted: ${selectedShapeId}`);
-
-    const { updateShape, deleteShape } = useAppStore.getState();
-
-    intersectingShapes.forEach((targetShape, index) => {
-      console.log(`  ➖ Subtracting from shape ${index + 1}/${intersectingShapes.length}: ${targetShape.id}`);
-
-      const relativePosition = new THREE.Vector3()
-        .subVectors(
-          new THREE.Vector3(...selectedShape.position),
-          new THREE.Vector3(...targetShape.position)
-        );
-
-      const transformedSubtractGeometry = selectedShape.geometry.clone();
-      transformedSubtractGeometry.translate(relativePosition.x, relativePosition.y, relativePosition.z);
-
-      const resultGeometry = performCSGSubtraction(targetShape.geometry, transformedSubtractGeometry);
-      console.log(`  ✅ Subtraction ${index + 1} completed`);
-
-      updateShape(targetShape.id, {
-        geometry: resultGeometry,
-        parameters: {
-          ...targetShape.parameters,
-          modified: true,
-          csgOperation: 'subtraction'
-        }
-      });
-      console.log(`  📦 Updated shape with new geometry: ${targetShape.id}`);
-    });
-
-    deleteShape(selectedShapeId);
-    console.log(`🗑️ Deleted selected shape (cutting tool): ${selectedShapeId}`);
-
-    console.log('✅ CSG subtraction completed successfully');
+    console.log('Subtract button clicked - but functionality is disabled');
   };
 
   return (
