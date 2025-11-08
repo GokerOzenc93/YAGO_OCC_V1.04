@@ -368,12 +368,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
   const handleAddGeometry = async () => {
     console.log('📦 Adding box geometry with Replicad...');
+    console.log('📦 Store addShape function:', typeof addShape);
 
     try {
       const { createBoxGeometry } = await import('../services/replicad');
+      console.log('📦 createBoxGeometry imported');
 
       const w = 600, h = 600, d = 600;
+      console.log('📦 Creating geometry with dimensions:', { w, h, d });
+
       const geometry = await createBoxGeometry(w, h, d);
+      console.log('📦 Geometry created:', geometry);
+      console.log('📦 Geometry type:', geometry.constructor.name);
+      console.log('📦 Geometry vertices:', geometry.attributes.position?.count);
 
       const newShape = {
         id: `box-${Date.now()}`,
@@ -386,10 +393,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         parameters: { width: w, height: h, depth: d }
       };
 
+      console.log('📦 Adding shape to store:', newShape);
       addShape(newShape);
       console.log('✅ Box geometry added with Replicad');
+      console.log('📦 Current shapes count:', shapes.length);
     } catch (error) {
       console.error('❌ Failed to add geometry:', error);
+      console.error('❌ Error stack:', (error as Error).stack);
+      alert(`Failed to add geometry: ${(error as Error).message}`);
     }
   };
 
