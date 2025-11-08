@@ -367,7 +367,30 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   ];
 
   const handleAddGeometry = async () => {
-    console.log('Add geometry button clicked - but functionality is disabled');
+    console.log('📦 Adding box geometry with Replicad...');
+
+    try {
+      const { createBoxGeometry } = await import('../services/replicad');
+
+      const w = 600, h = 600, d = 600;
+      const geometry = await createBoxGeometry(w, h, d);
+
+      const newShape = {
+        id: `box-${Date.now()}`,
+        type: 'box',
+        geometry,
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
+        scale: [1, 1, 1] as [number, number, number],
+        color: '#2563eb',
+        parameters: { width: w, height: h, depth: d }
+      };
+
+      addShape(newShape);
+      console.log('✅ Box geometry added with Replicad');
+    } catch (error) {
+      console.error('❌ Failed to add geometry:', error);
+    }
   };
 
   const handleSubtract = () => {
