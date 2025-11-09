@@ -434,38 +434,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     }
   };
 
-  const handleAddSphere = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-
-    console.log('⚪ Adding sphere geometry with Replicad...');
-
-    try {
-      const { createReplicadSphere, convertReplicadToThreeGeometry } = await import('../services/replicad');
-
-      const radius = 300;
-      const replicadShape = await createReplicadSphere({ radius });
-      const geometry = convertReplicadToThreeGeometry(replicadShape);
-
-      const newShape = {
-        id: `sphere-${Date.now()}`,
-        type: 'sphere',
-        geometry,
-        replicadShape,
-        position: [0, 0, 0] as [number, number, number],
-        rotation: [0, 0, 0] as [number, number, number],
-        scale: [1, 1, 1] as [number, number, number],
-        color: '#2563eb',
-        parameters: { radius }
-      };
-
-      addShape(newShape);
-      console.log('✅ Sphere geometry added');
-    } catch (error) {
-      console.error('❌ Failed to add sphere:', error);
-      alert(`Failed to add sphere: ${(error as Error).message}`);
-    }
-  };
 
   const handleSubtract = async () => {
     if (!selectedShapeId || !hasIntersectingShapes) {
@@ -884,14 +852,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             title="Add Cylinder (C)"
           >
             <Cylinder size={11} />
-          </button>
-          <button
-            type="button"
-            onClick={handleAddSphere}
-            className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
-            title="Add Sphere (S)"
-          >
-            <Circle size={11} />
           </button>
           <button
             onClick={() => {
