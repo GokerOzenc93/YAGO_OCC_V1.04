@@ -176,17 +176,24 @@ export const performBooleanCut = async (
   basePosition?: [number, number, number],
   cuttingPosition?: [number, number, number],
   baseRotation?: [number, number, number],
-  cuttingRotation?: [number, number, number]
+  cuttingRotation?: [number, number, number],
+  baseScale?: [number, number, number],
+  cuttingScale?: [number, number, number]
 ): Promise<any> => {
   await initReplicad();
 
   console.log('🔪 Performing boolean cut operation...');
-  console.log('Base shape:', baseShape, 'Position:', basePosition, 'Rotation:', baseRotation);
-  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Rotation:', cuttingRotation);
+  console.log('Base shape:', baseShape, 'Position:', basePosition, 'Rotation:', baseRotation, 'Scale:', baseScale);
+  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Rotation:', cuttingRotation, 'Scale:', cuttingScale);
 
   try {
     let transformedBase = baseShape;
     let transformedCutting = cuttingShape;
+
+    if (baseScale && (baseScale[0] !== 1 || baseScale[1] !== 1 || baseScale[2] !== 1)) {
+      console.log('📏 Scaling base shape by:', baseScale);
+      transformedBase = transformedBase.scale(baseScale[0], baseScale[1], baseScale[2]);
+    }
 
     if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
       console.log('🔄 Rotating base shape by:', baseRotation);
@@ -198,6 +205,11 @@ export const performBooleanCut = async (
     if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
       console.log('📍 Translating base shape by:', basePosition);
       transformedBase = transformedBase.translate(basePosition[0], basePosition[1], basePosition[2]);
+    }
+
+    if (cuttingScale && (cuttingScale[0] !== 1 || cuttingScale[1] !== 1 || cuttingScale[2] !== 1)) {
+      console.log('📏 Scaling cutting shape by:', cuttingScale);
+      transformedCutting = transformedCutting.scale(cuttingScale[0], cuttingScale[1], cuttingScale[2]);
     }
 
     if (cuttingRotation && (cuttingRotation[0] !== 0 || cuttingRotation[1] !== 0 || cuttingRotation[2] !== 0)) {
@@ -224,6 +236,11 @@ export const performBooleanCut = async (
         if (baseRotation[2] !== 0) finalResult = finalResult.rotate(-baseRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
         if (baseRotation[1] !== 0) finalResult = finalResult.rotate(-baseRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
         if (baseRotation[0] !== 0) finalResult = finalResult.rotate(-baseRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      }
+
+      if (baseScale && (baseScale[0] !== 1 || baseScale[1] !== 1 || baseScale[2] !== 1)) {
+        console.log('📏 Scaling result back by:', [1/baseScale[0], 1/baseScale[1], 1/baseScale[2]]);
+        finalResult = finalResult.scale(1/baseScale[0], 1/baseScale[1], 1/baseScale[2]);
       }
 
       return finalResult;

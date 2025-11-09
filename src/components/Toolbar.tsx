@@ -475,8 +475,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         }
 
         console.log(`🔪 Cutting ${selectedShapeId} FROM ${targetShape.id}`);
-        console.log(`📍 Target (base) position: [${targetShape.position}], rotation: [${targetShape.rotation}]`);
-        console.log(`📍 Selected (cutting) position: [${selectedShape.position}], rotation: [${selectedShape.rotation}]`);
+        console.log(`📍 Target (base) position: [${targetShape.position}], rotation: [${targetShape.rotation}], scale: [${targetShape.scale}]`);
+        console.log(`📍 Selected (cutting) position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
 
         const resultShape = await performBooleanCut(
           targetShape.replicadShape,
@@ -484,7 +484,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           targetShape.position,
           selectedShape.position,
           targetShape.rotation,
-          selectedShape.rotation
+          selectedShape.rotation,
+          targetShape.scale,
+          selectedShape.scale
         );
 
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
