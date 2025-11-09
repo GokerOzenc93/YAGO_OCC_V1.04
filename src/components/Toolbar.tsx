@@ -27,7 +27,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     toggleOrthoMode,
     opencascadeInstance,
     extrudeShape,
-    shapes
+    shapes,
+    updateShape,
+    deleteShape
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -404,9 +406,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       addShape(newShape);
       console.log('✅ Box geometry added with Replicad');
       console.log('📦 Current shapes count after add:', shapes.length + 1);
-
-      const { checkAndPerformBooleanOperations } = useAppStore.getState();
-      await checkAndPerformBooleanOperations();
     } catch (error) {
       console.error('❌ Failed to add geometry:', error);
       console.error('❌ Error stack:', (error as Error).stack);
@@ -414,8 +413,89 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     }
   };
 
-  const handleSubtract = () => {
-    console.log('Subtract button clicked - but functionality is disabled');
+  const handleSubtract = async () => {
+    if (!selectedShapeId || !hasIntersectingShapes) {
+      console.log('⚠️ Cannot subtract: no selection or no intersecting shapes');
+      return;
+    }
+
+    console.log('🔪 Subtract button clicked');
+
+    try {
+      const selectedShape = shapes.find(s => s.id === selectedShapeId);
+      if (!selectedShape) {
+        console.error('❌ Selected shape not found');
+        return;
+      }
+
+      if (!selectedShape.geometry || !selectedShape.replicadShape) {
+        console.error('❌ Selected shape missing geometry or replicadShape');
+        return;
+      }
+
+      const selectedBox = new THREE.Box3().setFromBufferAttribute(
+        selectedShape.geometry.getAttribute('position')
+      );
+      const selectedMin = selectedBox.min.clone();
+      const selectedMax = selectedBox.max.clone();
+      selectedMin.add(new THREE.Vector3(...selectedShape.position));
+      selectedMax.add(new THREE.Vector3(...selectedShape.position));
+      selectedBox.set(selectedMin, selectedMax);
+
+      const intersectingShapes = shapes.filter(s => {
+        if (s.id === selectedShapeId) return false;
+        if (!s.geometry) return false;
+
+        const box = new THREE.Box3().setFromBufferAttribute(
+          s.geometry.getAttribute('position')
+        );
+        const min = box.min.clone();
+        const max = box.max.clone();
+        min.add(new THREE.Vector3(...s.position));
+        max.add(new THREE.Vector3(...s.position));
+        box.set(min, max);
+
+        return selectedBox.intersectsBox(box);
+      });
+
+      if (intersectingShapes.length === 0) {
+        console.log('⚠️ No intersecting shapes found');
+        return;
+      }
+
+      console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s)`);
+
+      const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+
+      for (const intersectingShape of intersectingShapes) {
+        if (!intersectingShape.replicadShape) {
+          console.warn('⚠️ Intersecting shape missing replicadShape, skipping:', intersectingShape.id);
+          continue;
+        }
+
+        console.log(`🔪 Cutting ${intersectingShape.id} from ${selectedShapeId}`);
+
+        const resultShape = await performBooleanCut(
+          selectedShape.replicadShape,
+          intersectingShape.replicadShape
+        );
+
+        const newGeometry = convertReplicadToThreeGeometry(resultShape);
+
+        updateShape(selectedShapeId, {
+          geometry: newGeometry,
+          replicadShape: resultShape
+        });
+
+        deleteShape(intersectingShape.id);
+
+        console.log(`✅ Subtracted ${intersectingShape.id} from ${selectedShapeId}`);
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to perform subtract operation:', error);
+      alert(`Failed to subtract: ${(error as Error).message}`);
+    }
   };
 
   return (
