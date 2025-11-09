@@ -420,6 +420,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     }
 
     console.log('🔪 Subtract button clicked');
+    console.log('🎯 Selected shape (to be subtracted/removed):', selectedShapeId);
 
     try {
       const selectedShape = shapes.find(s => s.id === selectedShapeId);
@@ -463,42 +464,39 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         return;
       }
 
-      console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s)`);
+      console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) that will keep the result`);
 
       const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
-      let currentShape = selectedShape.replicadShape;
-      let currentPosition = selectedShape.position;
-
-      for (const intersectingShape of intersectingShapes) {
-        if (!intersectingShape.replicadShape) {
-          console.warn('⚠️ Intersecting shape missing replicadShape, skipping:', intersectingShape.id);
+      for (const targetShape of intersectingShapes) {
+        if (!targetShape.replicadShape) {
+          console.warn('⚠️ Target shape missing replicadShape, skipping:', targetShape.id);
           continue;
         }
 
-        console.log(`🔪 Cutting ${intersectingShape.id} from ${selectedShapeId}`);
-        console.log(`📍 Base position: [${currentPosition}], Cutting position: [${intersectingShape.position}]`);
+        console.log(`🔪 Cutting ${selectedShapeId} FROM ${targetShape.id}`);
+        console.log(`📍 Target (base) position: [${targetShape.position}], Selected (cutting) position: [${selectedShape.position}]`);
 
-        currentShape = await performBooleanCut(
-          currentShape,
-          intersectingShape.replicadShape,
-          currentPosition,
-          intersectingShape.position
+        const resultShape = await performBooleanCut(
+          targetShape.replicadShape,
+          selectedShape.replicadShape,
+          targetShape.position,
+          selectedShape.position
         );
 
-        deleteShape(intersectingShape.id);
+        const newGeometry = convertReplicadToThreeGeometry(resultShape);
 
-        console.log(`✅ Subtracted ${intersectingShape.id} from ${selectedShapeId}`);
+        updateShape(targetShape.id, {
+          geometry: newGeometry,
+          replicadShape: resultShape
+        });
+
+        console.log(`✅ Updated ${targetShape.id} with cut result`);
       }
 
-      const newGeometry = convertReplicadToThreeGeometry(currentShape);
-
-      updateShape(selectedShapeId, {
-        geometry: newGeometry,
-        replicadShape: currentShape
-      });
-
-      console.log(`✅ All subtract operations completed on ${selectedShapeId}`);
+      deleteShape(selectedShapeId);
+      console.log(`🗑️ Deleted selected shape ${selectedShapeId}`);
+      console.log(`✅ All subtract operations completed`);
 
     } catch (error) {
       console.error('❌ Failed to perform subtract operation:', error);
