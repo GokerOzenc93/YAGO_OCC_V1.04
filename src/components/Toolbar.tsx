@@ -467,6 +467,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
       const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
+      let currentShape = selectedShape.replicadShape;
+
       for (const intersectingShape of intersectingShapes) {
         if (!intersectingShape.replicadShape) {
           console.warn('⚠️ Intersecting shape missing replicadShape, skipping:', intersectingShape.id);
@@ -475,22 +477,24 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         console.log(`🔪 Cutting ${intersectingShape.id} from ${selectedShapeId}`);
 
-        const resultShape = await performBooleanCut(
-          selectedShape.replicadShape,
+        currentShape = await performBooleanCut(
+          currentShape,
           intersectingShape.replicadShape
         );
-
-        const newGeometry = convertReplicadToThreeGeometry(resultShape);
-
-        updateShape(selectedShapeId, {
-          geometry: newGeometry,
-          replicadShape: resultShape
-        });
 
         deleteShape(intersectingShape.id);
 
         console.log(`✅ Subtracted ${intersectingShape.id} from ${selectedShapeId}`);
       }
+
+      const newGeometry = convertReplicadToThreeGeometry(currentShape);
+
+      updateShape(selectedShapeId, {
+        geometry: newGeometry,
+        replicadShape: currentShape
+      });
+
+      console.log(`✅ All subtract operations completed on ${selectedShapeId}`);
 
     } catch (error) {
       console.error('❌ Failed to perform subtract operation:', error);
