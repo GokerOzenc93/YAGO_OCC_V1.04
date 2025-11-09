@@ -368,27 +368,18 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     { icon: <Redo2 size={11} />, label: 'Redo', shortcut: 'Ctrl+Y' },
   ];
 
-  const handleAddGeometry = async (e?: React.MouseEvent) => {
+  const handleAddBox = async (e?: React.MouseEvent) => {
     e?.preventDefault();
     e?.stopPropagation();
 
     console.log('📦 Adding box geometry with Replicad...');
-    console.log('📦 Store addShape function:', typeof addShape);
 
     try {
       const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      console.log('📦 Functions imported');
 
       const w = 600, h = 600, d = 600;
-      console.log('📦 Creating geometry with dimensions:', { w, h, d });
-
       const replicadShape = await createReplicadBox({ width: w, height: h, depth: d });
-      console.log('📦 Replicad shape created:', replicadShape);
-
       const geometry = convertReplicadToThreeGeometry(replicadShape);
-      console.log('📦 Geometry created:', geometry);
-      console.log('📦 Geometry type:', geometry.constructor.name);
-      console.log('📦 Geometry vertices:', geometry.attributes.position?.count);
 
       const newShape = {
         id: `box-${Date.now()}`,
@@ -402,14 +393,77 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         parameters: { width: w, height: h, depth: d }
       };
 
-      console.log('📦 Adding shape to store:', newShape);
       addShape(newShape);
-      console.log('✅ Box geometry added with Replicad');
-      console.log('📦 Current shapes count after add:', shapes.length + 1);
+      console.log('✅ Box geometry added');
     } catch (error) {
-      console.error('❌ Failed to add geometry:', error);
-      console.error('❌ Error stack:', (error as Error).stack);
-      alert(`Failed to add geometry: ${(error as Error).message}`);
+      console.error('❌ Failed to add box:', error);
+      alert(`Failed to add box: ${(error as Error).message}`);
+    }
+  };
+
+  const handleAddCylinder = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+
+    console.log('🛢️ Adding cylinder geometry with Replicad...');
+
+    try {
+      const { createReplicadCylinder, convertReplicadToThreeGeometry } = await import('../services/replicad');
+
+      const radius = 300, height = 600;
+      const replicadShape = await createReplicadCylinder({ radius, height });
+      const geometry = convertReplicadToThreeGeometry(replicadShape);
+
+      const newShape = {
+        id: `cylinder-${Date.now()}`,
+        type: 'cylinder',
+        geometry,
+        replicadShape,
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
+        scale: [1, 1, 1] as [number, number, number],
+        color: '#2563eb',
+        parameters: { radius, height }
+      };
+
+      addShape(newShape);
+      console.log('✅ Cylinder geometry added');
+    } catch (error) {
+      console.error('❌ Failed to add cylinder:', error);
+      alert(`Failed to add cylinder: ${(error as Error).message}`);
+    }
+  };
+
+  const handleAddSphere = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+
+    console.log('⚪ Adding sphere geometry with Replicad...');
+
+    try {
+      const { createReplicadSphere, convertReplicadToThreeGeometry } = await import('../services/replicad');
+
+      const radius = 300;
+      const replicadShape = await createReplicadSphere({ radius });
+      const geometry = convertReplicadToThreeGeometry(replicadShape);
+
+      const newShape = {
+        id: `sphere-${Date.now()}`,
+        type: 'sphere',
+        geometry,
+        replicadShape,
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
+        scale: [1, 1, 1] as [number, number, number],
+        color: '#2563eb',
+        parameters: { radius }
+      };
+
+      addShape(newShape);
+      console.log('✅ Sphere geometry added');
+    } catch (error) {
+      console.error('❌ Failed to add sphere:', error);
+      alert(`Failed to add sphere: ${(error as Error).message}`);
     }
   };
 
@@ -817,11 +871,27 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         <div className="flex items-center gap-0.5 bg-white rounded-lg p-1 shadow-sm border border-stone-200">
           <button
             type="button"
-            onClick={handleAddGeometry}
+            onClick={handleAddBox}
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
-            title="Add Geometry (B)"
+            title="Add Box (B)"
           >
-            <Package size={11} />
+            <Box size={11} />
+          </button>
+          <button
+            type="button"
+            onClick={handleAddCylinder}
+            className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
+            title="Add Cylinder (C)"
+          >
+            <Cylinder size={11} />
+          </button>
+          <button
+            type="button"
+            onClick={handleAddSphere}
+            className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
+            title="Add Sphere (S)"
+          >
+            <Circle size={11} />
           </button>
           <button
             onClick={() => {
