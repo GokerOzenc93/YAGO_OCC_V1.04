@@ -374,13 +374,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     console.log('📦 Store addShape function:', typeof addShape);
 
     try {
-      const { createBoxGeometry } = await import('../services/replicad');
-      console.log('📦 createBoxGeometry imported');
+      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      console.log('📦 Functions imported');
 
       const w = 600, h = 600, d = 600;
       console.log('📦 Creating geometry with dimensions:', { w, h, d });
 
-      const geometry = await createBoxGeometry(w, h, d);
+      const replicadShape = await createReplicadBox({ width: w, height: h, depth: d });
+      console.log('📦 Replicad shape created:', replicadShape);
+
+      const geometry = convertReplicadToThreeGeometry(replicadShape);
       console.log('📦 Geometry created:', geometry);
       console.log('📦 Geometry type:', geometry.constructor.name);
       console.log('📦 Geometry vertices:', geometry.attributes.position?.count);
@@ -389,6 +392,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         id: `box-${Date.now()}`,
         type: 'box',
         geometry,
+        replicadShape,
         position: [0, 0, 0] as [number, number, number],
         rotation: [0, 0, 0] as [number, number, number],
         scale: [1, 1, 1] as [number, number, number],
@@ -400,6 +404,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       addShape(newShape);
       console.log('✅ Box geometry added with Replicad');
       console.log('📦 Current shapes count after add:', shapes.length + 1);
+
+      const { checkAndPerformBooleanOperations } = useAppStore.getState();
+      await checkAndPerformBooleanOperations();
     } catch (error) {
       console.error('❌ Failed to add geometry:', error);
       console.error('❌ Error stack:', (error as Error).stack);

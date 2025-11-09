@@ -169,3 +169,59 @@ export const createSphereGeometry = async (
   const shape = await createReplicadSphere({ radius });
   return convertReplicadToThreeGeometry(shape);
 };
+
+export const performBooleanCut = async (
+  baseShape: any,
+  cuttingShape: any
+): Promise<any> => {
+  await initReplicad();
+
+  console.log('🔪 Performing boolean cut operation...');
+  console.log('Base shape:', baseShape);
+  console.log('Cutting shape:', cuttingShape);
+
+  try {
+    const result = baseShape.cut(cuttingShape);
+    console.log('✅ Boolean cut completed:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Boolean cut failed:', error);
+    throw error;
+  }
+};
+
+export const performBooleanUnion = async (
+  shape1: any,
+  shape2: any
+): Promise<any> => {
+  await initReplicad();
+
+  console.log('🔗 Performing boolean union operation...');
+
+  try {
+    const result = shape1.fuse(shape2);
+    console.log('✅ Boolean union completed:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Boolean union failed:', error);
+    throw error;
+  }
+};
+
+export const performBooleanIntersection = async (
+  shape1: any,
+  shape2: any
+): Promise<any> => {
+  await initReplicad();
+
+  console.log('🔀 Performing boolean intersection operation...');
+
+  try {
+    const result = shape1.intersect(shape2);
+    console.log('✅ Boolean intersection completed:', result);
+    return result;
+  } catch (error) {
+    console.error('❌ Boolean intersection failed:', error);
+    throw error;
+  }
+};

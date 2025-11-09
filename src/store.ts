@@ -13,6 +13,7 @@ export interface Shape {
   color?: string;
   parameters: Record<string, any>;
   ocShape?: any;
+  replicadShape?: any;
   isolated?: boolean;
   vertexModifications?: VertexModification[];
   groupId?: string;
@@ -73,6 +74,7 @@ interface AppState {
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
   extrudeShape: (id: string, distance: number) => void;
+  checkAndPerformBooleanOperations: () => Promise<void>;
 
   selectedShapeId: string | null;
   selectShape: (id: string | null) => void;
@@ -349,5 +351,67 @@ export const useAppStore = create<AppState>((set, get) => ({
           vertexModifications: newMods
         };
       })
-    }))
+    })),
+
+  checkAndPerformBooleanOperations: async () => {
+    const state = get();
+    const shapes = state.shapes;
+
+    if (shapes.length < 2) return;
+
+    console.log('🔍 Checking for intersecting shapes...');
+
+    for (let i = 0; i < shapes.length; i++) {
+      for (let j = i + 1; j < shapes.length; j++) {
+        const shape1 = shapes[i];
+        const shape2 = shapes[j];
+
+        if (!shape1.geometry || !shape2.geometry) continue;
+        if (!shape1.replicadShape || !shape2.replicadShape) continue;
+
+        const box1 = new THREE.Box3().setFromBufferAttribute(
+          shape1.geometry.getAttribute('position')
+        );
+        const box2 = new THREE.Box3().setFromBufferAttribute(
+          shape2.geometry.getAttribute('position')
+        );
+
+        box1.translate(new THREE.Vector3(...shape1.position));
+        box2.translate(new THREE.Vector3(...shape2.position));
+
+        if (box1.intersectsBox(box2)) {
+          console.log('💥 Collision detected between:', shape1.id, 'and', shape2.id);
+
+          try {
+            const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
+
+            const resultShape = await performBooleanCut(
+              shape1.replicadShape,
+              shape2.replicadShape
+            );
+
+            const newGeometry = convertReplicadToThreeGeometry(resultShape);
+
+            set((state) => ({
+              shapes: state.shapes.map((s) => {
+                if (s.id === shape1.id) {
+                  return {
+                    ...s,
+                    geometry: newGeometry,
+                    replicadShape: resultShape
+                  };
+                }
+                return s;
+              }).filter(s => s.id !== shape2.id)
+            }));
+
+            console.log('✅ Boolean cut applied, shape2 removed');
+            return;
+          } catch (error) {
+            console.error('❌ Failed to perform boolean operation:', error);
+          }
+        }
+      }
+    }
+  }
 }));
