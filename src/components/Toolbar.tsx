@@ -366,7 +366,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     { icon: <Redo2 size={11} />, label: 'Redo', shortcut: 'Ctrl+Y' },
   ];
 
-  const handleAddGeometry = async () => {
+  const handleAddGeometry = async (e?: React.MouseEvent) => {
+    e?.preventDefault();
+    e?.stopPropagation();
+
     console.log('📦 Adding box geometry with Replicad...');
     console.log('📦 Store addShape function:', typeof addShape);
 
@@ -396,7 +399,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       console.log('📦 Adding shape to store:', newShape);
       addShape(newShape);
       console.log('✅ Box geometry added with Replicad');
-      console.log('📦 Current shapes count:', shapes.length);
+      console.log('📦 Current shapes count after add:', shapes.length + 1);
     } catch (error) {
       console.error('❌ Failed to add geometry:', error);
       console.error('❌ Error stack:', (error as Error).stack);
@@ -715,6 +718,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         <div className="flex items-center gap-0.5 bg-white rounded-lg p-1 shadow-sm border border-stone-200">
           <button
+            type="button"
             onClick={handleAddGeometry}
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
             title="Add Geometry (B)"

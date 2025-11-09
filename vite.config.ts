@@ -14,7 +14,7 @@ export default defineConfig({
     }
   ],
   optimizeDeps: {
-    exclude: ['opencascade.js']
+    exclude: ['opencascade.js', 'replicad']
   },
   build: {
     target: 'esnext',
