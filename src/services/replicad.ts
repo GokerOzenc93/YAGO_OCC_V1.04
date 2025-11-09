@@ -1,4 +1,5 @@
-import { getOC } from 'replicad';
+import { setOC } from 'replicad';
+import initOpenCascade from 'opencascade.js';
 import * as THREE from 'three';
 
 let ocInstance: any = null;
@@ -13,9 +14,14 @@ export const initReplicad = async () => {
 
   isInitializing = true;
   try {
-    console.log('🔄 Initializing Replicad...');
-    ocInstance = await getOC();
-    console.log('✅ Replicad (OpenCascade) initialized');
+    console.log('🔄 Initializing OpenCascade...');
+    const oc = await initOpenCascade();
+    console.log('✅ OpenCascade loaded');
+
+    console.log('🔄 Setting OpenCascade for Replicad...');
+    setOC(oc);
+    ocInstance = oc;
+    console.log('✅ Replicad initialized with OpenCascade');
     return ocInstance;
   } catch (error) {
     console.error('❌ Failed to initialize Replicad:', error);
