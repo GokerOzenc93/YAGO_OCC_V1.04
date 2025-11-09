@@ -230,7 +230,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
 
   selectedShapeId: null,
-  selectShape: (id) => set({ selectedShapeId: id }),
+  selectShape: (id) => {
+    const currentMode = get().activeTool;
+    if (id && currentMode === Tool.SELECT) {
+      console.log('🔄 Auto-switching to move mode on selection');
+      set({ selectedShapeId: id, activeTool: Tool.MOVE });
+    } else {
+      set({ selectedShapeId: id });
+    }
+  },
   secondarySelectedShapeId: null,
   selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
 
