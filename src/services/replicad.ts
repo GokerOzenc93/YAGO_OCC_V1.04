@@ -172,17 +172,38 @@ export const createSphereGeometry = async (
 
 export const performBooleanCut = async (
   baseShape: any,
-  cuttingShape: any
+  cuttingShape: any,
+  basePosition?: [number, number, number],
+  cuttingPosition?: [number, number, number]
 ): Promise<any> => {
   await initReplicad();
 
   console.log('🔪 Performing boolean cut operation...');
-  console.log('Base shape:', baseShape);
-  console.log('Cutting shape:', cuttingShape);
+  console.log('Base shape:', baseShape, 'Position:', basePosition);
+  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition);
 
   try {
-    const result = baseShape.cut(cuttingShape);
+    let translatedBase = baseShape;
+    let translatedCutting = cuttingShape;
+
+    if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
+      console.log('📍 Translating base shape by:', basePosition);
+      translatedBase = baseShape.translate(basePosition[0], basePosition[1], basePosition[2]);
+    }
+
+    if (cuttingPosition && (cuttingPosition[0] !== 0 || cuttingPosition[1] !== 0 || cuttingPosition[2] !== 0)) {
+      console.log('📍 Translating cutting shape by:', cuttingPosition);
+      translatedCutting = cuttingShape.translate(cuttingPosition[0], cuttingPosition[1], cuttingPosition[2]);
+    }
+
+    const result = translatedBase.cut(translatedCutting);
     console.log('✅ Boolean cut completed:', result);
+
+    if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
+      console.log('📍 Translating result back by:', [-basePosition[0], -basePosition[1], -basePosition[2]]);
+      return result.translate(-basePosition[0], -basePosition[1], -basePosition[2]);
+    }
+
     return result;
   } catch (error) {
     console.error('❌ Boolean cut failed:', error);

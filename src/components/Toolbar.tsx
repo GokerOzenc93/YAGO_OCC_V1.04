@@ -468,6 +468,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
       let currentShape = selectedShape.replicadShape;
+      let currentPosition = selectedShape.position;
 
       for (const intersectingShape of intersectingShapes) {
         if (!intersectingShape.replicadShape) {
@@ -476,10 +477,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         }
 
         console.log(`🔪 Cutting ${intersectingShape.id} from ${selectedShapeId}`);
+        console.log(`📍 Base position: [${currentPosition}], Cutting position: [${intersectingShape.position}]`);
 
         currentShape = await performBooleanCut(
           currentShape,
-          intersectingShape.replicadShape
+          intersectingShape.replicadShape,
+          currentPosition,
+          intersectingShape.position
         );
 
         deleteShape(intersectingShape.id);
