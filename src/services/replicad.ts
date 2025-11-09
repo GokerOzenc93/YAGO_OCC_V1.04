@@ -174,34 +174,59 @@ export const performBooleanCut = async (
   baseShape: any,
   cuttingShape: any,
   basePosition?: [number, number, number],
-  cuttingPosition?: [number, number, number]
+  cuttingPosition?: [number, number, number],
+  baseRotation?: [number, number, number],
+  cuttingRotation?: [number, number, number]
 ): Promise<any> => {
   await initReplicad();
 
   console.log('🔪 Performing boolean cut operation...');
-  console.log('Base shape:', baseShape, 'Position:', basePosition);
-  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition);
+  console.log('Base shape:', baseShape, 'Position:', basePosition, 'Rotation:', baseRotation);
+  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Rotation:', cuttingRotation);
 
   try {
-    let translatedBase = baseShape;
-    let translatedCutting = cuttingShape;
+    let transformedBase = baseShape;
+    let transformedCutting = cuttingShape;
+
+    if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
+      console.log('🔄 Rotating base shape by:', baseRotation);
+      if (baseRotation[0] !== 0) transformedBase = transformedBase.rotate(baseRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      if (baseRotation[1] !== 0) transformedBase = transformedBase.rotate(baseRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (baseRotation[2] !== 0) transformedBase = transformedBase.rotate(baseRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+    }
 
     if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
       console.log('📍 Translating base shape by:', basePosition);
-      translatedBase = baseShape.translate(basePosition[0], basePosition[1], basePosition[2]);
+      transformedBase = transformedBase.translate(basePosition[0], basePosition[1], basePosition[2]);
+    }
+
+    if (cuttingRotation && (cuttingRotation[0] !== 0 || cuttingRotation[1] !== 0 || cuttingRotation[2] !== 0)) {
+      console.log('🔄 Rotating cutting shape by:', cuttingRotation);
+      if (cuttingRotation[0] !== 0) transformedCutting = transformedCutting.rotate(cuttingRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      if (cuttingRotation[1] !== 0) transformedCutting = transformedCutting.rotate(cuttingRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (cuttingRotation[2] !== 0) transformedCutting = transformedCutting.rotate(cuttingRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
     }
 
     if (cuttingPosition && (cuttingPosition[0] !== 0 || cuttingPosition[1] !== 0 || cuttingPosition[2] !== 0)) {
       console.log('📍 Translating cutting shape by:', cuttingPosition);
-      translatedCutting = cuttingShape.translate(cuttingPosition[0], cuttingPosition[1], cuttingPosition[2]);
+      transformedCutting = transformedCutting.translate(cuttingPosition[0], cuttingPosition[1], cuttingPosition[2]);
     }
 
-    const result = translatedBase.cut(translatedCutting);
+    const result = transformedBase.cut(transformedCutting);
     console.log('✅ Boolean cut completed:', result);
 
     if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
       console.log('📍 Translating result back by:', [-basePosition[0], -basePosition[1], -basePosition[2]]);
-      return result.translate(-basePosition[0], -basePosition[1], -basePosition[2]);
+      let finalResult = result.translate(-basePosition[0], -basePosition[1], -basePosition[2]);
+
+      if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
+        console.log('🔄 Rotating result back by:', [-baseRotation[0], -baseRotation[1], -baseRotation[2]]);
+        if (baseRotation[2] !== 0) finalResult = finalResult.rotate(-baseRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+        if (baseRotation[1] !== 0) finalResult = finalResult.rotate(-baseRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+        if (baseRotation[0] !== 0) finalResult = finalResult.rotate(-baseRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      }
+
+      return finalResult;
     }
 
     return result;
