@@ -163,10 +163,19 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       }
 
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
+      newGeometry.computeVertexNormals();
+      newGeometry.computeBoundingBox();
+      newGeometry.computeBoundingSphere();
+
       const newBaseVertices = await getReplicadVertices(resultShape);
 
       console.log('📐 Calculating intersection volume after cut...');
       await calculateAndUpdateIntersectionVolume(shapeIdx, updatedSubtractedShapes[shapeIdx]);
+
+      console.log('🔄 Updating shape with new geometry...', {
+        geometryVertices: newGeometry.attributes.position.count,
+        boundingBox: newGeometry.boundingBox
+      });
 
       updateShape(selectedShape.id, {
         geometry: newGeometry,
@@ -174,7 +183,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         parameters: {
           ...selectedShape.parameters,
           scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-          subtractedShapes: updatedSubtractedShapes
+          subtractedShapes: updatedSubtractedShapes,
+          modified: Date.now()
         }
       });
 

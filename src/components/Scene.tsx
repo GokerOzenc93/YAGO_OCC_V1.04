@@ -86,10 +86,16 @@ const ShapeWithTransform: React.FC<{
   useEffect(() => {
     const loadEdges = async () => {
       const hasVertexMods = shape.vertexModifications && shape.vertexModifications.length > 0;
-      const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods;
+      const hasModified = shape.parameters?.modified;
+      const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods || hasModified;
 
       if (shouldUpdate && shape.geometry) {
-        console.log(`🔄 Geometry update for shape ${shape.id}`, { hasVertexMods, vertexModCount: shape.vertexModifications?.length || 0 });
+        console.log(`🔄 Geometry update for shape ${shape.id}`, {
+          hasVertexMods,
+          vertexModCount: shape.vertexModifications?.length || 0,
+          hasModified: !!hasModified,
+          geometryChanged: shape.geometry !== localGeometry
+        });
 
         let geom = shape.geometry.clone();
 
@@ -195,7 +201,7 @@ const ShapeWithTransform: React.FC<{
     };
 
     loadEdges();
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id, localGeometry]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
