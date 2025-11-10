@@ -438,18 +438,17 @@ const Scene: React.FC = () => {
 
           const originalPos = baseVertices[selectedVertexIndex];
 
-          const existingMod = shape.vertexModifications?.find(
-            (m: any) => m.vertexIndex === selectedVertexIndex
-          );
-          const currentPos = existingMod ? existingMod.newPosition : originalPos;
-
-          const newPosition: [number, number, number] = [...currentPos] as [number, number, number];
+          const offset: [number, number, number] = [0, 0, 0];
+          const newPosition: [number, number, number] = [...originalPos];
 
           if (vertexDirection === 'x+' || vertexDirection === 'x-') {
+            offset[0] = newValue - originalPos[0];
             newPosition[0] = newValue;
           } else if (vertexDirection === 'y+' || vertexDirection === 'y-') {
+            offset[1] = newValue - originalPos[1];
             newPosition[1] = newValue;
           } else if (vertexDirection === 'z+' || vertexDirection === 'z-') {
+            offset[2] = newValue - originalPos[2];
             newPosition[2] = newValue;
           }
 
@@ -463,14 +462,16 @@ const Scene: React.FC = () => {
             direction: vertexDirection,
             expression: String(newValue),
             description: `Vertex ${selectedVertexIndex} ${axisName}${directionSymbol}`,
-            offset: [
-              newPosition[0] - originalPos[0],
-              newPosition[1] - originalPos[1],
-              newPosition[2] - originalPos[2]
-            ] as [number, number, number]
+            offset
           });
 
-          console.log(`✅ Vertex ${selectedVertexIndex} moved from [${originalPos}] to [${newPosition[0]}, ${newPosition[1]}, ${newPosition[2]}]`);
+          console.log(`✅ Vertex ${selectedVertexIndex}:`, {
+            base: `[${originalPos[0].toFixed(1)}, ${originalPos[1].toFixed(1)}, ${originalPos[2].toFixed(1)}]`,
+            userValue: newValue,
+            axis: axisName,
+            offset: `[${offset[0].toFixed(1)}, ${offset[1].toFixed(1)}, ${offset[2].toFixed(1)}]`,
+            final: `[${newPosition[0].toFixed(1)}, ${newPosition[1].toFixed(1)}, ${newPosition[2].toFixed(1)}]`
+          });
         }
 
         (window as any).pendingVertexEdit = false;

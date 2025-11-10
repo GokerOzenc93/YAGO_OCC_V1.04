@@ -252,38 +252,39 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         : mod.originalPosition;
 
       const expression = mod.expression || String(mod.newPosition[0]);
-      const result = evaluateVertexExpression(expression);
+      const absoluteValue = evaluateVertexExpression(expression);
 
+      const newOffset = [0, 0, 0] as [number, number, number];
       const newPos = [...newOriginalPos] as [number, number, number];
 
       if (mod.direction.startsWith('x')) {
-        newPos[0] = result;
+        newOffset[0] = absoluteValue - newOriginalPos[0];
+        newPos[0] = absoluteValue;
       } else if (mod.direction.startsWith('y')) {
-        newPos[1] = result;
+        newOffset[1] = absoluteValue - newOriginalPos[1];
+        newPos[1] = absoluteValue;
       } else {
-        newPos[2] = result;
+        newOffset[2] = absoluteValue - newOriginalPos[2];
+        newPos[2] = absoluteValue;
       }
 
       console.log(`📍 Vertex ${mod.vertexIndex} dimension update:`, {
         vertexIndex: mod.vertexIndex,
         direction: mod.direction,
-        modifiedAxis: mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z',
-        newOriginalPos: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
+        axis: mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z',
+        newBaseVertex: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
         expression,
-        evaluatedResult: result.toFixed(1),
+        userSetValue: absoluteValue.toFixed(1),
+        calculatedOffset: `[${newOffset[0].toFixed(1)}, ${newOffset[1].toFixed(1)}, ${newOffset[2].toFixed(1)}]`,
         finalPosition: `[${newPos[0].toFixed(1)}, ${newPos[1].toFixed(1)}, ${newPos[2].toFixed(1)}]`,
-        explanation: `${mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z'} axis locked at ${result.toFixed(1)}, other axes follow dimensions`
+        explanation: `${mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z'} = ${absoluteValue.toFixed(1)}, offset from new base = ${newOffset[mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2].toFixed(1)}`
       });
 
       return {
         ...mod,
         originalPosition: newOriginalPos,
         newPosition: newPos,
-        offset: [
-          newPos[0] - newOriginalPos[0],
-          newPos[1] - newOriginalPos[1],
-          newPos[2] - newOriginalPos[2]
-        ] as [number, number, number]
+        offset: newOffset
       };
     });
 

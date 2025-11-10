@@ -231,8 +231,12 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
       const modified = verts.map((vertex, index) => {
         if (shape.vertexModifications) {
           const mod = shape.vertexModifications.find((m: any) => m.vertexIndex === index);
-          if (mod) {
-            return new THREE.Vector3(mod.newPosition[0], mod.newPosition[1], mod.newPosition[2]);
+          if (mod && mod.offset) {
+            return new THREE.Vector3(
+              vertex.x + mod.offset[0],
+              vertex.y + mod.offset[1],
+              vertex.z + mod.offset[2]
+            );
           }
         }
         return vertex;
