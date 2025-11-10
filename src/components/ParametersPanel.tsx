@@ -247,23 +247,27 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       : [];
 
     const updatedVertexMods = vertexModifications.map((mod: any) => {
+      const newOriginalPos = newBaseVertices[mod.vertexIndex]
+        ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
+        : mod.originalPosition;
+
       const expression = mod.expression || String(mod.newPosition[0]);
       const result = evaluateVertexExpression(expression);
-      const newPos = [...mod.newPosition] as [number, number, number];
+
+      const newPos = [...newOriginalPos] as [number, number, number];
 
       if (mod.direction.startsWith('x')) newPos[0] = result;
       else if (mod.direction.startsWith('y')) newPos[1] = result;
       else newPos[2] = result;
 
-      const newOriginalPos = newBaseVertices[mod.vertexIndex]
-        ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
-        : mod.originalPosition;
-
-      console.log(`📍 Vertex ${mod.vertexIndex} update:`, {
+      console.log(`📍 Vertex ${mod.vertexIndex} dimension update:`, {
+        vertexIndex: mod.vertexIndex,
+        direction: mod.direction,
         oldOriginal: mod.originalPosition,
         newOriginal: newOriginalPos,
-        newPosition: newPos,
-        expression
+        expression,
+        evaluatedResult: result,
+        finalPosition: newPos
       });
 
       return {
