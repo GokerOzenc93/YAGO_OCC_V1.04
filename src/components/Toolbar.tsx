@@ -525,6 +525,16 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         console.log('📍 Relative position of cut (relative to target):', relativePosition);
 
+        const intersectionWidth = selectedShape.parameters.width || 0;
+        const intersectionHeight = selectedShape.parameters.height || 0;
+        const intersectionDepth = selectedShape.parameters.depth || 0;
+
+        console.log('📏 Intersection dimensions:', {
+          width: intersectionWidth,
+          height: intersectionHeight,
+          depth: intersectionDepth
+        });
+
         const subtractedParameters = {
           width: selectedShape.parameters.width || 0,
           height: selectedShape.parameters.height || 0,
@@ -532,9 +542,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           customParameters: selectedShape.parameters.customParameters || [],
           scaledBaseVertices: selectedShape.parameters.scaledBaseVertices || [],
           vertexModifications: selectedShape.vertexModifications || [],
-          intersectionWidth: intersectionDepths.x,
-          intersectionHeight: intersectionDepths.y,
-          intersectionDepth: intersectionDepths.z
+          intersectionWidth,
+          intersectionHeight,
+          intersectionDepth
         };
 
         console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);

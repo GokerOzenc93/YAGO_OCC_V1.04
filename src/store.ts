@@ -426,6 +426,16 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             console.log('📍 Relative position of cut (relative to shape1):', relativePosition);
 
+            const intersectionWidth = shape2.parameters.width || 0;
+            const intersectionHeight = shape2.parameters.height || 0;
+            const intersectionDepth = shape2.parameters.depth || 0;
+
+            console.log('📏 Intersection dimensions:', {
+              width: intersectionWidth,
+              height: intersectionHeight,
+              depth: intersectionDepth
+            });
+
             const subtractedParameters = {
               width: shape2.parameters.width || 0,
               height: shape2.parameters.height || 0,
@@ -433,9 +443,9 @@ export const useAppStore = create<AppState>((set, get) => ({
               customParameters: shape2.parameters.customParameters || [],
               scaledBaseVertices: shape2.parameters.scaledBaseVertices || [],
               vertexModifications: shape2.vertexModifications || [],
-              intersectionWidth: 0,
-              intersectionHeight: 0,
-              intersectionDepth: 0
+              intersectionWidth,
+              intersectionHeight,
+              intersectionDepth
             };
 
             console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);
