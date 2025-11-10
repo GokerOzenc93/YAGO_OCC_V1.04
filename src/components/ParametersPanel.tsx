@@ -261,9 +261,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               const vz = positions[i + 2];
 
               const matches =
-                Math.abs(vx - baseVertex[0]) < 0.01 &&
-                Math.abs(vy - baseVertex[1]) < 0.01 &&
-                Math.abs(vz - baseVertex[2]) < 0.01;
+                Math.abs(vx - baseVertex[0]) < 1 &&
+                Math.abs(vy - baseVertex[1]) < 1 &&
+                Math.abs(vz - baseVertex[2]) < 1;
 
               if (matches) {
                 positions[i] = targetVertex[0];
@@ -492,6 +492,34 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     >
                       <X size={14} className="text-red-600" />
                     </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {selectedShape?.parameters?.vertexModifications && selectedShape.parameters.vertexModifications.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-stone-200 mt-2">
+                <div className="text-xs font-semibold text-stone-700 mb-1">Vertex Modifications</div>
+                {selectedShape.parameters.vertexModifications.map((mod: any, idx: number) => (
+                  <div key={idx} className="flex gap-1 items-center text-xs">
+                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-medium">
+                      V{mod.vertexIndex}
+                    </span>
+                    {mod.x !== undefined && (
+                      <span className="px-2 py-1 bg-red-50 text-red-600 rounded">
+                        X: {mod.x.toFixed(1)}
+                      </span>
+                    )}
+                    {mod.y !== undefined && (
+                      <span className="px-2 py-1 bg-green-50 text-green-600 rounded">
+                        Y: {mod.y.toFixed(1)}
+                      </span>
+                    )}
+                    {mod.z !== undefined && (
+                      <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded">
+                        Z: {mod.z.toFixed(1)}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>

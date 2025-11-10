@@ -96,16 +96,14 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
   };
 
   return (
-    <group>
+    <group
+      position={[shape.position[0], shape.position[1], shape.position[2]]}
+      rotation={[shape.rotation[0], shape.rotation[1], shape.rotation[2]]}
+      scale={[shape.scale[0], shape.scale[1], shape.scale[2]]}
+    >
       {vertices.map((vertex, index) => {
-        const worldPos = new THREE.Vector3(
-          vertex.x + shape.position[0],
-          vertex.y + shape.position[1],
-          vertex.z + shape.position[2]
-        );
-
         return (
-          <group key={index} position={worldPos}>
+          <group key={index} position={vertex}>
             <mesh onClick={() => handleVertexClick(index)}>
               <sphereGeometry args={[8, 16, 16]} />
               <meshBasicMaterial

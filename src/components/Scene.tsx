@@ -390,9 +390,9 @@ const Scene: React.FC = () => {
           const vz = positions[i + 2];
 
           const matches =
-            Math.abs(vx - baseVertex[0]) < 0.01 &&
-            Math.abs(vy - baseVertex[1]) < 0.01 &&
-            Math.abs(vz - baseVertex[2]) < 0.01;
+            Math.abs(vx - baseVertex[0]) < 1 &&
+            Math.abs(vy - baseVertex[1]) < 1 &&
+            Math.abs(vz - baseVertex[2]) < 1;
 
           if (matches) {
             positions[i] = targetVertex[0];
