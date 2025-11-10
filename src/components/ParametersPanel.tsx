@@ -121,8 +121,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       position: newPosition
     };
 
-    await calculateAndUpdateIntersectionVolume(shapeIdx, updatedSubtractedShapes[shapeIdx]);
-
     try {
       const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
       const { getReplicadVertices } = await import('../services/vertexEditor');
@@ -140,18 +138,18 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         return;
       }
 
-      console.log(`🔪 Applying ${updatedSubtractedShapes.length} cuts sequentially...`);
+      console.log(`🔪 Applying ${updatedSubtractedShapes.length} cuts sequentially with Replicad...`);
       for (let i = 0; i < updatedSubtractedShapes.length; i++) {
         const cut = updatedSubtractedShapes[i];
 
-        console.log(`🔨 Creating cutting shape ${i + 1} with dimensions [${cut.width}, ${cut.height}, ${cut.depth}]`);
+        console.log(`🔨 Creating cutting shape ${i + 1} with dimensions [${cut.width}, ${cut.height}, ${cut.depth}] at position`, cut.position);
         const cuttingShape = await createReplicadBox({
-          width: cut.width || 0,
-          height: cut.height || 0,
-          depth: cut.depth || 0
+          width: Math.max(cut.width || 0, 0.1),
+          height: Math.max(cut.height || 0, 0.1),
+          depth: Math.max(cut.depth || 0, 0.1)
         });
 
-        console.log(`🔪 Performing boolean cut ${i + 1}...`);
+        console.log(`🔪 Performing Replicad boolean cut ${i + 1}...`);
         resultShape = await performBooleanCut(
           resultShape,
           cuttingShape,
@@ -167,6 +165,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
 
+      console.log('📐 Calculating intersection volume after cut...');
+      await calculateAndUpdateIntersectionVolume(shapeIdx, updatedSubtractedShapes[shapeIdx]);
+
       updateShape(selectedShape.id, {
         geometry: newGeometry,
         replicadShape: resultShape,
@@ -177,7 +178,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         }
       });
 
-      console.log('✅ Geometry updated with all cuts applied');
+      console.log('✅ Geometry dynamically updated with Replicad boolean cuts');
     } catch (error) {
       console.error('❌ Failed to update geometry with new intersection values:', error);
     }
