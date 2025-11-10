@@ -35,6 +35,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [depth, setDepth] = useState(0);
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
+  const [netDimensions, setNetDimensions] = useState<{[key: string]: string}>({});
 
   const handleIntersectionChange = async (shapeIdx: number, field: string, value: number) => {
     if (!selectedShape || !selectedShape.parameters.subtractedShapes) return;
@@ -707,11 +708,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value={(selectedShape.parameters.width || 0) - (subtractedShape.intersectionWidth || 0)}
+                        value={netDimensions[`${shapeIdx}-width`] ?? ((selectedShape.parameters.width || 0) - (subtractedShape.intersectionWidth || 0))}
                         onChange={(e) => {
+                          const inputValue = e.target.value;
+                          setNetDimensions(prev => ({...prev, [`${shapeIdx}-width`]: inputValue}));
+                        }}
+                        onBlur={(e) => {
                           const newNetValue = parseFloat(e.target.value) || 0;
                           const newCutValue = (selectedShape.parameters.width || 0) - newNetValue;
                           handleIntersectionChange(shapeIdx, 'intersectionWidth', newCutValue);
+                          setNetDimensions(prev => {
+                            const updated = {...prev};
+                            delete updated[`${shapeIdx}-width`];
+                            return updated;
+                          });
                         }}
                         className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -732,11 +742,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value={(selectedShape.parameters.height || 0) - (subtractedShape.intersectionHeight || 0)}
+                        value={netDimensions[`${shapeIdx}-height`] ?? ((selectedShape.parameters.height || 0) - (subtractedShape.intersectionHeight || 0))}
                         onChange={(e) => {
+                          const inputValue = e.target.value;
+                          setNetDimensions(prev => ({...prev, [`${shapeIdx}-height`]: inputValue}));
+                        }}
+                        onBlur={(e) => {
                           const newNetValue = parseFloat(e.target.value) || 0;
                           const newCutValue = (selectedShape.parameters.height || 0) - newNetValue;
                           handleIntersectionChange(shapeIdx, 'intersectionHeight', newCutValue);
+                          setNetDimensions(prev => {
+                            const updated = {...prev};
+                            delete updated[`${shapeIdx}-height`];
+                            return updated;
+                          });
                         }}
                         className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -757,11 +776,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value={(selectedShape.parameters.depth || 0) - (subtractedShape.intersectionDepth || 0)}
+                        value={netDimensions[`${shapeIdx}-depth`] ?? ((selectedShape.parameters.depth || 0) - (subtractedShape.intersectionDepth || 0))}
                         onChange={(e) => {
+                          const inputValue = e.target.value;
+                          setNetDimensions(prev => ({...prev, [`${shapeIdx}-depth`]: inputValue}));
+                        }}
+                        onBlur={(e) => {
                           const newNetValue = parseFloat(e.target.value) || 0;
                           const newCutValue = (selectedShape.parameters.depth || 0) - newNetValue;
                           handleIntersectionChange(shapeIdx, 'intersectionDepth', newCutValue);
+                          setNetDimensions(prev => {
+                            const updated = {...prev};
+                            delete updated[`${shapeIdx}-depth`];
+                            return updated;
+                          });
                         }}
                         className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
