@@ -245,9 +245,33 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
       let newBaseVertices: THREE.Vector3[] = [];
 
+      const originalWidth = selectedShape.parameters.width || width;
+      const originalHeight = selectedShape.parameters.height || height;
+      const originalDepth = selectedShape.parameters.depth || depth;
+
+      const scaleX = width / originalWidth;
+      const scaleY = height / originalHeight;
+      const scaleZ = depth / originalDepth;
+
+      const dimensionsChanged = scaleX !== 1 || scaleY !== 1 || scaleZ !== 1;
+
+      console.log('📐 Dimension changes:', {
+        original: { w: originalWidth, h: originalHeight, d: originalDepth },
+        new: { w: width, h: height, d: depth },
+        scale: { x: scaleX, y: scaleY, z: scaleZ },
+        changed: dimensionsChanged
+      });
+
       if (selectedShape.replicadShape) {
         console.log('🔍 Using existing replicadShape for base vertices');
         newBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
+
+        if (dimensionsChanged) {
+          console.log('📏 Scaling base vertices by:', { scaleX, scaleY, scaleZ });
+          newBaseVertices = newBaseVertices.map(v =>
+            new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
+          );
+        }
       } else if (selectedShape.type === 'box') {
         console.log('📦 Calculating base vertices from box parameters');
         newBaseVertices = getBoxVertices(width, height, depth);
@@ -296,10 +320,23 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         };
       });
 
+      let scaledGeometry = selectedShape.geometry;
+
+      if (dimensionsChanged && selectedShape.geometry) {
+        console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
+        scaledGeometry = selectedShape.geometry.clone();
+        scaledGeometry.scale(scaleX, scaleY, scaleZ);
+        scaledGeometry.computeVertexNormals();
+        scaledGeometry.computeBoundingBox();
+        scaledGeometry.computeBoundingSphere();
+      }
+
       console.log('📝 Updating shape parameters and vertex modifications:', {
         vertexModsCount: updatedVertexMods.length,
         preservingGeometry: !!selectedShape.geometry,
-        preservingReplicadShape: !!selectedShape.replicadShape
+        preservingReplicadShape: !!selectedShape.replicadShape,
+        dimensionsChanged,
+        geometryScaled: dimensionsChanged
       });
 
       updateShape(selectedShape.id, {
@@ -310,10 +347,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           depth,
           customParameters,
         },
-        vertexModifications: updatedVertexMods
+        vertexModifications: updatedVertexMods,
+        ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
       });
 
-      console.log('✅ Parameters applied successfully - geometry preserved');
+      console.log('✅ Parameters applied successfully - geometry' + (dimensionsChanged ? ' scaled' : ' preserved'));
     } catch (error) {
       console.error('❌ Failed to update parameters:', error);
 
