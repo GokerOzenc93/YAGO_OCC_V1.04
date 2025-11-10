@@ -61,9 +61,17 @@ const ShapeWithTransform: React.FC<{
           const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
           let baseVertices: THREE.Vector3[] = [];
 
-          if (shape.replicadShape) {
+          if (shape.parameters?.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
+            console.log('📍 Using pre-computed scaled base vertices for vertex modifications...');
+            baseVertices = shape.parameters.scaledBaseVertices.map((v: number[]) =>
+              new THREE.Vector3(v[0], v[1], v[2])
+            );
+            console.log(`✅ Loaded ${baseVertices.length} scaled base vertices for modifications`);
+          } else if (shape.replicadShape) {
+            console.log('📍 Loading base vertices from replicadShape...');
             baseVertices = await getReplicadVertices(shape.replicadShape);
           } else if (shape.type === 'box' && shape.parameters) {
+            console.log('📦 Loading base vertices from box parameters...');
             baseVertices = getBoxVertices(
               shape.parameters.width,
               shape.parameters.height,
@@ -83,25 +91,19 @@ const ShapeWithTransform: React.FC<{
 
             if (indices) {
               console.log(`✅ Applying modification to vertex ${mod.vertexIndex}:`, {
-                originalPos: mod.originalPosition,
-                newPos: mod.newPosition,
-                baseVertexPos: [baseVertex.x, baseVertex.y, baseVertex.z],
+                baseVertexPos: [baseVertex.x.toFixed(1), baseVertex.y.toFixed(1), baseVertex.z.toFixed(1)],
+                targetPos: [mod.newPosition[0].toFixed(1), mod.newPosition[1].toFixed(1), mod.newPosition[2].toFixed(1)],
                 affectedMeshVertices: indices.length
               });
 
-              const offset = [
-                mod.newPosition[0] - mod.originalPosition[0],
-                mod.newPosition[1] - mod.originalPosition[1],
-                mod.newPosition[2] - mod.originalPosition[2]
-              ];
-
               indices.forEach(idx => {
-                positions[idx] = baseVertex.x + offset[0];
-                positions[idx + 1] = baseVertex.y + offset[1];
-                positions[idx + 2] = baseVertex.z + offset[2];
+                positions[idx] = mod.newPosition[0];
+                positions[idx + 1] = mod.newPosition[1];
+                positions[idx + 2] = mod.newPosition[2];
               });
             } else {
-              console.warn(`⚠️ No mesh vertices found for base vertex ${mod.vertexIndex} (key: ${key})`);
+              console.warn(`⚠️ No mesh vertices found for base vertex ${mod.vertexIndex} at position [${baseVertex.x.toFixed(1)}, ${baseVertex.y.toFixed(1)}, ${baseVertex.z.toFixed(1)}] (key: ${key})`);
+              console.log('Available vertex keys:', Array.from(vertexMap.keys()).slice(0, 10));
             }
           });
 
