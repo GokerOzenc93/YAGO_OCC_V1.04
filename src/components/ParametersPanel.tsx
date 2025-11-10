@@ -740,13 +740,27 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   const cutKey = `${shapeIdx}`;
                   const pendingCut = pendingCutChanges[cutKey] || {};
 
-                  const actualIntersectionW = subtractedShape.intersectionWidth || 0;
-                  const actualIntersectionH = subtractedShape.intersectionHeight || 0;
-                  const actualIntersectionD = subtractedShape.intersectionDepth || 0;
+                  const baseIntersectionW = subtractedShape.intersectionWidth || 0;
+                  const baseIntersectionH = subtractedShape.intersectionHeight || 0;
+                  const baseIntersectionD = subtractedShape.intersectionDepth || 0;
 
                   const currentOffsetW = subtractedShape.offsetWidth ?? 0;
                   const currentOffsetH = subtractedShape.offsetHeight ?? 0;
                   const currentOffsetD = subtractedShape.offsetDepth ?? 0;
+
+                  const displayOffsetW = pendingCut.offsetWidth !== undefined
+                    ? parseFloat(pendingCut.offsetWidth) || 0
+                    : currentOffsetW;
+                  const displayOffsetH = pendingCut.offsetHeight !== undefined
+                    ? parseFloat(pendingCut.offsetHeight) || 0
+                    : currentOffsetH;
+                  const displayOffsetD = pendingCut.offsetDepth !== undefined
+                    ? parseFloat(pendingCut.offsetDepth) || 0
+                    : currentOffsetD;
+
+                  const finalIntersectionW = baseIntersectionW + displayOffsetW;
+                  const finalIntersectionH = baseIntersectionH + displayOffsetH;
+                  const finalIntersectionD = baseIntersectionD + displayOffsetD;
 
                   return (
                   <div key={subtractedShape.id || shapeIdx} className="space-y-1.5 p-2 bg-stone-50 rounded">
@@ -817,7 +831,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       <div className="flex flex-col gap-0.5 w-24">
                         <label className="text-[10px] text-stone-500 font-medium">Intersection</label>
                         <div className="px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-700 font-medium text-center">
-                          {actualIntersectionW.toFixed(0)}×{actualIntersectionH.toFixed(0)}×{actualIntersectionD.toFixed(0)}
+                          {finalIntersectionW.toFixed(0)}×{finalIntersectionH.toFixed(0)}×{finalIntersectionD.toFixed(0)}
                         </div>
                       </div>
                     </div>
