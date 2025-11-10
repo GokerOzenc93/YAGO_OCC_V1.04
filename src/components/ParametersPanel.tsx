@@ -298,6 +298,25 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     console.log('Shape type:', selectedShape.type);
     console.log('New dimensions:', { width, height, depth });
 
+    if (Object.keys(pendingCutChanges).length > 0) {
+      console.log('✂️ Applying pending cut changes...');
+      for (const [cutKey, changes] of Object.entries(pendingCutChanges)) {
+        const shapeIdx = parseInt(cutKey);
+        if (changes.intersectionWidth !== undefined) {
+          await handleIntersectionChange(shapeIdx, 'intersectionWidth', parseFloat(changes.intersectionWidth as string) || 0);
+        }
+        if (changes.intersectionHeight !== undefined) {
+          await handleIntersectionChange(shapeIdx, 'intersectionHeight', parseFloat(changes.intersectionHeight as string) || 0);
+        }
+        if (changes.intersectionDepth !== undefined) {
+          await handleIntersectionChange(shapeIdx, 'intersectionDepth', parseFloat(changes.intersectionDepth as string) || 0);
+        }
+      }
+      setPendingCutChanges({});
+      console.log('✅ Cut changes applied');
+      return;
+    }
+
     const evaluateVertexExpression = (expr: string): number => {
       try {
         let evalExpr = expr
@@ -808,29 +827,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     </div>
                   </div>
                 )})}
-
-                {Object.keys(pendingCutChanges).length > 0 && (
-                  <button
-                    onClick={async () => {
-                      for (const [cutKey, changes] of Object.entries(pendingCutChanges)) {
-                        const shapeIdx = parseInt(cutKey);
-                        if (changes.intersectionWidth !== undefined) {
-                          await handleIntersectionChange(shapeIdx, 'intersectionWidth', parseFloat(changes.intersectionWidth as string) || 0);
-                        }
-                        if (changes.intersectionHeight !== undefined) {
-                          await handleIntersectionChange(shapeIdx, 'intersectionHeight', parseFloat(changes.intersectionHeight as string) || 0);
-                        }
-                        if (changes.intersectionDepth !== undefined) {
-                          await handleIntersectionChange(shapeIdx, 'intersectionDepth', parseFloat(changes.intersectionDepth as string) || 0);
-                        }
-                      }
-                      setPendingCutChanges({});
-                    }}
-                    className="w-full px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                  >
-                    Apply Changes
-                  </button>
-                )}
               </div>
             )}
 

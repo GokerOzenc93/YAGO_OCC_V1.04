@@ -13,15 +13,26 @@ const CuttingBox: React.FC<{ shape: any; cut: any }> = ({ shape, cut }) => {
   const height = Math.abs(cut.intersectionHeight || 0);
   const depth = Math.abs(cut.intersectionDepth || 0);
 
-  const offsetX = (cut.intersectionWidth || 0) / 2;
-  const offsetY = (cut.intersectionHeight || 0) / 2;
-  const offsetZ = (cut.intersectionDepth || 0) / 2;
+  console.log('🔴 CuttingBox render:', {
+    width,
+    height,
+    depth,
+    cutPosition: cut.position,
+    shapePosition: shape.position
+  });
+
+  if (width === 0 && height === 0 && depth === 0) {
+    console.log('⚠️ CuttingBox: all dimensions are 0, skipping render');
+    return null;
+  }
 
   const position: [number, number, number] = [
-    shape.position[0] + (cut.position?.[0] || 0) + offsetX,
-    shape.position[1] + (cut.position?.[1] || 0) + offsetY,
-    shape.position[2] + (cut.position?.[2] || 0) + offsetZ
+    shape.position[0] + (cut.position?.[0] || 0),
+    shape.position[1] + (cut.position?.[1] || 0),
+    shape.position[2] + (cut.position?.[2] || 0)
   ];
+
+  console.log('✅ CuttingBox rendering at:', position);
 
   return (
     <mesh position={position} rotation={cut.rotation || [0, 0, 0]}>
