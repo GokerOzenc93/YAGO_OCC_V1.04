@@ -97,9 +97,9 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
       direction: direction,
     };
 
-    (window as any).vertexEditStatusMessage = `Vertex ${selectedIndex} - ${direction.toUpperCase()}: Enter value in terminal`;
+    (window as any).vertexEditStatusMessage = `Vertex ${selectedIndex} - ${direction.toUpperCase()}: Enter coordinate value`;
 
-    console.log(`✅ Vertex ${selectedIndex} - Direction ${direction} selected. Enter value in terminal.`);
+    console.log(`✅ Vertex ${selectedIndex} - Direction ${direction} selected. Enter absolute coordinate value.`);
   };
 
   return (

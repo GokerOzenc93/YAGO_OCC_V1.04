@@ -335,7 +335,7 @@ const Scene: React.FC = () => {
       const shape = shapes.find(s => s.id === selectedShapeId);
       if (!shape || !shape.parameters) return;
 
-      console.log(`📝 Processing vertex ${vertexIndex}, direction ${direction}, value: ${newValue}`);
+      console.log(`📝 Moving vertex ${vertexIndex} to ${direction.toUpperCase()} = ${newValue}`);
 
       const currentParams = shape.parameters;
       const vertexMods = currentParams.vertexModifications || [];
@@ -415,7 +415,7 @@ const Scene: React.FC = () => {
         geometry: newGeometry,
       });
 
-      console.log(`✅ Vertex ${vertexIndex} updated. New geometry applied.`);
+      console.log(`✅ Vertex ${vertexIndex} moved to ${direction.toUpperCase()} = ${newValue}. Geometry updated.`);
       delete (window as any).pendingVertexEdit;
       delete (window as any).vertexEditStatusMessage;
     };
