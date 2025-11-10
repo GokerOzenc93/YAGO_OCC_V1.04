@@ -378,6 +378,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const shape2 = shapes[j];
 
         if (!shape1.geometry || !shape2.geometry) continue;
+        if (!shape1.replicadShape || !shape2.replicadShape) continue;
 
         const box1 = new THREE.Box3().setFromBufferAttribute(
           shape1.geometry.getAttribute('position')
@@ -393,64 +394,29 @@ export const useAppStore = create<AppState>((set, get) => ({
           console.log('💥 Collision detected between:', shape1.id, 'and', shape2.id);
 
           try {
-            const hasVertexMods1 = shape1.vertexModifications && shape1.vertexModifications.length > 0;
-            const hasVertexMods2 = shape2.vertexModifications && shape2.vertexModifications.length > 0;
+            const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
 
-            if (hasVertexMods1 || hasVertexMods2 || !shape1.replicadShape || !shape2.replicadShape) {
-              console.log('🔧 Using Three-BVH-CSG for boolean operation (vertex modifications detected)');
-              const { performCSGSubtraction } = await import('./services/csg');
+            const resultShape = await performBooleanCut(
+              shape1.replicadShape,
+              shape2.replicadShape
+            );
 
-              const geo1 = shape1.geometry.clone();
-              const geo2 = shape2.geometry.clone();
+            const newGeometry = convertReplicadToThreeGeometry(resultShape);
 
-              geo1.translate(...shape1.position);
-              geo2.translate(...shape2.position);
+            set((state) => ({
+              shapes: state.shapes.map((s) => {
+                if (s.id === shape1.id) {
+                  return {
+                    ...s,
+                    geometry: newGeometry,
+                    replicadShape: resultShape
+                  };
+                }
+                return s;
+              }).filter(s => s.id !== shape2.id)
+            }));
 
-              const newGeometry = performCSGSubtraction(geo1, geo2);
-
-              set((state) => ({
-                shapes: state.shapes.map((s) => {
-                  if (s.id === shape1.id) {
-                    return {
-                      ...s,
-                      geometry: newGeometry,
-                      position: [0, 0, 0] as [number, number, number],
-                      replicadShape: null,
-                      vertexModifications: []
-                    };
-                  }
-                  return s;
-                }).filter(s => s.id !== shape2.id)
-              }));
-
-              console.log('✅ Boolean cut applied using Three-BVH-CSG');
-            } else {
-              console.log('🔧 Using Replicad for boolean operation');
-              const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
-
-              const resultShape = await performBooleanCut(
-                shape1.replicadShape,
-                shape2.replicadShape
-              );
-
-              const newGeometry = convertReplicadToThreeGeometry(resultShape);
-
-              set((state) => ({
-                shapes: state.shapes.map((s) => {
-                  if (s.id === shape1.id) {
-                    return {
-                      ...s,
-                      geometry: newGeometry,
-                      replicadShape: resultShape
-                    };
-                  }
-                  return s;
-                }).filter(s => s.id !== shape2.id)
-              }));
-
-              console.log('✅ Boolean cut applied using Replicad');
-            }
-
+            console.log('✅ Boolean cut applied, shape2 removed');
             return;
           } catch (error) {
             console.error('❌ Failed to perform boolean operation:', error);
