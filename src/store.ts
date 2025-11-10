@@ -122,6 +122,13 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
+
+  booleanEditMode: boolean;
+  setBooleanEditMode: (enabled: boolean) => void;
+  booleanSourceShapes: Set<string>;
+  addBooleanSourceShape: (shapeId: string) => void;
+  removeBooleanSourceShape: (shapeId: string) => void;
+  clearBooleanSourceShapes: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -366,6 +373,21 @@ export const useAppStore = create<AppState>((set, get) => ({
         };
       })
     })),
+
+  booleanEditMode: false,
+  setBooleanEditMode: (enabled) => set({ booleanEditMode: enabled }),
+  booleanSourceShapes: new Set<string>(),
+  addBooleanSourceShape: (shapeId) => set((state) => {
+    const newSet = new Set(state.booleanSourceShapes);
+    newSet.add(shapeId);
+    return { booleanSourceShapes: newSet };
+  }),
+  removeBooleanSourceShape: (shapeId) => set((state) => {
+    const newSet = new Set(state.booleanSourceShapes);
+    newSet.delete(shapeId);
+    return { booleanSourceShapes: newSet };
+  }),
+  clearBooleanSourceShapes: () => set({ booleanSourceShapes: new Set<string>() }),
 
   checkAndPerformBooleanOperations: async () => {
     const state = get();

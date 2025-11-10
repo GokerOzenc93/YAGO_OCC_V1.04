@@ -29,7 +29,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     extrudeShape,
     shapes,
     updateShape,
-    deleteShape
+    deleteShape,
+    booleanEditMode,
+    setBooleanEditMode,
+    booleanSourceShapes,
+    addBooleanSourceShape,
+    removeBooleanSourceShape,
+    clearBooleanSourceShapes
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -501,6 +507,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         console.log(`📍 Target (base) position: [${targetShape.position}], rotation: [${targetShape.rotation}], scale: [${targetShape.scale}]`);
         console.log(`📍 Selected (cutting) position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
 
+        addBooleanSourceShape(selectedShapeId);
+        console.log(`🔴 Added ${selectedShapeId} to boolean source shapes`);
+
         const resultShape = await performBooleanCut(
           targetShape.replicadShape,
           selectedShape.replicadShape,
@@ -520,15 +529,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           replicadShape: resultShape,
           parameters: {
             ...targetShape.parameters,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+            booleanSourceId: selectedShapeId,
+            booleanTargetId: targetShape.id
           }
         });
 
         console.log(`✅ Updated ${targetShape.id} with cut result`);
       }
 
-      deleteShape(selectedShapeId);
-      console.log(`🗑️ Deleted selected shape ${selectedShapeId}`);
+      updateShape(selectedShapeId, {
+        isolated: false
+      });
+      console.log(`🔴 Set ${selectedShapeId} as invisible (boolean source)`);
       console.log(`✅ All subtract operations completed`);
 
     } catch (error) {
@@ -592,6 +605,30 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             {getViewModeIcon()}
             <span className="text-xs font-semibold">
               {getViewModeLabel()}
+            </span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (booleanEditMode) {
+                setBooleanEditMode(false);
+                clearBooleanSourceShapes();
+                console.log('🔴 Boolean edit mode disabled');
+              } else {
+                setBooleanEditMode(true);
+                console.log('🔴 Boolean edit mode enabled');
+              }
+            }}
+            className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors font-medium ${
+              booleanEditMode
+                ? 'bg-red-600 text-white shadow-lg'
+                : 'bg-stone-200 hover:bg-stone-300 text-slate-800'
+            }`}
+            title={`Boolean Edit Mode: ${booleanEditMode ? 'ON' : 'OFF'} - Make boolean source shapes visible and movable`}
+          >
+            <Edit size={12} className={booleanEditMode ? 'text-white' : 'text-slate-800'} />
+            <span className="text-xs font-semibold">
+              Boolean
             </span>
           </button>
 
