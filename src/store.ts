@@ -425,12 +425,12 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             console.log('📦 Captured subtracted shape parameters:', subtractedParameters);
 
-            set((state) => ({
-              shapes: state.shapes.map((s) => {
+            set((state) => {
+              const updatedShapes = state.shapes.map((s) => {
                 if (s.id === shape1.id) {
                   const existingSubtractedShapes = s.parameters.subtractedShapes || [];
 
-                  return {
+                  const updatedShape = {
                     ...s,
                     geometry: newGeometry,
                     replicadShape: resultShape,
@@ -450,10 +450,27 @@ export const useAppStore = create<AppState>((set, get) => ({
                       ]
                     }
                   };
+
+                  console.log('📝 Updated shape1 with subtracted shape:', {
+                    shapeId: updatedShape.id,
+                    subtractedShapesCount: updatedShape.parameters.subtractedShapes.length,
+                    subtractedShapes: updatedShape.parameters.subtractedShapes
+                  });
+
+                  return updatedShape;
                 }
                 return s;
-              }).filter(s => s.id !== shape2.id)
-            }));
+              }).filter(s => s.id !== shape2.id);
+
+              console.log('📊 All shapes after boolean cut:', updatedShapes.map(s => ({
+                id: s.id,
+                type: s.type,
+                hasSubtractedShapes: !!(s.parameters.subtractedShapes && s.parameters.subtractedShapes.length > 0),
+                subtractedShapesCount: s.parameters.subtractedShapes?.length || 0
+              })));
+
+              return { shapes: updatedShapes };
+            });
 
             console.log('✅ Boolean cut applied, shape2 parameters stored');
             return;

@@ -43,11 +43,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       selectedShape: selectedShape ? {
         id: selectedShape.id,
         type: selectedShape.type,
-        parameters: selectedShape.parameters
+        parameters: selectedShape.parameters,
+        subtractedShapes: selectedShape.parameters?.subtractedShapes
       } : null
     });
 
     if (selectedShape && selectedShape.parameters) {
+      console.log('📦 Subtracted Shapes in Parameters Panel:', selectedShape.parameters.subtractedShapes);
       setWidth(selectedShape.parameters.width || 0);
       setHeight(selectedShape.parameters.height || 0);
       setDepth(selectedShape.parameters.depth || 0);
@@ -606,7 +608,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             )}
 
-            {selectedShape.parameters.subtractedShapes && selectedShape.parameters.subtractedShapes.length > 0 && (
+            {(() => {
+              const hasSubtractedShapes = selectedShape.parameters.subtractedShapes && selectedShape.parameters.subtractedShapes.length > 0;
+              console.log('🔍 Rendering subtracted shapes section:', {
+                hasSubtractedShapes,
+                subtractedShapes: selectedShape.parameters.subtractedShapes,
+                parameters: selectedShape.parameters
+              });
+              return hasSubtractedShapes;
+            })() && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
                 <div className="text-xs font-semibold text-slate-700 mb-2">
                   Subtracted Shapes ({selectedShape.parameters.subtractedShapes.length})
