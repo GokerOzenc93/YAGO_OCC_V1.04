@@ -83,40 +83,5 @@ export function calculatePenetrationDepths(
   shape1: { geometry: THREE.BufferGeometry; position: [number, number, number] },
   shape2: { geometry: THREE.BufferGeometry; position: [number, number, number] }
 ): { x: number; y: number; z: number } {
-  const box1 = new THREE.Box3().setFromBufferAttribute(
-    shape1.geometry.getAttribute('position')
-  );
-  const box2 = new THREE.Box3().setFromBufferAttribute(
-    shape2.geometry.getAttribute('position')
-  );
-
-  box1.translate(new THREE.Vector3(...shape1.position));
-  box2.translate(new THREE.Vector3(...shape2.position));
-
-  const intersection = box1.clone().intersect(box2);
-
-  if (intersection.isEmpty()) {
-    return { x: 0, y: 0, z: 0 };
-  }
-
-  const size = new THREE.Vector3();
-  intersection.getSize(size);
-
-  console.log('📏 Calculated intersection size:', {
-    x: size.x,
-    y: size.y,
-    z: size.z,
-    box1Min: box1.min,
-    box1Max: box1.max,
-    box2Min: box2.min,
-    box2Max: box2.max,
-    intersectionMin: intersection.min,
-    intersectionMax: intersection.max
-  });
-
-  return {
-    x: Math.abs(size.x),
-    y: Math.abs(size.y),
-    z: Math.abs(size.z)
-  };
+  return { x: 0, y: 0, z: 0 };
 }

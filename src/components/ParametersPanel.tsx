@@ -40,17 +40,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [netDimensions, setNetDimensions] = useState<{[key: string]: string}>({});
   const [pendingCutChanges, setPendingCutChanges] = useState<{[key: string]: any}>({});
 
-  const handleOffsetChange = async (shapeIdx: number, offsetW: number, offsetH: number, offsetD: number) => {
+  const handleIntersectionChange = async (shapeIdx: number, field: string, value: number) => {
     if (!selectedShape || !selectedShape.parameters.subtractedShapes) return;
 
-    console.log(`🔄 Offset values changed for cut ${shapeIdx + 1}:`, { offsetW, offsetH, offsetD });
+    console.log(`🔄 Intersection value changed for cut ${shapeIdx + 1}: ${field} = ${value}`);
 
     const updatedSubtractedShapes = [...selectedShape.parameters.subtractedShapes];
     updatedSubtractedShapes[shapeIdx] = {
       ...updatedSubtractedShapes[shapeIdx],
-      offsetWidth: offsetW,
-      offsetHeight: offsetH,
-      offsetDepth: offsetD
+      [field]: value
     };
 
     try {
@@ -66,7 +64,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           depth: selectedShape.parameters.depth || 100
         });
       } else {
-        console.warn('⚠️ Only box type is currently supported for offset editing');
+        console.warn('⚠️ Only box type is currently supported for intersection editing');
         return;
       }
 
@@ -74,23 +72,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       for (let i = 0; i < updatedSubtractedShapes.length; i++) {
         const cut = updatedSubtractedShapes[i];
 
-        const finalWidth = (cut.intersectionWidth || 0) + (cut.offsetWidth || 0);
-        const finalHeight = (cut.intersectionHeight || 0) + (cut.offsetHeight || 0);
-        const finalDepth = (cut.intersectionDepth || 0) + (cut.offsetDepth || 0);
-
-        console.log(`🔨 Creating cutting shape ${i + 1}:`, {
-          intersection: { w: cut.intersectionWidth, h: cut.intersectionHeight, d: cut.intersectionDepth },
-          offset: { w: cut.offsetWidth, h: cut.offsetHeight, d: cut.offsetDepth },
-          final: { w: finalWidth, h: finalHeight, d: finalDepth }
-        });
-
+        console.log(`🔨 Creating cutting shape ${i + 1} with dimensions [${cut.intersectionWidth}, ${cut.intersectionHeight}, ${cut.intersectionDepth}]`);
         const cuttingShape = await createReplicadBox({
-          width: finalWidth,
-          height: finalHeight,
-          depth: finalDepth
+          width: cut.intersectionWidth || 0,
+          height: cut.intersectionHeight || 0,
+          depth: cut.intersectionDepth || 0
         });
 
-        console.log(`🔪 Performing boolean cut ${i + 1} at position:`, cut.position);
+        console.log(`🔪 Performing boolean cut ${i + 1}...`);
         resultShape = await performBooleanCut(
           resultShape,
           cuttingShape,
@@ -99,7 +88,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           [0, 0, 0],
           cut.rotation || [0, 0, 0],
           [1, 1, 1],
-          cut.scale || [1, 1, 1]
+          [1, 1, 1]
         );
       }
 
@@ -118,7 +107,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       console.log('✅ Geometry updated with all cuts applied');
     } catch (error) {
-      console.error('❌ Failed to update geometry with new offset values:', error);
+      console.error('❌ Failed to update geometry with new intersection values:', error);
     }
   };
 
@@ -313,13 +302,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       console.log('✂️ Applying pending cut changes...');
       for (const [cutKey, changes] of Object.entries(pendingCutChanges)) {
         const shapeIdx = parseInt(cutKey);
-        if (changes.offsetWidth !== undefined || changes.offsetHeight !== undefined || changes.offsetDepth !== undefined) {
-          await handleOffsetChange(
-            shapeIdx,
-            parseFloat(changes.offsetWidth as string) || 0,
-            parseFloat(changes.offsetHeight as string) || 0,
-            parseFloat(changes.offsetDepth as string) || 0
-          );
+        if (changes.intersectionWidth !== undefined) {
+          await handleIntersectionChange(shapeIdx, 'intersectionWidth', parseFloat(changes.intersectionWidth as string) || 0);
+        }
+        if (changes.intersectionHeight !== undefined) {
+          await handleIntersectionChange(shapeIdx, 'intersectionHeight', parseFloat(changes.intersectionHeight as string) || 0);
+        }
+        if (changes.intersectionDepth !== undefined) {
+          await handleIntersectionChange(shapeIdx, 'intersectionDepth', parseFloat(changes.intersectionDepth as string) || 0);
         }
       }
       setPendingCutChanges({});
@@ -740,103 +730,100 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   const cutKey = `${shapeIdx}`;
                   const pendingCut = pendingCutChanges[cutKey] || {};
 
-                  const baseIntersectionW = subtractedShape.intersectionWidth || 0;
-                  const baseIntersectionH = subtractedShape.intersectionHeight || 0;
-                  const baseIntersectionD = subtractedShape.intersectionDepth || 0;
-
-                  const currentOffsetW = subtractedShape.offsetWidth ?? 0;
-                  const currentOffsetH = subtractedShape.offsetHeight ?? 0;
-                  const currentOffsetD = subtractedShape.offsetDepth ?? 0;
-
-                  const displayOffsetW = pendingCut.offsetWidth !== undefined
-                    ? parseFloat(pendingCut.offsetWidth) || 0
-                    : currentOffsetW;
-                  const displayOffsetH = pendingCut.offsetHeight !== undefined
-                    ? parseFloat(pendingCut.offsetHeight) || 0
-                    : currentOffsetH;
-                  const displayOffsetD = pendingCut.offsetDepth !== undefined
-                    ? parseFloat(pendingCut.offsetDepth) || 0
-                    : currentOffsetD;
-
-                  const finalIntersectionW = baseIntersectionW + displayOffsetW;
-                  const finalIntersectionH = baseIntersectionH + displayOffsetH;
-                  const finalIntersectionD = baseIntersectionD + displayOffsetD;
-
                   return (
-                  <div key={subtractedShape.id || shapeIdx} className="space-y-1.5 p-2 bg-stone-50 rounded">
-                    <div className="text-xs font-semibold text-stone-700 mb-1.5">
+                  <div key={subtractedShape.id || shapeIdx} className="space-y-1">
+                    <div className="text-xs font-medium text-stone-600 mb-1">
                       Cut {shapeIdx + 1}
                     </div>
 
                     <div className="flex gap-1 items-center">
-                      <div className="flex gap-1 flex-1">
-                        <div className="flex flex-col gap-0.5 flex-1">
-                          <label className="text-[10px] text-stone-500 font-medium">W</label>
-                          <input
-                            type="text"
-                            value={pendingCut.offsetWidth ?? currentOffsetW}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              setPendingCutChanges(prev => ({
-                                ...prev,
-                                [cutKey]: {
-                                  offsetWidth: inputValue,
-                                  offsetHeight: prev[cutKey]?.offsetHeight ?? currentOffsetH,
-                                  offsetDepth: prev[cutKey]?.offsetDepth ?? currentOffsetD
-                                }
-                              }));
-                            }}
-                            placeholder="0"
-                            className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-700 text-center font-medium"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-0.5 flex-1">
-                          <label className="text-[10px] text-stone-500 font-medium">H</label>
-                          <input
-                            type="text"
-                            value={pendingCut.offsetHeight ?? currentOffsetH}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              setPendingCutChanges(prev => ({
-                                ...prev,
-                                [cutKey]: {
-                                  offsetWidth: prev[cutKey]?.offsetWidth ?? currentOffsetW,
-                                  offsetHeight: inputValue,
-                                  offsetDepth: prev[cutKey]?.offsetDepth ?? currentOffsetD
-                                }
-                              }));
-                            }}
-                            placeholder="0"
-                            className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-700 text-center font-medium"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-0.5 flex-1">
-                          <label className="text-[10px] text-stone-500 font-medium">D</label>
-                          <input
-                            type="text"
-                            value={pendingCut.offsetDepth ?? currentOffsetD}
-                            onChange={(e) => {
-                              const inputValue = e.target.value;
-                              setPendingCutChanges(prev => ({
-                                ...prev,
-                                [cutKey]: {
-                                  offsetWidth: prev[cutKey]?.offsetWidth ?? currentOffsetW,
-                                  offsetHeight: prev[cutKey]?.offsetHeight ?? currentOffsetH,
-                                  offsetDepth: inputValue
-                                }
-                              }));
-                            }}
-                            placeholder="0"
-                            className="w-full px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-700 text-center font-medium"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-0.5 w-24">
-                        <label className="text-[10px] text-stone-500 font-medium">Intersection</label>
-                        <div className="px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-700 font-medium text-center">
-                          {finalIntersectionW.toFixed(0)}×{finalIntersectionH.toFixed(0)}×{finalIntersectionD.toFixed(0)}
-                        </div>
-                      </div>
+                      <input
+                        type="text"
+                        value={`C${shapeIdx + 1}W`}
+                        readOnly
+                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                      />
+                      <input
+                        type="text"
+                        value={pendingCut.intersectionWidth ?? (subtractedShape.intersectionWidth || 0)}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          setPendingCutChanges(prev => ({
+                            ...prev,
+                            [cutKey]: {
+                              ...prev[cutKey],
+                              intersectionWidth: inputValue
+                            }
+                          }));
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                      <input
+                        type="text"
+                        value="Cut Offset W"
+                        readOnly
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                    </div>
+
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value={`C${shapeIdx + 1}H`}
+                        readOnly
+                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                      />
+                      <input
+                        type="text"
+                        value={pendingCut.intersectionHeight ?? (subtractedShape.intersectionHeight || 0)}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          setPendingCutChanges(prev => ({
+                            ...prev,
+                            [cutKey]: {
+                              ...prev[cutKey],
+                              intersectionHeight: inputValue
+                            }
+                          }));
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                      <input
+                        type="text"
+                        value="Cut Offset H"
+                        readOnly
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                    </div>
+
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value={`C${shapeIdx + 1}D`}
+                        readOnly
+                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                      />
+                      <input
+                        type="text"
+                        value={pendingCut.intersectionDepth ?? (subtractedShape.intersectionDepth || 0)}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+                          setPendingCutChanges(prev => ({
+                            ...prev,
+                            [cutKey]: {
+                              ...prev[cutKey],
+                              intersectionDepth: inputValue
+                            }
+                          }));
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                      <input
+                        type="text"
+                        value="Cut Offset D"
+                        readOnly
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
                     </div>
                   </div>
                 )})}

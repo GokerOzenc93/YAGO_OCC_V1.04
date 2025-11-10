@@ -543,20 +543,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           vertexModifications: selectedShape.vertexModifications || [],
           intersectionWidth: intersectionDepths.x,
           intersectionHeight: intersectionDepths.y,
-          intersectionDepth: intersectionDepths.z,
-          offsetWidth: 0,
-          offsetHeight: 0,
-          offsetDepth: 0
+          intersectionDepth: intersectionDepths.z
         };
 
-        console.log('📦 Captured subtracted shape parameters with intersection:', {
-          ...subtractedParameters,
-          calculatedIntersection: {
-            width: intersectionDepths.x,
-            height: intersectionDepths.y,
-            depth: intersectionDepths.z
-          }
-        });
+        console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);
 
         const existingSubtractedShapes = targetShape.parameters.subtractedShapes || [];
 
