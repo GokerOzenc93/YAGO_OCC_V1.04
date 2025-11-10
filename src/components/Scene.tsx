@@ -329,11 +329,17 @@ const Scene: React.FC = () => {
   useEffect(() => {
     (window as any).handleVertexOffset = async (newValue: number) => {
       const pendingEdit = (window as any).pendingVertexEdit;
-      if (!pendingEdit || !selectedShapeId) return;
+      if (!pendingEdit || !selectedShapeId) {
+        console.log('❌ No pending edit or no selected shape');
+        return;
+      }
 
       const { vertexIndex, direction } = pendingEdit;
       const shape = shapes.find(s => s.id === selectedShapeId);
-      if (!shape || !shape.parameters) return;
+      if (!shape || !shape.parameters) {
+        console.log('❌ Shape not found or no parameters');
+        return;
+      }
 
       const currentParams = shape.parameters;
       const w = currentParams.width / 2;
@@ -424,6 +430,8 @@ const Scene: React.FC = () => {
       console.log(`✅ Vertex ${vertexIndex} moved: ${direction.toUpperCase()} = ${newValue} (delta: ${delta > 0 ? '+' : ''}${delta})`);
       delete (window as any).pendingVertexEdit;
       delete (window as any).vertexEditStatusMessage;
+
+      window.dispatchEvent(new CustomEvent('vertexApplied'));
     };
 
     return () => {

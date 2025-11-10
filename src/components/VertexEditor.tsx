@@ -48,6 +48,7 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
   const [vertices, setVertices] = useState<THREE.Vector3[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showDirections, setShowDirections] = useState(false);
+  const [selectedDirection, setSelectedDirection] = useState<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null>(null);
 
   useEffect(() => {
     if (!isActive || !shape.parameters) return;
@@ -90,7 +91,7 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
   };
 
   const handleDirectionClick = (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => {
-    setShowDirections(false);
+    setSelectedDirection(direction);
 
     (window as any).pendingVertexEdit = {
       vertexIndex: selectedIndex,
@@ -101,6 +102,17 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
 
     console.log(`✅ Vertex ${selectedIndex} - Direction ${direction} selected. Enter absolute coordinate value.`);
   };
+
+  useEffect(() => {
+    const handleVertexApplied = () => {
+      setSelectedDirection(null);
+      setShowDirections(false);
+      setSelectedIndex(null);
+    };
+
+    window.addEventListener('vertexApplied', handleVertexApplied);
+    return () => window.removeEventListener('vertexApplied', handleVertexApplied);
+  }, []);
 
   return (
     <group
@@ -119,9 +131,9 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
               />
             </mesh>
 
-            {selectedIndex === index && showDirections && (
+            {selectedIndex === index && (showDirections || selectedDirection) && (
               <>
-                {DIRECTIONS.map((dir) => {
+                {DIRECTIONS.filter(dir => showDirections || dir.direction === selectedDirection).map((dir) => {
                   const arrowStart = new THREE.Vector3(0, 0, 0);
                   const arrowEnd = new THREE.Vector3(...dir.offset);
                   const direction = arrowEnd.clone().sub(arrowStart).normalize();
