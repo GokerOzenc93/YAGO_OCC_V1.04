@@ -30,11 +30,83 @@ const ShapeWithTransform: React.FC<{
 
   useEffect(() => {
     const loadEdges = async () => {
-      if (shape.geometry && shape.geometry !== localGeometry) {
-        console.log(`🔄 Geometry updated for shape ${shape.id}`);
-        setLocalGeometry(shape.geometry);
+      const hasVertexMods = shape.vertexModifications && shape.vertexModifications.length > 0;
+      const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods;
 
-        const edges = new THREE.EdgesGeometry(shape.geometry, 1);
+      if (shouldUpdate && shape.geometry) {
+        console.log(`🔄 Geometry update for shape ${shape.id}`, { hasVertexMods, vertexModCount: shape.vertexModifications?.length || 0 });
+
+        let geom = shape.geometry.clone();
+
+        if (hasVertexMods) {
+          console.log(`🔧 Applying ${shape.vertexModifications.length} vertex modifications to geometry`);
+
+          const positionAttribute = geom.getAttribute('position');
+          const positions = positionAttribute.array as Float32Array;
+
+          const vertexMap = new Map<string, number[]>();
+          for (let i = 0; i < positions.length; i += 3) {
+            const x = Math.round(positions[i] * 100) / 100;
+            const y = Math.round(positions[i + 1] * 100) / 100;
+            const z = Math.round(positions[i + 2] * 100) / 100;
+            const key = `${x},${y},${z}`;
+
+            if (!vertexMap.has(key)) {
+              vertexMap.set(key, []);
+            }
+            vertexMap.get(key)!.push(i);
+          }
+
+          const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
+          let baseVertices: THREE.Vector3[] = [];
+
+          if (shape.replicadShape) {
+            baseVertices = await getReplicadVertices(shape.replicadShape);
+          } else if (shape.type === 'box' && shape.parameters) {
+            baseVertices = getBoxVertices(
+              shape.parameters.width,
+              shape.parameters.height,
+              shape.parameters.depth
+            );
+          }
+
+          shape.vertexModifications.forEach((mod: any) => {
+            const baseVertex = baseVertices[mod.vertexIndex];
+            if (!baseVertex) {
+              console.warn(`⚠️ Base vertex ${mod.vertexIndex} not found`);
+              return;
+            }
+
+            const key = `${Math.round(baseVertex.x * 100) / 100},${Math.round(baseVertex.y * 100) / 100},${Math.round(baseVertex.z * 100) / 100}`;
+            const indices = vertexMap.get(key);
+
+            if (indices) {
+              console.log(`✅ Applying modification to vertex ${mod.vertexIndex} (${indices.length} mesh vertices)`);
+              const offset = mod.offset || [
+                mod.newPosition[0] - mod.originalPosition[0],
+                mod.newPosition[1] - mod.originalPosition[1],
+                mod.newPosition[2] - mod.originalPosition[2]
+              ];
+
+              indices.forEach(idx => {
+                positions[idx] += offset[0];
+                positions[idx + 1] += offset[1];
+                positions[idx + 2] += offset[2];
+              });
+            } else {
+              console.warn(`⚠️ No mesh vertices found for base vertex ${mod.vertexIndex} (key: ${key})`);
+            }
+          });
+
+          positionAttribute.needsUpdate = true;
+          geom.computeVertexNormals();
+          geom.computeBoundingBox();
+          geom.computeBoundingSphere();
+        }
+
+        setLocalGeometry(geom);
+
+        const edges = new THREE.EdgesGeometry(geom, 1);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;

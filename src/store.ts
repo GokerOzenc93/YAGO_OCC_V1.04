@@ -354,9 +354,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           newMods = [...existingMods, modification];
         }
 
+        console.log(`🔧 Vertex modification added for shape ${shapeId}, triggering geometry update`);
+
         return {
           ...shape,
-          vertexModifications: newMods
+          vertexModifications: newMods,
+          geometry: shape.geometry
         };
       })
     })),
