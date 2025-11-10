@@ -79,7 +79,7 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
 
       setVertices(vertArray);
     }
-  }, [isActive, shape, shape.geometry, shape.parameters?.vertexModifications]);
+  }, [isActive, shape, shape.geometry, shape.parameters?.vertexModifications, shape.position, shape.rotation, shape.scale]);
 
   if (!isActive || vertices.length === 0) return null;
 
