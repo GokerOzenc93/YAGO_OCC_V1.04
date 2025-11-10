@@ -443,7 +443,10 @@ export const useAppStore = create<AppState>((set, get) => ({
               vertexModifications: shape2.vertexModifications || [],
               intersectionWidth: intersectionDepths.x,
               intersectionHeight: intersectionDepths.y,
-              intersectionDepth: intersectionDepths.z
+              intersectionDepth: intersectionDepths.z,
+              offsetWidth: 0,
+              offsetHeight: 0,
+              offsetDepth: 0
             };
 
             console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);
