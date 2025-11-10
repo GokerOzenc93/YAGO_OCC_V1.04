@@ -476,7 +476,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         </div>
       </div>
 
-      <div className="p-3">
+      <div className="p-3 overflow-y-auto max-h-[150mm] scrollbar-thin">
         {selectedShape ? (
           <div className="space-y-2">
             <div className="space-y-2">
