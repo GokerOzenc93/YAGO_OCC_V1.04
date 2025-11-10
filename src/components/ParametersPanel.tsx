@@ -20,7 +20,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const {
     selectedShapeId,
     shapes,
-    updateShape
+    updateShape,
+    vertexEditMode,
+    setVertexEditMode
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -226,6 +228,59 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         console.log('🔄 Regenerating box geometry...');
         newReplicadShape = await createReplicadBox({ width, height, depth });
         newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
+
+        const vertexMods = selectedShape.parameters.vertexModifications || [];
+        if (vertexMods.length > 0) {
+          console.log(`🔧 Reapplying ${vertexMods.length} vertex modifications...`);
+
+          const positionAttr = newGeometry.getAttribute('position');
+          const positions = positionAttr.array as Float32Array;
+
+          const w = width / 2;
+          const h = height / 2;
+          const d = depth / 2;
+
+          const boxVertices = [
+            [-w, -h, -d], [w, -h, -d], [w, h, -d], [-w, h, -d],
+            [-w, -h, d], [w, -h, d], [w, h, d], [-w, h, d],
+          ];
+
+          vertexMods.forEach((mod: any) => {
+            const baseVertex = boxVertices[mod.vertexIndex];
+            if (!baseVertex) return;
+
+            const targetVertex = [
+              mod.x !== undefined ? mod.x : baseVertex[0],
+              mod.y !== undefined ? mod.y : baseVertex[1],
+              mod.z !== undefined ? mod.z : baseVertex[2],
+            ];
+
+            for (let i = 0; i < positions.length; i += 3) {
+              const vx = positions[i];
+              const vy = positions[i + 1];
+              const vz = positions[i + 2];
+
+              const matches =
+                Math.abs(vx - baseVertex[0]) < 0.01 &&
+                Math.abs(vy - baseVertex[1]) < 0.01 &&
+                Math.abs(vz - baseVertex[2]) < 0.01;
+
+              if (matches) {
+                positions[i] = targetVertex[0];
+                positions[i + 1] = targetVertex[1];
+                positions[i + 2] = targetVertex[2];
+              }
+            }
+          });
+
+          positionAttr.needsUpdate = true;
+          newGeometry.computeVertexNormals();
+          newGeometry.computeBoundingBox();
+          newGeometry.computeBoundingSphere();
+
+          console.log('✅ Vertex modifications reapplied');
+        }
+
         console.log('✅ Box geometry regenerated');
       } else if (selectedShape.type === 'cylinder' && selectedShape.parameters.radius && height > 0) {
         console.log('🔄 Regenerating cylinder geometry...');
@@ -285,6 +340,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           <span className="text-sm font-semibold text-slate-800">Parameters</span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => setVertexEditMode(!vertexEditMode)}
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+              vertexEditMode
+                ? 'bg-orange-600 text-white'
+                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+            }`}
+            title="Edit Vertices"
+          >
+            VERTEX
+          </button>
           <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"

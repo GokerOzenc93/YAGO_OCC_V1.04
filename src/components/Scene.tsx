@@ -5,6 +5,7 @@ import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
+import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
 
 const ShapeWithTransform: React.FC<{
@@ -286,7 +287,12 @@ const Scene: React.FC = () => {
     deleteShape,
     copyShape,
     isolateShape,
-    exitIsolation
+    exitIsolation,
+    vertexEditMode,
+    setVertexEditMode,
+    selectedVertexIndex,
+    setSelectedVertexIndex,
+    updateShape
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -319,6 +325,105 @@ const Scene: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation]);
+
+  useEffect(() => {
+    (window as any).handleVertexOffset = async (newValue: number) => {
+      const pendingEdit = (window as any).pendingVertexEdit;
+      if (!pendingEdit || !selectedShapeId) return;
+
+      const { vertexIndex, direction } = pendingEdit;
+      const shape = shapes.find(s => s.id === selectedShapeId);
+      if (!shape || !shape.parameters) return;
+
+      console.log(`📝 Processing vertex ${vertexIndex}, direction ${direction}, value: ${newValue}`);
+
+      const currentParams = shape.parameters;
+      const vertexMods = currentParams.vertexModifications || [];
+
+      const existingModIndex = vertexMods.findIndex((m: any) => m.vertexIndex === vertexIndex);
+      let updatedMods;
+
+      if (existingModIndex >= 0) {
+        updatedMods = [...vertexMods];
+        updatedMods[existingModIndex] = {
+          ...updatedMods[existingModIndex],
+          [direction.startsWith('x') ? 'x' : direction.startsWith('y') ? 'y' : 'z']: newValue,
+        };
+      } else {
+        updatedMods = [
+          ...vertexMods,
+          {
+            vertexIndex,
+            x: direction.startsWith('x') ? newValue : undefined,
+            y: direction.startsWith('y') ? newValue : undefined,
+            z: direction.startsWith('z') ? newValue : undefined,
+          },
+        ];
+      }
+
+      const newGeometry = shape.geometry.clone();
+      const positionAttr = newGeometry.getAttribute('position');
+      const positions = positionAttr.array as Float32Array;
+
+      const w = currentParams.width / 2;
+      const h = currentParams.height / 2;
+      const d = currentParams.depth / 2;
+
+      const boxVertices = [
+        [-w, -h, -d], [w, -h, -d], [w, h, -d], [-w, h, -d],
+        [-w, -h, d], [w, -h, d], [w, h, d], [-w, h, d],
+      ];
+
+      updatedMods.forEach((mod: any) => {
+        const baseVertex = boxVertices[mod.vertexIndex];
+        if (!baseVertex) return;
+
+        const targetVertex = [
+          mod.x !== undefined ? mod.x : baseVertex[0],
+          mod.y !== undefined ? mod.y : baseVertex[1],
+          mod.z !== undefined ? mod.z : baseVertex[2],
+        ];
+
+        for (let i = 0; i < positions.length; i += 3) {
+          const vx = positions[i];
+          const vy = positions[i + 1];
+          const vz = positions[i + 2];
+
+          const matches =
+            Math.abs(vx - baseVertex[0]) < 0.01 &&
+            Math.abs(vy - baseVertex[1]) < 0.01 &&
+            Math.abs(vz - baseVertex[2]) < 0.01;
+
+          if (matches) {
+            positions[i] = targetVertex[0];
+            positions[i + 1] = targetVertex[1];
+            positions[i + 2] = targetVertex[2];
+          }
+        }
+      });
+
+      positionAttr.needsUpdate = true;
+      newGeometry.computeVertexNormals();
+      newGeometry.computeBoundingBox();
+      newGeometry.computeBoundingSphere();
+
+      updateShape(selectedShapeId, {
+        parameters: {
+          ...currentParams,
+          vertexModifications: updatedMods,
+        },
+        geometry: newGeometry,
+      });
+
+      console.log(`✅ Vertex ${vertexIndex} updated. New geometry applied.`);
+      delete (window as any).pendingVertexEdit;
+    };
+
+    return () => {
+      delete (window as any).handleVertexOffset;
+      delete (window as any).pendingVertexEdit;
+    };
+  }, [selectedShapeId, shapes, updateShape]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     e.nativeEvent.preventDefault();
@@ -475,13 +580,21 @@ const Scene: React.FC = () => {
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
         return (
-          <ShapeWithTransform
-            key={shape.id}
-            shape={shape}
-            isSelected={isSelected}
-            orbitControlsRef={controlsRef}
-            onContextMenu={handleContextMenu}
-          />
+          <React.Fragment key={shape.id}>
+            <ShapeWithTransform
+              shape={shape}
+              isSelected={isSelected}
+              orbitControlsRef={controlsRef}
+              onContextMenu={handleContextMenu}
+            />
+            {isSelected && vertexEditMode && (
+              <VertexEditor
+                shape={shape}
+                isActive={true}
+                onVertexSelect={(index) => setSelectedVertexIndex(index)}
+              />
+            )}
+          </React.Fragment>
         );
       })}
 

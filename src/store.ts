@@ -110,6 +110,10 @@ interface AppState {
   setOpenCascadeInstance: (instance: OpenCascadeInstance | null) => void;
   setOpenCascadeLoading: (loading: boolean) => void;
 
+  vertexEditMode: boolean;
+  setVertexEditMode: (enabled: boolean) => void;
+  selectedVertexIndex: number | null;
+  setSelectedVertexIndex: (index: number | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -320,6 +324,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   opencascadeLoading: false,
   setOpenCascadeInstance: (instance) => set({ opencascadeInstance: instance }),
   setOpenCascadeLoading: (loading) => set({ opencascadeLoading: loading }),
+
+  vertexEditMode: false,
+  setVertexEditMode: (enabled) => set({ vertexEditMode: enabled }),
+  selectedVertexIndex: null,
+  setSelectedVertexIndex: (index) => set({ selectedVertexIndex: index }),
 
   checkAndPerformBooleanOperations: async () => {
     const state = get();
