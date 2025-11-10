@@ -36,6 +36,77 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
+  const handleIntersectionChange = async (shapeIdx: number, field: string, value: number) => {
+    if (!selectedShape || !selectedShape.parameters.subtractedShapes) return;
+
+    console.log(`🔄 Intersection value changed for cut ${shapeIdx + 1}: ${field} = ${value}`);
+
+    const updatedSubtractedShapes = [...selectedShape.parameters.subtractedShapes];
+    updatedSubtractedShapes[shapeIdx] = {
+      ...updatedSubtractedShapes[shapeIdx],
+      [field]: value
+    };
+
+    try {
+      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { getReplicadVertices } = await import('../services/vertexEditor');
+
+      console.log('🔨 Recreating base shape from original parameters...');
+      let resultShape;
+      if (selectedShape.type === 'box') {
+        resultShape = await createReplicadBox({
+          width: selectedShape.parameters.width || 100,
+          height: selectedShape.parameters.height || 100,
+          depth: selectedShape.parameters.depth || 100
+        });
+      } else {
+        console.warn('⚠️ Only box type is currently supported for intersection editing');
+        return;
+      }
+
+      console.log(`🔪 Applying ${updatedSubtractedShapes.length} cuts sequentially...`);
+      for (let i = 0; i < updatedSubtractedShapes.length; i++) {
+        const cut = updatedSubtractedShapes[i];
+
+        console.log(`🔨 Creating cutting shape ${i + 1} with dimensions [${cut.intersectionWidth}, ${cut.intersectionHeight}, ${cut.intersectionDepth}]`);
+        const cuttingShape = await createReplicadBox({
+          width: cut.intersectionWidth || 0,
+          height: cut.intersectionHeight || 0,
+          depth: cut.intersectionDepth || 0
+        });
+
+        console.log(`🔪 Performing boolean cut ${i + 1}...`);
+        resultShape = await performBooleanCut(
+          resultShape,
+          cuttingShape,
+          [0, 0, 0],
+          cut.position || [0, 0, 0],
+          [0, 0, 0],
+          cut.rotation || [0, 0, 0],
+          [1, 1, 1],
+          [1, 1, 1]
+        );
+      }
+
+      const newGeometry = convertReplicadToThreeGeometry(resultShape);
+      const newBaseVertices = await getReplicadVertices(resultShape);
+
+      updateShape(selectedShape.id, {
+        geometry: newGeometry,
+        replicadShape: resultShape,
+        parameters: {
+          ...selectedShape.parameters,
+          scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+          subtractedShapes: updatedSubtractedShapes
+        }
+      });
+
+      console.log('✅ Geometry updated with all cuts applied');
+    } catch (error) {
+      console.error('❌ Failed to update geometry with new intersection values:', error);
+    }
+  };
+
   useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
       selectedShapeId,
@@ -622,210 +693,82 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   Subtracted Shapes ({selectedShape.parameters.subtractedShapes.length})
                 </div>
                 {selectedShape.parameters.subtractedShapes.map((subtractedShape: any, shapeIdx: number) => (
-                  <div key={subtractedShape.id || shapeIdx} className="space-y-2 bg-stone-50 p-2 rounded border border-stone-200">
-                    <div className="text-xs font-medium text-orange-700 mb-1">
-                      Shape {shapeIdx + 1}: {subtractedShape.type}
+                  <div key={subtractedShape.id || shapeIdx} className="space-y-2 bg-orange-50 p-2 rounded border border-orange-300">
+                    <div className="text-xs font-semibold text-orange-700 mb-1">
+                      Cut {shapeIdx + 1}: {subtractedShape.type}
                     </div>
 
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`S${shapeIdx + 1}W`}
+                        value={`C${shapeIdx + 1}W`}
                         readOnly
-                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                        className="w-12 px-2 py-1 text-xs font-medium border border-orange-400 rounded bg-white text-orange-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractedShape.intersectionWidth || 0}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionWidth', newValue);
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-orange-400 rounded bg-white text-orange-700 font-medium"
                       />
                       <input
                         type="text"
-                        value={subtractedShape.width || 0}
+                        value="Cut Width"
                         readOnly
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
-                      />
-                      <input
-                        type="text"
-                        value="Width"
-                        readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
-                      />
-                    </div>
-
-                    <div className="flex gap-1 items-center">
-                      <input
-                        type="text"
-                        value={`S${shapeIdx + 1}H`}
-                        readOnly
-                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
-                      />
-                      <input
-                        type="text"
-                        value={subtractedShape.height || 0}
-                        readOnly
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
-                      />
-                      <input
-                        type="text"
-                        value="Height"
-                        readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-700"
                       />
                     </div>
 
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`S${shapeIdx + 1}D`}
+                        value={`C${shapeIdx + 1}H`}
                         readOnly
-                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                        className="w-12 px-2 py-1 text-xs font-medium border border-orange-400 rounded bg-white text-orange-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractedShape.intersectionHeight || 0}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionHeight', newValue);
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-orange-400 rounded bg-white text-orange-700 font-medium"
                       />
                       <input
                         type="text"
-                        value={subtractedShape.depth || 0}
+                        value="Cut Height"
                         readOnly
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
-                      />
-                      <input
-                        type="text"
-                        value="Depth"
-                        readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-700"
                       />
                     </div>
 
-                    {(subtractedShape.intersectionWidth || subtractedShape.intersectionHeight || subtractedShape.intersectionDepth) && (
-                      <div className="pt-2 border-t border-orange-200">
-                        <div className="text-xs font-semibold text-orange-700 mb-1">Intersection (Cut Values)</div>
-
-                        <div className="flex gap-1 items-center">
-                          <input
-                            type="text"
-                            value={`I${shapeIdx + 1}W`}
-                            readOnly
-                            className="w-12 px-2 py-1 text-xs font-medium border border-orange-300 rounded bg-orange-50 text-orange-700 text-center"
-                          />
-                          <input
-                            type="text"
-                            value={subtractedShape.intersectionWidth || 0}
-                            readOnly
-                            className="w-16 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
-                          />
-                          <input
-                            type="text"
-                            value="Cut Width"
-                            readOnly
-                            className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
-                          />
-                        </div>
-
-                        <div className="flex gap-1 items-center mt-1">
-                          <input
-                            type="text"
-                            value={`I${shapeIdx + 1}H`}
-                            readOnly
-                            className="w-12 px-2 py-1 text-xs font-medium border border-orange-300 rounded bg-orange-50 text-orange-700 text-center"
-                          />
-                          <input
-                            type="text"
-                            value={subtractedShape.intersectionHeight || 0}
-                            readOnly
-                            className="w-16 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
-                          />
-                          <input
-                            type="text"
-                            value="Cut Height"
-                            readOnly
-                            className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
-                          />
-                        </div>
-
-                        <div className="flex gap-1 items-center mt-1">
-                          <input
-                            type="text"
-                            value={`I${shapeIdx + 1}D`}
-                            readOnly
-                            className="w-12 px-2 py-1 text-xs font-medium border border-orange-300 rounded bg-orange-50 text-orange-700 text-center"
-                          />
-                          <input
-                            type="text"
-                            value={subtractedShape.intersectionDepth || 0}
-                            readOnly
-                            className="w-16 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
-                          />
-                          <input
-                            type="text"
-                            value="Cut Depth"
-                            readOnly
-                            className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {subtractedShape.customParameters && subtractedShape.customParameters.length > 0 && (
-                      <div className="space-y-1 pt-1 border-t border-stone-300">
-                        <div className="text-xs text-stone-600 mb-1">Custom Parameters</div>
-                        {subtractedShape.customParameters.map((param: any) => (
-                          <div key={param.id} className="flex gap-1 items-center">
-                            <input
-                              type="text"
-                              value={param.name}
-                              readOnly
-                              className="w-10 px-2 py-1 text-xs font-medium text-center border border-stone-300 rounded bg-white text-stone-700"
-                            />
-                            <input
-                              type="text"
-                              value={param.expression}
-                              readOnly
-                              className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-white text-stone-600"
-                            />
-                            <input
-                              type="text"
-                              value={param.result}
-                              readOnly
-                              className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-white text-stone-600"
-                            />
-                            <input
-                              type="text"
-                              value={param.description}
-                              readOnly
-                              className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {subtractedShape.vertexModifications && subtractedShape.vertexModifications.length > 0 && (
-                      <div className="pt-1 border-t border-stone-300">
-                        <div className="text-xs text-stone-600 mb-1">Vertex Modifications ({subtractedShape.vertexModifications.length})</div>
-                        <div className="max-h-24 overflow-y-auto space-y-1">
-                          {subtractedShape.vertexModifications.map((mod: any, idx: number) => (
-                            <div key={idx} className="flex gap-1 text-[10px] text-stone-500">
-                              <span className="w-12">V{mod.vertexIndex}:</span>
-                              <span className="w-12">{mod.direction}</span>
-                              <span className="flex-1">{mod.expression || mod.offset}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {subtractedShape.scaledBaseVertices && subtractedShape.scaledBaseVertices.length > 0 && (
-                      <div className="pt-1 border-t border-stone-300">
-                        <div className="text-xs text-stone-600 mb-1">Vertices ({subtractedShape.scaledBaseVertices.length})</div>
-                        <div className="max-h-24 overflow-y-auto space-y-1">
-                          {subtractedShape.scaledBaseVertices.slice(0, 3).map((vertex: any, idx: number) => (
-                            <div key={idx} className="flex gap-1 text-[10px] text-stone-500">
-                              <span className="w-8">V{idx}:</span>
-                              <span>[{vertex[0]?.toFixed(1)}, {vertex[1]?.toFixed(1)}, {vertex[2]?.toFixed(1)}]</span>
-                            </div>
-                          ))}
-                          {subtractedShape.scaledBaseVertices.length > 3 && (
-                            <div className="text-[10px] text-stone-400">
-                              ... and {subtractedShape.scaledBaseVertices.length - 3} more
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value={`C${shapeIdx + 1}D`}
+                        readOnly
+                        className="w-12 px-2 py-1 text-xs font-medium border border-orange-400 rounded bg-white text-orange-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractedShape.intersectionDepth || 0}
+                        onChange={(e) => {
+                          const newValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionDepth', newValue);
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-orange-400 rounded bg-white text-orange-700 font-medium"
+                      />
+                      <input
+                        type="text"
+                        value="Cut Depth"
+                        readOnly
+                        className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-700"
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
