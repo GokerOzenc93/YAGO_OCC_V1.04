@@ -241,6 +241,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       }
     };
 
+    const { getBoxVertices } = await import('../services/vertexEditor');
+    const newBaseVertices = selectedShape.type === 'box'
+      ? getBoxVertices(width, height, depth)
+      : [];
+
     const updatedVertexMods = vertexModifications.map((mod: any) => {
       const expression = mod.expression || String(mod.newPosition[0]);
       const result = evaluateVertexExpression(expression);
@@ -250,7 +255,27 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       else if (mod.direction.startsWith('y')) newPos[1] = result;
       else newPos[2] = result;
 
-      return { ...mod, newPosition: newPos };
+      const newOriginalPos = newBaseVertices[mod.vertexIndex]
+        ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
+        : mod.originalPosition;
+
+      console.log(`📍 Vertex ${mod.vertexIndex} update:`, {
+        oldOriginal: mod.originalPosition,
+        newOriginal: newOriginalPos,
+        newPosition: newPos,
+        expression
+      });
+
+      return {
+        ...mod,
+        originalPosition: newOriginalPos,
+        newPosition: newPos,
+        offset: [
+          newPos[0] - newOriginalPos[0],
+          newPos[1] - newOriginalPos[1],
+          newPos[2] - newOriginalPos[2]
+        ] as [number, number, number]
+      };
     });
 
     try {

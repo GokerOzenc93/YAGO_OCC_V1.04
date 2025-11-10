@@ -50,19 +50,23 @@ export const createReplicadBox = async (params: ReplicadBoxParams): Promise<any>
   const oc = await initReplicad();
   const { width, height, depth } = params;
 
-  console.log('🔨 Creating box with replicad API...');
+  console.log('🔨 Creating box with replicad API...', {
+    width: `${width} (X axis)`,
+    height: `${height} (Y axis)`,
+    depth: `${depth} (Z axis)`
+  });
 
   const { draw } = await import('replicad');
   const boxSketch = draw()
     .movePointerTo([0, 0])
     .lineTo([width, 0])
-    .lineTo([width, depth])
-    .lineTo([0, depth])
+    .lineTo([width, height])
+    .lineTo([0, height])
     .close()
     .sketchOnPlane()
-    .extrude(height);
+    .extrude(depth);
 
-  console.log('✅ Replicad box created:', { width, height, depth });
+  console.log('✅ Replicad box created with correct axis mapping');
   return boxSketch;
 };
 
