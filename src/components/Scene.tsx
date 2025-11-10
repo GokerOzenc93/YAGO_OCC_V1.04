@@ -481,21 +481,13 @@ const Scene: React.FC = () => {
           const axisName = vertexDirection[0].toUpperCase();
           const directionSymbol = vertexDirection[1] === '+' ? '+' : '-';
 
-          const currentDimension = axisIndex === 0 ? shape.parameters.width : axisIndex === 1 ? shape.parameters.height : shape.parameters.depth;
-          const dimensionName = axisIndex === 0 ? 'W' : axisIndex === 1 ? 'H' : 'D';
-          const ratio = currentDimension !== 0 ? newValue / currentDimension : 0;
-          const parametricExpression = ratio !== 0 ? `${dimensionName} * ${ratio.toFixed(6)}` : String(newValue);
-
-          console.log(`🎯 Parametric position applied:`, {
+          console.log(`🎯 Absolute position applied:`, {
             direction: vertexDirection,
             userInput: newValue,
             originalPosAxis: originalPos[axisIndex].toFixed(1),
             newPosAxis: newPosition[axisIndex].toFixed(1),
             offsetAmount: offsetAmount.toFixed(1),
-            dimension: `${dimensionName}=${currentDimension}`,
-            ratio: ratio.toFixed(6),
-            expression: parametricExpression,
-            explanation: `${axisName}${directionSymbol} → move to ${newValue} (${parametricExpression})`
+            explanation: `${axisName}${directionSymbol} → move to ${newValue} (offset: ${offsetAmount.toFixed(1)})`
           });
 
           if (!shape.baseVerticesSnapshot) {
@@ -516,7 +508,7 @@ const Scene: React.FC = () => {
             originalPosition: originalPos as [number, number, number],
             newPosition,
             direction: vertexDirection,
-            expression: parametricExpression,
+            expression: String(newValue),
             description: `Vertex ${selectedVertexIndex} ${axisName}${directionSymbol}`,
             offset
           });
