@@ -242,30 +242,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     };
 
     try {
-      const { createReplicadBox, createReplicadCylinder, convertReplicadToThreeGeometry } = await import('../services/replicad');
-
-      let newGeometry: THREE.BufferGeometry | null = null;
-      let newReplicadShape: any = null;
-
-      if (selectedShape.type === 'box' && width > 0 && height > 0 && depth > 0) {
-        console.log('🔄 Regenerating box geometry...');
-        newReplicadShape = await createReplicadBox({ width, height, depth });
-        newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
-        console.log('✅ Box geometry regenerated');
-      } else if (selectedShape.type === 'cylinder' && selectedShape.parameters.radius && height > 0) {
-        console.log('🔄 Regenerating cylinder geometry...');
-        const radius = selectedShape.parameters.radius;
-        newReplicadShape = await createReplicadCylinder({ radius, height });
-        newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
-        console.log('✅ Cylinder geometry regenerated');
-      }
-
       const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
       let newBaseVertices: THREE.Vector3[] = [];
 
-      if (newReplicadShape) {
-        newBaseVertices = await getReplicadVertices(newReplicadShape);
+      if (selectedShape.replicadShape) {
+        console.log('🔍 Using existing replicadShape for base vertices');
+        newBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
       } else if (selectedShape.type === 'box') {
+        console.log('📦 Calculating base vertices from box parameters');
         newBaseVertices = getBoxVertices(width, height, depth);
       }
 
@@ -312,10 +296,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         };
       });
 
-      console.log('📝 Updating shape with new parameters and vertex modifications:', {
+      console.log('📝 Updating shape parameters and vertex modifications:', {
         vertexModsCount: updatedVertexMods.length,
-        hasNewGeometry: !!newGeometry,
-        hasReplicadShape: !!newReplicadShape
+        preservingGeometry: !!selectedShape.geometry,
+        preservingReplicadShape: !!selectedShape.replicadShape
       });
 
       updateShape(selectedShape.id, {
@@ -326,14 +310,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           depth,
           customParameters,
         },
-        vertexModifications: updatedVertexMods,
-        ...(newGeometry && { geometry: newGeometry }),
-        ...(newReplicadShape && { replicadShape: newReplicadShape })
+        vertexModifications: updatedVertexMods
       });
 
-      console.log('✅ Parameters applied successfully');
+      console.log('✅ Parameters applied successfully - geometry preserved');
     } catch (error) {
-      console.error('❌ Failed to regenerate geometry:', error);
+      console.error('❌ Failed to update parameters:', error);
 
       updateShape(selectedShape.id, {
         parameters: {
