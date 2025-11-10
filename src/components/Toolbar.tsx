@@ -515,7 +515,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         updateShape(targetShape.id, {
           geometry: newGeometry,
-          replicadShape: resultShape
+          replicadShape: resultShape,
+          parameters: {
+            ...targetShape.parameters,
+            originalWidth: targetShape.parameters.originalWidth ?? targetShape.parameters.width,
+            originalHeight: targetShape.parameters.originalHeight ?? targetShape.parameters.height,
+            originalDepth: targetShape.parameters.originalDepth ?? targetShape.parameters.depth
+          }
         });
 
         console.log(`✅ Updated ${targetShape.id} with cut result`);

@@ -409,7 +409,13 @@ export const useAppStore = create<AppState>((set, get) => ({
                   return {
                     ...s,
                     geometry: newGeometry,
-                    replicadShape: resultShape
+                    replicadShape: resultShape,
+                    parameters: {
+                      ...s.parameters,
+                      originalWidth: s.parameters.originalWidth ?? s.parameters.width,
+                      originalHeight: s.parameters.originalHeight ?? s.parameters.height,
+                      originalDepth: s.parameters.originalDepth ?? s.parameters.depth
+                    }
                   };
                 }
                 return s;
