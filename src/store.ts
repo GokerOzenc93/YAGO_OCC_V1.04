@@ -402,7 +402,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
-              shape2.replicadShape
+              shape2.replicadShape,
+              shape1.position,
+              shape2.position,
+              shape1.rotation,
+              shape2.rotation,
+              shape1.scale,
+              shape2.scale
             );
 
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
@@ -413,7 +419,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               height: shape2.parameters.height || 0,
               depth: shape2.parameters.depth || 0,
               customParameters: shape2.parameters.customParameters || [],
-              scaledBaseVertices: shape2.parameters.scaledBaseVertices || []
+              scaledBaseVertices: shape2.parameters.scaledBaseVertices || [],
+              vertexModifications: shape2.vertexModifications || []
             };
 
             console.log('📦 Captured subtracted shape parameters:', subtractedParameters);
@@ -421,6 +428,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             set((state) => ({
               shapes: state.shapes.map((s) => {
                 if (s.id === shape1.id) {
+                  const existingSubtractedShapes = s.parameters.subtractedShapes || [];
+
                   return {
                     ...s,
                     geometry: newGeometry,
@@ -428,14 +437,17 @@ export const useAppStore = create<AppState>((set, get) => ({
                     parameters: {
                       ...s.parameters,
                       scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-                      subtractedShape: {
-                        id: shape2.id,
-                        type: shape2.type,
-                        position: shape2.position,
-                        rotation: shape2.rotation,
-                        scale: shape2.scale,
-                        ...subtractedParameters
-                      }
+                      subtractedShapes: [
+                        ...existingSubtractedShapes,
+                        {
+                          id: shape2.id,
+                          type: shape2.type,
+                          position: shape2.position,
+                          rotation: shape2.rotation,
+                          scale: shape2.scale,
+                          ...subtractedParameters
+                        }
+                      ]
                     }
                   };
                 }
@@ -443,7 +455,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               }).filter(s => s.id !== shape2.id)
             }));
 
-            console.log('✅ Boolean cut applied, shape2 removed');
+            console.log('✅ Boolean cut applied, shape2 parameters stored');
             return;
           } catch (error) {
             console.error('❌ Failed to perform boolean operation:', error);
