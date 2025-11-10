@@ -416,7 +416,27 @@ const Scene: React.FC = () => {
 
           let baseVertices: number[][] = [];
 
-          if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
+          if (shape.geometry) {
+            console.log('📍 Extracting unique vertices from geometry for offset calculation...');
+            const positionAttr = shape.geometry.getAttribute('position');
+            if (positionAttr) {
+              const uniqueVerts = new Map<string, number[]>();
+
+              for (let i = 0; i < positionAttr.count; i++) {
+                const x = Math.round(positionAttr.getX(i) * 100) / 100;
+                const y = Math.round(positionAttr.getY(i) * 100) / 100;
+                const z = Math.round(positionAttr.getZ(i) * 100) / 100;
+                const key = `${x},${y},${z}`;
+
+                if (!uniqueVerts.has(key)) {
+                  uniqueVerts.set(key, [x, y, z]);
+                }
+              }
+
+              baseVertices = Array.from(uniqueVerts.values());
+              console.log(`✅ Extracted ${baseVertices.length} unique vertices from geometry`);
+            }
+          } else if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
             console.log('📍 Using pre-computed scaled base vertices for offset calculation...');
             baseVertices = shape.parameters.scaledBaseVertices;
             console.log(`✅ Using ${baseVertices.length} scaled base vertices`);

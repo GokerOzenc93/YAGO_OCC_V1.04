@@ -216,7 +216,27 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
 
       let baseVerts: THREE.Vector3[] = [];
 
-      if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
+      if (shape.geometry) {
+        console.log('📍 Extracting unique vertices from geometry...');
+        const positionAttr = shape.geometry.getAttribute('position');
+        if (positionAttr) {
+          const uniqueVerts = new Map<string, THREE.Vector3>();
+
+          for (let i = 0; i < positionAttr.count; i++) {
+            const x = Math.round(positionAttr.getX(i) * 100) / 100;
+            const y = Math.round(positionAttr.getY(i) * 100) / 100;
+            const z = Math.round(positionAttr.getZ(i) * 100) / 100;
+            const key = `${x},${y},${z}`;
+
+            if (!uniqueVerts.has(key)) {
+              uniqueVerts.set(key, new THREE.Vector3(x, y, z));
+            }
+          }
+
+          baseVerts = Array.from(uniqueVerts.values());
+          console.log(`✅ Extracted ${baseVerts.length} unique vertices from geometry`);
+        }
+      } else if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
         console.log('📍 Using pre-computed scaled base vertices...');
         baseVerts = shape.parameters.scaledBaseVertices.map((v: number[]) =>
           new THREE.Vector3(v[0], v[1], v[2])

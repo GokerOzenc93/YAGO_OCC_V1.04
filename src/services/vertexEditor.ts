@@ -119,32 +119,59 @@ export function applyVertexModifications(
   geometry: THREE.BufferGeometry,
   modifications: VertexModification[]
 ): THREE.BufferGeometry {
+  if (modifications.length === 0) return geometry;
+
   const positionAttribute = geometry.getAttribute('position');
   const positions = positionAttribute.array as Float32Array;
 
-  const vertexMap = new Map<number, THREE.Vector3>();
+  const uniqueVertexMap = new Map<string, THREE.Vector3>();
+  const vertexKeyToIndices = new Map<string, number[]>();
+
+  for (let i = 0; i < positionAttribute.count; i++) {
+    const x = Math.round(positionAttribute.getX(i) * 100) / 100;
+    const y = Math.round(positionAttribute.getY(i) * 100) / 100;
+    const z = Math.round(positionAttribute.getZ(i) * 100) / 100;
+    const key = `${x},${y},${z}`;
+
+    if (!uniqueVertexMap.has(key)) {
+      uniqueVertexMap.set(key, new THREE.Vector3(x, y, z));
+      vertexKeyToIndices.set(key, []);
+    }
+    vertexKeyToIndices.get(key)!.push(i);
+  }
+
+  const uniqueVertices = Array.from(uniqueVertexMap.values());
+
+  const offsetMap = new Map<number, THREE.Vector3>();
 
   modifications.forEach(mod => {
-    const idx = mod.vertexIndex;
-
-    if (!vertexMap.has(idx)) {
-      vertexMap.set(idx, new THREE.Vector3(
-        positions[idx * 3],
-        positions[idx * 3 + 1],
-        positions[idx * 3 + 2]
-      ));
+    if (mod.vertexIndex >= uniqueVertices.length) {
+      console.warn(`⚠️ Vertex index ${mod.vertexIndex} out of range (${uniqueVertices.length} vertices)`);
+      return;
     }
 
-    const currentPos = vertexMap.get(idx)!;
-    currentPos.x += mod.offset[0];
-    currentPos.y += mod.offset[1];
-    currentPos.z += mod.offset[2];
+    if (!offsetMap.has(mod.vertexIndex)) {
+      offsetMap.set(mod.vertexIndex, new THREE.Vector3(0, 0, 0));
+    }
+
+    const offset = offsetMap.get(mod.vertexIndex)!;
+    offset.x += mod.offset[0];
+    offset.y += mod.offset[1];
+    offset.z += mod.offset[2];
   });
 
-  vertexMap.forEach((pos, idx) => {
-    positions[idx * 3] = pos.x;
-    positions[idx * 3 + 1] = pos.y;
-    positions[idx * 3 + 2] = pos.z;
+  offsetMap.forEach((offset, uniqueIdx) => {
+    const vertex = uniqueVertices[uniqueIdx];
+    const key = `${vertex.x},${vertex.y},${vertex.z}`;
+    const indices = vertexKeyToIndices.get(key);
+
+    if (indices) {
+      indices.forEach(idx => {
+        positions[idx * 3] += offset.x;
+        positions[idx * 3 + 1] += offset.y;
+        positions[idx * 3 + 2] += offset.z;
+      });
+    }
   });
 
   positionAttribute.needsUpdate = true;
