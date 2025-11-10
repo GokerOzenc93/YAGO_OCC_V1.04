@@ -444,15 +444,12 @@ const Scene: React.FC = () => {
 
           const originalPos = baseVertices[selectedVertexIndex];
 
-          const isPositiveDirection = vertexDirection.endsWith('+');
           const axisIndex = vertexDirection.startsWith('x') ? 0 : vertexDirection.startsWith('y') ? 1 : 2;
 
-          const absoluteValue = isPositiveDirection ? newValue : -newValue;
-
           const newPosition: [number, number, number] = [...originalPos];
-          newPosition[axisIndex] = absoluteValue;
+          newPosition[axisIndex] = newValue;
 
-          const offsetAmount = absoluteValue - originalPos[axisIndex];
+          const offsetAmount = newValue - originalPos[axisIndex];
           const offset: [number, number, number] = [0, 0, 0];
           offset[axisIndex] = offsetAmount;
 
@@ -462,11 +459,10 @@ const Scene: React.FC = () => {
           console.log(`🎯 Absolute position applied:`, {
             direction: vertexDirection,
             userInput: newValue,
-            absoluteValue,
             originalPosAxis: originalPos[axisIndex].toFixed(1),
             newPosAxis: newPosition[axisIndex].toFixed(1),
             offsetAmount: offsetAmount.toFixed(1),
-            explanation: `${axisName}${directionSymbol}${newValue} = move to ${absoluteValue} (offset: ${offsetAmount.toFixed(1)})`
+            explanation: `${axisName}${directionSymbol} → move to ${newValue} (offset: ${offsetAmount.toFixed(1)})`
           });
 
           addVertexModification(selectedShapeId, {
@@ -483,7 +479,6 @@ const Scene: React.FC = () => {
             base: `[${originalPos[0].toFixed(1)}, ${originalPos[1].toFixed(1)}, ${originalPos[2].toFixed(1)}]`,
             userValue: newValue,
             axis: axisName,
-            absolutePosition: absoluteValue.toFixed(1),
             offset: `[${offset[0].toFixed(1)}, ${offset[1].toFixed(1)}, ${offset[2].toFixed(1)}]`,
             final: `[${newPosition[0].toFixed(1)}, ${newPosition[1].toFixed(1)}, ${newPosition[2].toFixed(1)}]`
           });
