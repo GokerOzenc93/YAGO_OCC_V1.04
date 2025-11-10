@@ -184,73 +184,14 @@ const ShapeWithTransform: React.FC<{
         }
       };
 
-      const onChange = async () => {
+      const onChange = () => {
         if (groupRef.current) {
           isUpdatingRef.current = true;
-          const newPosition = groupRef.current.position.toArray() as [number, number, number];
-          const newRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
-          const newScale = groupRef.current.scale.toArray() as [number, number, number];
-
           updateShape(shape.id, {
-            position: newPosition,
-            rotation: newRotation,
-            scale: newScale
+            position: groupRef.current.position.toArray() as [number, number, number],
+            rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
+            scale: groupRef.current.scale.toArray() as [number, number, number]
           });
-
-          if (shouldShowAsBooleanSource && booleanEditMode) {
-            const allShapes = useAppStore.getState().shapes;
-            const targetsToUpdate = allShapes.filter(s =>
-              s.parameters?.booleanSourceId === shape.id
-            );
-
-            if (targetsToUpdate.length > 0) {
-              console.log(`🔴 Boolean source moved, updating ${targetsToUpdate.length} target(s)...`);
-
-              const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-              const { getReplicadVertices } = await import('../services/vertexEditor');
-
-              for (const targetShape of targetsToUpdate) {
-                if (!targetShape.replicadShape || !shape.replicadShape) {
-                  console.warn('⚠️ Missing replicadShape, skipping:', targetShape.id);
-                  continue;
-                }
-
-                const originalTargetShape = allShapes.find(s => s.id === targetShape.parameters.booleanTargetId);
-                if (!originalTargetShape || !originalTargetShape.replicadShape) {
-                  console.warn('⚠️ Original target shape not found, skipping');
-                  continue;
-                }
-
-                console.log(`🔄 Recomputing boolean cut for ${targetShape.id}`);
-
-                const resultShape = await performBooleanCut(
-                  originalTargetShape.replicadShape,
-                  shape.replicadShape,
-                  originalTargetShape.position,
-                  newPosition,
-                  originalTargetShape.rotation,
-                  newRotation,
-                  originalTargetShape.scale,
-                  newScale
-                );
-
-                const newGeometry = convertReplicadToThreeGeometry(resultShape);
-                const newBaseVertices = await getReplicadVertices(resultShape);
-
-                updateShape(targetShape.id, {
-                  geometry: newGeometry,
-                  replicadShape: resultShape,
-                  parameters: {
-                    ...targetShape.parameters,
-                    scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-                  }
-                });
-
-                console.log(`✅ Updated ${targetShape.id} with new boolean result`);
-              }
-            }
-          }
-
           setTimeout(() => {
             isUpdatingRef.current = false;
           }, 0);
