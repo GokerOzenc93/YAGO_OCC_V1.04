@@ -214,8 +214,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   };
 
-  const applyChanges = () => {
+  const applyChanges = async () => {
     if (!selectedShape) return;
+
+    console.log('📐 Applying parameter changes...');
+    console.log('Shape type:', selectedShape.type);
+    console.log('New dimensions:', { width, height, depth });
 
     const evaluateVertexExpression = (expr: string): number => {
       try {
@@ -249,16 +253,53 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       return { ...mod, newPosition: newPos };
     });
 
-    updateShape(selectedShape.id, {
-      parameters: {
-        ...selectedShape.parameters,
-        width,
-        height,
-        depth,
-        customParameters,
-      },
-      vertexModifications: updatedVertexMods
-    });
+    try {
+      const { createReplicadBox, createReplicadCylinder, convertReplicadToThreeGeometry } = await import('../services/replicad');
+
+      let newGeometry: THREE.BufferGeometry | null = null;
+      let newReplicadShape: any = null;
+
+      if (selectedShape.type === 'box' && width > 0 && height > 0 && depth > 0) {
+        console.log('🔄 Regenerating box geometry...');
+        newReplicadShape = await createReplicadBox({ width, height, depth });
+        newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
+        console.log('✅ Box geometry regenerated');
+      } else if (selectedShape.type === 'cylinder' && selectedShape.parameters.radius && height > 0) {
+        console.log('🔄 Regenerating cylinder geometry...');
+        const radius = selectedShape.parameters.radius;
+        newReplicadShape = await createReplicadCylinder({ radius, height });
+        newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
+        console.log('✅ Cylinder geometry regenerated');
+      }
+
+      updateShape(selectedShape.id, {
+        parameters: {
+          ...selectedShape.parameters,
+          width,
+          height,
+          depth,
+          customParameters,
+        },
+        vertexModifications: updatedVertexMods,
+        ...(newGeometry && { geometry: newGeometry }),
+        ...(newReplicadShape && { replicadShape: newReplicadShape })
+      });
+
+      console.log('✅ Parameters applied successfully');
+    } catch (error) {
+      console.error('❌ Failed to regenerate geometry:', error);
+
+      updateShape(selectedShape.id, {
+        parameters: {
+          ...selectedShape.parameters,
+          width,
+          height,
+          depth,
+          customParameters,
+        },
+        vertexModifications: updatedVertexMods
+      });
+    }
   };
 
   if (!isOpen) return null;

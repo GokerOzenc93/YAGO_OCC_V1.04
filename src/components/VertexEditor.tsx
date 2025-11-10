@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { getBoxVertices } from '../services/vertexEditor';
+import { getBoxVertices, getReplicadVertices } from '../services/vertexEditor';
 
 interface VertexEditorProps {
   shape: any;
@@ -191,23 +191,45 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
     }
   }, [isActive]);
 
-  if (!isActive || !shape.parameters) return null;
+  const [vertices, setVertices] = useState<THREE.Vector3[]>([]);
+  const [modifiedVertices, setModifiedVertices] = useState<THREE.Vector3[]>([]);
 
-  const vertices = getBoxVertices(
-    shape.parameters.width,
-    shape.parameters.height,
-    shape.parameters.depth
-  );
+  useEffect(() => {
+    const loadVertices = async () => {
+      if (!isActive || !shape.parameters) return;
 
-  const modifiedVertices = vertices.map((vertex, index) => {
-    if (shape.vertexModifications) {
-      const mod = shape.vertexModifications.find((m: any) => m.vertexIndex === index);
-      if (mod) {
-        return new THREE.Vector3(mod.newPosition[0], mod.newPosition[1], mod.newPosition[2]);
+      let verts: THREE.Vector3[] = [];
+
+      if (shape.replicadShape) {
+        console.log('📍 Loading vertices from Replicad shape...');
+        verts = await getReplicadVertices(shape.replicadShape);
+      } else if (shape.type === 'box') {
+        verts = getBoxVertices(
+          shape.parameters.width,
+          shape.parameters.height,
+          shape.parameters.depth
+        );
       }
-    }
-    return vertex;
-  });
+
+      setVertices(verts);
+
+      const modified = verts.map((vertex, index) => {
+        if (shape.vertexModifications) {
+          const mod = shape.vertexModifications.find((m: any) => m.vertexIndex === index);
+          if (mod) {
+            return new THREE.Vector3(mod.newPosition[0], mod.newPosition[1], mod.newPosition[2]);
+          }
+        }
+        return vertex;
+      });
+
+      setModifiedVertices(modified);
+    };
+
+    loadVertices();
+  }, [isActive, shape, shape.parameters, shape.replicadShape, shape.vertexModifications]);
+
+  if (!isActive || !shape.parameters || vertices.length === 0) return null;
 
   const handleVertexClick = (index: number, e: any) => {
     e.stopPropagation();

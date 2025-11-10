@@ -31,15 +31,43 @@ export function getBoxVertices(width: number, height: number, depth: number): TH
   const d2 = depth / 2;
 
   return [
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(width, 0, 0),
-    new THREE.Vector3(width, height, 0),
-    new THREE.Vector3(0, height, 0),
-    new THREE.Vector3(0, 0, depth),
-    new THREE.Vector3(width, 0, depth),
-    new THREE.Vector3(width, height, depth),
-    new THREE.Vector3(0, height, depth),
+    new THREE.Vector3(-w2, -h2, -d2),
+    new THREE.Vector3(w2, -h2, -d2),
+    new THREE.Vector3(w2, h2, -d2),
+    new THREE.Vector3(-w2, h2, -d2),
+    new THREE.Vector3(-w2, -h2, d2),
+    new THREE.Vector3(w2, -h2, d2),
+    new THREE.Vector3(w2, h2, d2),
+    new THREE.Vector3(-w2, h2, d2),
   ];
+}
+
+export async function getReplicadVertices(replicadShape: any): Promise<THREE.Vector3[]> {
+  try {
+    const vertices = replicadShape.vertices;
+    console.log('📍 Getting vertices from Replicad shape:', vertices);
+
+    if (!vertices || !Array.isArray(vertices)) {
+      console.warn('⚠️ No vertices array found in Replicad shape');
+      return [];
+    }
+
+    const vertexPositions = vertices.map((v: any) => {
+      if (v && typeof v.point === 'function') {
+        const point = v.point();
+        return new THREE.Vector3(point[0], point[1], point[2]);
+      } else if (Array.isArray(v)) {
+        return new THREE.Vector3(v[0], v[1], v[2]);
+      }
+      return null;
+    }).filter((v: THREE.Vector3 | null): v is THREE.Vector3 => v !== null);
+
+    console.log(`✅ Extracted ${vertexPositions.length} vertices from Replicad shape`);
+    return vertexPositions;
+  } catch (error) {
+    console.error('❌ Failed to get Replicad vertices:', error);
+    return [];
+  }
 }
 
 export function applyVertexModifications(
