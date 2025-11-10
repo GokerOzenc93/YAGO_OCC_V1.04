@@ -256,18 +256,23 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       const newPos = [...newOriginalPos] as [number, number, number];
 
-      if (mod.direction.startsWith('x')) newPos[0] = result;
-      else if (mod.direction.startsWith('y')) newPos[1] = result;
-      else newPos[2] = result;
+      if (mod.direction.startsWith('x')) {
+        newPos[0] = result;
+      } else if (mod.direction.startsWith('y')) {
+        newPos[1] = result;
+      } else {
+        newPos[2] = result;
+      }
 
       console.log(`📍 Vertex ${mod.vertexIndex} dimension update:`, {
         vertexIndex: mod.vertexIndex,
         direction: mod.direction,
-        oldOriginal: mod.originalPosition,
-        newOriginal: newOriginalPos,
+        modifiedAxis: mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z',
+        newOriginalPos: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
         expression,
-        evaluatedResult: result,
-        finalPosition: newPos
+        evaluatedResult: result.toFixed(1),
+        finalPosition: `[${newPos[0].toFixed(1)}, ${newPos[1].toFixed(1)}, ${newPos[2].toFixed(1)}]`,
+        explanation: `${mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z'} axis locked at ${result.toFixed(1)}, other axes follow dimensions`
       });
 
       return {
