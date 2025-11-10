@@ -242,57 +242,62 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     };
 
     try {
-      const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
+      const { getBoxVertices } = await import('../services/vertexEditor');
+
       let newBaseVertices: THREE.Vector3[] = [];
-      let currentBaseVertices: THREE.Vector3[] = [];
 
       const currentWidth = selectedShape.parameters.width;
       const currentHeight = selectedShape.parameters.height;
       const currentDepth = selectedShape.parameters.depth;
-
-      const scaleX = width / currentWidth;
-      const scaleY = height / currentHeight;
-      const scaleZ = depth / currentDepth;
 
       const dimensionsChanged = width !== currentWidth || height !== currentHeight || depth !== currentDepth;
 
       console.log('📐 Dimension changes:', {
         current: { w: currentWidth, h: currentHeight, d: currentDepth },
         new: { w: width, h: height, d: depth },
-        scale: { x: scaleX, y: scaleY, z: scaleZ },
         changed: dimensionsChanged
       });
 
-      if (selectedShape.parameters.scaledBaseVertices && selectedShape.parameters.scaledBaseVertices.length > 0) {
-        console.log('🔍 Using existing scaled base vertices');
-        currentBaseVertices = selectedShape.parameters.scaledBaseVertices.map((v: number[]) =>
-          new THREE.Vector3(v[0], v[1], v[2])
+      if (selectedShape.baseVerticesSnapshot && selectedShape.baseDimensions) {
+        console.log('📸 Using baseVerticesSnapshot for stable scaling');
+
+        const baseWidth = selectedShape.baseDimensions.width;
+        const baseHeight = selectedShape.baseDimensions.height;
+        const baseDepth = selectedShape.baseDimensions.depth;
+
+        const scaleX = width / baseWidth;
+        const scaleY = height / baseHeight;
+        const scaleZ = depth / baseDepth;
+
+        console.log('📏 Scaling from snapshot:', {
+          base: selectedShape.baseDimensions,
+          scale: { x: scaleX, y: scaleY, z: scaleZ }
+        });
+
+        newBaseVertices = selectedShape.baseVerticesSnapshot.map(v =>
+          new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
         );
-
-        if (dimensionsChanged) {
-          console.log('📏 Scaling base vertices from current by:', { scaleX, scaleY, scaleZ });
-          newBaseVertices = currentBaseVertices.map(v =>
-            new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
-          );
-        } else {
-          newBaseVertices = currentBaseVertices;
-        }
-      } else if (selectedShape.replicadShape) {
-        console.log('🔍 Using replicadShape for initial base vertices');
-        currentBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
-
-        if (dimensionsChanged) {
-          console.log('📏 Scaling base vertices from replicad by:', { scaleX, scaleY, scaleZ });
-          newBaseVertices = currentBaseVertices.map(v =>
-            new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
-          );
-        } else {
-          newBaseVertices = currentBaseVertices;
-        }
       } else if (selectedShape.type === 'box') {
-        console.log('📦 Calculating base vertices from box parameters');
+        console.log('📦 Using box geometry');
         newBaseVertices = getBoxVertices(width, height, depth);
-        currentBaseVertices = getBoxVertices(currentWidth, currentHeight, currentDepth);
+      } else {
+        console.warn('⚠️ No baseVerticesSnapshot available, extracting from geometry');
+        if (selectedShape.geometry) {
+          const positionAttr = selectedShape.geometry.getAttribute('position');
+          if (positionAttr) {
+            const uniqueVerts = new Map<string, THREE.Vector3>();
+            for (let i = 0; i < positionAttr.count; i++) {
+              const x = Math.round(positionAttr.getX(i) * 100) / 100;
+              const y = Math.round(positionAttr.getY(i) * 100) / 100;
+              const z = Math.round(positionAttr.getZ(i) * 100) / 100;
+              const key = `${x},${y},${z}`;
+              if (!uniqueVerts.has(key)) {
+                uniqueVerts.set(key, new THREE.Vector3(x, y, z));
+              }
+            }
+            newBaseVertices = Array.from(uniqueVerts.values());
+          }
+        }
       }
 
       const vertexFinalPositions = new Map<number, [number, number, number]>();
@@ -354,13 +359,30 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       let scaledGeometry = selectedShape.geometry;
 
-      if (dimensionsChanged && selectedShape.geometry) {
-        console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
-        scaledGeometry = selectedShape.geometry.clone();
-        scaledGeometry.scale(scaleX, scaleY, scaleZ);
-        scaledGeometry.computeVertexNormals();
-        scaledGeometry.computeBoundingBox();
-        scaledGeometry.computeBoundingSphere();
+      if (dimensionsChanged) {
+        if (selectedShape.baseGeometrySnapshot && selectedShape.baseDimensions) {
+          const scaleX = width / selectedShape.baseDimensions.width;
+          const scaleY = height / selectedShape.baseDimensions.height;
+          const scaleZ = depth / selectedShape.baseDimensions.depth;
+
+          console.log('📏 Scaling from baseGeometrySnapshot by:', { scaleX, scaleY, scaleZ });
+          scaledGeometry = selectedShape.baseGeometrySnapshot.clone();
+          scaledGeometry.scale(scaleX, scaleY, scaleZ);
+          scaledGeometry.computeVertexNormals();
+          scaledGeometry.computeBoundingBox();
+          scaledGeometry.computeBoundingSphere();
+        } else if (selectedShape.geometry) {
+          const scaleX = width / currentWidth;
+          const scaleY = height / currentHeight;
+          const scaleZ = depth / currentDepth;
+
+          console.log('📏 Scaling current geometry by:', { scaleX, scaleY, scaleZ });
+          scaledGeometry = selectedShape.geometry.clone();
+          scaledGeometry.scale(scaleX, scaleY, scaleZ);
+          scaledGeometry.computeVertexNormals();
+          scaledGeometry.computeBoundingBox();
+          scaledGeometry.computeBoundingSphere();
+        }
       }
 
       console.log('📝 Updating shape parameters and vertex modifications:', {

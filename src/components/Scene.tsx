@@ -372,7 +372,8 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification
+    addVertexModification,
+    updateShape
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -484,6 +485,19 @@ const Scene: React.FC = () => {
             offsetAmount: offsetAmount.toFixed(1),
             explanation: `${axisName}${directionSymbol} → move to ${newValue} (offset: ${offsetAmount.toFixed(1)})`
           });
+
+          if (!shape.baseVerticesSnapshot) {
+            console.log('📸 Taking initial snapshot of base vertices and geometry');
+            updateShape(selectedShapeId, {
+              baseVerticesSnapshot: baseVertices.map(v => new THREE.Vector3(v[0], v[1], v[2])),
+              baseDimensions: {
+                width: shape.parameters.width,
+                height: shape.parameters.height,
+                depth: shape.parameters.depth
+              },
+              baseGeometrySnapshot: shape.geometry.clone()
+            });
+          }
 
           addVertexModification(selectedShapeId, {
             vertexIndex: selectedVertexIndex,

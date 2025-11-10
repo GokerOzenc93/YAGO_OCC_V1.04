@@ -18,6 +18,9 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
+  baseVerticesSnapshot?: THREE.Vector3[];
+  baseDimensions?: { width: number; height: number; depth: number };
+  baseGeometrySnapshot?: THREE.BufferGeometry;
 }
 
 export enum CameraType {
