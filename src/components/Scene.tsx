@@ -416,7 +416,11 @@ const Scene: React.FC = () => {
 
           let baseVertices: number[][] = [];
 
-          if (shape.replicadShape) {
+          if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
+            console.log('📍 Using pre-computed scaled base vertices for offset calculation...');
+            baseVertices = shape.parameters.scaledBaseVertices;
+            console.log(`✅ Using ${baseVertices.length} scaled base vertices`);
+          } else if (shape.replicadShape) {
             console.log('🔍 Getting vertices from Replicad shape for offset calculation...');
             const { getReplicadVertices } = await import('../services/vertexEditor');
             const verts = await getReplicadVertices(shape.replicadShape);
