@@ -251,13 +251,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
         : mod.originalPosition;
 
-      const currentPos = mod.currentPosition || mod.newPosition;
-
-      const expression = mod.expression || String(currentPos[0]);
+      const expression = mod.expression;
       const absoluteValue = evaluateVertexExpression(expression);
 
       const newOffset = [0, 0, 0] as [number, number, number];
-      const newPos = [...currentPos] as [number, number, number];
+      const newPos = [...newOriginalPos] as [number, number, number];
 
       if (mod.direction.startsWith('x')) {
         newOffset[0] = absoluteValue - newOriginalPos[0];
@@ -275,7 +273,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         direction: mod.direction,
         axis: mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z',
         newBaseVertex: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
-        previousPosition: `[${currentPos[0].toFixed(1)}, ${currentPos[1].toFixed(1)}, ${currentPos[2].toFixed(1)}]`,
         expression,
         userSetValue: absoluteValue.toFixed(1),
         calculatedOffset: `[${newOffset[0].toFixed(1)}, ${newOffset[1].toFixed(1)}, ${newOffset[2].toFixed(1)}]`,
@@ -286,9 +283,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       return {
         ...mod,
         originalPosition: newOriginalPos,
-        currentPosition: newPos,
         newPosition: newPos,
-        offset: newOffset
+        offset: newOffset,
+        expression
       };
     });
 

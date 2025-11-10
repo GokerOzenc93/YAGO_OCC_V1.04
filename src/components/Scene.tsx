@@ -458,7 +458,6 @@ const Scene: React.FC = () => {
           addVertexModification(selectedShapeId, {
             vertexIndex: selectedVertexIndex,
             originalPosition: originalPos as [number, number, number],
-            currentPosition: newPosition,
             newPosition,
             direction: vertexDirection,
             expression: String(newValue),
