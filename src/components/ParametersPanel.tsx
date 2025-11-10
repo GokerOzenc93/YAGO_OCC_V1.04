@@ -606,6 +606,130 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             )}
 
+            {selectedShape.parameters.subtractedShape && (
+              <div className="space-y-2 pt-2 border-t border-stone-200">
+                <div className="text-xs font-semibold text-slate-700 mb-2">Subtracted Shape Parameters</div>
+                <div className="space-y-2 bg-stone-50 p-2 rounded border border-stone-200">
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="text"
+                      value="SW"
+                      readOnly
+                      className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                    />
+                    <input
+                      type="text"
+                      value={selectedShape.parameters.subtractedShape.width || 0}
+                      readOnly
+                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                    />
+                    <input
+                      type="text"
+                      value="Width (Subtracted)"
+                      readOnly
+                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                    />
+                  </div>
+
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="text"
+                      value="SH"
+                      readOnly
+                      className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                    />
+                    <input
+                      type="text"
+                      value={selectedShape.parameters.subtractedShape.height || 0}
+                      readOnly
+                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                    />
+                    <input
+                      type="text"
+                      value="Height (Subtracted)"
+                      readOnly
+                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                    />
+                  </div>
+
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="text"
+                      value="SD"
+                      readOnly
+                      className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                    />
+                    <input
+                      type="text"
+                      value={selectedShape.parameters.subtractedShape.depth || 0}
+                      readOnly
+                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                    />
+                    <input
+                      type="text"
+                      value="Depth (Subtracted)"
+                      readOnly
+                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                    />
+                  </div>
+
+                  {selectedShape.parameters.subtractedShape.customParameters &&
+                   selectedShape.parameters.subtractedShape.customParameters.length > 0 && (
+                    <div className="space-y-1 pt-1 border-t border-stone-300">
+                      {selectedShape.parameters.subtractedShape.customParameters.map((param: any) => (
+                        <div key={param.id} className="flex gap-1 items-center">
+                          <input
+                            type="text"
+                            value={param.name}
+                            readOnly
+                            className="w-10 px-2 py-1 text-xs font-medium text-center border border-stone-300 rounded bg-white text-stone-700"
+                          />
+                          <input
+                            type="text"
+                            value={param.expression}
+                            readOnly
+                            className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-white text-stone-600"
+                          />
+                          <input
+                            type="text"
+                            value={param.result}
+                            readOnly
+                            className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-white text-stone-600"
+                          />
+                          <input
+                            type="text"
+                            value={param.description}
+                            readOnly
+                            className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedShape.parameters.subtractedShape.scaledBaseVertices &&
+                   selectedShape.parameters.subtractedShape.scaledBaseVertices.length > 0 && (
+                    <div className="pt-1 border-t border-stone-300">
+                      <div className="text-xs text-stone-600 mb-1">Subtracted Vertices ({selectedShape.parameters.subtractedShape.scaledBaseVertices.length})</div>
+                      <div className="max-h-32 overflow-y-auto space-y-1">
+                        {selectedShape.parameters.subtractedShape.scaledBaseVertices.slice(0, 5).map((vertex: any, idx: number) => (
+                          <div key={idx} className="flex gap-1 text-[10px] text-stone-500">
+                            <span className="w-8">V{idx}:</span>
+                            <span>[{vertex[0]?.toFixed(1)}, {vertex[1]?.toFixed(1)}, {vertex[2]?.toFixed(1)}]</span>
+                          </div>
+                        ))}
+                        {selectedShape.parameters.subtractedShape.scaledBaseVertices.length > 5 && (
+                          <div className="text-[10px] text-stone-400">
+                            ... and {selectedShape.parameters.subtractedShape.scaledBaseVertices.length - 5} more
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {vertexModifications.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
                 {vertexModifications.map((mod: any, idx: number) => {

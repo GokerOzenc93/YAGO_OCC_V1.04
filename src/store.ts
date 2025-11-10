@@ -408,6 +408,16 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
+            const subtractedParameters = {
+              width: shape2.parameters.width || 0,
+              height: shape2.parameters.height || 0,
+              depth: shape2.parameters.depth || 0,
+              customParameters: shape2.parameters.customParameters || [],
+              scaledBaseVertices: shape2.parameters.scaledBaseVertices || []
+            };
+
+            console.log('📦 Captured subtracted shape parameters:', subtractedParameters);
+
             set((state) => ({
               shapes: state.shapes.map((s) => {
                 if (s.id === shape1.id) {
@@ -417,7 +427,15 @@ export const useAppStore = create<AppState>((set, get) => ({
                     replicadShape: resultShape,
                     parameters: {
                       ...s.parameters,
-                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+                      subtractedShape: {
+                        id: shape2.id,
+                        type: shape2.type,
+                        position: shape2.position,
+                        rotation: shape2.rotation,
+                        scale: shape2.scale,
+                        ...subtractedParameters
+                      }
                     }
                   };
                 }
