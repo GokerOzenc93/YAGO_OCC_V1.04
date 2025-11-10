@@ -69,15 +69,15 @@ const Terminal: React.FC = () => {
     if (!trimmedCommand) return;
 
     if ((window as any).pendingVertexEdit) {
-      const coordValue = parseFloat(trimmedCommand);
-      if (!isNaN(coordValue)) {
+      const offsetValue = parseFloat(trimmedCommand);
+      if (!isNaN(offsetValue)) {
         if ((window as any).handleVertexOffset) {
-          (window as any).handleVertexOffset(coordValue);
+          (window as any).handleVertexOffset(offsetValue);
           setCommandInput('');
           return;
         }
       }
-      console.log('Invalid coordinate value. Enter a number.');
+      console.log('Geçersiz offset değeri. Bir sayı girin.');
       return;
     }
 

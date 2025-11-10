@@ -27,13 +27,89 @@ const ShapeWithTransform: React.FC<{
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
+  const vertexModsString = JSON.stringify(shape.vertexModifications || []);
 
   useEffect(() => {
     const loadEdges = async () => {
-      if (shape.geometry && shape.geometry !== localGeometry) {
-        console.log(`🔄 Geometry update for shape ${shape.id}`);
+      const hasVertexMods = shape.vertexModifications && shape.vertexModifications.length > 0;
+      const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods;
+
+      if (shouldUpdate && shape.geometry) {
+        console.log(`🔄 Geometry update for shape ${shape.id}`, { hasVertexMods, vertexModCount: shape.vertexModifications?.length || 0 });
 
         let geom = shape.geometry.clone();
+
+        if (hasVertexMods) {
+          console.log(`🔧 Applying ${shape.vertexModifications.length} vertex modifications to geometry`);
+
+          const positionAttribute = geom.getAttribute('position');
+          const positions = positionAttribute.array as Float32Array;
+
+          const vertexMap = new Map<string, number[]>();
+          for (let i = 0; i < positions.length; i += 3) {
+            const x = Math.round(positions[i] * 100) / 100;
+            const y = Math.round(positions[i + 1] * 100) / 100;
+            const z = Math.round(positions[i + 2] * 100) / 100;
+            const key = `${x},${y},${z}`;
+
+            if (!vertexMap.has(key)) {
+              vertexMap.set(key, []);
+            }
+            vertexMap.get(key)!.push(i);
+          }
+
+          const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
+          let baseVertices: THREE.Vector3[] = [];
+
+          if (shape.replicadShape) {
+            baseVertices = await getReplicadVertices(shape.replicadShape);
+          } else if (shape.type === 'box' && shape.parameters) {
+            baseVertices = getBoxVertices(
+              shape.parameters.width,
+              shape.parameters.height,
+              shape.parameters.depth
+            );
+          }
+
+          shape.vertexModifications.forEach((mod: any) => {
+            const baseVertex = baseVertices[mod.vertexIndex];
+            if (!baseVertex) {
+              console.warn(`⚠️ Base vertex ${mod.vertexIndex} not found`);
+              return;
+            }
+
+            const key = `${Math.round(baseVertex.x * 100) / 100},${Math.round(baseVertex.y * 100) / 100},${Math.round(baseVertex.z * 100) / 100}`;
+            const indices = vertexMap.get(key);
+
+            if (indices) {
+              console.log(`✅ Applying modification to vertex ${mod.vertexIndex}:`, {
+                originalPos: mod.originalPosition,
+                newPos: mod.newPosition,
+                baseVertexPos: [baseVertex.x, baseVertex.y, baseVertex.z],
+                affectedMeshVertices: indices.length
+              });
+
+              const offset = [
+                mod.newPosition[0] - mod.originalPosition[0],
+                mod.newPosition[1] - mod.originalPosition[1],
+                mod.newPosition[2] - mod.originalPosition[2]
+              ];
+
+              indices.forEach(idx => {
+                positions[idx] = baseVertex.x + offset[0];
+                positions[idx + 1] = baseVertex.y + offset[1];
+                positions[idx + 2] = baseVertex.z + offset[2];
+              });
+            } else {
+              console.warn(`⚠️ No mesh vertices found for base vertex ${mod.vertexIndex} (key: ${key})`);
+            }
+          });
+
+          positionAttribute.needsUpdate = true;
+          geom.computeVertexNormals();
+          geom.computeBoundingBox();
+          geom.computeBoundingSphere();
+        }
 
         setLocalGeometry(geom);
 
@@ -63,7 +139,7 @@ const ShapeWithTransform: React.FC<{
     };
 
     loadEdges();
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.parameters?.modified, shape.geometry, shape.id]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
@@ -292,7 +368,9 @@ const Scene: React.FC = () => {
     setVertexEditMode,
     selectedVertexIndex,
     setSelectedVertexIndex,
-    updateShape
+    vertexDirection,
+    setVertexDirection,
+    addVertexModification
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -304,6 +382,7 @@ const Scene: React.FC = () => {
       } else if (e.key === 'Escape') {
         selectShape(null);
         exitIsolation();
+        setVertexEditMode(false);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -324,124 +403,94 @@ const Scene: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation]);
+  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
 
   useEffect(() => {
     (window as any).handleVertexOffset = async (newValue: number) => {
-      const pendingEdit = (window as any).pendingVertexEdit;
-      if (!pendingEdit || !selectedShapeId) {
-        console.log('❌ No pending edit or no selected shape');
-        return;
-      }
+      if (selectedShapeId && selectedVertexIndex !== null && vertexDirection) {
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (shape && shape.parameters) {
+          console.log('📝 Processing vertex offset:', { newValue, vertexIndex: selectedVertexIndex, direction: vertexDirection });
 
-      const { vertexIndex, direction } = pendingEdit;
-      const shape = shapes.find(s => s.id === selectedShapeId);
-      if (!shape || !shape.parameters) {
-        console.log('❌ Shape not found or no parameters');
-        return;
-      }
+          let baseVertices: number[][] = [];
 
-      const currentParams = shape.parameters;
-      const w = currentParams.width / 2;
-      const h = currentParams.height / 2;
-      const d = currentParams.depth / 2;
-
-      const boxVertices = [
-        [-w, -h, -d], [w, -h, -d], [w, h, -d], [-w, h, -d],
-        [-w, -h, d], [w, -h, d], [w, h, d], [-w, h, d],
-      ];
-
-      const baseVertex = boxVertices[vertexIndex];
-      if (!baseVertex) return;
-
-      const axis = direction.startsWith('x') ? 0 : direction.startsWith('y') ? 1 : 2;
-      const baseValue = baseVertex[axis];
-      const delta = newValue - baseValue;
-
-      console.log(`📝 Vertex ${vertexIndex} ${direction.toUpperCase()}: base=${baseValue}, new=${newValue}, delta=${delta}`);
-
-      const vertexMods = currentParams.vertexModifications || [];
-      const existingModIndex = vertexMods.findIndex((m: any) => m.vertexIndex === vertexIndex);
-      let updatedMods;
-
-      if (existingModIndex >= 0) {
-        updatedMods = [...vertexMods];
-        updatedMods[existingModIndex] = {
-          ...updatedMods[existingModIndex],
-          [direction.startsWith('x') ? 'deltaX' : direction.startsWith('y') ? 'deltaY' : 'deltaZ']: delta,
-        };
-      } else {
-        updatedMods = [
-          ...vertexMods,
-          {
-            vertexIndex,
-            deltaX: direction.startsWith('x') ? delta : 0,
-            deltaY: direction.startsWith('y') ? delta : 0,
-            deltaZ: direction.startsWith('z') ? delta : 0,
-          },
-        ];
-      }
-
-      const newGeometry = shape.geometry.clone();
-      const positionAttr = newGeometry.getAttribute('position');
-      const positions = positionAttr.array as Float32Array;
-
-      updatedMods.forEach((mod: any) => {
-        const baseVert = boxVertices[mod.vertexIndex];
-        if (!baseVert) return;
-
-        const targetVertex = [
-          baseVert[0] + (mod.deltaX || 0),
-          baseVert[1] + (mod.deltaY || 0),
-          baseVert[2] + (mod.deltaZ || 0),
-        ];
-
-        for (let i = 0; i < positions.length; i += 3) {
-          const vx = positions[i];
-          const vy = positions[i + 1];
-          const vz = positions[i + 2];
-
-          const matches =
-            Math.abs(vx - baseVert[0]) < 1 &&
-            Math.abs(vy - baseVert[1]) < 1 &&
-            Math.abs(vz - baseVert[2]) < 1;
-
-          if (matches) {
-            positions[i] = targetVertex[0];
-            positions[i + 1] = targetVertex[1];
-            positions[i + 2] = targetVertex[2];
+          if (shape.replicadShape) {
+            console.log('🔍 Getting vertices from Replicad shape for offset calculation...');
+            const { getReplicadVertices } = await import('../services/vertexEditor');
+            const verts = await getReplicadVertices(shape.replicadShape);
+            baseVertices = verts.map(v => [v.x, v.y, v.z]);
+            console.log(`✅ Got ${baseVertices.length} vertices from Replicad`);
+          } else if (shape.type === 'box') {
+            const { getBoxVertices } = await import('../services/vertexEditor');
+            const verts = getBoxVertices(
+              shape.parameters.width,
+              shape.parameters.height,
+              shape.parameters.depth
+            );
+            baseVertices = verts.map(v => [v.x, v.y, v.z]);
+            console.log(`✅ Got ${baseVertices.length} vertices from box parameters`);
           }
+
+          if (selectedVertexIndex >= baseVertices.length) {
+            console.error('❌ Invalid vertex index:', selectedVertexIndex);
+            return;
+          }
+
+          const originalPos = baseVertices[selectedVertexIndex];
+
+          const offset: [number, number, number] = [0, 0, 0];
+          const newPosition: [number, number, number] = [...originalPos];
+
+          if (vertexDirection === 'x+' || vertexDirection === 'x-') {
+            offset[0] = newValue - originalPos[0];
+            newPosition[0] = newValue;
+          } else if (vertexDirection === 'y+' || vertexDirection === 'y-') {
+            offset[1] = newValue - originalPos[1];
+            newPosition[1] = newValue;
+          } else if (vertexDirection === 'z+' || vertexDirection === 'z-') {
+            offset[2] = newValue - originalPos[2];
+            newPosition[2] = newValue;
+          }
+
+          const axisName = vertexDirection[0].toUpperCase();
+          const directionSymbol = vertexDirection[1] === '+' ? '+' : '-';
+
+          addVertexModification(selectedShapeId, {
+            vertexIndex: selectedVertexIndex,
+            originalPosition: originalPos as [number, number, number],
+            newPosition,
+            direction: vertexDirection,
+            expression: String(newValue),
+            description: `Vertex ${selectedVertexIndex} ${axisName}${directionSymbol}`,
+            offset
+          });
+
+          console.log(`✅ Vertex ${selectedVertexIndex}:`, {
+            base: `[${originalPos[0].toFixed(1)}, ${originalPos[1].toFixed(1)}, ${originalPos[2].toFixed(1)}]`,
+            userValue: newValue,
+            axis: axisName,
+            offset: `[${offset[0].toFixed(1)}, ${offset[1].toFixed(1)}, ${offset[2].toFixed(1)}]`,
+            final: `[${newPosition[0].toFixed(1)}, ${newPosition[1].toFixed(1)}, ${newPosition[2].toFixed(1)}]`
+          });
         }
-      });
 
-      positionAttr.needsUpdate = true;
-      newGeometry.computeVertexNormals();
-      newGeometry.computeBoundingBox();
-      newGeometry.computeBoundingSphere();
-
-      updateShape(selectedShapeId, {
-        parameters: {
-          ...currentParams,
-          vertexModifications: updatedMods,
-        },
-        geometry: newGeometry,
-      });
-
-      console.log(`✅ Vertex ${vertexIndex} moved: ${direction.toUpperCase()} = ${newValue} (delta: ${delta > 0 ? '+' : ''}${delta})`);
-      delete (window as any).pendingVertexEdit;
-      delete (window as any).vertexEditStatusMessage;
-
-      window.dispatchEvent(new CustomEvent('vertexApplied'));
+        (window as any).pendingVertexEdit = false;
+        setSelectedVertexIndex(null);
+      }
     };
+
+    (window as any).pendingVertexEdit = selectedVertexIndex !== null && vertexDirection !== null;
 
     return () => {
       delete (window as any).handleVertexOffset;
       delete (window as any).pendingVertexEdit;
-      delete (window as any).vertexEditStatusMessage;
     };
-  }, [selectedShapeId, shapes, updateShape]);
+  }, [selectedShapeId, selectedVertexIndex, vertexDirection, shapes, addVertexModification, setSelectedVertexIndex]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
+    if (vertexEditMode) {
+      return;
+    }
     e.nativeEvent.preventDefault();
     selectShape(shapeId);
     const shape = shapes.find(s => s.id === shapeId);
@@ -479,6 +528,7 @@ const Scene: React.FC = () => {
             scale: s.scale,
             color: s.color,
             parameters: s.parameters,
+            vertexModifications: s.vertexModifications || [],
             isReferenceBox: s.isReferenceBox
           }))
         };
@@ -495,7 +545,8 @@ const Scene: React.FC = () => {
           rotation: shape.rotation,
           scale: shape.scale,
           color: shape.color,
-          parameters: shape.parameters
+          parameters: shape.parameters,
+          vertexModifications: shape.vertexModifications || []
         };
 
         console.log('💾 Saving geometry:', {
@@ -503,7 +554,8 @@ const Scene: React.FC = () => {
           type: shape.type,
           parameters: shape.parameters,
           position: shape.position,
-          scale: shape.scale
+          scale: shape.scale,
+          vertexModifications: shape.vertexModifications?.length || 0
         });
       }
 
@@ -608,6 +660,10 @@ const Scene: React.FC = () => {
                 shape={shape}
                 isActive={true}
                 onVertexSelect={(index) => setSelectedVertexIndex(index)}
+                onDirectionChange={(dir) => setVertexDirection(dir)}
+                onOffsetConfirm={(vertexIndex, direction, offset) => {
+                  console.log('Offset confirmed:', { vertexIndex, direction, offset });
+                }}
               />
             )}
           </React.Fragment>

@@ -35,12 +35,6 @@ export interface ReplicadBoxParams {
   width: number;
   height: number;
   depth: number;
-  vertexModifications?: Array<{
-    vertexIndex: number;
-    x?: number;
-    y?: number;
-    z?: number;
-  }>;
 }
 
 export interface ReplicadCylinderParams {

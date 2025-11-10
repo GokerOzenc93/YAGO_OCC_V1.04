@@ -1,120 +1,309 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { useAppStore } from '../store';
-
-interface DirectionArrow {
-  direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
-  color: string;
-  offset: [number, number, number];
-}
-
-const DIRECTIONS: DirectionArrow[] = [
-  { direction: 'x+', color: '#ef4444', offset: [50, 0, 0] },
-  { direction: 'x-', color: '#dc2626', offset: [-50, 0, 0] },
-  { direction: 'y+', color: '#22c55e', offset: [0, 50, 0] },
-  { direction: 'y-', color: '#16a34a', offset: [0, -50, 0] },
-  { direction: 'z+', color: '#3b82f6', offset: [0, 0, 50] },
-  { direction: 'z-', color: '#2563eb', offset: [0, 0, -50] },
-];
-
-function getBoxVertices(width: number, height: number, depth: number): THREE.Vector3[] {
-  const w = width / 2;
-  const h = height / 2;
-  const d = depth / 2;
-
-  return [
-    new THREE.Vector3(-w, -h, -d),
-    new THREE.Vector3(w, -h, -d),
-    new THREE.Vector3(w, h, -d),
-    new THREE.Vector3(-w, h, -d),
-    new THREE.Vector3(-w, -h, d),
-    new THREE.Vector3(w, -h, d),
-    new THREE.Vector3(w, h, d),
-    new THREE.Vector3(-w, h, d),
-  ];
-}
+import { getBoxVertices, getReplicadVertices } from '../services/vertexEditor';
 
 interface VertexEditorProps {
   shape: any;
   isActive: boolean;
-  onVertexSelect: (index: number) => void;
+  onVertexSelect: (index: number | null) => void;
+  onDirectionChange: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
+  onOffsetConfirm: (vertexIndex: number, direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-', offset: number) => void;
 }
+
+const VertexPoint: React.FC<{
+  position: THREE.Vector3;
+  index: number;
+  isHovered: boolean;
+  isSelected: boolean;
+  onClick: (e: any) => void;
+  onContextMenu: (e: any) => void;
+  onPointerOver: () => void;
+  onPointerOut: () => void;
+}> = ({ position, index, isHovered, isSelected, onClick, onContextMenu, onPointerOver, onPointerOut }) => {
+  return (
+    <mesh
+      position={position}
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        onPointerOver();
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation();
+        onPointerOut();
+      }}
+    >
+      <sphereGeometry args={[isSelected ? 8 : 6, 16, 16]} />
+      <meshBasicMaterial color={isHovered ? '#ef4444' : isSelected ? '#f97316' : '#1f2937'} />
+    </mesh>
+  );
+};
+
+const DirectionArrow: React.FC<{
+  position: THREE.Vector3;
+  direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
+}> = ({ position, direction }) => {
+  const getDirectionVector = (): THREE.Vector3 => {
+    switch (direction) {
+      case 'x+': return new THREE.Vector3(1, 0, 0);
+      case 'x-': return new THREE.Vector3(-1, 0, 0);
+      case 'y+': return new THREE.Vector3(0, 1, 0);
+      case 'y-': return new THREE.Vector3(0, -1, 0);
+      case 'z+': return new THREE.Vector3(0, 0, 1);
+      case 'z-': return new THREE.Vector3(0, 0, -1);
+    }
+  };
+
+  const dirVector = getDirectionVector();
+  const arrowLength = 50;
+  const endPosition = position.clone().add(dirVector.clone().multiplyScalar(arrowLength));
+
+  const getRotation = (): [number, number, number] => {
+    switch (direction) {
+      case 'x+': return [0, 0, -Math.PI / 2];
+      case 'x-': return [0, 0, Math.PI / 2];
+      case 'y+': return [0, 0, 0];
+      case 'y-': return [Math.PI, 0, 0];
+      case 'z+': return [Math.PI / 2, 0, 0];
+      case 'z-': return [-Math.PI / 2, 0, 0];
+    }
+  };
+
+  return (
+    <group>
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={new Float32Array([
+              position.x, position.y, position.z,
+              endPosition.x, endPosition.y, endPosition.z
+            ])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#ef4444" linewidth={3} />
+      </line>
+      <mesh position={endPosition} rotation={getRotation()}>
+        <coneGeometry args={[4, 10, 8]} />
+        <meshBasicMaterial color="#ef4444" />
+      </mesh>
+    </group>
+  );
+};
+
+const DirectionSelector: React.FC<{
+  position: THREE.Vector3;
+  onDirectionSelect: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
+}> = ({ position, onDirectionSelect }) => {
+  const directions: Array<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-'> = ['x+', 'x-', 'y+', 'y-', 'z+', 'z-'];
+
+  const getDirectionVector = (dir: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-'): THREE.Vector3 => {
+    switch (dir) {
+      case 'x+': return new THREE.Vector3(1, 0, 0);
+      case 'x-': return new THREE.Vector3(-1, 0, 0);
+      case 'y+': return new THREE.Vector3(0, 1, 0);
+      case 'y-': return new THREE.Vector3(0, -1, 0);
+      case 'z+': return new THREE.Vector3(0, 0, 1);
+      case 'z-': return new THREE.Vector3(0, 0, -1);
+    }
+  };
+
+  const getColor = (dir: string): string => {
+    if (dir.startsWith('x')) return '#ef4444';
+    if (dir.startsWith('y')) return '#22c55e';
+    return '#3b82f6';
+  };
+
+  const getRotation = (dir: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-'): [number, number, number] => {
+    switch (dir) {
+      case 'x+': return [0, 0, -Math.PI / 2];
+      case 'x-': return [0, 0, Math.PI / 2];
+      case 'y+': return [0, 0, 0];
+      case 'y-': return [Math.PI, 0, 0];
+      case 'z+': return [Math.PI / 2, 0, 0];
+      case 'z-': return [-Math.PI / 2, 0, 0];
+    }
+  };
+
+  return (
+    <group>
+      {directions.map((dir) => {
+        const dirVector = getDirectionVector(dir);
+        const arrowLength = 60;
+        const endPosition = position.clone().add(dirVector.clone().multiplyScalar(arrowLength));
+        const color = getColor(dir);
+
+        return (
+          <group key={dir}>
+            <line>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([
+                    position.x, position.y, position.z,
+                    endPosition.x, endPosition.y, endPosition.z
+                  ])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color={color} linewidth={3} transparent opacity={0.8} />
+            </line>
+            <mesh
+              position={endPosition}
+              rotation={getRotation(dir)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDirectionSelect(dir);
+              }}
+            >
+              <coneGeometry args={[8, 16, 8]} />
+              <meshBasicMaterial color={color} />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+};
 
 export const VertexEditor: React.FC<VertexEditorProps> = ({
   shape,
   isActive,
   onVertexSelect,
+  onDirectionChange,
+  onOffsetConfirm
 }) => {
-  const [vertices, setVertices] = useState<THREE.Vector3[]>([]);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [showDirections, setShowDirections] = useState(false);
-  const [selectedDirection, setSelectedDirection] = useState<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null>(null);
+  const [currentDirection, setCurrentDirection] = useState<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null>(null);
+  const [showDirectionSelector, setShowDirectionSelector] = useState(false);
 
   useEffect(() => {
-    if (!isActive || !shape.parameters) return;
+    if (!isActive) {
+      setHoveredIndex(null);
+      setSelectedIndex(null);
+      setCurrentDirection(null);
+      setShowDirectionSelector(false);
+    }
+  }, [isActive]);
 
-    if (shape.type === 'box' && shape.geometry) {
-      const positionAttr = shape.geometry.getAttribute('position');
-      if (!positionAttr) return;
+  const [vertices, setVertices] = useState<THREE.Vector3[]>([]);
+  const [modifiedVertices, setModifiedVertices] = useState<THREE.Vector3[]>([]);
 
-      const positions = positionAttr.array;
-      const uniqueVertices = new Map<string, THREE.Vector3>();
-
-      for (let i = 0; i < positions.length; i += 3) {
-        const x = positions[i];
-        const y = positions[i + 1];
-        const z = positions[i + 2];
-        const key = `${x.toFixed(2)},${y.toFixed(2)},${z.toFixed(2)}`;
-
-        if (!uniqueVertices.has(key)) {
-          uniqueVertices.set(key, new THREE.Vector3(x, y, z));
-        }
-      }
-
-      const vertArray = Array.from(uniqueVertices.values());
-      vertArray.sort((a, b) => {
-        if (Math.abs(a.z - b.z) > 0.1) return a.z - b.z;
-        if (Math.abs(a.y - b.y) > 0.1) return a.y - b.y;
-        return a.x - b.x;
+  useEffect(() => {
+    const loadVertices = async () => {
+      console.log('🔍 VertexEditor loadVertices called:', {
+        isActive,
+        hasShape: !!shape,
+        hasParameters: !!shape?.parameters,
+        shapeType: shape?.type,
+        hasReplicadShape: !!shape?.replicadShape
       });
 
-      setVertices(vertArray);
+      if (!isActive || !shape.parameters) {
+        console.log('⚠️ VertexEditor: inactive or no parameters');
+        return;
+      }
+
+      let verts: THREE.Vector3[] = [];
+
+      if (shape.replicadShape) {
+        console.log('📍 Loading vertices from Replicad shape...');
+        verts = await getReplicadVertices(shape.replicadShape);
+        console.log(`✅ Loaded ${verts.length} vertices from Replicad`);
+      } else if (shape.type === 'box') {
+        console.log('📦 Loading vertices from box parameters...');
+        verts = getBoxVertices(
+          shape.parameters.width,
+          shape.parameters.height,
+          shape.parameters.depth
+        );
+        console.log(`✅ Loaded ${verts.length} vertices from box`);
+      }
+
+      console.log('📍 Setting vertices:', verts);
+      setVertices(verts);
+
+      const modified = verts.map((vertex, index) => {
+        if (shape.vertexModifications) {
+          const mod = shape.vertexModifications.find((m: any) => m.vertexIndex === index);
+          if (mod && mod.offset) {
+            return new THREE.Vector3(
+              vertex.x + mod.offset[0],
+              vertex.y + mod.offset[1],
+              vertex.z + mod.offset[2]
+            );
+          }
+        }
+        return vertex;
+      });
+
+      setModifiedVertices(modified);
+    };
+
+    loadVertices();
+  }, [isActive, shape, shape.parameters, shape.replicadShape, shape.vertexModifications]);
+
+  console.log('🎨 VertexEditor render:', {
+    isActive,
+    hasParameters: !!shape?.parameters,
+    verticesLength: vertices.length,
+    willRender: isActive && shape?.parameters && vertices.length > 0
+  });
+
+  if (!isActive || !shape.parameters || vertices.length === 0) {
+    console.log('❌ VertexEditor not rendering - conditions not met');
+    return null;
+  }
+
+  const handleVertexClick = (index: number, e: any) => {
+    e.stopPropagation();
+
+    if (selectedIndex === index && currentDirection) {
+      setShowDirectionSelector(true);
+      console.log(`🔄 Change direction for vertex ${index}`);
+    } else {
+      setSelectedIndex(index);
+      setCurrentDirection(null);
+      setShowDirectionSelector(true);
+      onVertexSelect(index);
+      console.log(`✓ Vertex ${index} selected - Choose direction`);
     }
-  }, [isActive, shape, shape.geometry, shape.parameters?.vertexModifications, shape.position, shape.rotation, shape.scale]);
-
-  if (!isActive || vertices.length === 0) return null;
-
-  const handleVertexClick = (index: number) => {
-    setSelectedIndex(index);
-    setShowDirections(true);
-    setSelectedDirection(null);
-    onVertexSelect(index);
   };
 
-  const handleDirectionClick = (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => {
-    setShowDirections(false);
-    setSelectedDirection(direction);
-
-    (window as any).pendingVertexEdit = {
-      vertexIndex: selectedIndex,
-      direction: direction,
-    };
-
-    (window as any).vertexEditStatusMessage = `Vertex ${selectedIndex} - ${direction.toUpperCase()}: Enter coordinate value`;
-
-    console.log(`✅ Vertex ${selectedIndex} - Direction ${direction} selected. Enter absolute coordinate value.`);
+  const handleDirectionSelect = (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => {
+    setCurrentDirection(direction);
+    setShowDirectionSelector(false);
+    onDirectionChange(direction);
+    console.log(`✓ Direction ${direction} selected - Right-click to confirm`);
   };
 
-  useEffect(() => {
-    const handleVertexApplied = () => {
-      setSelectedDirection(null);
-      setShowDirections(false);
-      setSelectedIndex(null);
-    };
+  const handleVertexRightClick = (index: number, e: any) => {
+    e.stopPropagation();
+    if (selectedIndex === index && currentDirection) {
+      console.log(`✓ Confirmed - Waiting for terminal input for vertex ${index} (${currentDirection})`);
+      (window as any).pendingVertexEdit = true;
+    }
+  };
 
-    window.addEventListener('vertexApplied', handleVertexApplied);
-    return () => window.removeEventListener('vertexApplied', handleVertexApplied);
-  }, []);
+  const handleVertexDoubleClick = (index: number, e: any) => {
+    e.stopPropagation();
+    if (selectedIndex === index && currentDirection) {
+      setShowDirectionSelector(true);
+      setCurrentDirection(null);
+      console.log(`🔄 Change direction for vertex ${index}`);
+    }
+  };
+
+  console.log('✨ VertexEditor rendering with:', {
+    modifiedVerticesCount: modifiedVertices.length,
+    shapePosition: shape.position,
+    firstVertex: modifiedVertices[0]
+  });
 
   return (
     <group
@@ -122,63 +311,34 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
       rotation={[shape.rotation[0], shape.rotation[1], shape.rotation[2]]}
       scale={[shape.scale[0], shape.scale[1], shape.scale[2]]}
     >
-      {vertices.map((vertex, index) => {
+      {modifiedVertices.map((vertex, index) => {
+        console.log(`🔴 Rendering vertex ${index}:`, vertex);
         return (
-          <group key={index} position={vertex}>
-            <mesh onClick={() => handleVertexClick(index)}>
-              <sphereGeometry args={[8, 16, 16]} />
-              <meshBasicMaterial
-                color={selectedIndex === index ? '#fbbf24' : '#000000'}
-                depthTest={false}
-              />
-            </mesh>
-
-            {selectedIndex === index && (showDirections || selectedDirection !== null) && (
-              <>
-                {DIRECTIONS.filter(dir => {
-                  if (showDirections) return true;
-                  return dir.direction === selectedDirection;
-                }).map((dir) => {
-                  const arrowStart = new THREE.Vector3(0, 0, 0);
-                  const arrowEnd = new THREE.Vector3(...dir.offset);
-                  const direction = arrowEnd.clone().sub(arrowStart).normalize();
-                  const length = arrowEnd.distanceTo(arrowStart);
-
-                  return (
-                    <group key={dir.direction}>
-                      <arrowHelper
-                        args={[
-                          direction,
-                          arrowStart,
-                          length,
-                          dir.color,
-                          10,
-                          8
-                        ]}
-                      />
-                      <mesh
-                        position={arrowEnd}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDirectionClick(dir.direction);
-                        }}
-                      >
-                        <sphereGeometry args={[12, 16, 16]} />
-                        <meshBasicMaterial
-                          color={dir.color}
-                          transparent
-                          opacity={0.8}
-                          depthTest={false}
-                        />
-                      </mesh>
-                    </group>
-                  );
-                })}
-              </>
-            )}
-          </group>
+          <VertexPoint
+            key={index}
+            position={vertex}
+            index={index}
+            isHovered={hoveredIndex === index}
+            isSelected={selectedIndex === index}
+            onClick={(e) => handleVertexClick(index, e)}
+            onContextMenu={(e) => handleVertexRightClick(index, e)}
+            onPointerOver={() => setHoveredIndex(index)}
+            onPointerOut={() => setHoveredIndex(null)}
+          />
         );
       })}
+      {showDirectionSelector && selectedIndex !== null && (
+        <DirectionSelector
+          position={modifiedVertices[selectedIndex]}
+          onDirectionSelect={handleDirectionSelect}
+        />
+      )}
+      {currentDirection && selectedIndex !== null && !showDirectionSelector && (
+        <DirectionArrow
+          position={modifiedVertices[selectedIndex]}
+          direction={currentDirection}
+        />
+      )}
     </group>
   );
 };

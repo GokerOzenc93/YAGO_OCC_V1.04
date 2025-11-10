@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
+import { VertexModification } from './services/vertexEditor';
 
 export interface Shape {
   id: string;
@@ -14,6 +15,7 @@ export interface Shape {
   ocShape?: any;
   replicadShape?: any;
   isolated?: boolean;
+  vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
 }
@@ -114,6 +116,9 @@ interface AppState {
   setVertexEditMode: (enabled: boolean) => void;
   selectedVertexIndex: number | null;
   setSelectedVertexIndex: (index: number | null) => void;
+  vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
+  setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
+  addVertexModification: (shapeId: string, modification: VertexModification) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -329,6 +334,35 @@ export const useAppStore = create<AppState>((set, get) => ({
   setVertexEditMode: (enabled) => set({ vertexEditMode: enabled }),
   selectedVertexIndex: null,
   setSelectedVertexIndex: (index) => set({ selectedVertexIndex: index }),
+  vertexDirection: null,
+  setVertexDirection: (direction) => set({ vertexDirection: direction }),
+  addVertexModification: (shapeId, modification) =>
+    set((state) => ({
+      shapes: state.shapes.map((shape) => {
+        if (shape.id !== shapeId) return shape;
+
+        const existingMods = shape.vertexModifications || [];
+        const existingIndex = existingMods.findIndex(
+          m => m.vertexIndex === modification.vertexIndex
+        );
+
+        let newMods;
+        if (existingIndex >= 0) {
+          newMods = [...existingMods];
+          newMods[existingIndex] = modification;
+        } else {
+          newMods = [...existingMods, modification];
+        }
+
+        console.log(`🔧 Vertex modification added for shape ${shapeId}, triggering geometry update`);
+
+        return {
+          ...shape,
+          vertexModifications: newMods,
+          geometry: shape.geometry
+        };
+      })
+    })),
 
   checkAndPerformBooleanOperations: async () => {
     const state = get();
