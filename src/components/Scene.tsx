@@ -9,20 +9,28 @@ import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
 
 const CuttingBox: React.FC<{ shape: any; cut: any }> = ({ shape, cut }) => {
-  const width = Math.abs(cut.intersectionWidth || 0);
-  const height = Math.abs(cut.intersectionHeight || 0);
-  const depth = Math.abs(cut.intersectionDepth || 0);
+  const baseWidth = cut.width || 0;
+  const baseHeight = cut.height || 0;
+  const baseDepth = cut.depth || 0;
+
+  const offsetWidth = cut.intersectionWidth || 0;
+  const offsetHeight = cut.intersectionHeight || 0;
+  const offsetDepth = cut.intersectionDepth || 0;
+
+  const width = baseWidth + offsetWidth;
+  const height = baseHeight + offsetHeight;
+  const depth = baseDepth + offsetDepth;
 
   console.log('🔴 CuttingBox render:', {
-    width,
-    height,
-    depth,
+    base: { width: baseWidth, height: baseHeight, depth: baseDepth },
+    offset: { width: offsetWidth, height: offsetHeight, depth: offsetDepth },
+    final: { width, height, depth },
     cutPosition: cut.position,
     shapePosition: shape.position
   });
 
-  if (width === 0 && height === 0 && depth === 0) {
-    console.log('⚠️ CuttingBox: all dimensions are 0, skipping render');
+  if (width <= 0 || height <= 0 || depth <= 0) {
+    console.log('⚠️ CuttingBox: invalid dimensions, skipping render');
     return null;
   }
 
