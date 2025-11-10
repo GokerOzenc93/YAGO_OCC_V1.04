@@ -252,32 +252,32 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         : mod.originalPosition;
 
       const expression = mod.expression;
-      const absoluteValue = evaluateVertexExpression(expression);
+      const offsetValue = evaluateVertexExpression(expression);
+
+      const isPositiveDirection = mod.direction.endsWith('+');
+      const axisIndex = mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2;
+
+      const offsetAmount = isPositiveDirection ? offsetValue : -offsetValue;
 
       const newOffset = [0, 0, 0] as [number, number, number];
-      const newPos = [...newOriginalPos] as [number, number, number];
+      newOffset[axisIndex] = offsetAmount;
 
-      if (mod.direction.startsWith('x')) {
-        newOffset[0] = absoluteValue - newOriginalPos[0];
-        newPos[0] = absoluteValue;
-      } else if (mod.direction.startsWith('y')) {
-        newOffset[1] = absoluteValue - newOriginalPos[1];
-        newPos[1] = absoluteValue;
-      } else {
-        newOffset[2] = absoluteValue - newOriginalPos[2];
-        newPos[2] = absoluteValue;
-      }
+      const newPos = [...newOriginalPos] as [number, number, number];
+      newPos[axisIndex] = newOriginalPos[axisIndex] + offsetAmount;
+
+      const axisName = mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z';
+      const directionSymbol = isPositiveDirection ? '+' : '-';
 
       console.log(`📍 Vertex ${mod.vertexIndex} dimension update:`, {
         vertexIndex: mod.vertexIndex,
         direction: mod.direction,
-        axis: mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z',
+        axis: axisName,
         newBaseVertex: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
         expression,
-        userSetValue: absoluteValue.toFixed(1),
-        calculatedOffset: `[${newOffset[0].toFixed(1)}, ${newOffset[1].toFixed(1)}, ${newOffset[2].toFixed(1)}]`,
+        offsetValue: offsetValue.toFixed(1),
+        offsetAmount: offsetAmount.toFixed(1),
         finalPosition: `[${newPos[0].toFixed(1)}, ${newPos[1].toFixed(1)}, ${newPos[2].toFixed(1)}]`,
-        explanation: `${mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z'} = ${absoluteValue.toFixed(1)}, offset from new base = ${newOffset[mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2].toFixed(1)}`
+        explanation: `${axisName}${directionSymbol}${offsetValue} → ${newOriginalPos[axisIndex].toFixed(1)} ${isPositiveDirection ? '+' : '-'} ${offsetValue} = ${newPos[axisIndex].toFixed(1)}`
       });
 
       return {

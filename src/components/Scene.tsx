@@ -438,27 +438,27 @@ const Scene: React.FC = () => {
 
           const originalPos = baseVertices[selectedVertexIndex];
 
-          const offset: [number, number, number] = [0, 0, 0];
-          const newPosition: [number, number, number] = [...originalPos];
-
           const isPositiveDirection = vertexDirection.endsWith('+');
           const axisIndex = vertexDirection.startsWith('x') ? 0 : vertexDirection.startsWith('y') ? 1 : 2;
 
-          const absoluteValue = isPositiveDirection ? Math.abs(newValue) : -Math.abs(newValue);
+          const offsetAmount = isPositiveDirection ? newValue : -newValue;
 
-          offset[axisIndex] = absoluteValue - originalPos[axisIndex];
-          newPosition[axisIndex] = absoluteValue;
+          const offset: [number, number, number] = [0, 0, 0];
+          offset[axisIndex] = offsetAmount;
+
+          const newPosition: [number, number, number] = [...originalPos];
+          newPosition[axisIndex] = originalPos[axisIndex] + offsetAmount;
 
           const axisName = vertexDirection[0].toUpperCase();
           const directionSymbol = vertexDirection[1] === '+' ? '+' : '-';
 
-          console.log(`🎯 Direction processing:`, {
+          console.log(`🎯 Relative offset applied:`, {
             direction: vertexDirection,
             userInput: newValue,
-            isPositive: isPositiveDirection,
-            absoluteValue,
+            offsetAmount,
             originalPosAxis: originalPos[axisIndex].toFixed(1),
-            newPosAxis: newPosition[axisIndex].toFixed(1)
+            newPosAxis: newPosition[axisIndex].toFixed(1),
+            explanation: `${axisName}${directionSymbol}${newValue} = ${originalPos[axisIndex].toFixed(1)} ${isPositiveDirection ? '+' : '-'} ${newValue} = ${newPosition[axisIndex].toFixed(1)}`
           });
 
           addVertexModification(selectedShapeId, {
