@@ -38,6 +38,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
   const [netDimensions, setNetDimensions] = useState<{[key: string]: string}>({});
+  const [pendingCutChanges, setPendingCutChanges] = useState<{[key: string]: any}>({});
 
   const handleIntersectionChange = async (shapeIdx: number, field: string, value: number) => {
     if (!selectedShape || !selectedShape.parameters.subtractedShapes) return;
@@ -706,7 +707,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 <div className="text-xs font-semibold text-slate-700 mb-2">
                   Subtracted Shapes ({selectedShape.parameters.subtractedShapes.length})
                 </div>
-                {selectedShape.parameters.subtractedShapes.map((subtractedShape: any, shapeIdx: number) => (
+                {selectedShape.parameters.subtractedShapes.map((subtractedShape: any, shapeIdx: number) => {
+                  const cutKey = `${shapeIdx}`;
+                  const pendingCut = pendingCutChanges[cutKey] || {};
+
+                  return (
                   <div key={subtractedShape.id || shapeIdx} className="space-y-1">
                     <div className="text-xs font-medium text-stone-600 mb-1">
                       Cut {shapeIdx + 1}
@@ -721,19 +726,16 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value={netDimensions[`${shapeIdx}-width`] ?? (subtractedShape.intersectionWidth || 0)}
+                        value={pendingCut.intersectionWidth ?? (subtractedShape.intersectionWidth || 0)}
                         onChange={(e) => {
                           const inputValue = e.target.value;
-                          setNetDimensions(prev => ({...prev, [`${shapeIdx}-width`]: inputValue}));
-                        }}
-                        onBlur={(e) => {
-                          const offsetValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionWidth', offsetValue);
-                          setNetDimensions(prev => {
-                            const updated = {...prev};
-                            delete updated[`${shapeIdx}-width`];
-                            return updated;
-                          });
+                          setPendingCutChanges(prev => ({
+                            ...prev,
+                            [cutKey]: {
+                              ...prev[cutKey],
+                              intersectionWidth: inputValue
+                            }
+                          }));
                         }}
                         className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -754,19 +756,16 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value={netDimensions[`${shapeIdx}-height`] ?? (subtractedShape.intersectionHeight || 0)}
+                        value={pendingCut.intersectionHeight ?? (subtractedShape.intersectionHeight || 0)}
                         onChange={(e) => {
                           const inputValue = e.target.value;
-                          setNetDimensions(prev => ({...prev, [`${shapeIdx}-height`]: inputValue}));
-                        }}
-                        onBlur={(e) => {
-                          const offsetValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionHeight', offsetValue);
-                          setNetDimensions(prev => {
-                            const updated = {...prev};
-                            delete updated[`${shapeIdx}-height`];
-                            return updated;
-                          });
+                          setPendingCutChanges(prev => ({
+                            ...prev,
+                            [cutKey]: {
+                              ...prev[cutKey],
+                              intersectionHeight: inputValue
+                            }
+                          }));
                         }}
                         className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -787,19 +786,16 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value={netDimensions[`${shapeIdx}-depth`] ?? (subtractedShape.intersectionDepth || 0)}
+                        value={pendingCut.intersectionDepth ?? (subtractedShape.intersectionDepth || 0)}
                         onChange={(e) => {
                           const inputValue = e.target.value;
-                          setNetDimensions(prev => ({...prev, [`${shapeIdx}-depth`]: inputValue}));
-                        }}
-                        onBlur={(e) => {
-                          const offsetValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionDepth', offsetValue);
-                          setNetDimensions(prev => {
-                            const updated = {...prev};
-                            delete updated[`${shapeIdx}-depth`];
-                            return updated;
-                          });
+                          setPendingCutChanges(prev => ({
+                            ...prev,
+                            [cutKey]: {
+                              ...prev[cutKey],
+                              intersectionDepth: inputValue
+                            }
+                          }));
                         }}
                         className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -811,7 +807,30 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                     </div>
                   </div>
-                ))}
+                )})}
+
+                {Object.keys(pendingCutChanges).length > 0 && (
+                  <button
+                    onClick={async () => {
+                      for (const [cutKey, changes] of Object.entries(pendingCutChanges)) {
+                        const shapeIdx = parseInt(cutKey);
+                        if (changes.intersectionWidth !== undefined) {
+                          await handleIntersectionChange(shapeIdx, 'intersectionWidth', parseFloat(changes.intersectionWidth as string) || 0);
+                        }
+                        if (changes.intersectionHeight !== undefined) {
+                          await handleIntersectionChange(shapeIdx, 'intersectionHeight', parseFloat(changes.intersectionHeight as string) || 0);
+                        }
+                        if (changes.intersectionDepth !== undefined) {
+                          await handleIntersectionChange(shapeIdx, 'intersectionDepth', parseFloat(changes.intersectionDepth as string) || 0);
+                        }
+                      }
+                      setPendingCutChanges({});
+                    }}
+                    className="w-full px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                  >
+                    Apply Changes
+                  </button>
+                )}
               </div>
             )}
 

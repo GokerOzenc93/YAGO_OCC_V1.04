@@ -21,6 +21,7 @@ export interface Shape {
   baseVerticesSnapshot?: THREE.Vector3[];
   baseDimensions?: { width: number; height: number; depth: number };
   baseGeometrySnapshot?: THREE.BufferGeometry;
+  isHidden?: boolean;
 }
 
 export enum CameraType {
@@ -481,8 +482,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                   return updatedShape;
                 }
+                if (s.id === shape2.id) {
+                  return {
+                    ...s,
+                    isHidden: true
+                  };
+                }
                 return s;
-              }).filter(s => s.id !== shape2.id);
+              });
 
               console.log('📊 All shapes after boolean cut:', updatedShapes.map(s => ({
                 id: s.id,

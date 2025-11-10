@@ -724,6 +724,10 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
+        const shouldRender = !shape.isHidden || showCuttingBoxes;
+
+        if (!shouldRender) return null;
+
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
