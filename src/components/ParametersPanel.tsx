@@ -250,9 +250,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             if (!baseVertex) return;
 
             const targetVertex = [
-              mod.x !== undefined ? mod.x : baseVertex[0],
-              mod.y !== undefined ? mod.y : baseVertex[1],
-              mod.z !== undefined ? mod.z : baseVertex[2],
+              baseVertex[0] + (mod.deltaX || 0),
+              baseVertex[1] + (mod.deltaY || 0),
+              baseVertex[2] + (mod.deltaZ || 0),
             ];
 
             for (let i = 0; i < positions.length; i += 3) {
@@ -500,28 +500,39 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             {selectedShape?.parameters?.vertexModifications && selectedShape.parameters.vertexModifications.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200 mt-2">
                 <div className="text-xs font-semibold text-stone-700 mb-1">Vertex Modifications</div>
-                {selectedShape.parameters.vertexModifications.map((mod: any, idx: number) => (
+                {selectedShape.parameters.vertexModifications.map((mod: any, idx: number) => {
+                  const w = selectedShape.parameters.width / 2;
+                  const h = selectedShape.parameters.height / 2;
+                  const d = selectedShape.parameters.depth / 2;
+                  const boxVertices = [
+                    [-w, -h, -d], [w, -h, -d], [w, h, -d], [-w, h, -d],
+                    [-w, -h, d], [w, -h, d], [w, h, d], [-w, h, d],
+                  ];
+                  const baseVertex = boxVertices[mod.vertexIndex];
+
+                  return (
                   <div key={idx} className="flex gap-1 items-center text-xs">
                     <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded font-medium">
                       V{mod.vertexIndex}
                     </span>
-                    {mod.x !== undefined && (
+                    {(mod.deltaX !== undefined && mod.deltaX !== 0) && (
                       <span className="px-2 py-1 bg-red-50 text-red-600 rounded">
-                        X: {mod.x.toFixed(1)}
+                        X: {(baseVertex[0] + mod.deltaX).toFixed(1)} ({mod.deltaX > 0 ? '+' : ''}{mod.deltaX.toFixed(1)})
                       </span>
                     )}
-                    {mod.y !== undefined && (
+                    {(mod.deltaY !== undefined && mod.deltaY !== 0) && (
                       <span className="px-2 py-1 bg-green-50 text-green-600 rounded">
-                        Y: {mod.y.toFixed(1)}
+                        Y: {(baseVertex[1] + mod.deltaY).toFixed(1)} ({mod.deltaY > 0 ? '+' : ''}{mod.deltaY.toFixed(1)})
                       </span>
                     )}
-                    {mod.z !== undefined && (
+                    {(mod.deltaZ !== undefined && mod.deltaZ !== 0) && (
                       <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded">
-                        Z: {mod.z.toFixed(1)}
+                        Z: {(baseVertex[2] + mod.deltaZ).toFixed(1)} ({mod.deltaZ > 0 ? '+' : ''}{mod.deltaZ.toFixed(1)})
                       </span>
                     )}
                   </div>
-                ))}
+                );
+                })}
               </div>
             )}
 

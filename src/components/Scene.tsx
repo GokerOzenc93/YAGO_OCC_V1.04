@@ -335,36 +335,7 @@ const Scene: React.FC = () => {
       const shape = shapes.find(s => s.id === selectedShapeId);
       if (!shape || !shape.parameters) return;
 
-      console.log(`📝 Moving vertex ${vertexIndex} to ${direction.toUpperCase()} = ${newValue}`);
-
       const currentParams = shape.parameters;
-      const vertexMods = currentParams.vertexModifications || [];
-
-      const existingModIndex = vertexMods.findIndex((m: any) => m.vertexIndex === vertexIndex);
-      let updatedMods;
-
-      if (existingModIndex >= 0) {
-        updatedMods = [...vertexMods];
-        updatedMods[existingModIndex] = {
-          ...updatedMods[existingModIndex],
-          [direction.startsWith('x') ? 'x' : direction.startsWith('y') ? 'y' : 'z']: newValue,
-        };
-      } else {
-        updatedMods = [
-          ...vertexMods,
-          {
-            vertexIndex,
-            x: direction.startsWith('x') ? newValue : undefined,
-            y: direction.startsWith('y') ? newValue : undefined,
-            z: direction.startsWith('z') ? newValue : undefined,
-          },
-        ];
-      }
-
-      const newGeometry = shape.geometry.clone();
-      const positionAttr = newGeometry.getAttribute('position');
-      const positions = positionAttr.array as Float32Array;
-
       const w = currentParams.width / 2;
       const h = currentParams.height / 2;
       const d = currentParams.depth / 2;
@@ -374,14 +345,49 @@ const Scene: React.FC = () => {
         [-w, -h, d], [w, -h, d], [w, h, d], [-w, h, d],
       ];
 
+      const baseVertex = boxVertices[vertexIndex];
+      if (!baseVertex) return;
+
+      const axis = direction.startsWith('x') ? 0 : direction.startsWith('y') ? 1 : 2;
+      const baseValue = baseVertex[axis];
+      const delta = newValue - baseValue;
+
+      console.log(`📝 Vertex ${vertexIndex} ${direction.toUpperCase()}: base=${baseValue}, new=${newValue}, delta=${delta}`);
+
+      const vertexMods = currentParams.vertexModifications || [];
+      const existingModIndex = vertexMods.findIndex((m: any) => m.vertexIndex === vertexIndex);
+      let updatedMods;
+
+      if (existingModIndex >= 0) {
+        updatedMods = [...vertexMods];
+        updatedMods[existingModIndex] = {
+          ...updatedMods[existingModIndex],
+          [direction.startsWith('x') ? 'deltaX' : direction.startsWith('y') ? 'deltaY' : 'deltaZ']: delta,
+        };
+      } else {
+        updatedMods = [
+          ...vertexMods,
+          {
+            vertexIndex,
+            deltaX: direction.startsWith('x') ? delta : 0,
+            deltaY: direction.startsWith('y') ? delta : 0,
+            deltaZ: direction.startsWith('z') ? delta : 0,
+          },
+        ];
+      }
+
+      const newGeometry = shape.geometry.clone();
+      const positionAttr = newGeometry.getAttribute('position');
+      const positions = positionAttr.array as Float32Array;
+
       updatedMods.forEach((mod: any) => {
-        const baseVertex = boxVertices[mod.vertexIndex];
-        if (!baseVertex) return;
+        const baseVert = boxVertices[mod.vertexIndex];
+        if (!baseVert) return;
 
         const targetVertex = [
-          mod.x !== undefined ? mod.x : baseVertex[0],
-          mod.y !== undefined ? mod.y : baseVertex[1],
-          mod.z !== undefined ? mod.z : baseVertex[2],
+          baseVert[0] + (mod.deltaX || 0),
+          baseVert[1] + (mod.deltaY || 0),
+          baseVert[2] + (mod.deltaZ || 0),
         ];
 
         for (let i = 0; i < positions.length; i += 3) {
@@ -390,9 +396,9 @@ const Scene: React.FC = () => {
           const vz = positions[i + 2];
 
           const matches =
-            Math.abs(vx - baseVertex[0]) < 1 &&
-            Math.abs(vy - baseVertex[1]) < 1 &&
-            Math.abs(vz - baseVertex[2]) < 1;
+            Math.abs(vx - baseVert[0]) < 1 &&
+            Math.abs(vy - baseVert[1]) < 1 &&
+            Math.abs(vz - baseVert[2]) < 1;
 
           if (matches) {
             positions[i] = targetVertex[0];
@@ -415,7 +421,7 @@ const Scene: React.FC = () => {
         geometry: newGeometry,
       });
 
-      console.log(`✅ Vertex ${vertexIndex} moved to ${direction.toUpperCase()} = ${newValue}. Geometry updated.`);
+      console.log(`✅ Vertex ${vertexIndex} moved: ${direction.toUpperCase()} = ${newValue} (delta: ${delta > 0 ? '+' : ''}${delta})`);
       delete (window as any).pendingVertexEdit;
       delete (window as any).vertexEditStatusMessage;
     };
