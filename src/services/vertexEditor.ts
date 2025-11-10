@@ -44,20 +44,64 @@ export function getBoxVertices(width: number, height: number, depth: number): TH
 
 export async function getReplicadVertices(replicadShape: any): Promise<THREE.Vector3[]> {
   try {
-    const vertices = replicadShape.vertices;
-    console.log('📍 Getting vertices from Replicad shape:', vertices);
+    console.log('📍 Getting vertices from Replicad shape...');
+    console.log('Shape object:', replicadShape);
+    console.log('Shape keys:', Object.keys(replicadShape));
 
-    if (!vertices || !Array.isArray(vertices)) {
-      console.warn('⚠️ No vertices array found in Replicad shape');
+    let vertices: any[] = [];
+
+    if (typeof replicadShape.vertices === 'function') {
+      console.log('🔍 Calling vertices() method...');
+      vertices = replicadShape.vertices();
+    } else if (Array.isArray(replicadShape.vertices)) {
+      console.log('🔍 Using vertices property...');
+      vertices = replicadShape.vertices;
+    } else {
+      console.log('🔍 Trying to extract unique vertices from mesh...');
+      const mesh = replicadShape.mesh({ tolerance: 0.1, angularTolerance: 30 });
+
+      if (mesh && mesh.vertices) {
+        console.log(`Found ${mesh.vertices.length / 3} mesh vertices`);
+
+        const uniqueVertices = new Map<string, THREE.Vector3>();
+
+        for (let i = 0; i < mesh.vertices.length; i += 3) {
+          const x = Math.round(mesh.vertices[i] * 100) / 100;
+          const y = Math.round(mesh.vertices[i + 1] * 100) / 100;
+          const z = Math.round(mesh.vertices[i + 2] * 100) / 100;
+          const key = `${x},${y},${z}`;
+
+          if (!uniqueVertices.has(key)) {
+            uniqueVertices.set(key, new THREE.Vector3(x, y, z));
+          }
+        }
+
+        const vertexArray = Array.from(uniqueVertices.values());
+        console.log(`✅ Extracted ${vertexArray.length} unique vertices from mesh`);
+        return vertexArray;
+      }
+    }
+
+    if (!vertices || !Array.isArray(vertices) || vertices.length === 0) {
+      console.warn('⚠️ No vertices found in Replicad shape');
       return [];
     }
 
-    const vertexPositions = vertices.map((v: any) => {
+    console.log(`Found ${vertices.length} vertices`);
+
+    const vertexPositions = vertices.map((v: any, idx: number) => {
+      console.log(`Vertex ${idx}:`, v);
+
       if (v && typeof v.point === 'function') {
         const point = v.point();
+        console.log(`  Point from function:`, point);
         return new THREE.Vector3(point[0], point[1], point[2]);
       } else if (Array.isArray(v)) {
+        console.log(`  Point from array:`, v);
         return new THREE.Vector3(v[0], v[1], v[2]);
+      } else if (v && typeof v.x === 'number') {
+        console.log(`  Point from x,y,z:`, v);
+        return new THREE.Vector3(v.x, v.y, v.z);
       }
       return null;
     }).filter((v: THREE.Vector3 | null): v is THREE.Vector3 => v !== null);
@@ -66,6 +110,7 @@ export async function getReplicadVertices(replicadShape: any): Promise<THREE.Vec
     return vertexPositions;
   } catch (error) {
     console.error('❌ Failed to get Replicad vertices:', error);
+    console.error('Error details:', error);
     return [];
   }
 }
