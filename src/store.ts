@@ -441,9 +441,9 @@ export const useAppStore = create<AppState>((set, get) => ({
               customParameters: shape2.parameters.customParameters || [],
               scaledBaseVertices: shape2.parameters.scaledBaseVertices || [],
               vertexModifications: shape2.vertexModifications || [],
-              intersectionWidth: 0,
-              intersectionHeight: 0,
-              intersectionDepth: 0
+              intersectionWidth: intersectionDepths.x,
+              intersectionHeight: intersectionDepths.y,
+              intersectionDepth: intersectionDepths.z
             };
 
             console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);

@@ -760,9 +760,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value="Cut Offset W"
+                        value={`Intersection: ${subtractedShape.intersectionWidth?.toFixed(1) || '0'}`}
                         readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-700 font-medium"
                       />
                     </div>
 
@@ -790,9 +790,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value="Cut Offset H"
+                        value={`Intersection: ${subtractedShape.intersectionHeight?.toFixed(1) || '0'}`}
                         readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-700 font-medium"
                       />
                     </div>
 
@@ -820,9 +820,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value="Cut Offset D"
+                        value={`Intersection: ${subtractedShape.intersectionDepth?.toFixed(1) || '0'}`}
                         readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-700 font-medium"
                       />
                     </div>
                   </div>
