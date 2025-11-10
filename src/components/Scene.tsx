@@ -19,19 +19,8 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const {
-    selectShape,
-    selectSecondaryShape,
-    secondarySelectedShapeId,
-    updateShape,
-    activeTool,
-    viewMode,
-    createGroup,
-    booleanEditMode,
-    booleanSourceShapes
-  } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup } = useAppStore();
   const transformRef = useRef<any>(null);
-  const booleanTransformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const isUpdatingRef = useRef(false);
@@ -208,97 +197,6 @@ const ShapeWithTransform: React.FC<{
     }
   }, [isSelected, shape.id, updateShape, orbitControlsRef]);
 
-  useEffect(() => {
-    if (booleanTransformRef.current && shouldShowAsBooleanSource && groupRef.current) {
-      const controls = booleanTransformRef.current;
-
-      const onDraggingChanged = (event: any) => {
-        if (orbitControlsRef.current) {
-          orbitControlsRef.current.enabled = !event.value;
-        }
-      };
-
-      const onChange = async () => {
-        if (groupRef.current) {
-          isUpdatingRef.current = true;
-          const newPosition = groupRef.current.position.toArray() as [number, number, number];
-          const newRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
-          const newScale = groupRef.current.scale.toArray() as [number, number, number];
-
-          updateShape(shape.id, {
-            position: newPosition,
-            rotation: newRotation,
-            scale: newScale
-          });
-
-          const allShapes = useAppStore.getState().shapes;
-          const targetsToUpdate = allShapes.filter(s =>
-            s.parameters?.booleanSourceId === shape.id
-          );
-
-          if (targetsToUpdate.length > 0) {
-            console.log(`🔴 Boolean source moved, updating ${targetsToUpdate.length} target(s)...`);
-
-            const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-            const { getReplicadVertices } = await import('../services/vertexEditor');
-
-            for (const targetShape of targetsToUpdate) {
-              if (!targetShape.replicadShape || !shape.replicadShape) {
-                console.warn('⚠️ Missing replicadShape, skipping:', targetShape.id);
-                continue;
-              }
-
-              const originalTargetShape = allShapes.find(s => s.id === targetShape.parameters.booleanTargetId);
-              if (!originalTargetShape || !originalTargetShape.replicadShape) {
-                console.warn('⚠️ Original target shape not found, skipping');
-                continue;
-              }
-
-              console.log(`🔄 Recomputing boolean cut for ${targetShape.id}`);
-
-              const resultShape = await performBooleanCut(
-                originalTargetShape.replicadShape,
-                shape.replicadShape,
-                originalTargetShape.position,
-                newPosition,
-                originalTargetShape.rotation,
-                newRotation,
-                originalTargetShape.scale,
-                newScale
-              );
-
-              const newGeometry = convertReplicadToThreeGeometry(resultShape);
-              const newBaseVertices = await getReplicadVertices(resultShape);
-
-              updateShape(targetShape.id, {
-                geometry: newGeometry,
-                replicadShape: resultShape,
-                parameters: {
-                  ...targetShape.parameters,
-                  scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-                }
-              });
-
-              console.log(`✅ Updated ${targetShape.id} with new boolean result`);
-            }
-          }
-
-          setTimeout(() => {
-            isUpdatingRef.current = false;
-          }, 0);
-        }
-      };
-
-      controls.addEventListener('dragging-changed', onDraggingChanged);
-      controls.addEventListener('change', onChange);
-
-      return () => {
-        controls.removeEventListener('dragging-changed', onDraggingChanged);
-        controls.removeEventListener('change', onChange);
-      };
-    }
-  }, [shouldShowAsBooleanSource, shape.id, updateShape, orbitControlsRef, booleanEditMode]);
-
   const getTransformMode = () => {
     switch (activeTool) {
       case Tool.MOVE:
@@ -316,11 +214,9 @@ const ShapeWithTransform: React.FC<{
   const isXray = viewMode === ViewMode.XRAY;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
-  const isBooleanSource = booleanSourceShapes.has(shape.id);
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
-  const shouldShowAsBooleanSource = booleanEditMode && isBooleanSource;
 
-  if (shape.isolated === false && !shouldShowAsBooleanSource) {
+  if (shape.isolated === false) {
     return null;
   }
 
@@ -346,7 +242,7 @@ const ShapeWithTransform: React.FC<{
           onContextMenu(e, shape.id);
         }}
       >
-        {!isWireframe && !isXray && !shouldShowAsReference && !shouldShowAsBooleanSource && (
+        {!isWireframe && !isXray && !shouldShowAsReference && (
           <mesh
             ref={meshRef}
             geometry={localGeometry}
@@ -368,34 +264,6 @@ const ShapeWithTransform: React.FC<{
                 color={isSelected ? '#1e3a8a' : '#0a0a0a'}
                 linewidth={1.5}
                 opacity={0.8}
-                transparent
-                depthTest={true}
-              />
-            </lineSegments>
-          </mesh>
-        )}
-        {shouldShowAsBooleanSource && (
-          <mesh
-            ref={meshRef}
-            geometry={localGeometry}
-            castShadow
-            receiveShadow
-          >
-            <meshStandardMaterial
-              color={isSelected ? '#f87171' : '#ef4444'}
-              metalness={0.3}
-              roughness={0.4}
-            />
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, 1]} />
-              )}
-              <lineBasicMaterial
-                color={isSelected ? '#991b1b' : '#dc2626'}
-                linewidth={2}
-                opacity={0.9}
                 transparent
                 depthTest={true}
               />
@@ -478,15 +346,6 @@ const ShapeWithTransform: React.FC<{
           ref={transformRef}
           object={groupRef.current}
           mode={getTransformMode()}
-          size={0.8}
-        />
-      )}
-      {shouldShowAsBooleanSource && groupRef.current && (
-        <TransformControls
-          key={`boolean-${geometryKey}`}
-          ref={booleanTransformRef}
-          object={groupRef.current}
-          mode="translate"
           size={0.8}
         />
       )}
