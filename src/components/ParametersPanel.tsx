@@ -244,44 +244,55 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     try {
       const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
       let newBaseVertices: THREE.Vector3[] = [];
-      let originalBaseVertices: THREE.Vector3[] = [];
+      let currentBaseVertices: THREE.Vector3[] = [];
 
-      const hasOriginalDimensions = selectedShape.parameters.originalWidth !== undefined;
-      const originalWidth = hasOriginalDimensions ? selectedShape.parameters.originalWidth : selectedShape.parameters.width;
-      const originalHeight = hasOriginalDimensions ? selectedShape.parameters.originalHeight : selectedShape.parameters.height;
-      const originalDepth = hasOriginalDimensions ? selectedShape.parameters.originalDepth : selectedShape.parameters.depth;
+      const currentWidth = selectedShape.parameters.width;
+      const currentHeight = selectedShape.parameters.height;
+      const currentDepth = selectedShape.parameters.depth;
 
-      const scaleX = width / originalWidth;
-      const scaleY = height / originalHeight;
-      const scaleZ = depth / originalDepth;
+      const scaleX = width / currentWidth;
+      const scaleY = height / currentHeight;
+      const scaleZ = depth / currentDepth;
 
-      const dimensionsChanged = width !== originalWidth || height !== originalHeight || depth !== originalDepth;
+      const dimensionsChanged = width !== currentWidth || height !== currentHeight || depth !== currentDepth;
 
       console.log('📐 Dimension changes:', {
-        original: { w: originalWidth, h: originalHeight, d: originalDepth },
-        current: { w: selectedShape.parameters.width, h: selectedShape.parameters.height, d: selectedShape.parameters.depth },
+        current: { w: currentWidth, h: currentHeight, d: currentDepth },
         new: { w: width, h: height, d: depth },
         scale: { x: scaleX, y: scaleY, z: scaleZ },
-        changed: dimensionsChanged,
-        hasOriginalDimensions
+        changed: dimensionsChanged
       });
 
-      if (selectedShape.replicadShape) {
-        console.log('🔍 Using existing replicadShape for base vertices');
-        originalBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
+      if (selectedShape.parameters.scaledBaseVertices && selectedShape.parameters.scaledBaseVertices.length > 0) {
+        console.log('🔍 Using existing scaled base vertices');
+        currentBaseVertices = selectedShape.parameters.scaledBaseVertices.map((v: number[]) =>
+          new THREE.Vector3(v[0], v[1], v[2])
+        );
 
         if (dimensionsChanged) {
-          console.log('📏 Scaling base vertices by:', { scaleX, scaleY, scaleZ });
-          newBaseVertices = originalBaseVertices.map(v =>
+          console.log('📏 Scaling base vertices from current by:', { scaleX, scaleY, scaleZ });
+          newBaseVertices = currentBaseVertices.map(v =>
             new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
           );
         } else {
-          newBaseVertices = originalBaseVertices;
+          newBaseVertices = currentBaseVertices;
+        }
+      } else if (selectedShape.replicadShape) {
+        console.log('🔍 Using replicadShape for initial base vertices');
+        currentBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
+
+        if (dimensionsChanged) {
+          console.log('📏 Scaling base vertices from replicad by:', { scaleX, scaleY, scaleZ });
+          newBaseVertices = currentBaseVertices.map(v =>
+            new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
+          );
+        } else {
+          newBaseVertices = currentBaseVertices;
         }
       } else if (selectedShape.type === 'box') {
         console.log('📦 Calculating base vertices from box parameters');
         newBaseVertices = getBoxVertices(width, height, depth);
-        originalBaseVertices = getBoxVertices(originalWidth, originalHeight, originalDepth);
+        currentBaseVertices = getBoxVertices(currentWidth, currentHeight, currentDepth);
       }
 
       const updatedVertexMods = vertexModifications.map((mod: any) => {
@@ -353,11 +364,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           height,
           depth,
           customParameters,
-          originalWidth: hasOriginalDimensions ? selectedShape.parameters.originalWidth : selectedShape.parameters.width,
-          originalHeight: hasOriginalDimensions ? selectedShape.parameters.originalHeight : selectedShape.parameters.height,
-          originalDepth: hasOriginalDimensions ? selectedShape.parameters.originalDepth : selectedShape.parameters.depth,
-          scaledBaseVertices: dimensionsChanged && newBaseVertices.length > 0 ?
-            newBaseVertices.map(v => [v.x, v.y, v.z]) : undefined
+          scaledBaseVertices: newBaseVertices.length > 0 ?
+            newBaseVertices.map(v => [v.x, v.y, v.z]) :
+            (selectedShape.parameters.scaledBaseVertices || undefined)
         },
         vertexModifications: updatedVertexMods,
         ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })

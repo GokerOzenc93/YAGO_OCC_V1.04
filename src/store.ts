@@ -395,6 +395,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
+            const { getReplicadVertices } = await import('./services/vertexEditor');
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
@@ -402,6 +403,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             );
 
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
+            const newBaseVertices = await getReplicadVertices(resultShape);
 
             set((state) => ({
               shapes: state.shapes.map((s) => {
@@ -412,9 +414,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     replicadShape: resultShape,
                     parameters: {
                       ...s.parameters,
-                      originalWidth: s.parameters.originalWidth ?? s.parameters.width,
-                      originalHeight: s.parameters.originalHeight ?? s.parameters.height,
-                      originalDepth: s.parameters.originalDepth ?? s.parameters.depth
+                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
                     }
                   };
                 }

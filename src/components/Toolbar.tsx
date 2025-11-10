@@ -489,6 +489,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) that will keep the result`);
 
       const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { getReplicadVertices } = await import('../services/vertexEditor');
 
       for (const targetShape of intersectingShapes) {
         if (!targetShape.replicadShape) {
@@ -512,15 +513,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         );
 
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
+        const newBaseVertices = await getReplicadVertices(resultShape);
 
         updateShape(targetShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
           parameters: {
             ...targetShape.parameters,
-            originalWidth: targetShape.parameters.originalWidth ?? targetShape.parameters.width,
-            originalHeight: targetShape.parameters.originalHeight ?? targetShape.parameters.height,
-            originalDepth: targetShape.parameters.originalDepth ?? targetShape.parameters.depth
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
           }
         });
 
