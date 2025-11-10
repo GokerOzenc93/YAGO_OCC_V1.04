@@ -37,13 +37,17 @@ const CuttingBox: React.FC<{ shape: any; cut: any }> = ({ shape, cut }) => {
     return null;
   }
 
+  const finalWidth = width * scale[0];
+  const finalHeight = height * scale[1];
+  const finalDepth = depth * scale[2];
+
   const position: [number, number, number] = [
-    shape.position[0] + (cut.position?.[0] || 0),
-    shape.position[1] + (cut.position?.[1] || 0),
-    shape.position[2] + (cut.position?.[2] || 0)
+    shape.position[0] + (cut.position?.[0] || 0) + finalWidth / 2,
+    shape.position[1] + (cut.position?.[1] || 0) + finalHeight / 2,
+    shape.position[2] + (cut.position?.[2] || 0) + finalDepth / 2
   ];
 
-  console.log('✅ CuttingBox rendering at:', position, 'with scale:', scale);
+  console.log('✅ CuttingBox rendering at:', position, 'with scale:', scale, 'final dims:', { finalWidth, finalHeight, finalDepth });
 
   return (
     <mesh position={position} rotation={cut.rotation || [0, 0, 0]} scale={scale}>
