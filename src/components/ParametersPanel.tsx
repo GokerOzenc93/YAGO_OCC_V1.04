@@ -41,60 +41,18 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [pendingCutChanges, setPendingCutChanges] = useState<{[key: string]: any}>({});
   const [intersectionVolumes, setIntersectionVolumes] = useState<{[key: string]: number}>({});
 
-  const calculateAndUpdateIntersectionVolume = async (shapeIdx: number, cut: any) => {
-    try {
-      if (!selectedShape) return;
-
-      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      const { calculateIntersectionVolume } = await import('../services/csg');
-
-      const baseShape = await createReplicadBox({
-        width: selectedShape.parameters.width || 100,
-        height: selectedShape.parameters.height || 100,
-        depth: selectedShape.parameters.depth || 100
-      });
-
-      const cuttingShape = await createReplicadBox({
-        width: cut.width || 0,
-        height: cut.height || 0,
-        depth: cut.depth || 0
-      });
-
-      const baseGeometry = convertReplicadToThreeGeometry(baseShape);
-      const cuttingGeometry = convertReplicadToThreeGeometry(cuttingShape);
-
-      const cutGeometry = cuttingGeometry.clone();
-      const cutPosition = cut.position || [0, 0, 0];
-      cutGeometry.translate(cutPosition[0], cutPosition[1], cutPosition[2]);
-
-      const volume = calculateIntersectionVolume(baseGeometry, cutGeometry);
-
-      setIntersectionVolumes(prev => ({
-        ...prev,
-        [shapeIdx]: volume
-      }));
-
-      return volume;
-    } catch (error) {
-      console.error('Failed to calculate intersection volume:', error);
-      return 0;
-    }
+  const calculateIntersectionVolume = (cut: any): number => {
+    if (!cut.width || !cut.height || !cut.depth) return 0;
+    return cut.width * cut.height * cut.depth;
   };
 
-  const handleIntersectionChange = async (shapeIdx: number, field: string, value: number) => {
+  const handleIntersectionChange = (shapeIdx: number, field: string, value: number) => {
     if (!selectedShape || !selectedShape.parameters.subtractedShapes) {
-      console.error('❌ No selected shape or subtracted shapes');
       return;
     }
 
-    console.log(`🔄 Intersection value changed for cut ${shapeIdx + 1}: ${field} = ${value}`);
-    console.log('📦 Current shape:', selectedShape);
-    console.log('📦 Current subtracted shapes:', selectedShape.parameters.subtractedShapes);
-
     const updatedSubtractedShapes = [...selectedShape.parameters.subtractedShapes];
     const currentCut = updatedSubtractedShapes[shapeIdx];
-
-    console.log('📍 Current cut before update:', currentCut);
 
     const currentIntersectionW = currentCut.intersectionWidth || 0;
     const currentIntersectionH = currentCut.intersectionHeight || 0;
@@ -105,29 +63,18 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     let newDepth = currentCut.depth || 0;
     let newPosition = [...(currentCut.position || [0, 0, 0])];
 
-    console.log('📏 Before delta calculation:', {
-      field,
-      value,
-      currentIntersection: { w: currentIntersectionW, h: currentIntersectionH, d: currentIntersectionD },
-      currentDimensions: { width: newWidth, height: newHeight, depth: newDepth },
-      currentPosition: newPosition
-    });
-
     if (field === 'intersectionWidth') {
       const delta = value - currentIntersectionW;
       newWidth += delta;
       newPosition[0] -= delta / 2;
-      console.log(`📐 Width delta: ${delta}, new width: ${newWidth}, new X position: ${newPosition[0]}`);
     } else if (field === 'intersectionHeight') {
       const delta = value - currentIntersectionH;
       newHeight += delta;
       newPosition[1] -= delta / 2;
-      console.log(`📐 Height delta: ${delta}, new height: ${newHeight}, new Y position: ${newPosition[1]}`);
     } else if (field === 'intersectionDepth') {
       const delta = value - currentIntersectionD;
       newDepth += delta;
       newPosition[2] -= delta / 2;
-      console.log(`📐 Depth delta: ${delta}, new depth: ${newDepth}, new Z position: ${newPosition[2]}`);
     }
 
     updatedSubtractedShapes[shapeIdx] = {
@@ -139,17 +86,33 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       position: newPosition
     };
 
-    console.log('📍 Updated cut:', updatedSubtractedShapes[shapeIdx]);
+    const volume = calculateIntersectionVolume(updatedSubtractedShapes[shapeIdx]);
+    setIntersectionVolumes(prev => ({
+      ...prev,
+      [shapeIdx]: volume
+    }));
+
+    setPendingCutChanges(prev => ({
+      ...prev,
+      [shapeIdx]: updatedSubtractedShapes[shapeIdx]
+    }));
+
+    updateShape(selectedShape.id, {
+      parameters: {
+        ...selectedShape.parameters,
+        subtractedShapes: updatedSubtractedShapes
+      }
+    });
+  };
+
+  const applyPendingChanges = async () => {
+    if (!selectedShape || Object.keys(pendingCutChanges).length === 0) return;
+
+    console.log('🔄 Applying pending cut changes...');
 
     try {
       const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
       const { getReplicadVertices } = await import('../services/vertexEditor');
-
-      console.log('🔨 Recreating base shape from original parameters...', {
-        width: selectedShape.parameters.width,
-        height: selectedShape.parameters.height,
-        depth: selectedShape.parameters.depth
-      });
 
       let resultShape;
       if (selectedShape.type === 'box') {
@@ -159,19 +122,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           depth: selectedShape.parameters.depth || 100
         });
       } else {
-        console.warn('⚠️ Only box type is currently supported for intersection editing');
+        console.warn('⚠️ Only box type is currently supported');
         return;
       }
 
-      console.log(`🔪 Applying ${updatedSubtractedShapes.length} cuts sequentially with Replicad...`);
-      for (let i = 0; i < updatedSubtractedShapes.length; i++) {
-        const cut = updatedSubtractedShapes[i];
+      const subtractedShapes = selectedShape.parameters.subtractedShapes || [];
 
-        console.log(`🔨 Cut ${i + 1}:`, {
-          dimensions: { width: cut.width, height: cut.height, depth: cut.depth },
-          position: cut.position,
-          rotation: cut.rotation
-        });
+      for (let i = 0; i < subtractedShapes.length; i++) {
+        const cut = subtractedShapes[i];
 
         const cuttingShape = await createReplicadBox({
           width: Math.max(cut.width || 0, 0.1),
@@ -179,7 +137,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           depth: Math.max(cut.depth || 0, 0.1)
         });
 
-        console.log(`🔪 Performing Replicad boolean cut ${i + 1}...`);
         resultShape = await performBooleanCut(
           resultShape,
           cuttingShape,
@@ -190,10 +147,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           [1, 1, 1],
           [1, 1, 1]
         );
-        console.log(`✅ Cut ${i + 1} completed`);
       }
 
-      console.log('🔄 Converting result to Three.js geometry...');
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       newGeometry.computeVertexNormals();
       newGeometry.computeBoundingBox();
@@ -201,31 +156,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       const newBaseVertices = await getReplicadVertices(resultShape);
 
-      console.log('📐 Calculating intersection volume after cut...');
-      await calculateAndUpdateIntersectionVolume(shapeIdx, updatedSubtractedShapes[shapeIdx]);
-
-      console.log('🔄 Updating shape with new geometry...', {
-        shapeId: selectedShape.id,
-        geometryVertices: newGeometry.attributes.position.count,
-        boundingBox: newGeometry.boundingBox,
-        timestamp: Date.now()
-      });
-
       updateShape(selectedShape.id, {
         geometry: newGeometry,
         replicadShape: resultShape,
         parameters: {
           ...selectedShape.parameters,
           scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-          subtractedShapes: updatedSubtractedShapes,
           modified: Date.now()
         }
       });
 
-      console.log('✅ Geometry dynamically updated with Replicad boolean cuts');
+      setPendingCutChanges({});
+      console.log('✅ Changes applied successfully');
     } catch (error) {
-      console.error('❌ Failed to update geometry with new intersection values:', error);
-      console.error('Error stack:', error);
+      console.error('❌ Failed to apply changes:', error);
     }
   };
 
@@ -848,17 +792,29 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               return hasSubtractedShapes;
             })() && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
-                <div className="text-xs font-semibold text-slate-700 mb-2">
-                  Subtracted Shapes ({selectedShape.parameters.subtractedShapes.length})
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-semibold text-slate-700">
+                    Subtracted Shapes ({selectedShape.parameters.subtractedShapes.length})
+                  </div>
+                  {Object.keys(pendingCutChanges).length > 0 && (
+                    <button
+                      onClick={applyPendingChanges}
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                    >
+                      <Check size={12} />
+                      Apply Changes
+                    </button>
+                  )}
                 </div>
                 {selectedShape.parameters.subtractedShapes.map((subtractedShape: any, shapeIdx: number) => {
                   const cutKey = `${shapeIdx}`;
                   const pendingCut = pendingCutChanges[cutKey] || {};
+                  const hasPendingChanges = !!pendingCutChanges[cutKey];
 
                   return (
-                  <div key={subtractedShape.id || shapeIdx} className="space-y-1">
+                  <div key={subtractedShape.id || shapeIdx} className={`space-y-1 p-2 rounded ${hasPendingChanges ? 'bg-yellow-50 border border-yellow-200' : ''}`}>
                     <div className="text-xs font-medium text-stone-600 mb-1">
-                      Cut {shapeIdx + 1}
+                      Cut {shapeIdx + 1} {hasPendingChanges && <span className="text-yellow-600">(modified)</span>}
                     </div>
 
                     <div className="flex gap-1 items-center">

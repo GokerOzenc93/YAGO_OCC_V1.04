@@ -403,14 +403,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
-            const { calculatePenetrationDepths } = await import('./services/csg');
-
-            const intersectionDepths = calculatePenetrationDepths(
-              { geometry: shape1.geometry, position: shape1.position },
-              { geometry: shape2.geometry, position: shape2.position }
-            );
-
-            console.log('📏 Intersection depths (actual cut values):', intersectionDepths);
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
