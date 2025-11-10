@@ -327,20 +327,35 @@ const Scene: React.FC = () => {
   }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
 
   useEffect(() => {
-    (window as any).handleVertexOffset = (newValue: number) => {
+    (window as any).handleVertexOffset = async (newValue: number) => {
       if (selectedShapeId && selectedVertexIndex !== null && vertexDirection) {
         const shape = shapes.find(s => s.id === selectedShapeId);
         if (shape && shape.parameters) {
-          const baseVertices = [
-            [0, 0, 0],
-            [shape.parameters.width, 0, 0],
-            [shape.parameters.width, shape.parameters.height, 0],
-            [0, shape.parameters.height, 0],
-            [0, 0, shape.parameters.depth],
-            [shape.parameters.width, 0, shape.parameters.depth],
-            [shape.parameters.width, shape.parameters.height, shape.parameters.depth],
-            [0, shape.parameters.height, shape.parameters.depth],
-          ];
+          console.log('📝 Processing vertex offset:', { newValue, vertexIndex: selectedVertexIndex, direction: vertexDirection });
+
+          let baseVertices: number[][] = [];
+
+          if (shape.replicadShape) {
+            console.log('🔍 Getting vertices from Replicad shape for offset calculation...');
+            const { getReplicadVertices } = await import('../services/vertexEditor');
+            const verts = await getReplicadVertices(shape.replicadShape);
+            baseVertices = verts.map(v => [v.x, v.y, v.z]);
+            console.log(`✅ Got ${baseVertices.length} vertices from Replicad`);
+          } else if (shape.type === 'box') {
+            const { getBoxVertices } = await import('../services/vertexEditor');
+            const verts = getBoxVertices(
+              shape.parameters.width,
+              shape.parameters.height,
+              shape.parameters.depth
+            );
+            baseVertices = verts.map(v => [v.x, v.y, v.z]);
+            console.log(`✅ Got ${baseVertices.length} vertices from box parameters`);
+          }
+
+          if (selectedVertexIndex >= baseVertices.length) {
+            console.error('❌ Invalid vertex index:', selectedVertexIndex);
+            return;
+          }
 
           const originalPos = baseVertices[selectedVertexIndex];
 
@@ -368,10 +383,15 @@ const Scene: React.FC = () => {
             newPosition,
             direction: vertexDirection,
             expression: String(newValue),
-            description: `Vertex ${selectedVertexIndex} ${axisName}${directionSymbol}`
+            description: `Vertex ${selectedVertexIndex} ${axisName}${directionSymbol}`,
+            offset: [
+              newPosition[0] - originalPos[0],
+              newPosition[1] - originalPos[1],
+              newPosition[2] - originalPos[2]
+            ] as [number, number, number]
           });
 
-          console.log(`✅ Vertex ${selectedVertexIndex} moved to [${newPosition[0]}, ${newPosition[1]}, ${newPosition[2]}]`);
+          console.log(`✅ Vertex ${selectedVertexIndex} moved from [${originalPos}] to [${newPosition[0]}, ${newPosition[1]}, ${newPosition[2]}]`);
         }
 
         (window as any).pendingVertexEdit = false;
