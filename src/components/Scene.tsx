@@ -5,7 +5,6 @@ import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
-import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
 
 const ShapeWithTransform: React.FC<{
@@ -27,89 +26,13 @@ const ShapeWithTransform: React.FC<{
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
-  const vertexModsString = JSON.stringify(shape.vertexModifications || []);
 
   useEffect(() => {
     const loadEdges = async () => {
-      const hasVertexMods = shape.vertexModifications && shape.vertexModifications.length > 0;
-      const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods;
-
-      if (shouldUpdate && shape.geometry) {
-        console.log(`🔄 Geometry update for shape ${shape.id}`, { hasVertexMods, vertexModCount: shape.vertexModifications?.length || 0 });
+      if (shape.geometry && shape.geometry !== localGeometry) {
+        console.log(`🔄 Geometry update for shape ${shape.id}`);
 
         let geom = shape.geometry.clone();
-
-        if (hasVertexMods) {
-          console.log(`🔧 Applying ${shape.vertexModifications.length} vertex modifications to geometry`);
-
-          const positionAttribute = geom.getAttribute('position');
-          const positions = positionAttribute.array as Float32Array;
-
-          const vertexMap = new Map<string, number[]>();
-          for (let i = 0; i < positions.length; i += 3) {
-            const x = Math.round(positions[i] * 100) / 100;
-            const y = Math.round(positions[i + 1] * 100) / 100;
-            const z = Math.round(positions[i + 2] * 100) / 100;
-            const key = `${x},${y},${z}`;
-
-            if (!vertexMap.has(key)) {
-              vertexMap.set(key, []);
-            }
-            vertexMap.get(key)!.push(i);
-          }
-
-          const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
-          let baseVertices: THREE.Vector3[] = [];
-
-          if (shape.replicadShape) {
-            baseVertices = await getReplicadVertices(shape.replicadShape);
-          } else if (shape.type === 'box' && shape.parameters) {
-            baseVertices = getBoxVertices(
-              shape.parameters.width,
-              shape.parameters.height,
-              shape.parameters.depth
-            );
-          }
-
-          shape.vertexModifications.forEach((mod: any) => {
-            const baseVertex = baseVertices[mod.vertexIndex];
-            if (!baseVertex) {
-              console.warn(`⚠️ Base vertex ${mod.vertexIndex} not found`);
-              return;
-            }
-
-            const key = `${Math.round(baseVertex.x * 100) / 100},${Math.round(baseVertex.y * 100) / 100},${Math.round(baseVertex.z * 100) / 100}`;
-            const indices = vertexMap.get(key);
-
-            if (indices) {
-              console.log(`✅ Applying modification to vertex ${mod.vertexIndex}:`, {
-                originalPos: mod.originalPosition,
-                newPos: mod.newPosition,
-                baseVertexPos: [baseVertex.x, baseVertex.y, baseVertex.z],
-                affectedMeshVertices: indices.length
-              });
-
-              const offset = [
-                mod.newPosition[0] - mod.originalPosition[0],
-                mod.newPosition[1] - mod.originalPosition[1],
-                mod.newPosition[2] - mod.originalPosition[2]
-              ];
-
-              indices.forEach(idx => {
-                positions[idx] = baseVertex.x + offset[0];
-                positions[idx + 1] = baseVertex.y + offset[1];
-                positions[idx + 2] = baseVertex.z + offset[2];
-              });
-            } else {
-              console.warn(`⚠️ No mesh vertices found for base vertex ${mod.vertexIndex} (key: ${key})`);
-            }
-          });
-
-          positionAttribute.needsUpdate = true;
-          geom.computeVertexNormals();
-          geom.computeBoundingBox();
-          geom.computeBoundingSphere();
-        }
 
         setLocalGeometry(geom);
 
@@ -139,7 +62,7 @@ const ShapeWithTransform: React.FC<{
     };
 
     loadEdges();
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.parameters?.modified, shape.geometry, shape.id]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
@@ -363,14 +286,7 @@ const Scene: React.FC = () => {
     deleteShape,
     copyShape,
     isolateShape,
-    exitIsolation,
-    vertexEditMode,
-    setVertexEditMode,
-    selectedVertexIndex,
-    setSelectedVertexIndex,
-    vertexDirection,
-    setVertexDirection,
-    addVertexModification
+    exitIsolation
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -382,7 +298,6 @@ const Scene: React.FC = () => {
       } else if (e.key === 'Escape') {
         selectShape(null);
         exitIsolation();
-        setVertexEditMode(false);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -403,94 +318,9 @@ const Scene: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
-
-  useEffect(() => {
-    (window as any).handleVertexOffset = async (newValue: number) => {
-      if (selectedShapeId && selectedVertexIndex !== null && vertexDirection) {
-        const shape = shapes.find(s => s.id === selectedShapeId);
-        if (shape && shape.parameters) {
-          console.log('📝 Processing vertex offset:', { newValue, vertexIndex: selectedVertexIndex, direction: vertexDirection });
-
-          let baseVertices: number[][] = [];
-
-          if (shape.replicadShape) {
-            console.log('🔍 Getting vertices from Replicad shape for offset calculation...');
-            const { getReplicadVertices } = await import('../services/vertexEditor');
-            const verts = await getReplicadVertices(shape.replicadShape);
-            baseVertices = verts.map(v => [v.x, v.y, v.z]);
-            console.log(`✅ Got ${baseVertices.length} vertices from Replicad`);
-          } else if (shape.type === 'box') {
-            const { getBoxVertices } = await import('../services/vertexEditor');
-            const verts = getBoxVertices(
-              shape.parameters.width,
-              shape.parameters.height,
-              shape.parameters.depth
-            );
-            baseVertices = verts.map(v => [v.x, v.y, v.z]);
-            console.log(`✅ Got ${baseVertices.length} vertices from box parameters`);
-          }
-
-          if (selectedVertexIndex >= baseVertices.length) {
-            console.error('❌ Invalid vertex index:', selectedVertexIndex);
-            return;
-          }
-
-          const originalPos = baseVertices[selectedVertexIndex];
-
-          const offset: [number, number, number] = [0, 0, 0];
-          const newPosition: [number, number, number] = [...originalPos];
-
-          if (vertexDirection === 'x+' || vertexDirection === 'x-') {
-            offset[0] = newValue - originalPos[0];
-            newPosition[0] = newValue;
-          } else if (vertexDirection === 'y+' || vertexDirection === 'y-') {
-            offset[1] = newValue - originalPos[1];
-            newPosition[1] = newValue;
-          } else if (vertexDirection === 'z+' || vertexDirection === 'z-') {
-            offset[2] = newValue - originalPos[2];
-            newPosition[2] = newValue;
-          }
-
-          const axisName = vertexDirection[0].toUpperCase();
-          const directionSymbol = vertexDirection[1] === '+' ? '+' : '-';
-
-          addVertexModification(selectedShapeId, {
-            vertexIndex: selectedVertexIndex,
-            originalPosition: originalPos as [number, number, number],
-            newPosition,
-            direction: vertexDirection,
-            expression: String(newValue),
-            description: `Vertex ${selectedVertexIndex} ${axisName}${directionSymbol}`,
-            offset
-          });
-
-          console.log(`✅ Vertex ${selectedVertexIndex}:`, {
-            base: `[${originalPos[0].toFixed(1)}, ${originalPos[1].toFixed(1)}, ${originalPos[2].toFixed(1)}]`,
-            userValue: newValue,
-            axis: axisName,
-            offset: `[${offset[0].toFixed(1)}, ${offset[1].toFixed(1)}, ${offset[2].toFixed(1)}]`,
-            final: `[${newPosition[0].toFixed(1)}, ${newPosition[1].toFixed(1)}, ${newPosition[2].toFixed(1)}]`
-          });
-        }
-
-        (window as any).pendingVertexEdit = false;
-        setSelectedVertexIndex(null);
-      }
-    };
-
-    (window as any).pendingVertexEdit = selectedVertexIndex !== null && vertexDirection !== null;
-
-    return () => {
-      delete (window as any).handleVertexOffset;
-      delete (window as any).pendingVertexEdit;
-    };
-  }, [selectedShapeId, selectedVertexIndex, vertexDirection, shapes, addVertexModification, setSelectedVertexIndex]);
+  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
-    if (vertexEditMode) {
-      return;
-    }
     e.nativeEvent.preventDefault();
     selectShape(shapeId);
     const shape = shapes.find(s => s.id === shapeId);
@@ -528,7 +358,6 @@ const Scene: React.FC = () => {
             scale: s.scale,
             color: s.color,
             parameters: s.parameters,
-            vertexModifications: s.vertexModifications || [],
             isReferenceBox: s.isReferenceBox
           }))
         };
@@ -545,8 +374,7 @@ const Scene: React.FC = () => {
           rotation: shape.rotation,
           scale: shape.scale,
           color: shape.color,
-          parameters: shape.parameters,
-          vertexModifications: shape.vertexModifications || []
+          parameters: shape.parameters
         };
 
         console.log('💾 Saving geometry:', {
@@ -554,8 +382,7 @@ const Scene: React.FC = () => {
           type: shape.type,
           parameters: shape.parameters,
           position: shape.position,
-          scale: shape.scale,
-          vertexModifications: shape.vertexModifications?.length || 0
+          scale: shape.scale
         });
       }
 
@@ -648,25 +475,13 @@ const Scene: React.FC = () => {
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
         return (
-          <React.Fragment key={shape.id}>
-            <ShapeWithTransform
-              shape={shape}
-              isSelected={isSelected}
-              orbitControlsRef={controlsRef}
-              onContextMenu={handleContextMenu}
-            />
-            {isSelected && vertexEditMode && (
-              <VertexEditor
-                shape={shape}
-                isActive={true}
-                onVertexSelect={(index) => setSelectedVertexIndex(index)}
-                onDirectionChange={(dir) => setVertexDirection(dir)}
-                onOffsetConfirm={(vertexIndex, direction, offset) => {
-                  console.log('Offset confirmed:', { vertexIndex, direction, offset });
-                }}
-              />
-            )}
-          </React.Fragment>
+          <ShapeWithTransform
+            key={shape.id}
+            shape={shape}
+            isSelected={isSelected}
+            orbitControlsRef={controlsRef}
+            onContextMenu={handleContextMenu}
+          />
         );
       })}
 

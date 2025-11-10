@@ -20,9 +20,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const {
     selectedShapeId,
     shapes,
-    updateShape,
-    vertexEditMode,
-    setVertexEditMode
+    updateShape
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -34,7 +32,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [height, setHeight] = useState(0);
   const [depth, setDepth] = useState(0);
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
-  const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
   useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
@@ -52,13 +49,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setHeight(selectedShape.parameters.height || 0);
       setDepth(selectedShape.parameters.depth || 0);
       setCustomParameters(selectedShape.parameters.customParameters || []);
-      setVertexModifications(selectedShape.vertexModifications || []);
     } else {
       setWidth(0);
       setHeight(0);
       setDepth(0);
       setCustomParameters([]);
-      setVertexModifications([]);
     }
   }, [selectedShape, selectedShapeId, shapes]);
 
@@ -221,73 +216,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     console.log('Shape type:', selectedShape.type);
     console.log('New dimensions:', { width, height, depth });
 
-    const evaluateVertexExpression = (expr: string): number => {
-      try {
-        let evalExpr = expr
-          .replace(/\bW\b/g, width.toString())
-          .replace(/\bH\b/g, height.toString())
-          .replace(/\bD\b/g, depth.toString());
-
-        customParameters.forEach((p) => {
-          const regex = new RegExp(`\\b${p.name}\\b`, 'g');
-          evalExpr = evalExpr.replace(regex, p.result.toString());
-        });
-
-        const sanitized = evalExpr.replace(/[^0-9+\-*/().\s]/g, '');
-        const result = Function(`"use strict"; return (${sanitized})`)();
-        return typeof result === 'number' && !isNaN(result) ? result : 0;
-      } catch {
-        return 0;
-      }
-    };
-
-    const { getBoxVertices } = await import('../services/vertexEditor');
-    const newBaseVertices = selectedShape.type === 'box'
-      ? getBoxVertices(width, height, depth)
-      : [];
-
-    const updatedVertexMods = vertexModifications.map((mod: any) => {
-      const newOriginalPos = newBaseVertices[mod.vertexIndex]
-        ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
-        : mod.originalPosition;
-
-      const expression = mod.expression || String(mod.newPosition[0]);
-      const absoluteValue = evaluateVertexExpression(expression);
-
-      const newOffset = [0, 0, 0] as [number, number, number];
-      const newPos = [...newOriginalPos] as [number, number, number];
-
-      if (mod.direction.startsWith('x')) {
-        newOffset[0] = absoluteValue - newOriginalPos[0];
-        newPos[0] = absoluteValue;
-      } else if (mod.direction.startsWith('y')) {
-        newOffset[1] = absoluteValue - newOriginalPos[1];
-        newPos[1] = absoluteValue;
-      } else {
-        newOffset[2] = absoluteValue - newOriginalPos[2];
-        newPos[2] = absoluteValue;
-      }
-
-      console.log(`📍 Vertex ${mod.vertexIndex} dimension update:`, {
-        vertexIndex: mod.vertexIndex,
-        direction: mod.direction,
-        axis: mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z',
-        newBaseVertex: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
-        expression,
-        userSetValue: absoluteValue.toFixed(1),
-        calculatedOffset: `[${newOffset[0].toFixed(1)}, ${newOffset[1].toFixed(1)}, ${newOffset[2].toFixed(1)}]`,
-        finalPosition: `[${newPos[0].toFixed(1)}, ${newPos[1].toFixed(1)}, ${newPos[2].toFixed(1)}]`,
-        explanation: `${mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z'} = ${absoluteValue.toFixed(1)}, offset from new base = ${newOffset[mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2].toFixed(1)}`
-      });
-
-      return {
-        ...mod,
-        originalPosition: newOriginalPos,
-        newPosition: newPos,
-        offset: newOffset
-      };
-    });
-
     try {
       const { createReplicadBox, createReplicadCylinder, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
@@ -307,11 +235,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         console.log('✅ Cylinder geometry regenerated');
       }
 
-      console.log('📝 Updating shape with new parameters and vertex modifications:', {
-        vertexModsCount: updatedVertexMods.length,
-        hasNewGeometry: !!newGeometry,
-        hasReplicadShape: !!newReplicadShape
-      });
+      console.log('📝 Updating shape with new parameters');
 
       updateShape(selectedShape.id, {
         parameters: {
@@ -321,7 +245,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           depth,
           customParameters,
         },
-        vertexModifications: updatedVertexMods,
         ...(newGeometry && { geometry: newGeometry }),
         ...(newReplicadShape && { replicadShape: newReplicadShape })
       });
@@ -337,8 +260,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           height,
           depth,
           customParameters,
-        },
-        vertexModifications: updatedVertexMods
+        }
       });
     }
   };
@@ -363,17 +285,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           <span className="text-sm font-semibold text-slate-800">Parameters</span>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setVertexEditMode(!vertexEditMode)}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
-              vertexEditMode
-                ? 'bg-orange-600 text-white'
-                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-            }`}
-            title="Edit Vertices"
-          >
-            VERTEX
-          </button>
           <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
@@ -517,89 +428,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     </button>
                   </div>
                 ))}
-              </div>
-            )}
-
-            {vertexModifications.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-stone-200">
-                {vertexModifications.map((mod: any, idx: number) => {
-                  const currentValue = mod.direction.startsWith('x') ? mod.newPosition[0] :
-                                       mod.direction.startsWith('y') ? mod.newPosition[1] :
-                                       mod.newPosition[2];
-
-                  const evaluateVertexExpression = (expr: string): number => {
-                    try {
-                      let evalExpr = expr
-                        .replace(/\bW\b/g, width.toString())
-                        .replace(/\bH\b/g, height.toString())
-                        .replace(/\bD\b/g, depth.toString());
-
-                      customParameters.forEach((p) => {
-                        const regex = new RegExp(`\\b${p.name}\\b`, 'g');
-                        evalExpr = evalExpr.replace(regex, p.result.toString());
-                      });
-
-                      const sanitized = evalExpr.replace(/[^0-9+\-*/().\s]/g, '');
-                      const result = Function(`"use strict"; return (${sanitized})`)();
-                      return typeof result === 'number' && !isNaN(result) ? result : currentValue;
-                    } catch {
-                      return currentValue;
-                    }
-                  };
-
-                  const expression = mod.expression || String(currentValue);
-                  const result = evaluateVertexExpression(expression);
-
-                  return (
-                    <div key={idx} className="flex gap-1 items-center">
-                      <input
-                        type="text"
-                        value={`V${mod.vertexIndex}`}
-                        readOnly
-                        className="w-10 px-2 py-1 text-xs font-medium text-center border border-stone-300 rounded bg-stone-50 text-stone-700"
-                      />
-                      <input
-                        type="text"
-                        value={expression}
-                        onChange={(e) => {
-                          const newExpr = e.target.value;
-                          const updatedMods = [...vertexModifications];
-                          updatedMods[idx] = { ...mod, expression: newExpr };
-                          setVertexModifications(updatedMods);
-                        }}
-                        className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
-                        placeholder="0"
-                      />
-                      <input
-                        type="text"
-                        value={result}
-                        readOnly
-                        className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
-                      />
-                      <input
-                        type="text"
-                        value={mod.description || ''}
-                        onChange={(e) => {
-                          const updatedMods = [...vertexModifications];
-                          updatedMods[idx] = { ...mod, description: e.target.value };
-                          setVertexModifications(updatedMods);
-                        }}
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
-                        placeholder="Description"
-                      />
-                      <button
-                        onClick={() => {
-                          const updatedMods = vertexModifications.filter((_: any, i: number) => i !== idx);
-                          setVertexModifications(updatedMods);
-                        }}
-                        className="p-1 hover:bg-red-100 rounded transition-colors flex-shrink-0"
-                        title="Delete Vertex"
-                      >
-                        <X size={14} className="text-red-600" />
-                      </button>
-                    </div>
-                  );
-                })}
               </div>
             )}
 
