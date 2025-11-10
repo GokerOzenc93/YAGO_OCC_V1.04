@@ -546,7 +546,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           intersectionDepth: intersectionDepths.z
         };
 
-        console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);
+        console.log('📦 Captured subtracted shape parameters with intersection:', {
+          ...subtractedParameters,
+          calculatedIntersection: {
+            width: intersectionDepths.x,
+            height: intersectionDepths.y,
+            depth: intersectionDepths.z
+          }
+        });
 
         const existingSubtractedShapes = targetShape.parameters.subtractedShapes || [];
 

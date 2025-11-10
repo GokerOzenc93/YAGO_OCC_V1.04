@@ -72,14 +72,23 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       for (let i = 0; i < updatedSubtractedShapes.length; i++) {
         const cut = updatedSubtractedShapes[i];
 
-        console.log(`🔨 Creating cutting shape ${i + 1} with dimensions [${cut.intersectionWidth}, ${cut.intersectionHeight}, ${cut.intersectionDepth}]`);
-        const cuttingShape = await createReplicadBox({
-          width: cut.intersectionWidth || 0,
-          height: cut.intersectionHeight || 0,
-          depth: cut.intersectionDepth || 0
+        const finalWidth = (cut.width || 0) + (cut.intersectionWidth || 0);
+        const finalHeight = (cut.height || 0) + (cut.intersectionHeight || 0);
+        const finalDepth = (cut.depth || 0) + (cut.intersectionDepth || 0);
+
+        console.log(`🔨 Creating cutting shape ${i + 1}:`, {
+          base: { w: cut.width, h: cut.height, d: cut.depth },
+          intersection: { w: cut.intersectionWidth, h: cut.intersectionHeight, d: cut.intersectionDepth },
+          final: { w: finalWidth, h: finalHeight, d: finalDepth }
         });
 
-        console.log(`🔪 Performing boolean cut ${i + 1}...`);
+        const cuttingShape = await createReplicadBox({
+          width: finalWidth,
+          height: finalHeight,
+          depth: finalDepth
+        });
+
+        console.log(`🔪 Performing boolean cut ${i + 1} at position:`, cut.position);
         resultShape = await performBooleanCut(
           resultShape,
           cuttingShape,
@@ -88,7 +97,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           [0, 0, 0],
           cut.rotation || [0, 0, 0],
           [1, 1, 1],
-          [1, 1, 1]
+          cut.scale || [1, 1, 1]
         );
       }
 
