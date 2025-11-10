@@ -87,10 +87,12 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
   const handleVertexClick = (index: number) => {
     setSelectedIndex(index);
     setShowDirections(true);
+    setSelectedDirection(null);
     onVertexSelect(index);
   };
 
   const handleDirectionClick = (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => {
+    setShowDirections(false);
     setSelectedDirection(direction);
 
     (window as any).pendingVertexEdit = {
@@ -131,9 +133,12 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
               />
             </mesh>
 
-            {selectedIndex === index && (showDirections || selectedDirection) && (
+            {selectedIndex === index && (showDirections || selectedDirection !== null) && (
               <>
-                {DIRECTIONS.filter(dir => showDirections || dir.direction === selectedDirection).map((dir) => {
+                {DIRECTIONS.filter(dir => {
+                  if (showDirections) return true;
+                  return dir.direction === selectedDirection;
+                }).map((dir) => {
                   const arrowStart = new THREE.Vector3(0, 0, 0);
                   const arrowEnd = new THREE.Vector3(...dir.offset);
                   const direction = arrowEnd.clone().sub(arrowStart).normalize();
