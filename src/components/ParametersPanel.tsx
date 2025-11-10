@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, GripVertical, Plus, Check, Minus } from 'lucide-react';
+import { X, GripVertical, Plus, Check } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
 
@@ -21,7 +21,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     selectedShapeId,
     shapes,
     updateShape,
-    deleteShape,
     vertexEditMode,
     setVertexEditMode
   } = useAppStore();
@@ -155,76 +154,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           customParameters: updatedParams,
         },
       });
-    }
-  };
-
-  const handleSubtractFromMain = async () => {
-    if (!selectedShape) return;
-
-    const mainShape = shapes.find(s => s.id !== selectedShapeId && !s.isolated);
-    if (!mainShape) {
-      console.warn('No main shape found to subtract from');
-      return;
-    }
-
-    try {
-      const { performCSGSubtraction, calculatePenetrationDepths } = await import('../services/csg');
-
-      const penetration = calculatePenetrationDepths(
-        { geometry: mainShape.geometry, position: mainShape.position },
-        { geometry: selectedShape.geometry, position: selectedShape.position }
-      );
-
-      console.log('Penetration depths:', penetration);
-
-      const mainGeo = mainShape.geometry.clone();
-      mainGeo.translate(mainShape.position[0], mainShape.position[1], mainShape.position[2]);
-
-      const subtractGeo = selectedShape.geometry.clone();
-      subtractGeo.translate(selectedShape.position[0], selectedShape.position[1], selectedShape.position[2]);
-
-      const resultGeo = performCSGSubtraction(mainGeo, subtractGeo);
-      resultGeo.translate(-mainShape.position[0], -mainShape.position[1], -mainShape.position[2]);
-
-      const penetrationParams: CustomParameter[] = [
-        {
-          id: `penetration-x-${Date.now()}`,
-          name: 'Penetration X',
-          expression: String(penetration.x),
-          result: penetration.x,
-          description: 'X-axis penetration depth'
-        },
-        {
-          id: `penetration-y-${Date.now() + 1}`,
-          name: 'Penetration Y',
-          expression: String(penetration.y),
-          result: penetration.y,
-          description: 'Y-axis penetration depth'
-        },
-        {
-          id: `penetration-z-${Date.now() + 2}`,
-          name: 'Penetration Z',
-          expression: String(penetration.z),
-          result: penetration.z,
-          description: 'Z-axis penetration depth'
-        }
-      ];
-
-      const updatedParams = [...(mainShape.parameters.customParameters || []), ...penetrationParams];
-
-      updateShape(mainShape.id, {
-        geometry: resultGeo,
-        parameters: {
-          ...mainShape.parameters,
-          customParameters: updatedParams
-        }
-      });
-
-      deleteShape(selectedShape.id);
-
-      console.log('✅ Subtraction complete, penetration values added to parameters');
-    } catch (error) {
-      console.error('❌ Failed to perform subtraction:', error);
     }
   };
 
@@ -366,7 +295,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 uniqueVerts.set(key, new THREE.Vector3(x, y, z));
               }
             }
-            newBaseVertices = Array.from(uniqueVerts.values());
+            newBaseVertices = Array.from(uniqueVerts.values()).sort((a, b) => {
+              if (Math.abs(a.z - b.z) > 0.01) return a.z - b.z;
+              if (Math.abs(a.y - b.y) > 0.01) return a.y - b.y;
+              return a.x - b.x;
+            });
           }
         }
       }
@@ -518,14 +451,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setVertexEditMode(!vertexEditMode)}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+            className={`w-5 h-5 flex items-center justify-center text-xs font-bold rounded transition-colors ${
               vertexEditMode
                 ? 'bg-orange-600 text-white'
                 : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
             }`}
             title="Edit Vertices"
           >
-            VERTEX
+            V
           </button>
           <button
             onClick={addCustomParameter}
@@ -533,13 +466,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             title="Add Parameter"
           >
             <Plus size={14} className="text-stone-600" />
-          </button>
-          <button
-            onClick={handleSubtractFromMain}
-            className="p-0.5 hover:bg-stone-200 rounded transition-colors"
-            title="Subtract from Main Shape"
-          >
-            <Minus size={14} className="text-stone-600" />
           </button>
           <button
             onClick={onClose}
