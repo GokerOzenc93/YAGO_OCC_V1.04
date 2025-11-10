@@ -3,6 +3,7 @@ import * as THREE from 'three';
 export interface VertexModification {
   vertexIndex: number;
   originalPosition: [number, number, number];
+  currentPosition: [number, number, number];
   newPosition: [number, number, number];
   direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
   expression?: string;
