@@ -272,6 +272,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         console.log('✅ Cylinder geometry regenerated');
       }
 
+      console.log('📝 Updating shape with new parameters and vertex modifications:', {
+        vertexModsCount: updatedVertexMods.length,
+        hasNewGeometry: !!newGeometry,
+        hasReplicadShape: !!newReplicadShape
+      });
+
       updateShape(selectedShape.id, {
         parameters: {
           ...selectedShape.parameters,

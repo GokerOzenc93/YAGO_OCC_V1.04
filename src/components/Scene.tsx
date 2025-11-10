@@ -27,6 +27,7 @@ const ShapeWithTransform: React.FC<{
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
+  const vertexModsString = JSON.stringify(shape.vertexModifications || []);
 
   useEffect(() => {
     const loadEdges = async () => {
@@ -81,17 +82,23 @@ const ShapeWithTransform: React.FC<{
             const indices = vertexMap.get(key);
 
             if (indices) {
-              console.log(`✅ Applying modification to vertex ${mod.vertexIndex} (${indices.length} mesh vertices)`);
-              const offset = mod.offset || [
+              console.log(`✅ Applying modification to vertex ${mod.vertexIndex}:`, {
+                originalPos: mod.originalPosition,
+                newPos: mod.newPosition,
+                baseVertexPos: [baseVertex.x, baseVertex.y, baseVertex.z],
+                affectedMeshVertices: indices.length
+              });
+
+              const offset = [
                 mod.newPosition[0] - mod.originalPosition[0],
                 mod.newPosition[1] - mod.originalPosition[1],
                 mod.newPosition[2] - mod.originalPosition[2]
               ];
 
               indices.forEach(idx => {
-                positions[idx] += offset[0];
-                positions[idx + 1] += offset[1];
-                positions[idx + 2] += offset[2];
+                positions[idx] = baseVertex.x + offset[0];
+                positions[idx + 1] = baseVertex.y + offset[1];
+                positions[idx + 2] = baseVertex.z + offset[2];
               });
             } else {
               console.warn(`⚠️ No mesh vertices found for base vertex ${mod.vertexIndex} (key: ${key})`);
@@ -132,7 +139,7 @@ const ShapeWithTransform: React.FC<{
     };
 
     loadEdges();
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.vertexModifications, shape.parameters?.modified, shape.geometry, shape.id]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
