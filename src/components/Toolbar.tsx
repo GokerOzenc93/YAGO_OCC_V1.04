@@ -501,6 +501,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         console.log(`📍 Target (base) position: [${targetShape.position}], rotation: [${targetShape.rotation}], scale: [${targetShape.scale}]`);
         console.log(`📍 Selected (cutting) position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
 
+        const { calculatePenetrationDepths } = await import('../services/csg');
+
+        const intersectionDepths = calculatePenetrationDepths(
+          { geometry: targetShape.geometry, position: targetShape.position },
+          { geometry: selectedShape.geometry, position: selectedShape.position }
+        );
+
+        console.log('📏 Intersection depths (actual cut values):', intersectionDepths);
+
         const resultShape = await performBooleanCut(
           targetShape.replicadShape,
           selectedShape.replicadShape,
@@ -521,10 +530,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           depth: selectedShape.parameters.depth || 0,
           customParameters: selectedShape.parameters.customParameters || [],
           scaledBaseVertices: selectedShape.parameters.scaledBaseVertices || [],
-          vertexModifications: selectedShape.vertexModifications || []
+          vertexModifications: selectedShape.vertexModifications || [],
+          intersectionWidth: intersectionDepths.x,
+          intersectionHeight: intersectionDepths.y,
+          intersectionDepth: intersectionDepths.z
         };
 
-        console.log('📦 Captured subtracted shape parameters:', subtractedParameters);
+        console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);
 
         const existingSubtractedShapes = targetShape.parameters.subtractedShapes || [];
 

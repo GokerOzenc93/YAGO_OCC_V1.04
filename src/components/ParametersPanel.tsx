@@ -690,6 +690,75 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                     </div>
 
+                    {(subtractedShape.intersectionWidth || subtractedShape.intersectionHeight || subtractedShape.intersectionDepth) && (
+                      <div className="pt-2 border-t border-orange-200">
+                        <div className="text-xs font-semibold text-orange-700 mb-1">Intersection (Cut Values)</div>
+
+                        <div className="flex gap-1 items-center">
+                          <input
+                            type="text"
+                            value={`I${shapeIdx + 1}W`}
+                            readOnly
+                            className="w-12 px-2 py-1 text-xs font-medium border border-orange-300 rounded bg-orange-50 text-orange-700 text-center"
+                          />
+                          <input
+                            type="text"
+                            value={subtractedShape.intersectionWidth || 0}
+                            readOnly
+                            className="w-16 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
+                          />
+                          <input
+                            type="text"
+                            value="Cut Width"
+                            readOnly
+                            className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
+                          />
+                        </div>
+
+                        <div className="flex gap-1 items-center mt-1">
+                          <input
+                            type="text"
+                            value={`I${shapeIdx + 1}H`}
+                            readOnly
+                            className="w-12 px-2 py-1 text-xs font-medium border border-orange-300 rounded bg-orange-50 text-orange-700 text-center"
+                          />
+                          <input
+                            type="text"
+                            value={subtractedShape.intersectionHeight || 0}
+                            readOnly
+                            className="w-16 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
+                          />
+                          <input
+                            type="text"
+                            value="Cut Height"
+                            readOnly
+                            className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
+                          />
+                        </div>
+
+                        <div className="flex gap-1 items-center mt-1">
+                          <input
+                            type="text"
+                            value={`I${shapeIdx + 1}D`}
+                            readOnly
+                            className="w-12 px-2 py-1 text-xs font-medium border border-orange-300 rounded bg-orange-50 text-orange-700 text-center"
+                          />
+                          <input
+                            type="text"
+                            value={subtractedShape.intersectionDepth || 0}
+                            readOnly
+                            className="w-16 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
+                          />
+                          <input
+                            type="text"
+                            value="Cut Depth"
+                            readOnly
+                            className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-600"
+                          />
+                        </div>
+                      </div>
+                    )}
+
                     {subtractedShape.customParameters && subtractedShape.customParameters.length > 0 && (
                       <div className="space-y-1 pt-1 border-t border-stone-300">
                         <div className="text-xs text-stone-600 mb-1">Custom Parameters</div>

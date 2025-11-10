@@ -399,6 +399,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
+            const { calculatePenetrationDepths } = await import('./services/csg');
+
+            const intersectionDepths = calculatePenetrationDepths(
+              { geometry: shape1.geometry, position: shape1.position },
+              { geometry: shape2.geometry, position: shape2.position }
+            );
+
+            console.log('📏 Intersection depths (actual cut values):', intersectionDepths);
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
@@ -420,10 +428,13 @@ export const useAppStore = create<AppState>((set, get) => ({
               depth: shape2.parameters.depth || 0,
               customParameters: shape2.parameters.customParameters || [],
               scaledBaseVertices: shape2.parameters.scaledBaseVertices || [],
-              vertexModifications: shape2.vertexModifications || []
+              vertexModifications: shape2.vertexModifications || [],
+              intersectionWidth: intersectionDepths.x,
+              intersectionHeight: intersectionDepths.y,
+              intersectionDepth: intersectionDepths.z
             };
 
-            console.log('📦 Captured subtracted shape parameters:', subtractedParameters);
+            console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);
 
             set((state) => {
               const updatedShapes = state.shapes.map((s) => {
