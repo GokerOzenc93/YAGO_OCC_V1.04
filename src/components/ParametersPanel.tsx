@@ -241,54 +241,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       }
     };
 
-    const { getBoxVertices } = await import('../services/vertexEditor');
-    const newBaseVertices = selectedShape.type === 'box'
-      ? getBoxVertices(width, height, depth)
-      : [];
-
-    const updatedVertexMods = vertexModifications.map((mod: any) => {
-      const newOriginalPos = newBaseVertices[mod.vertexIndex]
-        ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
-        : mod.originalPosition;
-
-      const expression = mod.expression;
-      const offsetValue = evaluateVertexExpression(expression);
-
-      const isPositiveDirection = mod.direction.endsWith('+');
-      const axisIndex = mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2;
-
-      const offsetAmount = isPositiveDirection ? offsetValue : -offsetValue;
-
-      const newOffset = [0, 0, 0] as [number, number, number];
-      newOffset[axisIndex] = offsetAmount;
-
-      const newPos = [...newOriginalPos] as [number, number, number];
-      newPos[axisIndex] = newOriginalPos[axisIndex] + offsetAmount;
-
-      const axisName = mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z';
-      const directionSymbol = isPositiveDirection ? '+' : '-';
-
-      console.log(`📍 Vertex ${mod.vertexIndex} dimension update:`, {
-        vertexIndex: mod.vertexIndex,
-        direction: mod.direction,
-        axis: axisName,
-        newBaseVertex: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
-        expression,
-        offsetValue: offsetValue.toFixed(1),
-        offsetAmount: offsetAmount.toFixed(1),
-        finalPosition: `[${newPos[0].toFixed(1)}, ${newPos[1].toFixed(1)}, ${newPos[2].toFixed(1)}]`,
-        explanation: `${axisName}${directionSymbol}${offsetValue} → ${newOriginalPos[axisIndex].toFixed(1)} ${isPositiveDirection ? '+' : '-'} ${offsetValue} = ${newPos[axisIndex].toFixed(1)}`
-      });
-
-      return {
-        ...mod,
-        originalPosition: newOriginalPos,
-        newPosition: newPos,
-        offset: newOffset,
-        expression
-      };
-    });
-
     try {
       const { createReplicadBox, createReplicadCylinder, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
@@ -307,6 +259,58 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
         console.log('✅ Cylinder geometry regenerated');
       }
+
+      const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
+      let newBaseVertices: THREE.Vector3[] = [];
+
+      if (newReplicadShape) {
+        newBaseVertices = await getReplicadVertices(newReplicadShape);
+      } else if (selectedShape.type === 'box') {
+        newBaseVertices = getBoxVertices(width, height, depth);
+      }
+
+      const updatedVertexMods = vertexModifications.map((mod: any) => {
+        const newOriginalPos = newBaseVertices[mod.vertexIndex]
+          ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
+          : mod.originalPosition;
+
+        const expression = mod.expression;
+        const offsetValue = evaluateVertexExpression(expression);
+
+        const isPositiveDirection = mod.direction.endsWith('+');
+        const axisIndex = mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2;
+
+        const offsetAmount = isPositiveDirection ? offsetValue : -offsetValue;
+
+        const newOffset = [0, 0, 0] as [number, number, number];
+        newOffset[axisIndex] = offsetAmount;
+
+        const newPos = [...newOriginalPos] as [number, number, number];
+        newPos[axisIndex] = newOriginalPos[axisIndex] + offsetAmount;
+
+        const axisName = mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z';
+        const directionSymbol = isPositiveDirection ? '+' : '-';
+
+        console.log(`📍 Vertex ${mod.vertexIndex} dimension update:`, {
+          vertexIndex: mod.vertexIndex,
+          direction: mod.direction,
+          axis: axisName,
+          newBaseVertex: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
+          expression,
+          offsetValue: offsetValue.toFixed(1),
+          offsetAmount: offsetAmount.toFixed(1),
+          finalPosition: `[${newPos[0].toFixed(1)}, ${newPos[1].toFixed(1)}, ${newPos[2].toFixed(1)}]`,
+          explanation: `${axisName}${directionSymbol}${offsetValue} → ${newOriginalPos[axisIndex].toFixed(1)} ${isPositiveDirection ? '+' : '-'} ${offsetValue} = ${newPos[axisIndex].toFixed(1)}`
+        });
+
+        return {
+          ...mod,
+          originalPosition: newOriginalPos,
+          newPosition: newPos,
+          offset: newOffset,
+          expression
+        };
+      });
 
       console.log('📝 Updating shape with new parameters and vertex modifications:', {
         vertexModsCount: updatedVertexMods.length,
