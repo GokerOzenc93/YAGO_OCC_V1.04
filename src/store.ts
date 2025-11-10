@@ -343,7 +343,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         const existingMods = shape.vertexModifications || [];
         const existingIndex = existingMods.findIndex(
-          m => m.vertexIndex === modification.vertexIndex
+          m => m.vertexIndex === modification.vertexIndex && m.direction === modification.direction
         );
 
         let newMods;

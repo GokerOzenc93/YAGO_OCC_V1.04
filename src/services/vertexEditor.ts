@@ -122,11 +122,29 @@ export function applyVertexModifications(
   const positionAttribute = geometry.getAttribute('position');
   const positions = positionAttribute.array as Float32Array;
 
+  const vertexMap = new Map<number, THREE.Vector3>();
+
   modifications.forEach(mod => {
-    const idx = mod.vertexIndex * 3;
-    positions[idx] += mod.offset[0];
-    positions[idx + 1] += mod.offset[1];
-    positions[idx + 2] += mod.offset[2];
+    const idx = mod.vertexIndex;
+
+    if (!vertexMap.has(idx)) {
+      vertexMap.set(idx, new THREE.Vector3(
+        positions[idx * 3],
+        positions[idx * 3 + 1],
+        positions[idx * 3 + 2]
+      ));
+    }
+
+    const currentPos = vertexMap.get(idx)!;
+    currentPos.x += mod.offset[0];
+    currentPos.y += mod.offset[1];
+    currentPos.z += mod.offset[2];
+  });
+
+  vertexMap.forEach((pos, idx) => {
+    positions[idx * 3] = pos.x;
+    positions[idx * 3 + 1] = pos.y;
+    positions[idx * 3 + 2] = pos.z;
   });
 
   positionAttribute.needsUpdate = true;

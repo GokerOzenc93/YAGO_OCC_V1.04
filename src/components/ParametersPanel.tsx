@@ -295,6 +295,25 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         currentBaseVertices = getBoxVertices(currentWidth, currentHeight, currentDepth);
       }
 
+      const vertexFinalPositions = new Map<number, [number, number, number]>();
+
+      vertexModifications.forEach((mod: any) => {
+        const newOriginalPos = newBaseVertices[mod.vertexIndex]
+          ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
+          : mod.originalPosition;
+
+        if (!vertexFinalPositions.has(mod.vertexIndex)) {
+          vertexFinalPositions.set(mod.vertexIndex, [...newOriginalPos] as [number, number, number]);
+        }
+
+        const expression = mod.expression;
+        const offsetValue = evaluateVertexExpression(expression);
+        const axisIndex = mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2;
+
+        const finalPos = vertexFinalPositions.get(mod.vertexIndex)!;
+        finalPos[axisIndex] = offsetValue;
+      });
+
       const updatedVertexMods = vertexModifications.map((mod: any) => {
         const newOriginalPos = newBaseVertices[mod.vertexIndex]
           ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
@@ -302,13 +321,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
         const expression = mod.expression;
         const offsetValue = evaluateVertexExpression(expression);
-
         const axisIndex = mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2;
 
-        const newPos = [...newOriginalPos] as [number, number, number];
-        newPos[axisIndex] = offsetValue;
-
-        const offsetAmount = offsetValue - newOriginalPos[axisIndex];
+        const finalPos = vertexFinalPositions.get(mod.vertexIndex)!;
+        const offsetAmount = finalPos[axisIndex] - newOriginalPos[axisIndex];
         const newOffset = [0, 0, 0] as [number, number, number];
         newOffset[axisIndex] = offsetAmount;
 
@@ -323,14 +339,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           expression,
           offsetValue: offsetValue.toFixed(1),
           offsetAmount: offsetAmount.toFixed(1),
-          finalPosition: `[${newPos[0].toFixed(1)}, ${newPos[1].toFixed(1)}, ${newPos[2].toFixed(1)}]`,
+          finalPosition: `[${finalPos[0].toFixed(1)}, ${finalPos[1].toFixed(1)}, ${finalPos[2].toFixed(1)}]`,
           explanation: `${axisName}${directionSymbol} → move to ${offsetValue} (offset: ${offsetAmount.toFixed(1)})`
         });
 
         return {
           ...mod,
           originalPosition: newOriginalPos,
-          newPosition: newPos,
+          newPosition: finalPos,
           offset: newOffset,
           expression
         };
