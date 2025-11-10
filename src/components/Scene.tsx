@@ -441,19 +441,25 @@ const Scene: React.FC = () => {
           const offset: [number, number, number] = [0, 0, 0];
           const newPosition: [number, number, number] = [...originalPos];
 
-          if (vertexDirection === 'x+' || vertexDirection === 'x-') {
-            offset[0] = newValue - originalPos[0];
-            newPosition[0] = newValue;
-          } else if (vertexDirection === 'y+' || vertexDirection === 'y-') {
-            offset[1] = newValue - originalPos[1];
-            newPosition[1] = newValue;
-          } else if (vertexDirection === 'z+' || vertexDirection === 'z-') {
-            offset[2] = newValue - originalPos[2];
-            newPosition[2] = newValue;
-          }
+          const isPositiveDirection = vertexDirection.endsWith('+');
+          const axisIndex = vertexDirection.startsWith('x') ? 0 : vertexDirection.startsWith('y') ? 1 : 2;
+
+          const absoluteValue = isPositiveDirection ? Math.abs(newValue) : -Math.abs(newValue);
+
+          offset[axisIndex] = absoluteValue - originalPos[axisIndex];
+          newPosition[axisIndex] = absoluteValue;
 
           const axisName = vertexDirection[0].toUpperCase();
           const directionSymbol = vertexDirection[1] === '+' ? '+' : '-';
+
+          console.log(`🎯 Direction processing:`, {
+            direction: vertexDirection,
+            userInput: newValue,
+            isPositive: isPositiveDirection,
+            absoluteValue,
+            originalPosAxis: originalPos[axisIndex].toFixed(1),
+            newPosAxis: newPosition[axisIndex].toFixed(1)
+          });
 
           addVertexModification(selectedShapeId, {
             vertexIndex: selectedVertexIndex,
