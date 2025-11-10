@@ -21,10 +21,13 @@ const CuttingBox: React.FC<{ shape: any; cut: any }> = ({ shape, cut }) => {
   const height = baseHeight + offsetHeight;
   const depth = baseDepth + offsetDepth;
 
+  const scale = cut.scale || [1, 1, 1];
+
   console.log('🔴 CuttingBox render:', {
     base: { width: baseWidth, height: baseHeight, depth: baseDepth },
     offset: { width: offsetWidth, height: offsetHeight, depth: offsetDepth },
     final: { width, height, depth },
+    scale: scale,
     cutPosition: cut.position,
     shapePosition: shape.position
   });
@@ -40,10 +43,10 @@ const CuttingBox: React.FC<{ shape: any; cut: any }> = ({ shape, cut }) => {
     shape.position[2] + (cut.position?.[2] || 0)
   ];
 
-  console.log('✅ CuttingBox rendering at:', position);
+  console.log('✅ CuttingBox rendering at:', position, 'with scale:', scale);
 
   return (
-    <mesh position={position} rotation={cut.rotation || [0, 0, 0]}>
+    <mesh position={position} rotation={cut.rotation || [0, 0, 0]} scale={scale}>
       <boxGeometry args={[width, height, depth]} />
       <meshStandardMaterial
         color="#ff0000"
