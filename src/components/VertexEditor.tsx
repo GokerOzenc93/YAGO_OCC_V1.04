@@ -1,25 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import * as THREE from 'three';
-import { Html } from '@react-three/drei';
-
-interface VertexPoint {
-  position: THREE.Vector3;
-  index: number;
-}
+import { useAppStore } from '../store';
 
 interface DirectionArrow {
   direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
   color: string;
-  label: string;
+  offset: [number, number, number];
 }
 
 const DIRECTIONS: DirectionArrow[] = [
-  { direction: 'x+', color: '#ef4444', label: 'X+' },
-  { direction: 'x-', color: '#dc2626', label: 'X-' },
-  { direction: 'y+', color: '#22c55e', label: 'Y+' },
-  { direction: 'y-', color: '#16a34a', label: 'Y-' },
-  { direction: 'z+', color: '#3b82f6', label: 'Z+' },
-  { direction: 'z-', color: '#2563eb', label: 'Z-' },
+  { direction: 'x+', color: '#ef4444', offset: [50, 0, 0] },
+  { direction: 'x-', color: '#dc2626', offset: [-50, 0, 0] },
+  { direction: 'y+', color: '#22c55e', offset: [0, 50, 0] },
+  { direction: 'y-', color: '#16a34a', offset: [0, -50, 0] },
+  { direction: 'z+', color: '#3b82f6', offset: [0, 0, 50] },
+  { direction: 'z-', color: '#2563eb', offset: [0, 0, -50] },
 ];
 
 function getBoxVertices(width: number, height: number, depth: number): THREE.Vector3[] {
@@ -53,29 +48,41 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
   const [vertices, setVertices] = useState<THREE.Vector3[]>([]);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [showDirections, setShowDirections] = useState(false);
-  const [selectedDirection, setSelectedDirection] = useState<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null>(null);
 
   useEffect(() => {
     if (!isActive || !shape.parameters) return;
 
     if (shape.type === 'box') {
       const { width, height, depth } = shape.parameters;
-      const verts = getBoxVertices(width, height, depth);
-      setVertices(verts);
+      const vertexMods = shape.parameters.vertexModifications || [];
+
+      const baseVerts = getBoxVertices(width, height, depth);
+
+      const modifiedVerts = baseVerts.map((v, idx) => {
+        const mod = vertexMods.find((m: any) => m.vertexIndex === idx);
+        if (mod) {
+          return new THREE.Vector3(
+            mod.x !== undefined ? mod.x : v.x,
+            mod.y !== undefined ? mod.y : v.y,
+            mod.z !== undefined ? mod.z : v.z
+          );
+        }
+        return v;
+      });
+
+      setVertices(modifiedVerts);
     }
-  }, [isActive, shape, shape.parameters]);
+  }, [isActive, shape, shape.parameters, shape.parameters?.vertexModifications]);
 
   if (!isActive || vertices.length === 0) return null;
 
   const handleVertexClick = (index: number) => {
     setSelectedIndex(index);
     setShowDirections(true);
-    setSelectedDirection(null);
     onVertexSelect(index);
   };
 
   const handleDirectionClick = (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => {
-    setSelectedDirection(direction);
     setShowDirections(false);
 
     (window as any).pendingVertexEdit = {
@@ -83,54 +90,73 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
       direction: direction,
     };
 
+    (window as any).vertexEditStatusMessage = `Vertex ${selectedIndex} - ${direction.toUpperCase()}: Enter value in terminal`;
+
     console.log(`✅ Vertex ${selectedIndex} - Direction ${direction} selected. Enter value in terminal.`);
   };
 
   return (
-    <group
-      position={[shape.position[0], shape.position[1], shape.position[2]]}
-      rotation={[shape.rotation[0], shape.rotation[1], shape.rotation[2]]}
-      scale={[shape.scale[0], shape.scale[1], shape.scale[2]]}
-    >
-      {vertices.map((vertex, index) => (
-        <group key={index} position={vertex}>
-          <mesh onClick={() => handleVertexClick(index)}>
-            <sphereGeometry args={[15, 16, 16]} />
-            <meshBasicMaterial
-              color={selectedIndex === index ? '#fbbf24' : '#000000'}
-            />
-          </mesh>
+    <group>
+      {vertices.map((vertex, index) => {
+        const worldPos = new THREE.Vector3(
+          vertex.x + shape.position[0],
+          vertex.y + shape.position[1],
+          vertex.z + shape.position[2]
+        );
 
-          {selectedIndex === index && showDirections && (
-            <Html center>
-              <div className="flex gap-1 bg-white rounded-lg shadow-lg p-2 border border-stone-300">
-                {DIRECTIONS.map((dir) => (
-                  <button
-                    key={dir.direction}
-                    onClick={() => handleDirectionClick(dir.direction)}
-                    className="px-3 py-2 text-xs font-bold rounded transition-all hover:scale-110"
-                    style={{
-                      backgroundColor: dir.color,
-                      color: 'white',
-                    }}
-                    title={`Move in ${dir.label} direction`}
-                  >
-                    {dir.label}
-                  </button>
-                ))}
-              </div>
-            </Html>
-          )}
+        return (
+          <group key={index} position={worldPos}>
+            <mesh onClick={() => handleVertexClick(index)}>
+              <sphereGeometry args={[8, 16, 16]} />
+              <meshBasicMaterial
+                color={selectedIndex === index ? '#fbbf24' : '#000000'}
+                depthTest={false}
+              />
+            </mesh>
 
-          {selectedIndex === index && selectedDirection && (
-            <Html center>
-              <div className="bg-amber-500 text-white px-3 py-1 rounded text-xs font-bold">
-                {selectedDirection.toUpperCase()} - Enter value in terminal
-              </div>
-            </Html>
-          )}
-        </group>
-      ))}
+            {selectedIndex === index && showDirections && (
+              <>
+                {DIRECTIONS.map((dir) => {
+                  const arrowStart = new THREE.Vector3(0, 0, 0);
+                  const arrowEnd = new THREE.Vector3(...dir.offset);
+                  const direction = arrowEnd.clone().sub(arrowStart).normalize();
+                  const length = arrowEnd.distanceTo(arrowStart);
+
+                  return (
+                    <group key={dir.direction}>
+                      <arrowHelper
+                        args={[
+                          direction,
+                          arrowStart,
+                          length,
+                          dir.color,
+                          10,
+                          8
+                        ]}
+                      />
+                      <mesh
+                        position={arrowEnd}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDirectionClick(dir.direction);
+                        }}
+                      >
+                        <sphereGeometry args={[12, 16, 16]} />
+                        <meshBasicMaterial
+                          color={dir.color}
+                          transparent
+                          opacity={0.8}
+                          depthTest={false}
+                        />
+                      </mesh>
+                    </group>
+                  );
+                })}
+              </>
+            )}
+          </group>
+        );
+      })}
     </group>
   );
 };

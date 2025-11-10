@@ -417,11 +417,13 @@ const Scene: React.FC = () => {
 
       console.log(`✅ Vertex ${vertexIndex} updated. New geometry applied.`);
       delete (window as any).pendingVertexEdit;
+      delete (window as any).vertexEditStatusMessage;
     };
 
     return () => {
       delete (window as any).handleVertexOffset;
       delete (window as any).pendingVertexEdit;
+      delete (window as any).vertexEditStatusMessage;
     };
   }, [selectedShapeId, shapes, updateShape]);
 
