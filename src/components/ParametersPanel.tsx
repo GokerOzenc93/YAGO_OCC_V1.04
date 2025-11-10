@@ -39,6 +39,47 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
   const [netDimensions, setNetDimensions] = useState<{[key: string]: string}>({});
   const [pendingCutChanges, setPendingCutChanges] = useState<{[key: string]: any}>({});
+  const [intersectionVolumes, setIntersectionVolumes] = useState<{[key: string]: number}>({});
+
+  const calculateAndUpdateIntersectionVolume = async (shapeIdx: number, cut: any) => {
+    try {
+      if (!selectedShape) return;
+
+      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { calculateIntersectionVolume } = await import('../services/csg');
+
+      const baseShape = await createReplicadBox({
+        width: selectedShape.parameters.width || 100,
+        height: selectedShape.parameters.height || 100,
+        depth: selectedShape.parameters.depth || 100
+      });
+
+      const cuttingShape = await createReplicadBox({
+        width: cut.width || 0,
+        height: cut.height || 0,
+        depth: cut.depth || 0
+      });
+
+      const baseGeometry = convertReplicadToThreeGeometry(baseShape);
+      const cuttingGeometry = convertReplicadToThreeGeometry(cuttingShape);
+
+      const cutGeometry = cuttingGeometry.clone();
+      const cutPosition = cut.position || [0, 0, 0];
+      cutGeometry.translate(cutPosition[0], cutPosition[1], cutPosition[2]);
+
+      const volume = calculateIntersectionVolume(baseGeometry, cutGeometry);
+
+      setIntersectionVolumes(prev => ({
+        ...prev,
+        [shapeIdx]: volume
+      }));
+
+      return volume;
+    } catch (error) {
+      console.error('Failed to calculate intersection volume:', error);
+      return 0;
+    }
+  };
 
   const handleIntersectionChange = async (shapeIdx: number, field: string, value: number) => {
     if (!selectedShape || !selectedShape.parameters.subtractedShapes) return;
@@ -46,10 +87,41 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     console.log(`🔄 Intersection value changed for cut ${shapeIdx + 1}: ${field} = ${value}`);
 
     const updatedSubtractedShapes = [...selectedShape.parameters.subtractedShapes];
+    const currentCut = updatedSubtractedShapes[shapeIdx];
+
+    const currentIntersectionW = currentCut.intersectionWidth || 0;
+    const currentIntersectionH = currentCut.intersectionHeight || 0;
+    const currentIntersectionD = currentCut.intersectionDepth || 0;
+
+    let newWidth = currentCut.width || 0;
+    let newHeight = currentCut.height || 0;
+    let newDepth = currentCut.depth || 0;
+    let newPosition = [...(currentCut.position || [0, 0, 0])];
+
+    if (field === 'intersectionWidth') {
+      const delta = value - currentIntersectionW;
+      newWidth += delta;
+      newPosition[0] -= delta / 2;
+    } else if (field === 'intersectionHeight') {
+      const delta = value - currentIntersectionH;
+      newHeight += delta;
+      newPosition[1] -= delta / 2;
+    } else if (field === 'intersectionDepth') {
+      const delta = value - currentIntersectionD;
+      newDepth += delta;
+      newPosition[2] -= delta / 2;
+    }
+
     updatedSubtractedShapes[shapeIdx] = {
-      ...updatedSubtractedShapes[shapeIdx],
-      [field]: value
+      ...currentCut,
+      [field]: value,
+      width: newWidth,
+      height: newHeight,
+      depth: newDepth,
+      position: newPosition
     };
+
+    await calculateAndUpdateIntersectionVolume(shapeIdx, updatedSubtractedShapes[shapeIdx]);
 
     try {
       const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
@@ -72,11 +144,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       for (let i = 0; i < updatedSubtractedShapes.length; i++) {
         const cut = updatedSubtractedShapes[i];
 
-        console.log(`🔨 Creating cutting shape ${i + 1} with dimensions [${cut.intersectionWidth}, ${cut.intersectionHeight}, ${cut.intersectionDepth}]`);
+        console.log(`🔨 Creating cutting shape ${i + 1} with dimensions [${cut.width}, ${cut.height}, ${cut.depth}]`);
         const cuttingShape = await createReplicadBox({
-          width: cut.intersectionWidth || 0,
-          height: cut.intersectionHeight || 0,
-          depth: cut.intersectionDepth || 0
+          width: cut.width || 0,
+          height: cut.height || 0,
+          depth: cut.depth || 0
         });
 
         console.log(`🔪 Performing boolean cut ${i + 1}...`);
@@ -130,12 +202,19 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setDepth(selectedShape.parameters.depth || 0);
       setCustomParameters(selectedShape.parameters.customParameters || []);
       setVertexModifications(selectedShape.vertexModifications || []);
+
+      if (selectedShape.parameters.subtractedShapes) {
+        selectedShape.parameters.subtractedShapes.forEach((cut: any, idx: number) => {
+          calculateAndUpdateIntersectionVolume(idx, cut);
+        });
+      }
     } else {
       setWidth(0);
       setHeight(0);
       setDepth(0);
       setCustomParameters([]);
       setVertexModifications([]);
+      setIntersectionVolumes({});
     }
   }, [selectedShape, selectedShapeId, shapes]);
 
@@ -744,25 +823,19 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
-                        type="text"
+                        type="number"
                         value={pendingCut.intersectionWidth ?? (subtractedShape.intersectionWidth || 0)}
                         onChange={(e) => {
-                          const inputValue = e.target.value;
-                          setPendingCutChanges(prev => ({
-                            ...prev,
-                            [cutKey]: {
-                              ...prev[cutKey],
-                              intersectionWidth: inputValue
-                            }
-                          }));
+                          const inputValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionWidth', inputValue);
                         }}
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <input
                         type="text"
-                        value="Cut Offset W"
+                        value={`Intersection: ${(intersectionVolumes[shapeIdx] || 0).toFixed(0)} mm³`}
                         readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-red-50 text-red-700 font-medium"
                       />
                     </div>
 
@@ -774,23 +847,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
-                        type="text"
+                        type="number"
                         value={pendingCut.intersectionHeight ?? (subtractedShape.intersectionHeight || 0)}
                         onChange={(e) => {
-                          const inputValue = e.target.value;
-                          setPendingCutChanges(prev => ({
-                            ...prev,
-                            [cutKey]: {
-                              ...prev[cutKey],
-                              intersectionHeight: inputValue
-                            }
-                          }));
+                          const inputValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionHeight', inputValue);
                         }}
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <input
                         type="text"
-                        value="Cut Offset H"
+                        value=""
                         readOnly
                         className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -804,23 +871,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
-                        type="text"
+                        type="number"
                         value={pendingCut.intersectionDepth ?? (subtractedShape.intersectionDepth || 0)}
                         onChange={(e) => {
-                          const inputValue = e.target.value;
-                          setPendingCutChanges(prev => ({
-                            ...prev,
-                            [cutKey]: {
-                              ...prev[cutKey],
-                              intersectionDepth: inputValue
-                            }
-                          }));
+                          const inputValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionDepth', inputValue);
                         }}
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <input
                         type="text"
-                        value="Cut Offset D"
+                        value=""
                         readOnly
                         className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
