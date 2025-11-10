@@ -434,8 +434,12 @@ const Scene: React.FC = () => {
                 }
               }
 
-              baseVertices = Array.from(uniqueVerts.values());
-              console.log(`✅ Extracted ${baseVertices.length} unique vertices from geometry`);
+              baseVertices = Array.from(uniqueVerts.values()).sort((a, b) => {
+                if (Math.abs(a[2] - b[2]) > 0.01) return a[2] - b[2];
+                if (Math.abs(a[1] - b[1]) > 0.01) return a[1] - b[1];
+                return a[0] - b[0];
+              });
+              console.log(`✅ Extracted ${baseVertices.length} unique vertices from geometry (sorted)`);
             }
           } else if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
             console.log('📍 Using pre-computed scaled base vertices for offset calculation...');
@@ -477,13 +481,21 @@ const Scene: React.FC = () => {
           const axisName = vertexDirection[0].toUpperCase();
           const directionSymbol = vertexDirection[1] === '+' ? '+' : '-';
 
-          console.log(`🎯 Absolute position applied:`, {
+          const currentDimension = axisIndex === 0 ? shape.parameters.width : axisIndex === 1 ? shape.parameters.height : shape.parameters.depth;
+          const dimensionName = axisIndex === 0 ? 'W' : axisIndex === 1 ? 'H' : 'D';
+          const ratio = currentDimension !== 0 ? newValue / currentDimension : 0;
+          const parametricExpression = ratio !== 0 ? `${dimensionName} * ${ratio.toFixed(6)}` : String(newValue);
+
+          console.log(`🎯 Parametric position applied:`, {
             direction: vertexDirection,
             userInput: newValue,
             originalPosAxis: originalPos[axisIndex].toFixed(1),
             newPosAxis: newPosition[axisIndex].toFixed(1),
             offsetAmount: offsetAmount.toFixed(1),
-            explanation: `${axisName}${directionSymbol} → move to ${newValue} (offset: ${offsetAmount.toFixed(1)})`
+            dimension: `${dimensionName}=${currentDimension}`,
+            ratio: ratio.toFixed(6),
+            expression: parametricExpression,
+            explanation: `${axisName}${directionSymbol} → move to ${newValue} (${parametricExpression})`
           });
 
           if (!shape.baseVerticesSnapshot) {
@@ -504,7 +516,7 @@ const Scene: React.FC = () => {
             originalPosition: originalPos as [number, number, number],
             newPosition,
             direction: vertexDirection,
-            expression: String(newValue),
+            expression: parametricExpression,
             description: `Vertex ${selectedVertexIndex} ${axisName}${directionSymbol}`,
             offset
           });
