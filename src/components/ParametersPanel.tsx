@@ -780,8 +780,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                               setPendingCutChanges(prev => ({
                                 ...prev,
                                 [cutKey]: {
-                                  ...prev[cutKey],
-                                  offsetWidth: inputValue
+                                  offsetWidth: inputValue,
+                                  offsetHeight: prev[cutKey]?.offsetHeight ?? currentOffsetH,
+                                  offsetDepth: prev[cutKey]?.offsetDepth ?? currentOffsetD
                                 }
                               }));
                             }}
@@ -799,8 +800,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                               setPendingCutChanges(prev => ({
                                 ...prev,
                                 [cutKey]: {
-                                  ...prev[cutKey],
-                                  offsetHeight: inputValue
+                                  offsetWidth: prev[cutKey]?.offsetWidth ?? currentOffsetW,
+                                  offsetHeight: inputValue,
+                                  offsetDepth: prev[cutKey]?.offsetDepth ?? currentOffsetD
                                 }
                               }));
                             }}
@@ -818,7 +820,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                               setPendingCutChanges(prev => ({
                                 ...prev,
                                 [cutKey]: {
-                                  ...prev[cutKey],
+                                  offsetWidth: prev[cutKey]?.offsetWidth ?? currentOffsetW,
+                                  offsetHeight: prev[cutKey]?.offsetHeight ?? currentOffsetH,
                                   offsetDepth: inputValue
                                 }
                               }));
