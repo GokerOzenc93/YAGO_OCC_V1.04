@@ -264,13 +264,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       if (selectedShape.replicadShape) {
         console.log('🔍 Using existing replicadShape for base vertices');
-        newBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
+        const originalBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
 
         if (dimensionsChanged) {
           console.log('📏 Scaling base vertices by:', { scaleX, scaleY, scaleZ });
-          newBaseVertices = newBaseVertices.map(v =>
+          newBaseVertices = originalBaseVertices.map(v =>
             new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
           );
+        } else {
+          newBaseVertices = originalBaseVertices;
         }
       } else if (selectedShape.type === 'box') {
         console.log('📦 Calculating base vertices from box parameters');
@@ -346,6 +348,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           height,
           depth,
           customParameters,
+          scaledBaseVertices: dimensionsChanged && newBaseVertices.length > 0 ?
+            newBaseVertices.map(v => [v.x, v.y, v.z]) : undefined
         },
         vertexModifications: updatedVertexMods,
         ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })

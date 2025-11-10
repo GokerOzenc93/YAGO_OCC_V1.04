@@ -201,7 +201,12 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
         hasShape: !!shape,
         hasParameters: !!shape?.parameters,
         shapeType: shape?.type,
-        hasReplicadShape: !!shape?.replicadShape
+        hasReplicadShape: !!shape?.replicadShape,
+        dimensions: shape?.parameters ? {
+          w: shape.parameters.width,
+          h: shape.parameters.height,
+          d: shape.parameters.depth
+        } : null
       });
 
       if (!isActive || !shape.parameters) {
@@ -209,44 +214,55 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
         return;
       }
 
-      let verts: THREE.Vector3[] = [];
+      let baseVerts: THREE.Vector3[] = [];
 
-      if (shape.replicadShape) {
+      if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
+        console.log('📍 Using pre-computed scaled base vertices...');
+        baseVerts = shape.parameters.scaledBaseVertices.map((v: number[]) =>
+          new THREE.Vector3(v[0], v[1], v[2])
+        );
+        console.log(`✅ Loaded ${baseVerts.length} scaled base vertices`);
+      } else if (shape.replicadShape) {
         console.log('📍 Loading vertices from Replicad shape...');
-        verts = await getReplicadVertices(shape.replicadShape);
-        console.log(`✅ Loaded ${verts.length} vertices from Replicad`);
+        baseVerts = await getReplicadVertices(shape.replicadShape);
+        console.log(`✅ Loaded ${baseVerts.length} base vertices from Replicad`);
       } else if (shape.type === 'box') {
         console.log('📦 Loading vertices from box parameters...');
-        verts = getBoxVertices(
+        baseVerts = getBoxVertices(
           shape.parameters.width,
           shape.parameters.height,
           shape.parameters.depth
         );
-        console.log(`✅ Loaded ${verts.length} vertices from box`);
+        console.log(`✅ Loaded ${baseVerts.length} base vertices from box`);
       }
 
-      console.log('📍 Setting vertices:', verts);
-      setVertices(verts);
+      console.log('📍 Setting base vertices:', baseVerts);
+      setVertices(baseVerts);
 
-      const modified = verts.map((vertex, index) => {
+      const modified = baseVerts.map((vertex, index) => {
         if (shape.vertexModifications) {
           const mod = shape.vertexModifications.find((m: any) => m.vertexIndex === index);
-          if (mod && mod.offset) {
+          if (mod && mod.newPosition) {
+            console.log(`✓ Applying vertex ${index} modification:`, {
+              base: [vertex.x.toFixed(1), vertex.y.toFixed(1), vertex.z.toFixed(1)],
+              modified: [mod.newPosition[0].toFixed(1), mod.newPosition[1].toFixed(1), mod.newPosition[2].toFixed(1)]
+            });
             return new THREE.Vector3(
-              vertex.x + mod.offset[0],
-              vertex.y + mod.offset[1],
-              vertex.z + mod.offset[2]
+              mod.newPosition[0],
+              mod.newPosition[1],
+              mod.newPosition[2]
             );
           }
         }
-        return vertex;
+        return vertex.clone();
       });
 
+      console.log(`✅ Computed ${modified.length} modified vertex positions`);
       setModifiedVertices(modified);
     };
 
     loadVertices();
-  }, [isActive, shape, shape.parameters, shape.replicadShape, shape.vertexModifications]);
+  }, [isActive, shape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, shape.replicadShape, shape.vertexModifications]);
 
   console.log('🎨 VertexEditor render:', {
     isActive,
