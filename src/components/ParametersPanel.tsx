@@ -693,80 +693,83 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   Subtracted Shapes ({selectedShape.parameters.subtractedShapes.length})
                 </div>
                 {selectedShape.parameters.subtractedShapes.map((subtractedShape: any, shapeIdx: number) => (
-                  <div key={subtractedShape.id || shapeIdx} className="space-y-2 bg-orange-50 p-2 rounded border border-orange-300">
-                    <div className="text-xs font-semibold text-orange-700 mb-1">
-                      Cut {shapeIdx + 1}: {subtractedShape.type}
+                  <div key={subtractedShape.id || shapeIdx} className="space-y-1">
+                    <div className="text-xs font-medium text-stone-600 mb-1">
+                      Cut {shapeIdx + 1}
                     </div>
 
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`C${shapeIdx + 1}W`}
+                        value={`N${shapeIdx + 1}W`}
                         readOnly
-                        className="w-12 px-2 py-1 text-xs font-medium border border-orange-400 rounded bg-white text-orange-700 text-center"
+                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
-                        type="number"
-                        value={subtractedShape.intersectionWidth || 0}
+                        type="text"
+                        value={(selectedShape.parameters.width || 0) - (subtractedShape.intersectionWidth || 0)}
                         onChange={(e) => {
-                          const newValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionWidth', newValue);
+                          const newNetValue = parseFloat(e.target.value) || 0;
+                          const newCutValue = (selectedShape.parameters.width || 0) - newNetValue;
+                          handleIntersectionChange(shapeIdx, 'intersectionWidth', newCutValue);
                         }}
-                        className="w-16 px-2 py-1 text-xs border border-orange-400 rounded bg-white text-orange-700 font-medium"
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
                       <input
                         type="text"
-                        value="Cut Width"
+                        value="Net Width"
                         readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-700"
-                      />
-                    </div>
-
-                    <div className="flex gap-1 items-center">
-                      <input
-                        type="text"
-                        value={`C${shapeIdx + 1}H`}
-                        readOnly
-                        className="w-12 px-2 py-1 text-xs font-medium border border-orange-400 rounded bg-white text-orange-700 text-center"
-                      />
-                      <input
-                        type="number"
-                        value={subtractedShape.intersectionHeight || 0}
-                        onChange={(e) => {
-                          const newValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionHeight', newValue);
-                        }}
-                        className="w-16 px-2 py-1 text-xs border border-orange-400 rounded bg-white text-orange-700 font-medium"
-                      />
-                      <input
-                        type="text"
-                        value="Cut Height"
-                        readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-700"
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
                     </div>
 
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`C${shapeIdx + 1}D`}
+                        value={`N${shapeIdx + 1}H`}
                         readOnly
-                        className="w-12 px-2 py-1 text-xs font-medium border border-orange-400 rounded bg-white text-orange-700 text-center"
-                      />
-                      <input
-                        type="number"
-                        value={subtractedShape.intersectionDepth || 0}
-                        onChange={(e) => {
-                          const newValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionDepth', newValue);
-                        }}
-                        className="w-16 px-2 py-1 text-xs border border-orange-400 rounded bg-white text-orange-700 font-medium"
+                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
                         type="text"
-                        value="Cut Depth"
+                        value={(selectedShape.parameters.height || 0) - (subtractedShape.intersectionHeight || 0)}
+                        onChange={(e) => {
+                          const newNetValue = parseFloat(e.target.value) || 0;
+                          const newCutValue = (selectedShape.parameters.height || 0) - newNetValue;
+                          handleIntersectionChange(shapeIdx, 'intersectionHeight', newCutValue);
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                      <input
+                        type="text"
+                        value="Net Height"
                         readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-orange-300 rounded bg-orange-50 text-orange-700"
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                    </div>
+
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value={`N${shapeIdx + 1}D`}
+                        readOnly
+                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                      />
+                      <input
+                        type="text"
+                        value={(selectedShape.parameters.depth || 0) - (subtractedShape.intersectionDepth || 0)}
+                        onChange={(e) => {
+                          const newNetValue = parseFloat(e.target.value) || 0;
+                          const newCutValue = (selectedShape.parameters.depth || 0) - newNetValue;
+                          handleIntersectionChange(shapeIdx, 'intersectionDepth', newCutValue);
+                        }}
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                      <input
+                        type="text"
+                        value="Net Depth"
+                        readOnly
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
                     </div>
                   </div>
