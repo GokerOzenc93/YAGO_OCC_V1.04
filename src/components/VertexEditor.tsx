@@ -52,27 +52,34 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
   useEffect(() => {
     if (!isActive || !shape.parameters) return;
 
-    if (shape.type === 'box') {
-      const { width, height, depth } = shape.parameters;
-      const vertexMods = shape.parameters.vertexModifications || [];
+    if (shape.type === 'box' && shape.geometry) {
+      const positionAttr = shape.geometry.getAttribute('position');
+      if (!positionAttr) return;
 
-      const baseVerts = getBoxVertices(width, height, depth);
+      const positions = positionAttr.array;
+      const uniqueVertices = new Map<string, THREE.Vector3>();
 
-      const modifiedVerts = baseVerts.map((v, idx) => {
-        const mod = vertexMods.find((m: any) => m.vertexIndex === idx);
-        if (mod) {
-          return new THREE.Vector3(
-            mod.x !== undefined ? mod.x : v.x,
-            mod.y !== undefined ? mod.y : v.y,
-            mod.z !== undefined ? mod.z : v.z
-          );
+      for (let i = 0; i < positions.length; i += 3) {
+        const x = positions[i];
+        const y = positions[i + 1];
+        const z = positions[i + 2];
+        const key = `${x.toFixed(2)},${y.toFixed(2)},${z.toFixed(2)}`;
+
+        if (!uniqueVertices.has(key)) {
+          uniqueVertices.set(key, new THREE.Vector3(x, y, z));
         }
-        return v;
+      }
+
+      const vertArray = Array.from(uniqueVertices.values());
+      vertArray.sort((a, b) => {
+        if (Math.abs(a.z - b.z) > 0.1) return a.z - b.z;
+        if (Math.abs(a.y - b.y) > 0.1) return a.y - b.y;
+        return a.x - b.x;
       });
 
-      setVertices(modifiedVerts);
+      setVertices(vertArray);
     }
-  }, [isActive, shape, shape.parameters, shape.parameters?.vertexModifications]);
+  }, [isActive, shape, shape.geometry, shape.parameters?.vertexModifications]);
 
   if (!isActive || vertices.length === 0) return null;
 
