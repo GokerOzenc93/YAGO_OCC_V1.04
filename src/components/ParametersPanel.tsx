@@ -306,13 +306,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const isPositiveDirection = mod.direction.endsWith('+');
         const axisIndex = mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2;
 
-        const offsetAmount = isPositiveDirection ? offsetValue : -offsetValue;
-
-        const newOffset = [0, 0, 0] as [number, number, number];
-        newOffset[axisIndex] = offsetAmount;
+        const absoluteValue = isPositiveDirection ? offsetValue : -offsetValue;
 
         const newPos = [...newOriginalPos] as [number, number, number];
-        newPos[axisIndex] = newOriginalPos[axisIndex] + offsetAmount;
+        newPos[axisIndex] = absoluteValue;
+
+        const offsetAmount = absoluteValue - newOriginalPos[axisIndex];
+        const newOffset = [0, 0, 0] as [number, number, number];
+        newOffset[axisIndex] = offsetAmount;
 
         const axisName = mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z';
         const directionSymbol = isPositiveDirection ? '+' : '-';
@@ -324,9 +325,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           newBaseVertex: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
           expression,
           offsetValue: offsetValue.toFixed(1),
+          absoluteValue: absoluteValue.toFixed(1),
           offsetAmount: offsetAmount.toFixed(1),
           finalPosition: `[${newPos[0].toFixed(1)}, ${newPos[1].toFixed(1)}, ${newPos[2].toFixed(1)}]`,
-          explanation: `${axisName}${directionSymbol}${offsetValue} → ${newOriginalPos[axisIndex].toFixed(1)} ${isPositiveDirection ? '+' : '-'} ${offsetValue} = ${newPos[axisIndex].toFixed(1)}`
+          explanation: `${axisName}${directionSymbol}${offsetValue} → move to ${absoluteValue} (offset: ${offsetAmount.toFixed(1)})`
         });
 
         return {

@@ -447,24 +447,26 @@ const Scene: React.FC = () => {
           const isPositiveDirection = vertexDirection.endsWith('+');
           const axisIndex = vertexDirection.startsWith('x') ? 0 : vertexDirection.startsWith('y') ? 1 : 2;
 
-          const offsetAmount = isPositiveDirection ? newValue : -newValue;
-
-          const offset: [number, number, number] = [0, 0, 0];
-          offset[axisIndex] = offsetAmount;
+          const absoluteValue = isPositiveDirection ? newValue : -newValue;
 
           const newPosition: [number, number, number] = [...originalPos];
-          newPosition[axisIndex] = originalPos[axisIndex] + offsetAmount;
+          newPosition[axisIndex] = absoluteValue;
+
+          const offsetAmount = absoluteValue - originalPos[axisIndex];
+          const offset: [number, number, number] = [0, 0, 0];
+          offset[axisIndex] = offsetAmount;
 
           const axisName = vertexDirection[0].toUpperCase();
           const directionSymbol = vertexDirection[1] === '+' ? '+' : '-';
 
-          console.log(`🎯 Relative offset applied:`, {
+          console.log(`🎯 Absolute position applied:`, {
             direction: vertexDirection,
             userInput: newValue,
-            offsetAmount,
+            absoluteValue,
             originalPosAxis: originalPos[axisIndex].toFixed(1),
             newPosAxis: newPosition[axisIndex].toFixed(1),
-            explanation: `${axisName}${directionSymbol}${newValue} = ${originalPos[axisIndex].toFixed(1)} ${isPositiveDirection ? '+' : '-'} ${newValue} = ${newPosition[axisIndex].toFixed(1)}`
+            offsetAmount: offsetAmount.toFixed(1),
+            explanation: `${axisName}${directionSymbol}${newValue} = move to ${absoluteValue} (offset: ${offsetAmount.toFixed(1)})`
           });
 
           addVertexModification(selectedShapeId, {
@@ -481,6 +483,7 @@ const Scene: React.FC = () => {
             base: `[${originalPos[0].toFixed(1)}, ${originalPos[1].toFixed(1)}, ${originalPos[2].toFixed(1)}]`,
             userValue: newValue,
             axis: axisName,
+            absolutePosition: absoluteValue.toFixed(1),
             offset: `[${offset[0].toFixed(1)}, ${offset[1].toFixed(1)}, ${offset[2].toFixed(1)}]`,
             final: `[${newPosition[0].toFixed(1)}, ${newPosition[1].toFixed(1)}, ${newPosition[2].toFixed(1)}]`
           });
