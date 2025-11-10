@@ -194,9 +194,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setVertexModifications(selectedShape.vertexModifications || []);
 
       if (selectedShape.parameters.subtractedShapes) {
+        const volumes: {[key: string]: number} = {};
         selectedShape.parameters.subtractedShapes.forEach((cut: any, idx: number) => {
-          calculateAndUpdateIntersectionVolume(idx, cut);
+          volumes[idx] = calculateIntersectionVolume(cut);
         });
+        setIntersectionVolumes(volumes);
       }
     } else {
       setWidth(0);
