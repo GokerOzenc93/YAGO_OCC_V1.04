@@ -201,7 +201,7 @@ const ShapeWithTransform: React.FC<{
     };
 
     loadEdges();
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id, localGeometry]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
