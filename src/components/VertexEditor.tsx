@@ -196,21 +196,36 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
 
   useEffect(() => {
     const loadVertices = async () => {
-      if (!isActive || !shape.parameters) return;
+      console.log('🔍 VertexEditor loadVertices called:', {
+        isActive,
+        hasShape: !!shape,
+        hasParameters: !!shape?.parameters,
+        shapeType: shape?.type,
+        hasReplicadShape: !!shape?.replicadShape
+      });
+
+      if (!isActive || !shape.parameters) {
+        console.log('⚠️ VertexEditor: inactive or no parameters');
+        return;
+      }
 
       let verts: THREE.Vector3[] = [];
 
       if (shape.replicadShape) {
         console.log('📍 Loading vertices from Replicad shape...');
         verts = await getReplicadVertices(shape.replicadShape);
+        console.log(`✅ Loaded ${verts.length} vertices from Replicad`);
       } else if (shape.type === 'box') {
+        console.log('📦 Loading vertices from box parameters...');
         verts = getBoxVertices(
           shape.parameters.width,
           shape.parameters.height,
           shape.parameters.depth
         );
+        console.log(`✅ Loaded ${verts.length} vertices from box`);
       }
 
+      console.log('📍 Setting vertices:', verts);
       setVertices(verts);
 
       const modified = verts.map((vertex, index) => {
@@ -229,7 +244,17 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
     loadVertices();
   }, [isActive, shape, shape.parameters, shape.replicadShape, shape.vertexModifications]);
 
-  if (!isActive || !shape.parameters || vertices.length === 0) return null;
+  console.log('🎨 VertexEditor render:', {
+    isActive,
+    hasParameters: !!shape?.parameters,
+    verticesLength: vertices.length,
+    willRender: isActive && shape?.parameters && vertices.length > 0
+  });
+
+  if (!isActive || !shape.parameters || vertices.length === 0) {
+    console.log('❌ VertexEditor not rendering - conditions not met');
+    return null;
+  }
 
   const handleVertexClick = (index: number, e: any) => {
     e.stopPropagation();
@@ -270,25 +295,34 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
     }
   };
 
+  console.log('✨ VertexEditor rendering with:', {
+    modifiedVerticesCount: modifiedVertices.length,
+    shapePosition: shape.position,
+    firstVertex: modifiedVertices[0]
+  });
+
   return (
     <group
       position={[shape.position[0], shape.position[1], shape.position[2]]}
       rotation={[shape.rotation[0], shape.rotation[1], shape.rotation[2]]}
       scale={[shape.scale[0], shape.scale[1], shape.scale[2]]}
     >
-      {modifiedVertices.map((vertex, index) => (
-        <VertexPoint
-          key={index}
-          position={vertex}
-          index={index}
-          isHovered={hoveredIndex === index}
-          isSelected={selectedIndex === index}
-          onClick={(e) => handleVertexClick(index, e)}
-          onContextMenu={(e) => handleVertexRightClick(index, e)}
-          onPointerOver={() => setHoveredIndex(index)}
-          onPointerOut={() => setHoveredIndex(null)}
-        />
-      ))}
+      {modifiedVertices.map((vertex, index) => {
+        console.log(`🔴 Rendering vertex ${index}:`, vertex);
+        return (
+          <VertexPoint
+            key={index}
+            position={vertex}
+            index={index}
+            isHovered={hoveredIndex === index}
+            isSelected={selectedIndex === index}
+            onClick={(e) => handleVertexClick(index, e)}
+            onContextMenu={(e) => handleVertexRightClick(index, e)}
+            onPointerOver={() => setHoveredIndex(index)}
+            onPointerOut={() => setHoveredIndex(null)}
+          />
+        );
+      })}
       {showDirectionSelector && selectedIndex !== null && (
         <DirectionSelector
           position={modifiedVertices[selectedIndex]}
