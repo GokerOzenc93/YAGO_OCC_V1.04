@@ -29,7 +29,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     extrudeShape,
     shapes,
     updateShape,
-    deleteShape
+    deleteShape,
+    showCuttingBoxes,
+    setShowCuttingBoxes
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -524,6 +526,14 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
         const newBaseVertices = await getReplicadVertices(resultShape);
 
+        const relativePosition = [
+          selectedShape.position[0] - targetShape.position[0],
+          selectedShape.position[1] - targetShape.position[1],
+          selectedShape.position[2] - targetShape.position[2]
+        ];
+
+        console.log('📍 Relative position of cut (relative to target):', relativePosition);
+
         const subtractedParameters = {
           width: selectedShape.parameters.width || 0,
           height: selectedShape.parameters.height || 0,
@@ -551,7 +561,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
               {
                 id: selectedShape.id,
                 type: selectedShape.type,
-                position: selectedShape.position,
+                position: relativePosition,
                 rotation: selectedShape.rotation,
                 scale: selectedShape.scale,
                 ...subtractedParameters

@@ -122,6 +122,9 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
+
+  showCuttingBoxes: boolean;
+  setShowCuttingBoxes: (show: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -422,6 +425,14 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
+            const relativePosition = [
+              shape2.position[0] - shape1.position[0],
+              shape2.position[1] - shape1.position[1],
+              shape2.position[2] - shape1.position[2]
+            ];
+
+            console.log('📍 Relative position of cut (relative to shape1):', relativePosition);
+
             const subtractedParameters = {
               width: shape2.parameters.width || 0,
               height: shape2.parameters.height || 0,
@@ -453,7 +464,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         {
                           id: shape2.id,
                           type: shape2.type,
-                          position: shape2.position,
+                          position: relativePosition,
                           rotation: shape2.rotation,
                           scale: shape2.scale,
                           ...subtractedParameters
@@ -491,5 +502,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
     }
-  }
+  },
+
+  showCuttingBoxes: false,
+  setShowCuttingBoxes: (show) => set({ showCuttingBoxes: show }),
 }));

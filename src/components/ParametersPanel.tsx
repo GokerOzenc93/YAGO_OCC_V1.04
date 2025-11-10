@@ -22,7 +22,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     shapes,
     updateShape,
     vertexEditMode,
-    setVertexEditMode
+    setVertexEditMode,
+    showCuttingBoxes,
+    setShowCuttingBoxes
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -535,6 +537,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             V
           </button>
           <button
+            onClick={() => setShowCuttingBoxes(!showCuttingBoxes)}
+            className={`w-5 h-5 flex items-center justify-center text-xs font-bold rounded transition-colors ${
+              showCuttingBoxes
+                ? 'bg-red-600 text-white'
+                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+            }`}
+            title="Show Cutting Boxes"
+          >
+            B
+          </button>
+          <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
             title="Add Parameter"
@@ -702,21 +715,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`N${shapeIdx + 1}W`}
+                        value={`C${shapeIdx + 1}W`}
                         readOnly
                         className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
                         type="text"
-                        value={netDimensions[`${shapeIdx}-width`] ?? ((selectedShape.parameters.width || 0) - (subtractedShape.intersectionWidth || 0))}
+                        value={netDimensions[`${shapeIdx}-width`] ?? (subtractedShape.intersectionWidth || 0)}
                         onChange={(e) => {
                           const inputValue = e.target.value;
                           setNetDimensions(prev => ({...prev, [`${shapeIdx}-width`]: inputValue}));
                         }}
                         onBlur={(e) => {
-                          const newNetValue = parseFloat(e.target.value) || 0;
-                          const newCutValue = (selectedShape.parameters.width || 0) - newNetValue;
-                          handleIntersectionChange(shapeIdx, 'intersectionWidth', newCutValue);
+                          const offsetValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionWidth', offsetValue);
                           setNetDimensions(prev => {
                             const updated = {...prev};
                             delete updated[`${shapeIdx}-width`];
@@ -727,7 +739,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value="Net Width"
+                        value="Cut Offset W"
                         readOnly
                         className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -736,21 +748,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`N${shapeIdx + 1}H`}
+                        value={`C${shapeIdx + 1}H`}
                         readOnly
                         className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
                         type="text"
-                        value={netDimensions[`${shapeIdx}-height`] ?? ((selectedShape.parameters.height || 0) - (subtractedShape.intersectionHeight || 0))}
+                        value={netDimensions[`${shapeIdx}-height`] ?? (subtractedShape.intersectionHeight || 0)}
                         onChange={(e) => {
                           const inputValue = e.target.value;
                           setNetDimensions(prev => ({...prev, [`${shapeIdx}-height`]: inputValue}));
                         }}
                         onBlur={(e) => {
-                          const newNetValue = parseFloat(e.target.value) || 0;
-                          const newCutValue = (selectedShape.parameters.height || 0) - newNetValue;
-                          handleIntersectionChange(shapeIdx, 'intersectionHeight', newCutValue);
+                          const offsetValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionHeight', offsetValue);
                           setNetDimensions(prev => {
                             const updated = {...prev};
                             delete updated[`${shapeIdx}-height`];
@@ -761,7 +772,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value="Net Height"
+                        value="Cut Offset H"
                         readOnly
                         className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -770,21 +781,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`N${shapeIdx + 1}D`}
+                        value={`C${shapeIdx + 1}D`}
                         readOnly
                         className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
                         type="text"
-                        value={netDimensions[`${shapeIdx}-depth`] ?? ((selectedShape.parameters.depth || 0) - (subtractedShape.intersectionDepth || 0))}
+                        value={netDimensions[`${shapeIdx}-depth`] ?? (subtractedShape.intersectionDepth || 0)}
                         onChange={(e) => {
                           const inputValue = e.target.value;
                           setNetDimensions(prev => ({...prev, [`${shapeIdx}-depth`]: inputValue}));
                         }}
                         onBlur={(e) => {
-                          const newNetValue = parseFloat(e.target.value) || 0;
-                          const newCutValue = (selectedShape.parameters.depth || 0) - newNetValue;
-                          handleIntersectionChange(shapeIdx, 'intersectionDepth', newCutValue);
+                          const offsetValue = parseFloat(e.target.value) || 0;
+                          handleIntersectionChange(shapeIdx, 'intersectionDepth', offsetValue);
                           setNetDimensions(prev => {
                             const updated = {...prev};
                             delete updated[`${shapeIdx}-depth`];
@@ -795,7 +805,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       />
                       <input
                         type="text"
-                        value="Net Depth"
+                        value="Cut Offset D"
                         readOnly
                         className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />

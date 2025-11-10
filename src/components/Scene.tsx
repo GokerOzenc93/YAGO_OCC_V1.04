@@ -8,6 +8,34 @@ import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
 
+const CuttingBox: React.FC<{ shape: any; cut: any }> = ({ shape, cut }) => {
+  const width = Math.abs(cut.intersectionWidth || 0);
+  const height = Math.abs(cut.intersectionHeight || 0);
+  const depth = Math.abs(cut.intersectionDepth || 0);
+
+  const offsetX = (cut.intersectionWidth || 0) / 2;
+  const offsetY = (cut.intersectionHeight || 0) / 2;
+  const offsetZ = (cut.intersectionDepth || 0) / 2;
+
+  const position: [number, number, number] = [
+    shape.position[0] + (cut.position?.[0] || 0) + offsetX,
+    shape.position[1] + (cut.position?.[1] || 0) + offsetY,
+    shape.position[2] + (cut.position?.[2] || 0) + offsetZ
+  ];
+
+  return (
+    <mesh position={position} rotation={cut.rotation || [0, 0, 0]}>
+      <boxGeometry args={[width, height, depth]} />
+      <meshStandardMaterial
+        color="#ff0000"
+        transparent
+        opacity={0.3}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+};
+
 const ShapeWithTransform: React.FC<{
   shape: any;
   isSelected: boolean;
@@ -373,7 +401,8 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    updateShape
+    updateShape,
+    showCuttingBoxes
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -714,6 +743,13 @@ const Scene: React.FC = () => {
                 }}
               />
             )}
+            {isSelected && showCuttingBoxes && shape.parameters.subtractedShapes && shape.parameters.subtractedShapes.map((cut: any, idx: number) => (
+              <CuttingBox
+                key={`${shape.id}-cut-${idx}`}
+                shape={shape}
+                cut={cut}
+              />
+            ))}
           </React.Fragment>
         );
       })}
