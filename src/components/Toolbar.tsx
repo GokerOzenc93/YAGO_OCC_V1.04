@@ -515,108 +515,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
         const newBaseVertices = await getReplicadVertices(resultShape);
 
-        const bbox = new THREE.Box3().setFromBufferAttribute(
-          newGeometry.getAttribute('position')
-        );
-        const size = new THREE.Vector3();
-        bbox.getSize(size);
-
-        console.log('📦 Result geometry bounding box:', {
-          width: size.x,
-          height: size.y,
-          depth: size.z
-        });
-
-        const targetBox = new THREE.Box3().setFromBufferAttribute(
-          targetShape.geometry.getAttribute('position')
-        );
-        const targetMin = targetBox.min.clone();
-        const targetMax = targetBox.max.clone();
-        targetMin.add(new THREE.Vector3(...targetShape.position));
-        targetMax.add(new THREE.Vector3(...targetShape.position));
-        targetBox.set(targetMin, targetMax);
-
-        const cuttingBox = new THREE.Box3().setFromBufferAttribute(
-          selectedShape.geometry.getAttribute('position')
-        );
-        const cuttingMin = cuttingBox.min.clone();
-        const cuttingMax = cuttingBox.max.clone();
-        cuttingMin.add(new THREE.Vector3(...selectedShape.position));
-        cuttingMax.add(new THREE.Vector3(...selectedShape.position));
-        cuttingBox.set(cuttingMin, cuttingMax);
-
-        const intersectionBox = targetBox.clone();
-        intersectionBox.intersect(cuttingBox);
-
-        const intersectionSize = new THREE.Vector3();
-        intersectionBox.getSize(intersectionSize);
-
-        const intersectionCenter = new THREE.Vector3();
-        intersectionBox.getCenter(intersectionCenter);
-
-        const targetCenter = new THREE.Vector3(
-          targetShape.position[0],
-          targetShape.position[1],
-          targetShape.position[2]
-        );
-
-        const notchAnchorPoint = new THREE.Vector3();
-
-        notchAnchorPoint.x = (intersectionCenter.x < targetCenter.x)
-          ? intersectionBox.max.x
-          : intersectionBox.min.x;
-
-        notchAnchorPoint.y = (intersectionCenter.y < targetCenter.y)
-          ? intersectionBox.max.y
-          : intersectionBox.min.y;
-
-        notchAnchorPoint.z = (intersectionCenter.z < targetCenter.z)
-          ? intersectionBox.max.z
-          : intersectionBox.min.z;
-
-        const relativeNotchPosition: [number, number, number] = [
-          notchAnchorPoint.x - targetShape.position[0],
-          notchAnchorPoint.y - targetShape.position[1],
-          notchAnchorPoint.z - targetShape.position[2]
-        ];
-
-        console.log('🔲 Intersection (notch) info:', {
-          dimensions: {
-            width: intersectionSize.x,
-            height: intersectionSize.y,
-            depth: intersectionSize.z
-          },
-          intersectionCenter: [intersectionCenter.x, intersectionCenter.y, intersectionCenter.z],
-          targetCenter: [targetCenter.x, targetCenter.y, targetCenter.z],
-          anchorPoint: [notchAnchorPoint.x, notchAnchorPoint.y, notchAnchorPoint.z],
-          relativeAnchor: relativeNotchPosition,
-          explanation: 'Anchor point is the corner of notch closest to target geometry center'
-        });
-
         updateShape(targetShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
-          originalGeometry: newGeometry.clone(),
-          originalBounds: {
-            width: Math.abs(size.x),
-            height: Math.abs(size.y),
-            depth: Math.abs(size.z)
-          },
-          baseReplicadShape: targetShape.replicadShape,
-          baseShapePosition: targetShape.position,
-          baseShapeRotation: targetShape.rotation,
-          baseShapeScale: targetShape.scale,
-          cuttingShapePosition: relativeNotchPosition,
           parameters: {
             ...targetShape.parameters,
-            width: Math.abs(size.x),
-            height: Math.abs(size.y),
-            depth: Math.abs(size.z),
-            cuttingWidth: Math.abs(intersectionSize.x),
-            cuttingHeight: Math.abs(intersectionSize.y),
-            cuttingDepth: Math.abs(intersectionSize.z),
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-            isCSGResult: true
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
           }
         });
 

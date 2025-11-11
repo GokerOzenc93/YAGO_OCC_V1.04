@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls, Html } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls } from '@react-three/drei';
 import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
@@ -214,7 +214,6 @@ const ShapeWithTransform: React.FC<{
   const isXray = viewMode === ViewMode.XRAY;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
-  const isCuttingReferenceBox = shape.isCuttingReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
   if (shape.isolated === false) {
@@ -226,7 +225,6 @@ const ShapeWithTransform: React.FC<{
       <group
         ref={groupRef}
         onClick={(e) => {
-          if (isCuttingReferenceBox) return;
           e.stopPropagation();
           if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
             if (shape.id === secondarySelectedShapeId) {
@@ -240,12 +238,11 @@ const ShapeWithTransform: React.FC<{
           }
         }}
         onContextMenu={(e) => {
-          if (isCuttingReferenceBox) return;
           e.stopPropagation();
           onContextMenu(e, shape.id);
         }}
       >
-        {!isWireframe && !isXray && !shouldShowAsReference && !isCuttingReferenceBox && (
+        {!isWireframe && !isXray && !shouldShowAsReference && (
           <mesh
             ref={meshRef}
             geometry={localGeometry}
@@ -273,9 +270,7 @@ const ShapeWithTransform: React.FC<{
             </lineSegments>
           </mesh>
         )}
-
-
-        {isWireframe && !isCuttingReferenceBox && (
+        {isWireframe && (
           <>
             <mesh
               ref={meshRef}
@@ -311,7 +306,7 @@ const ShapeWithTransform: React.FC<{
             </lineSegments>
           </>
         )}
-        {(isXray || shouldShowAsReference) && !isCuttingReferenceBox && (
+        {(isXray || shouldShowAsReference) && (
           <>
             <mesh
               ref={meshRef}
@@ -377,7 +372,8 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification
+    addVertexModification,
+    updateShape
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -421,7 +417,31 @@ const Scene: React.FC = () => {
 
           let baseVertices: number[][] = [];
 
-          if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
+          if (shape.geometry) {
+            console.log('📍 Extracting unique vertices from geometry for offset calculation...');
+            const positionAttr = shape.geometry.getAttribute('position');
+            if (positionAttr) {
+              const uniqueVerts = new Map<string, number[]>();
+
+              for (let i = 0; i < positionAttr.count; i++) {
+                const x = Math.round(positionAttr.getX(i) * 100) / 100;
+                const y = Math.round(positionAttr.getY(i) * 100) / 100;
+                const z = Math.round(positionAttr.getZ(i) * 100) / 100;
+                const key = `${x},${y},${z}`;
+
+                if (!uniqueVerts.has(key)) {
+                  uniqueVerts.set(key, [x, y, z]);
+                }
+              }
+
+              baseVertices = Array.from(uniqueVerts.values()).sort((a, b) => {
+                if (Math.abs(a[2] - b[2]) > 0.01) return a[2] - b[2];
+                if (Math.abs(a[1] - b[1]) > 0.01) return a[1] - b[1];
+                return a[0] - b[0];
+              });
+              console.log(`✅ Extracted ${baseVertices.length} unique vertices from geometry (sorted)`);
+            }
+          } else if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
             console.log('📍 Using pre-computed scaled base vertices for offset calculation...');
             baseVertices = shape.parameters.scaledBaseVertices;
             console.log(`✅ Using ${baseVertices.length} scaled base vertices`);
@@ -469,6 +489,19 @@ const Scene: React.FC = () => {
             offsetAmount: offsetAmount.toFixed(1),
             explanation: `${axisName}${directionSymbol} → move to ${newValue} (offset: ${offsetAmount.toFixed(1)})`
           });
+
+          if (!shape.baseVerticesSnapshot) {
+            console.log('📸 Taking initial snapshot of base vertices and geometry');
+            updateShape(selectedShapeId, {
+              baseVerticesSnapshot: baseVertices.map(v => new THREE.Vector3(v[0], v[1], v[2])),
+              baseDimensions: {
+                width: shape.parameters.width,
+                height: shape.parameters.height,
+                depth: shape.parameters.depth
+              },
+              baseGeometrySnapshot: shape.geometry.clone()
+            });
+          }
 
           addVertexModification(selectedShapeId, {
             vertexIndex: selectedVertexIndex,
@@ -680,60 +713,6 @@ const Scene: React.FC = () => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
               />
-            )}
-            {shape.intersectionCenter && (
-              <group position={shape.intersectionCenter}>
-                <mesh renderOrder={999}>
-                  <sphereGeometry args={[20, 16, 16]} />
-                  <meshBasicMaterial
-                    color="#ff0000"
-                    transparent
-                    opacity={0.9}
-                    depthTest={false}
-                    depthWrite={false}
-                  />
-                </mesh>
-                <mesh renderOrder={998}>
-                  <sphereGeometry args={[30, 16, 16]} />
-                  <meshBasicMaterial
-                    color="#ff0000"
-                    transparent
-                    opacity={0.2}
-                    depthTest={false}
-                    depthWrite={false}
-                  />
-                </mesh>
-                <lineSegments renderOrder={1000}>
-                  <edgesGeometry args={[new THREE.SphereGeometry(20, 16, 16)]} />
-                  <lineBasicMaterial
-                    color="#ff0000"
-                    linewidth={3}
-                    depthTest={false}
-                    depthWrite={false}
-                  />
-                </lineSegments>
-                <Html
-                  position={[0, 40, 0]}
-                  center
-                  distanceFactor={10}
-                  style={{
-                    background: 'rgba(239, 68, 68, 0.95)',
-                    color: 'white',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    fontSize: '13px',
-                    fontWeight: '600',
-                    fontFamily: 'monospace',
-                    whiteSpace: 'nowrap',
-                    pointerEvents: 'none',
-                    userSelect: 'none',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
-                    border: '2px solid rgba(255, 255, 255, 0.3)'
-                  }}
-                >
-                  Kesişim: [{shape.intersectionCenter[0].toFixed(1)}, {shape.intersectionCenter[1].toFixed(1)}, {shape.intersectionCenter[2].toFixed(1)}]
-                </Html>
-              </group>
             )}
           </React.Fragment>
         );

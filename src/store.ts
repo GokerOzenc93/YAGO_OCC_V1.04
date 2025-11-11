@@ -18,15 +18,9 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
-  isCuttingReferenceBox?: boolean;
-  originalGeometry?: THREE.BufferGeometry;
-  originalBounds?: { width: number; height: number; depth: number };
-  baseReplicadShape?: any;
-  baseShapePosition?: [number, number, number];
-  baseShapeRotation?: [number, number, number];
-  baseShapeScale?: [number, number, number];
-  cuttingShapePosition?: [number, number, number];
-  intersectionCenter?: [number, number, number];
+  baseVerticesSnapshot?: THREE.Vector3[];
+  baseDimensions?: { width: number; height: number; depth: number };
+  baseGeometrySnapshot?: THREE.BufferGeometry;
 }
 
 export enum CameraType {
@@ -187,7 +181,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   deleteShape: (id) =>
     set((state) => ({
-      shapes: state.shapes.filter((s) => s.id !== id && s.groupId !== id),
+      shapes: state.shapes.filter((s) => s.id !== id),
       selectedShapeId: state.selectedShapeId === id ? null : state.selectedShapeId
     })),
 
@@ -405,7 +399,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
-            const { getIntersectionCenter } = await import('./services/csg');
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
@@ -415,48 +408,6 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
-            const geom1Transformed = shape1.geometry.clone();
-            geom1Transformed.applyMatrix4(new THREE.Matrix4().compose(
-              new THREE.Vector3(...shape1.position),
-              new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape1.rotation)),
-              new THREE.Vector3(...shape1.scale)
-            ));
-
-            const geom2Transformed = shape2.geometry.clone();
-            geom2Transformed.applyMatrix4(new THREE.Matrix4().compose(
-              new THREE.Vector3(...shape2.position),
-              new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape2.rotation)),
-              new THREE.Vector3(...shape2.scale)
-            ));
-
-            const intersectionCenter = getIntersectionCenter(
-              geom1Transformed,
-              geom2Transformed
-            );
-
-            const bbox = new THREE.Box3().setFromBufferAttribute(
-              newGeometry.getAttribute('position')
-            );
-            const size = new THREE.Vector3();
-            bbox.getSize(size);
-
-            console.log('📦 Result geometry bounding box:', {
-              width: size.x,
-              height: size.y,
-              depth: size.z
-            });
-
-            if (intersectionCenter) {
-              console.log('🎯 Intersection center (world space):', {
-                x: intersectionCenter.x.toFixed(2),
-                y: intersectionCenter.y.toFixed(2),
-                z: intersectionCenter.z.toFixed(2),
-                position: intersectionCenter.toArray()
-              });
-            } else {
-              console.warn('⚠️ No intersection center calculated');
-            }
-
             set((state) => ({
               shapes: state.shapes.map((s) => {
                 if (s.id === shape1.id) {
@@ -464,20 +415,9 @@ export const useAppStore = create<AppState>((set, get) => ({
                     ...s,
                     geometry: newGeometry,
                     replicadShape: resultShape,
-                    originalGeometry: newGeometry.clone(),
-                    originalBounds: {
-                      width: Math.abs(size.x),
-                      height: Math.abs(size.y),
-                      depth: Math.abs(size.z)
-                    },
-                    intersectionCenter: intersectionCenter ? intersectionCenter.toArray() as [number, number, number] : undefined,
                     parameters: {
                       ...s.parameters,
-                      width: Math.abs(size.x),
-                      height: Math.abs(size.y),
-                      depth: Math.abs(size.z),
-                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-                      isCSGResult: true
+                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
                     }
                   };
                 }

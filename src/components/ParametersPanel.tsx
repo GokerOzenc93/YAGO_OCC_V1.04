@@ -33,50 +33,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
   const [depth, setDepth] = useState(0);
-  const [cuttingWidth, setCuttingWidth] = useState(0);
-  const [cuttingHeight, setCuttingHeight] = useState(0);
-  const [cuttingDepth, setCuttingDepth] = useState(0);
-  const [cuttingPosX, setCuttingPosX] = useState(0);
-  const [cuttingPosY, setCuttingPosY] = useState(0);
-  const [cuttingPosZ, setCuttingPosZ] = useState(0);
-  const [cuttingWidthExpr, setCuttingWidthExpr] = useState('');
-  const [cuttingHeightExpr, setCuttingHeightExpr] = useState('');
-  const [cuttingDepthExpr, setCuttingDepthExpr] = useState('');
-  const [cuttingPosXExpr, setCuttingPosXExpr] = useState('');
-  const [cuttingPosYExpr, setCuttingPosYExpr] = useState('');
-  const [cuttingPosZExpr, setCuttingPosZExpr] = useState('');
-  const [cuttingWidthDesc, setCuttingWidthDesc] = useState('Cut Width');
-  const [cuttingHeightDesc, setCuttingHeightDesc] = useState('Cut Height');
-  const [cuttingDepthDesc, setCuttingDepthDesc] = useState('Cut Depth');
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (cuttingWidthExpr) {
-      const result = evaluateCuttingExpression(cuttingWidthExpr, cuttingWidth);
-      setCuttingWidth(result);
-    }
-    if (cuttingHeightExpr) {
-      const result = evaluateCuttingExpression(cuttingHeightExpr, cuttingHeight);
-      setCuttingHeight(result);
-    }
-    if (cuttingDepthExpr) {
-      const result = evaluateCuttingExpression(cuttingDepthExpr, cuttingDepth);
-      setCuttingDepth(result);
-    }
-    if (cuttingPosXExpr) {
-      const result = evaluateCuttingExpression(cuttingPosXExpr, cuttingPosX);
-      setCuttingPosX(result);
-    }
-    if (cuttingPosYExpr) {
-      const result = evaluateCuttingExpression(cuttingPosYExpr, cuttingPosY);
-      setCuttingPosY(result);
-    }
-    if (cuttingPosZExpr) {
-      const result = evaluateCuttingExpression(cuttingPosZExpr, cuttingPosZ);
-      setCuttingPosZ(result);
-    }
-  }, [width, height, depth, customParameters]);
 
   useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
@@ -93,34 +51,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setWidth(selectedShape.parameters.width || 0);
       setHeight(selectedShape.parameters.height || 0);
       setDepth(selectedShape.parameters.depth || 0);
-      setCuttingWidth(selectedShape.parameters.cuttingWidth || 0);
-      setCuttingHeight(selectedShape.parameters.cuttingHeight || 0);
-      setCuttingDepth(selectedShape.parameters.cuttingDepth || 0);
-      const cuttingPos = selectedShape.cuttingShapePosition || [0, 0, 0];
-      setCuttingPosX(cuttingPos[0]);
-      setCuttingPosY(cuttingPos[1]);
-      setCuttingPosZ(cuttingPos[2]);
-      setCuttingWidthExpr(selectedShape.parameters.cuttingWidthExpr || String(selectedShape.parameters.cuttingWidth || 0));
-      setCuttingHeightExpr(selectedShape.parameters.cuttingHeightExpr || String(selectedShape.parameters.cuttingHeight || 0));
-      setCuttingDepthExpr(selectedShape.parameters.cuttingDepthExpr || String(selectedShape.parameters.cuttingDepth || 0));
-      setCuttingPosXExpr(selectedShape.parameters.cuttingPosXExpr || String(cuttingPos[0]));
-      setCuttingPosYExpr(selectedShape.parameters.cuttingPosYExpr || String(cuttingPos[1]));
-      setCuttingPosZExpr(selectedShape.parameters.cuttingPosZExpr || String(cuttingPos[2]));
-      setCuttingWidthDesc(selectedShape.parameters.cuttingWidthDesc || 'Cut Width');
-      setCuttingHeightDesc(selectedShape.parameters.cuttingHeightDesc || 'Cut Height');
-      setCuttingDepthDesc(selectedShape.parameters.cuttingDepthDesc || 'Cut Depth');
       setCustomParameters(selectedShape.parameters.customParameters || []);
       setVertexModifications(selectedShape.vertexModifications || []);
     } else {
       setWidth(0);
       setHeight(0);
       setDepth(0);
-      setCuttingWidth(0);
-      setCuttingHeight(0);
-      setCuttingDepth(0);
-      setCuttingPosX(0);
-      setCuttingPosY(0);
-      setCuttingPosZ(0);
       setCustomParameters([]);
       setVertexModifications([]);
     }
@@ -164,10 +100,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       let expr = param.expression
         .replace(/\bW\b/g, newWidth.toString())
         .replace(/\bH\b/g, newHeight.toString())
-        .replace(/\bD\b/g, newDepth.toString())
-        .replace(/\bCW\b/g, cuttingWidth.toString())
-        .replace(/\bCH\b/g, cuttingHeight.toString())
-        .replace(/\bCD\b/g, cuttingDepth.toString());
+        .replace(/\bD\b/g, newDepth.toString());
 
       customParameters.forEach((p) => {
         const regex = new RegExp(`\\b${p.name}\\b`, 'g');
@@ -198,28 +131,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setHeight(newHeight);
     setDepth(newDepth);
 
-    const updatedParams = recalculateCustomParameters(newWidth, newHeight, newDepth);
-    setCustomParameters(updatedParams);
-  };
-
-  const handleCuttingDimensionChange = (dimension: 'width' | 'height' | 'depth', value: number) => {
-    if (!selectedShape) return;
-
-    const newCuttingWidth = dimension === 'width' ? value : cuttingWidth;
-    const newCuttingHeight = dimension === 'height' ? value : cuttingHeight;
-    const newCuttingDepth = dimension === 'depth' ? value : cuttingDepth;
-
-    setCuttingWidth(newCuttingWidth);
-    setCuttingHeight(newCuttingHeight);
-    setCuttingDepth(newCuttingDepth);
-  };
-
-  const handleCuttingPositionChange = (axis: 'x' | 'y' | 'z', value: number) => {
-    if (!selectedShape) return;
-
-    if (axis === 'x') setCuttingPosX(value);
-    else if (axis === 'y') setCuttingPosY(value);
-    else setCuttingPosZ(value);
+    const updatedCustomParams = recalculateCustomParameters(newWidth, newHeight, newDepth);
+    setCustomParameters(updatedCustomParams);
   };
 
   const addCustomParameter = () => {
@@ -244,41 +157,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   };
 
-  const evaluateCuttingExpression = (expression: string, fallback: number = 0): number => {
-    try {
-      let expr = expression.trim();
-      if (!expr) return fallback;
-
-      expr = expr
-        .replace(/\bW\b/g, width.toString())
-        .replace(/\bH\b/g, height.toString())
-        .replace(/\bD\b/g, depth.toString());
-
-      customParameters.forEach((param) => {
-        const regex = new RegExp(`\\b${param.name}\\b`, 'g');
-        expr = expr.replace(regex, param.result.toString());
-      });
-
-      const sanitized = expr.replace(/[^0-9+\-*/().\s]/g, '');
-      const result = Function(`"use strict"; return (${sanitized})`)();
-      return typeof result === 'number' && !isNaN(result) ? result : fallback;
-    } catch {
-      return fallback;
-    }
-  };
-
   const evaluateExpression = (expression: string): number => {
     try {
       let expr = expression
         .replace(/\bW\b/g, width.toString())
         .replace(/\bH\b/g, height.toString())
-        .replace(/\bD\b/g, depth.toString())
-        .replace(/\bCW\b/g, cuttingWidth.toString())
-        .replace(/\bCH\b/g, cuttingHeight.toString())
-        .replace(/\bCD\b/g, cuttingDepth.toString())
-        .replace(/\bCPX\b/g, cuttingPosX.toString())
-        .replace(/\bCPY\b/g, cuttingPosY.toString())
-        .replace(/\bCPZ\b/g, cuttingPosZ.toString());
+        .replace(/\bD\b/g, depth.toString());
 
       customParameters.forEach((param) => {
         const regex = new RegExp(`\\b${param.name}\\b`, 'g');
@@ -305,11 +189,29 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       return param;
     });
     setCustomParameters(updatedParams);
+
+    if (selectedShape) {
+      updateShape(selectedShape.id, {
+        parameters: {
+          ...selectedShape.parameters,
+          customParameters: updatedParams,
+        },
+      });
+    }
   };
 
   const deleteCustomParameter = (id: string) => {
     const updatedParams = customParameters.filter((param) => param.id !== id);
     setCustomParameters(updatedParams);
+
+    if (selectedShape) {
+      updateShape(selectedShape.id, {
+        parameters: {
+          ...selectedShape.parameters,
+          customParameters: updatedParams,
+        },
+      });
+    }
   };
 
   const applyChanges = async () => {
@@ -324,10 +226,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         let evalExpr = expr
           .replace(/\bW\b/g, width.toString())
           .replace(/\bH\b/g, height.toString())
-          .replace(/\bD\b/g, depth.toString())
-          .replace(/\bCW\b/g, cuttingWidth.toString())
-          .replace(/\bCH\b/g, cuttingHeight.toString())
-          .replace(/\bCD\b/g, cuttingDepth.toString());
+          .replace(/\bD\b/g, depth.toString());
 
         customParameters.forEach((p) => {
           const regex = new RegExp(`\\b${p.name}\\b`, 'g');
@@ -343,57 +242,66 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     };
 
     try {
-      const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
+      const { getBoxVertices } = await import('../services/vertexEditor');
+
       let newBaseVertices: THREE.Vector3[] = [];
-      let currentBaseVertices: THREE.Vector3[] = [];
 
       const currentWidth = selectedShape.parameters.width;
       const currentHeight = selectedShape.parameters.height;
       const currentDepth = selectedShape.parameters.depth;
-
-      const scaleX = width / currentWidth;
-      const scaleY = height / currentHeight;
-      const scaleZ = depth / currentDepth;
 
       const dimensionsChanged = width !== currentWidth || height !== currentHeight || depth !== currentDepth;
 
       console.log('📐 Dimension changes:', {
         current: { w: currentWidth, h: currentHeight, d: currentDepth },
         new: { w: width, h: height, d: depth },
-        scale: { x: scaleX, y: scaleY, z: scaleZ },
         changed: dimensionsChanged
       });
 
-      if (selectedShape.parameters.scaledBaseVertices && selectedShape.parameters.scaledBaseVertices.length > 0) {
-        console.log('🔍 Using existing scaled base vertices');
-        currentBaseVertices = selectedShape.parameters.scaledBaseVertices.map((v: number[]) =>
-          new THREE.Vector3(v[0], v[1], v[2])
+      if (selectedShape.baseVerticesSnapshot && selectedShape.baseDimensions) {
+        console.log('📸 Using baseVerticesSnapshot for stable scaling');
+
+        const baseWidth = selectedShape.baseDimensions.width;
+        const baseHeight = selectedShape.baseDimensions.height;
+        const baseDepth = selectedShape.baseDimensions.depth;
+
+        const scaleX = width / baseWidth;
+        const scaleY = height / baseHeight;
+        const scaleZ = depth / baseDepth;
+
+        console.log('📏 Scaling from snapshot:', {
+          base: selectedShape.baseDimensions,
+          scale: { x: scaleX, y: scaleY, z: scaleZ }
+        });
+
+        newBaseVertices = selectedShape.baseVerticesSnapshot.map(v =>
+          new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
         );
-
-        if (dimensionsChanged) {
-          console.log('📏 Scaling base vertices from current by:', { scaleX, scaleY, scaleZ });
-          newBaseVertices = currentBaseVertices.map(v =>
-            new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
-          );
-        } else {
-          newBaseVertices = currentBaseVertices;
-        }
-      } else if (selectedShape.replicadShape) {
-        console.log('🔍 Using replicadShape for initial base vertices');
-        currentBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
-
-        if (dimensionsChanged) {
-          console.log('📏 Scaling base vertices from replicad by:', { scaleX, scaleY, scaleZ });
-          newBaseVertices = currentBaseVertices.map(v =>
-            new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
-          );
-        } else {
-          newBaseVertices = currentBaseVertices;
-        }
       } else if (selectedShape.type === 'box') {
-        console.log('📦 Calculating base vertices from box parameters');
+        console.log('📦 Using box geometry');
         newBaseVertices = getBoxVertices(width, height, depth);
-        currentBaseVertices = getBoxVertices(currentWidth, currentHeight, currentDepth);
+      } else {
+        console.warn('⚠️ No baseVerticesSnapshot available, extracting from geometry');
+        if (selectedShape.geometry) {
+          const positionAttr = selectedShape.geometry.getAttribute('position');
+          if (positionAttr) {
+            const uniqueVerts = new Map<string, THREE.Vector3>();
+            for (let i = 0; i < positionAttr.count; i++) {
+              const x = Math.round(positionAttr.getX(i) * 100) / 100;
+              const y = Math.round(positionAttr.getY(i) * 100) / 100;
+              const z = Math.round(positionAttr.getZ(i) * 100) / 100;
+              const key = `${x},${y},${z}`;
+              if (!uniqueVerts.has(key)) {
+                uniqueVerts.set(key, new THREE.Vector3(x, y, z));
+              }
+            }
+            newBaseVertices = Array.from(uniqueVerts.values()).sort((a, b) => {
+              if (Math.abs(a.z - b.z) > 0.01) return a.z - b.z;
+              if (Math.abs(a.y - b.y) > 0.01) return a.y - b.y;
+              return a.x - b.x;
+            });
+          }
+        }
       }
 
       const vertexFinalPositions = new Map<number, [number, number, number]>();
@@ -453,195 +361,32 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         };
       });
 
-      const currentCuttingWidth = selectedShape.parameters.cuttingWidth || 0;
-      const currentCuttingHeight = selectedShape.parameters.cuttingHeight || 0;
-      const currentCuttingDepth = selectedShape.parameters.cuttingDepth || 0;
-      const currentCuttingPos = selectedShape.cuttingShapePosition || [0, 0, 0];
-
-      const cuttingDimensionsChanged =
-        cuttingWidth !== currentCuttingWidth ||
-        cuttingHeight !== currentCuttingHeight ||
-        cuttingDepth !== currentCuttingDepth;
-
-      const cuttingPositionChanged =
-        cuttingPosX !== currentCuttingPos[0] ||
-        cuttingPosY !== currentCuttingPos[1] ||
-        cuttingPosZ !== currentCuttingPos[2];
-
       let scaledGeometry = selectedShape.geometry;
-      let regenerateCSG = false;
 
-      if (selectedShape.geometry) {
-        if (selectedShape.parameters.isCSGResult && selectedShape.baseReplicadShape) {
-          if (dimensionsChanged || cuttingDimensionsChanged || cuttingPositionChanged) {
-            console.log('🔄 CSG parameters changed - will regenerate with boolean operation');
-            console.log('  Base dimensions changed:', dimensionsChanged);
-            console.log('  Cutting dimensions changed:', cuttingDimensionsChanged);
-            console.log('  Cutting position changed:', cuttingPositionChanged);
-            regenerateCSG = true;
-          }
-        } else if (dimensionsChanged) {
-          console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
+      if (dimensionsChanged) {
+        if (selectedShape.baseGeometrySnapshot && selectedShape.baseDimensions) {
+          const scaleX = width / selectedShape.baseDimensions.width;
+          const scaleY = height / selectedShape.baseDimensions.height;
+          const scaleZ = depth / selectedShape.baseDimensions.depth;
+
+          console.log('📏 Scaling from baseGeometrySnapshot by:', { scaleX, scaleY, scaleZ });
+          scaledGeometry = selectedShape.baseGeometrySnapshot.clone();
+          scaledGeometry.scale(scaleX, scaleY, scaleZ);
+          scaledGeometry.computeVertexNormals();
+          scaledGeometry.computeBoundingBox();
+          scaledGeometry.computeBoundingSphere();
+        } else if (selectedShape.geometry) {
+          const scaleX = width / currentWidth;
+          const scaleY = height / currentHeight;
+          const scaleZ = depth / currentDepth;
+
+          console.log('📏 Scaling current geometry by:', { scaleX, scaleY, scaleZ });
           scaledGeometry = selectedShape.geometry.clone();
           scaledGeometry.scale(scaleX, scaleY, scaleZ);
           scaledGeometry.computeVertexNormals();
           scaledGeometry.computeBoundingBox();
           scaledGeometry.computeBoundingSphere();
         }
-      }
-
-      if (regenerateCSG && selectedShape.baseReplicadShape) {
-        console.log('🔧 Regenerating CSG geometry with new base dimensions...');
-        const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-
-        const newBaseShape = await createReplicadBox({
-          width,
-          height,
-          depth
-        });
-
-        const cuttingShape = await createReplicadBox({
-          width: cuttingWidth,
-          height: cuttingHeight,
-          depth: cuttingDepth
-        });
-
-        const basePos = selectedShape.baseShapePosition || [0, 0, 0];
-        const baseRot = selectedShape.baseShapeRotation || [0, 0, 0];
-
-        const originalAnchor = selectedShape.cuttingShapePosition || [0, 0, 0];
-
-        const scaleFactorX = width / currentWidth;
-        const scaleFactorY = height / currentHeight;
-        const scaleFactorZ = depth / currentDepth;
-
-        const userAnchor: [number, number, number] = [cuttingPosX, cuttingPosY, cuttingPosZ];
-        const anchorChanged = userAnchor[0] !== originalAnchor[0] || userAnchor[1] !== originalAnchor[1] || userAnchor[2] !== originalAnchor[2];
-
-        const scaledAnchor: [number, number, number] = anchorChanged ? userAnchor : [
-          originalAnchor[0] * scaleFactorX,
-          originalAnchor[1] * scaleFactorY,
-          originalAnchor[2] * scaleFactorZ
-        ];
-
-        const currentCuttingWidth = selectedShape.parameters.cuttingWidth || cuttingWidth;
-        const currentCuttingHeight = selectedShape.parameters.cuttingHeight || cuttingHeight;
-        const currentCuttingDepth = selectedShape.parameters.cuttingDepth || cuttingDepth;
-
-        const offsetX = (originalAnchor[0] > 0) ? (cuttingWidth - currentCuttingWidth) / 2 : -(cuttingWidth - currentCuttingWidth) / 2;
-        const offsetY = (originalAnchor[1] > 0) ? (cuttingHeight - currentCuttingHeight) / 2 : -(cuttingHeight - currentCuttingHeight) / 2;
-        const offsetZ = (originalAnchor[2] > 0) ? (cuttingDepth - currentCuttingDepth) / 2 : -(cuttingDepth - currentCuttingDepth) / 2;
-
-        const cuttingCenterPos: [number, number, number] = [
-          scaledAnchor[0] + offsetX,
-          scaledAnchor[1] + offsetY,
-          scaledAnchor[2] + offsetZ
-        ];
-
-        console.log('📍 Notch positioning (anchor-based):', {
-          originalAnchor,
-          userAnchor,
-          anchorChanged,
-          scaledAnchor,
-          scaleFactors: [scaleFactorX, scaleFactorY, scaleFactorZ],
-          cuttingDimensions: { width: cuttingWidth, height: cuttingHeight, depth: cuttingDepth },
-          currentCuttingDimensions: { width: currentCuttingWidth, height: currentCuttingHeight, depth: currentCuttingDepth },
-          offsets: { x: offsetX, y: offsetY, z: offsetZ },
-          cuttingCenterPos,
-          explanation: anchorChanged ? 'User changed anchor position manually' : 'Anchor stays fixed, notch grows/shrinks from anchor point'
-        });
-
-        const resultShape = await performBooleanCut(
-          newBaseShape,
-          cuttingShape,
-          basePos,
-          cuttingCenterPos,
-          baseRot,
-          [0, 0, 0],
-          [1, 1, 1],
-          [1, 1, 1]
-        );
-
-        scaledGeometry = convertReplicadToThreeGeometry(resultShape);
-        newBaseVertices = await getReplicadVertices(resultShape);
-
-        const cuttingRefGeometry = new (await import('three')).BoxGeometry(cuttingWidth, cuttingHeight, cuttingDepth);
-        const existingCuttingRef = shapes.find(s => s.groupId === selectedShape.id && s.isCuttingReferenceBox);
-
-        if (existingCuttingRef) {
-          updateShape(existingCuttingRef.id, {
-            geometry: cuttingRefGeometry,
-            position: [
-              selectedShape.position[0] + cuttingCenterPos[0],
-              selectedShape.position[1] + cuttingCenterPos[1],
-              selectedShape.position[2] + cuttingCenterPos[2]
-            ],
-            parameters: {
-              ...existingCuttingRef.parameters,
-              width: cuttingWidth,
-              height: cuttingHeight,
-              depth: cuttingDepth
-            }
-          });
-        } else {
-          const { addShape } = useAppStore.getState();
-          addShape({
-            id: `cutting-ref-${selectedShape.id}-${Date.now()}`,
-            type: 'box',
-            position: [
-              selectedShape.position[0] + cuttingCenterPos[0],
-              selectedShape.position[1] + cuttingCenterPos[1],
-              selectedShape.position[2] + cuttingCenterPos[2]
-            ],
-            rotation: [0, 0, 0],
-            scale: [1, 1, 1],
-            geometry: cuttingRefGeometry,
-            color: '#ffeb3b',
-            parameters: {
-              width: cuttingWidth,
-              height: cuttingHeight,
-              depth: cuttingDepth
-            },
-            groupId: selectedShape.id,
-            isCuttingReferenceBox: true
-          });
-        }
-
-        updateShape(selectedShape.id, {
-          geometry: scaledGeometry,
-          replicadShape: resultShape,
-          originalGeometry: scaledGeometry.clone(),
-          baseReplicadShape: newBaseShape,
-          cuttingShapePosition: scaledAnchor,
-          originalBounds: {
-            width: Math.abs(width),
-            height: Math.abs(height),
-            depth: Math.abs(depth)
-          },
-          parameters: {
-            ...selectedShape.parameters,
-            width,
-            height,
-            depth,
-            cuttingWidth,
-            cuttingHeight,
-            cuttingDepth,
-            cuttingWidthExpr,
-            cuttingHeightExpr,
-            cuttingDepthExpr,
-            cuttingPosXExpr,
-            cuttingPosYExpr,
-            cuttingPosZExpr,
-            cuttingWidthDesc,
-            cuttingHeightDesc,
-            cuttingDepthDesc,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-          },
-          vertexModifications: updatedVertexMods
-        });
-
-        console.log('✅ CSG geometry regenerated with fixed cutting dimensions');
-        return;
       }
 
       console.log('📝 Updating shape parameters and vertex modifications:', {
@@ -658,28 +403,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           width,
           height,
           depth,
-          cuttingWidth,
-          cuttingHeight,
-          cuttingDepth,
-          cuttingWidthExpr,
-          cuttingHeightExpr,
-          cuttingDepthExpr,
-          cuttingPosXExpr,
-          cuttingPosYExpr,
-          cuttingPosZExpr,
-          cuttingWidthDesc,
-          cuttingHeightDesc,
-          cuttingDepthDesc,
           customParameters,
           scaledBaseVertices: newBaseVertices.length > 0 ?
             newBaseVertices.map(v => [v.x, v.y, v.z]) :
             (selectedShape.parameters.scaledBaseVertices || undefined)
         },
         vertexModifications: updatedVertexMods,
-        ...(dimensionsChanged && scaledGeometry && {
-          geometry: scaledGeometry,
-          originalBounds: selectedShape.parameters.isCSGResult ? selectedShape.originalBounds : undefined
-        })
+        ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
       });
 
       console.log('✅ Parameters applied successfully - geometry' + (dimensionsChanged ? ' scaled' : ' preserved'));
@@ -721,14 +451,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setVertexEditMode(!vertexEditMode)}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+            className={`w-5 h-5 flex items-center justify-center text-xs font-bold rounded transition-colors ${
               vertexEditMode
                 ? 'bg-orange-600 text-white'
                 : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
             }`}
             title="Edit Vertices"
           >
-            VERTEX
+            V
           </button>
           <button
             onClick={addCustomParameter}
@@ -746,7 +476,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         </div>
       </div>
 
-      <div className="p-3">
+      <div className="p-3 overflow-y-auto max-h-[150mm] scrollbar-thin">
         {selectedShape ? (
           <div className="space-y-2">
             <div className="space-y-2">
@@ -832,6 +562,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             </div>
 
+
             {customParameters.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
                 {customParameters.map((param) => (
@@ -875,207 +606,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             )}
 
-            {selectedShape.parameters?.isCSGResult && cuttingWidth > 0 && (
-              <div className="space-y-2 pt-2 border-t border-stone-200">
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="CW"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingWidthExpr}
-                    onChange={(e) => {
-                      setCuttingWidthExpr(e.target.value);
-                      const result = evaluateCuttingExpression(e.target.value, cuttingWidth);
-                      setCuttingWidth(result);
-                    }}
-                    className="w-16 px-2 py-1 text-xs text-center border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                    placeholder="0"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingWidth.toFixed(1)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingWidthDesc}
-                    onChange={(e) => setCuttingWidthDesc(e.target.value)}
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-stone-700"
-                    placeholder="Cut Width"
-                  />
-                </div>
-
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="CH"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingHeightExpr}
-                    onChange={(e) => {
-                      setCuttingHeightExpr(e.target.value);
-                      const result = evaluateCuttingExpression(e.target.value, cuttingHeight);
-                      setCuttingHeight(result);
-                    }}
-                    className="w-16 px-2 py-1 text-xs text-center border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                    placeholder="0"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingHeight.toFixed(1)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingHeightDesc}
-                    onChange={(e) => setCuttingHeightDesc(e.target.value)}
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-stone-700"
-                    placeholder="Cut Height"
-                  />
-                </div>
-
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="CD"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingDepthExpr}
-                    onChange={(e) => {
-                      setCuttingDepthExpr(e.target.value);
-                      const result = evaluateCuttingExpression(e.target.value, cuttingDepth);
-                      setCuttingDepth(result);
-                    }}
-                    className="w-16 px-2 py-1 text-xs text-center border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
-                    placeholder="0"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingDepth.toFixed(1)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value={cuttingDepthDesc}
-                    onChange={(e) => setCuttingDepthDesc(e.target.value)}
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-stone-700"
-                    placeholder="Cut Depth"
-                  />
-                </div>
-
-                <div className="pt-2 border-t border-red-200 space-y-2">
-                  <div className="flex gap-1 items-center">
-                    <input
-                      type="text"
-                      value="CPX"
-                      readOnly
-                      className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
-                    />
-                    <input
-                      type="text"
-                      value={cuttingPosXExpr}
-                      onChange={(e) => {
-                        setCuttingPosXExpr(e.target.value);
-                        const result = evaluateCuttingExpression(e.target.value, cuttingPosX);
-                        setCuttingPosX(result);
-                      }}
-                      className="w-16 px-2 py-1 text-xs text-center border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      placeholder="0"
-                    />
-                    <input
-                      type="text"
-                      value={cuttingPosX.toFixed(1)}
-                      readOnly
-                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
-                    />
-                    <input
-                      type="text"
-                      value="Cut Pos X"
-                      readOnly
-                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                    />
-                  </div>
-
-                  <div className="flex gap-1 items-center">
-                    <input
-                      type="text"
-                      value="CPY"
-                      readOnly
-                      className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
-                    />
-                    <input
-                      type="text"
-                      value={cuttingPosYExpr}
-                      onChange={(e) => {
-                        setCuttingPosYExpr(e.target.value);
-                        const result = evaluateCuttingExpression(e.target.value, cuttingPosY);
-                        setCuttingPosY(result);
-                      }}
-                      className="w-16 px-2 py-1 text-xs text-center border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      placeholder="0"
-                    />
-                    <input
-                      type="text"
-                      value={cuttingPosY.toFixed(1)}
-                      readOnly
-                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
-                    />
-                    <input
-                      type="text"
-                      value="Cut Pos Y"
-                      readOnly
-                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                    />
-                  </div>
-
-                  <div className="flex gap-1 items-center">
-                    <input
-                      type="text"
-                      value="CPZ"
-                      readOnly
-                      className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
-                    />
-                    <input
-                      type="text"
-                      value={cuttingPosZExpr}
-                      onChange={(e) => {
-                        setCuttingPosZExpr(e.target.value);
-                        const result = evaluateCuttingExpression(e.target.value, cuttingPosZ);
-                        setCuttingPosZ(result);
-                      }}
-                      className="w-16 px-2 py-1 text-xs text-center border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                      placeholder="0"
-                    />
-                    <input
-                      type="text"
-                      value={cuttingPosZ.toFixed(1)}
-                      readOnly
-                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
-                    />
-                    <input
-                      type="text"
-                      value="Cut Pos Z"
-                      readOnly
-                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
             {vertexModifications.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
                 {vertexModifications.map((mod: any, idx: number) => {
@@ -1088,13 +618,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       let evalExpr = expr
                         .replace(/\bW\b/g, width.toString())
                         .replace(/\bH\b/g, height.toString())
-                        .replace(/\bD\b/g, depth.toString())
-                        .replace(/\bCW\b/g, cuttingWidth.toString())
-                        .replace(/\bCH\b/g, cuttingHeight.toString())
-                        .replace(/\bCD\b/g, cuttingDepth.toString())
-                        .replace(/\bCPX\b/g, cuttingPosX.toString())
-                        .replace(/\bCPY\b/g, cuttingPosY.toString())
-                        .replace(/\bCPZ\b/g, cuttingPosZ.toString());
+                        .replace(/\bD\b/g, depth.toString());
 
                       customParameters.forEach((p) => {
                         const regex = new RegExp(`\\b${p.name}\\b`, 'g');
