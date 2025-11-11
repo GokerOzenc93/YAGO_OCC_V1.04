@@ -551,29 +551,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const intersectionSize = new THREE.Vector3();
         intersectionBox.getSize(intersectionSize);
 
-        const intersectionCenter = new THREE.Vector3();
-        intersectionBox.getCenter(intersectionCenter);
-
-        const intersectionCorner = intersectionBox.min.clone();
-
-        const originalTargetWidth = targetShape.parameters?.width || targetShape.originalBounds?.width || 0;
-        const originalTargetHeight = targetShape.parameters?.height || targetShape.originalBounds?.height || 0;
-        const originalTargetDepth = targetShape.parameters?.depth || targetShape.originalBounds?.depth || 0;
-
-        console.log('🔲 Intersection (cutting area) info:', {
-          cuttingDimensions: {
-            width: intersectionSize.x,
-            height: intersectionSize.y,
-            depth: intersectionSize.z
-          },
-          worldCenter: intersectionCenter.toArray(),
-          worldCorner: intersectionCorner.toArray(),
-          targetPosition: targetShape.position,
-          originalTargetSize: {
-            width: originalTargetWidth,
-            height: originalTargetHeight,
-            depth: originalTargetDepth
-          }
+        console.log('🔲 Intersection (collision) dimensions:', {
+          width: intersectionSize.x,
+          height: intersectionSize.y,
+          depth: intersectionSize.z
         });
 
         updateShape(targetShape.id, {
@@ -581,21 +562,19 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           replicadShape: resultShape,
           originalGeometry: newGeometry.clone(),
           originalBounds: {
-            width: originalTargetWidth,
-            height: originalTargetHeight,
-            depth: originalTargetDepth
+            width: Math.abs(size.x),
+            height: Math.abs(size.y),
+            depth: Math.abs(size.z)
           },
           baseReplicadShape: targetShape.replicadShape,
           baseShapePosition: targetShape.position,
           baseShapeRotation: targetShape.rotation,
           baseShapeScale: targetShape.scale,
-          cuttingPosition: intersectionCenter.toArray() as [number, number, number],
-          cuttingCorner: intersectionCorner.toArray() as [number, number, number],
           parameters: {
             ...targetShape.parameters,
-            width: originalTargetWidth,
-            height: originalTargetHeight,
-            depth: originalTargetDepth,
+            width: Math.abs(size.x),
+            height: Math.abs(size.y),
+            depth: Math.abs(size.z),
             cuttingWidth: Math.abs(intersectionSize.x),
             cuttingHeight: Math.abs(intersectionSize.y),
             cuttingDepth: Math.abs(intersectionSize.z),
