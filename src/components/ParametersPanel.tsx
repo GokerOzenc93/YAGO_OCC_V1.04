@@ -355,12 +355,28 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       let scaledGeometry = selectedShape.geometry;
 
       if (dimensionsChanged && selectedShape.geometry) {
-        console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
-        scaledGeometry = selectedShape.geometry.clone();
-        scaledGeometry.scale(scaleX, scaleY, scaleZ);
-        scaledGeometry.computeVertexNormals();
-        scaledGeometry.computeBoundingBox();
-        scaledGeometry.computeBoundingSphere();
+        if (selectedShape.parameters.isCSGResult && selectedShape.originalGeometry && selectedShape.originalBounds) {
+          console.log('📏 Scaling CSG result geometry from original bounds');
+          const originalBounds = selectedShape.originalBounds;
+          const scaleX_csg = width / originalBounds.width;
+          const scaleY_csg = height / originalBounds.height;
+          const scaleZ_csg = depth / originalBounds.depth;
+
+          console.log('CSG scale factors:', { scaleX_csg, scaleY_csg, scaleZ_csg });
+
+          scaledGeometry = selectedShape.originalGeometry.clone();
+          scaledGeometry.scale(scaleX_csg, scaleY_csg, scaleZ_csg);
+          scaledGeometry.computeVertexNormals();
+          scaledGeometry.computeBoundingBox();
+          scaledGeometry.computeBoundingSphere();
+        } else {
+          console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
+          scaledGeometry = selectedShape.geometry.clone();
+          scaledGeometry.scale(scaleX, scaleY, scaleZ);
+          scaledGeometry.computeVertexNormals();
+          scaledGeometry.computeBoundingBox();
+          scaledGeometry.computeBoundingSphere();
+        }
       }
 
       console.log('📝 Updating shape parameters and vertex modifications:', {
@@ -383,7 +399,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             (selectedShape.parameters.scaledBaseVertices || undefined)
         },
         vertexModifications: updatedVertexMods,
-        ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
+        ...(dimensionsChanged && scaledGeometry && {
+          geometry: scaledGeometry,
+          originalBounds: selectedShape.parameters.isCSGResult ? selectedShape.originalBounds : undefined
+        })
       });
 
       console.log('✅ Parameters applied successfully - geometry' + (dimensionsChanged ? ' scaled' : ' preserved'));
