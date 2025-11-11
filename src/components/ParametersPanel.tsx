@@ -454,22 +454,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       });
 
       let scaledGeometry = selectedShape.geometry;
+      let regenerateCSG = false;
 
       if (dimensionsChanged && selectedShape.geometry) {
-        if (selectedShape.parameters.isCSGResult && selectedShape.originalGeometry && selectedShape.originalBounds) {
-          console.log('📏 Scaling CSG result geometry from original bounds');
-          const originalBounds = selectedShape.originalBounds;
-          const scaleX_csg = width / originalBounds.width;
-          const scaleY_csg = height / originalBounds.height;
-          const scaleZ_csg = depth / originalBounds.depth;
-
-          console.log('CSG scale factors:', { scaleX_csg, scaleY_csg, scaleZ_csg });
-
-          scaledGeometry = selectedShape.originalGeometry.clone();
-          scaledGeometry.scale(scaleX_csg, scaleY_csg, scaleZ_csg);
-          scaledGeometry.computeVertexNormals();
-          scaledGeometry.computeBoundingBox();
-          scaledGeometry.computeBoundingSphere();
+        if (selectedShape.parameters.isCSGResult && selectedShape.baseReplicadShape) {
+          console.log('🔄 CSG result dimensions changed - will regenerate with boolean operation');
+          regenerateCSG = true;
         } else {
           console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
           scaledGeometry = selectedShape.geometry.clone();
@@ -478,6 +468,66 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           scaledGeometry.computeBoundingBox();
           scaledGeometry.computeBoundingSphere();
         }
+      }
+
+      if (regenerateCSG && selectedShape.baseReplicadShape) {
+        console.log('🔧 Regenerating CSG geometry with new base dimensions...');
+        const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+
+        const newBaseShape = await createReplicadBox({
+          width,
+          height,
+          depth
+        });
+
+        const cuttingShape = await createReplicadBox({
+          width: cuttingWidth,
+          height: cuttingHeight,
+          depth: cuttingDepth
+        });
+
+        const basePos = selectedShape.baseShapePosition || [0, 0, 0];
+        const baseRot = selectedShape.baseShapeRotation || [0, 0, 0];
+
+        const resultShape = await performBooleanCut(
+          newBaseShape,
+          cuttingShape,
+          basePos,
+          [0, 0, 0],
+          baseRot,
+          [0, 0, 0],
+          [1, 1, 1],
+          [1, 1, 1]
+        );
+
+        scaledGeometry = convertReplicadToThreeGeometry(resultShape);
+        newBaseVertices = await getReplicadVertices(resultShape);
+
+        updateShape(selectedShape.id, {
+          geometry: scaledGeometry,
+          replicadShape: resultShape,
+          originalGeometry: scaledGeometry.clone(),
+          baseReplicadShape: newBaseShape,
+          originalBounds: {
+            width: Math.abs(width),
+            height: Math.abs(height),
+            depth: Math.abs(depth)
+          },
+          parameters: {
+            ...selectedShape.parameters,
+            width,
+            height,
+            depth,
+            cuttingWidth,
+            cuttingHeight,
+            cuttingDepth,
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+          },
+          vertexModifications: updatedVertexMods
+        });
+
+        console.log('✅ CSG geometry regenerated with fixed cutting dimensions');
+        return;
       }
 
       console.log('📝 Updating shape parameters and vertex modifications:', {
