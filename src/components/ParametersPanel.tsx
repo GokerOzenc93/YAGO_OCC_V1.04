@@ -33,6 +33,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
   const [depth, setDepth] = useState(0);
+  const [cuttingWidth, setCuttingWidth] = useState(0);
+  const [cuttingHeight, setCuttingHeight] = useState(0);
+  const [cuttingDepth, setCuttingDepth] = useState(0);
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
@@ -51,12 +54,18 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setWidth(selectedShape.parameters.width || 0);
       setHeight(selectedShape.parameters.height || 0);
       setDepth(selectedShape.parameters.depth || 0);
+      setCuttingWidth(selectedShape.parameters.cuttingWidth || 0);
+      setCuttingHeight(selectedShape.parameters.cuttingHeight || 0);
+      setCuttingDepth(selectedShape.parameters.cuttingDepth || 0);
       setCustomParameters(selectedShape.parameters.customParameters || []);
       setVertexModifications(selectedShape.vertexModifications || []);
     } else {
       setWidth(0);
       setHeight(0);
       setDepth(0);
+      setCuttingWidth(0);
+      setCuttingHeight(0);
+      setCuttingDepth(0);
       setCustomParameters([]);
       setVertexModifications([]);
     }
@@ -554,6 +563,91 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 />
               </div>
             </div>
+
+            {selectedShape.parameters?.isCSGResult && cuttingWidth > 0 && (
+              <div className="space-y-2 pt-2 border-t border-stone-200">
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="CW"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={cuttingWidth}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={cuttingWidth}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Cut Width"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="CH"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={cuttingHeight}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={cuttingHeight}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Cut Height"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="CD"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={cuttingDepth}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={cuttingDepth}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Cut Depth"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+              </div>
+            )}
 
 
             {customParameters.length > 0 && (

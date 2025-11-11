@@ -521,10 +521,22 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const size = new THREE.Vector3();
         bbox.getSize(size);
 
+        const cuttingBbox = new THREE.Box3().setFromBufferAttribute(
+          selectedShape.geometry.getAttribute('position')
+        );
+        const cuttingSize = new THREE.Vector3();
+        cuttingBbox.getSize(cuttingSize);
+
         console.log('📦 Result geometry bounding box:', {
           width: size.x,
           height: size.y,
           depth: size.z
+        });
+
+        console.log('✂️ Cutting geometry dimensions:', {
+          width: cuttingSize.x,
+          height: cuttingSize.y,
+          depth: cuttingSize.z
         });
 
         updateShape(targetShape.id, {
@@ -541,6 +553,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             width: Math.abs(size.x),
             height: Math.abs(size.y),
             depth: Math.abs(size.z),
+            cuttingWidth: Math.abs(cuttingSize.x),
+            cuttingHeight: Math.abs(cuttingSize.y),
+            cuttingDepth: Math.abs(cuttingSize.z),
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
             isCSGResult: true
           }
