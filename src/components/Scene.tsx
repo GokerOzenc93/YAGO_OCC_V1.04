@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls, Html } from '@react-three/drei';
 import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
@@ -311,7 +311,7 @@ const ShapeWithTransform: React.FC<{
             </lineSegments>
           </>
         )}
-        {(isXray || shouldShowAsReference) && (
+        {(isXray || shouldShowAsReference) && !isCuttingReferenceBox && (
           <>
             <mesh
               ref={meshRef}
@@ -683,28 +683,56 @@ const Scene: React.FC = () => {
             )}
             {shape.intersectionCenter && (
               <group position={shape.intersectionCenter}>
-                <mesh>
+                <mesh renderOrder={999}>
                   <sphereGeometry args={[20, 16, 16]} />
-                  <meshStandardMaterial
-                    color="#ff0000"
-                    emissive="#ff0000"
-                    emissiveIntensity={0.8}
-                    toneMapped={false}
-                  />
-                </mesh>
-                <mesh>
-                  <sphereGeometry args={[25, 16, 16]} />
                   <meshBasicMaterial
                     color="#ff0000"
                     transparent
-                    opacity={0.3}
+                    opacity={0.9}
                     depthTest={false}
+                    depthWrite={false}
                   />
                 </mesh>
-                <lineSegments>
+                <mesh renderOrder={998}>
+                  <sphereGeometry args={[30, 16, 16]} />
+                  <meshBasicMaterial
+                    color="#ff0000"
+                    transparent
+                    opacity={0.2}
+                    depthTest={false}
+                    depthWrite={false}
+                  />
+                </mesh>
+                <lineSegments renderOrder={1000}>
                   <edgesGeometry args={[new THREE.SphereGeometry(20, 16, 16)]} />
-                  <lineBasicMaterial color="#ff0000" linewidth={2} />
+                  <lineBasicMaterial
+                    color="#ff0000"
+                    linewidth={3}
+                    depthTest={false}
+                    depthWrite={false}
+                  />
                 </lineSegments>
+                <Html
+                  position={[0, 40, 0]}
+                  center
+                  distanceFactor={10}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.95)',
+                    color: 'white',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '13px',
+                    fontWeight: '600',
+                    fontFamily: 'monospace',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+                    border: '2px solid rgba(255, 255, 255, 0.3)'
+                  }}
+                >
+                  Kesişim: [{shape.intersectionCenter[0].toFixed(1)}, {shape.intersectionCenter[1].toFixed(1)}, {shape.intersectionCenter[2].toFixed(1)}]
+                </Html>
               </group>
             )}
           </React.Fragment>
