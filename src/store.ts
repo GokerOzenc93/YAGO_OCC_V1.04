@@ -119,11 +119,6 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
-
-  faceExtrudeMode: boolean;
-  setFaceExtrudeMode: (enabled: boolean) => void;
-  faceExtrudeState: any;
-  setFaceExtrudeState: (state: any) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -368,11 +363,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         };
       })
     })),
-
-  faceExtrudeMode: false,
-  setFaceExtrudeMode: (enabled) => set({ faceExtrudeMode: enabled }),
-  faceExtrudeState: null,
-  setFaceExtrudeState: (state) => set({ faceExtrudeState: state }),
 
   checkAndPerformBooleanOperations: async () => {
     const state = get();
