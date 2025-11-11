@@ -22,7 +22,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     shapes,
     updateShape,
     vertexEditMode,
-    setVertexEditMode
+    setVertexEditMode,
+    intersectionParameters
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -577,6 +578,66 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {selectedShape && selectedShape.type === 'intersection' && selectedShape.parameters.intersectionData && (
+              <div className="space-y-2 pt-2 border-t border-stone-200">
+                <div className="text-xs font-semibold text-stone-700 mb-1">Intersection Properties</div>
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Vol"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="text"
+                    value={selectedShape.parameters.volume.toFixed(2)}
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Volume"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Area"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="text"
+                    value={selectedShape.parameters.surfaceArea.toFixed(2)}
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Surface Area"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="CoM"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="text"
+                    value={`[${selectedShape.parameters.intersectionData.centerOfMass.map((v: number) => v.toFixed(1)).join(', ')}]`}
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
               </div>
             )}
 

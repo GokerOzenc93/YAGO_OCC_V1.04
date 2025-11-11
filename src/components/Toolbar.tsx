@@ -15,6 +15,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     setLastTransformTool,
     addShape,
     selectedShapeId,
+    secondarySelectedShapeId,
     modifyShape,
     cameraType,
     setCameraType,
@@ -29,7 +30,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     extrudeShape,
     shapes,
     updateShape,
-    deleteShape
+    deleteShape,
+    computeIntersectionForShapes
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -810,6 +812,27 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             title="Nearest Snap"
           >
             <MapPin size={11} />
+          </button>
+        </div>
+
+        <div className="w-px h-7 bg-stone-300"></div>
+
+        <div className="flex items-center gap-0.5 bg-white rounded-lg p-1 shadow-sm border border-stone-200">
+          <button
+            onClick={async () => {
+              if (selectedShapeId && secondarySelectedShapeId) {
+                await computeIntersectionForShapes(selectedShapeId, secondarySelectedShapeId);
+              }
+            }}
+            disabled={!selectedShapeId || !secondarySelectedShapeId}
+            className={`p-1.5 rounded transition-all ${
+              selectedShapeId && secondarySelectedShapeId
+                ? 'bg-green-100 text-green-700 border border-green-300 hover:bg-green-200'
+                : 'opacity-50 cursor-not-allowed text-stone-400'
+            }`}
+            title="Compute Intersection (Ctrl+Select two shapes)"
+          >
+            <Intersection size={14} />
           </button>
         </div>
 

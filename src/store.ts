@@ -119,6 +119,11 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
+
+  intersectionParameters: Map<string, any>;
+  setIntersectionParameters: (key: string, params: any) => void;
+  removeIntersectionParameters: (key: string) => void;
+  computeIntersectionForShapes: (shape1Id: string, shape2Id: string) => Promise<void>;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -429,6 +434,67 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }
       }
+    }
+  },
+
+  intersectionParameters: new Map(),
+  setIntersectionParameters: (key, params) =>
+    set((state) => {
+      const newMap = new Map(state.intersectionParameters);
+      newMap.set(key, params);
+      return { intersectionParameters: newMap };
+    }),
+  removeIntersectionParameters: (key) =>
+    set((state) => {
+      const newMap = new Map(state.intersectionParameters);
+      newMap.delete(key);
+      return { intersectionParameters: newMap };
+    }),
+  computeIntersectionForShapes: async (shape1Id, shape2Id) => {
+    const state = get();
+    const shape1 = state.shapes.find(s => s.id === shape1Id);
+    const shape2 = state.shapes.find(s => s.id === shape2Id);
+
+    if (!shape1 || !shape2 || !shape1.replicadShape || !shape2.replicadShape) {
+      console.error('❌ Cannot compute intersection: shapes not found or missing Replicad shapes');
+      return;
+    }
+
+    try {
+      const { computeIntersection, createIntersectionShape } = await import('./services/intersectionDetection');
+
+      console.log('🔀 Computing intersection between shapes:', shape1Id, shape2Id);
+
+      const intersectionParams = await computeIntersection(
+        shape1.replicadShape,
+        shape2.replicadShape,
+        shape1.position,
+        shape2.position,
+        shape1.rotation,
+        shape2.rotation
+      );
+
+      if (intersectionParams) {
+        const intersectionKey = `${shape1Id}-${shape2Id}`;
+        state.setIntersectionParameters(intersectionKey, intersectionParams);
+
+        const newShape = createIntersectionShape(intersectionParams);
+        state.addShape(newShape);
+
+        console.log('✅ Intersection computed and added to scene:', {
+          key: intersectionKey,
+          volume: intersectionParams.intersectionData.volume,
+          dimensions: {
+            width: intersectionParams.intersectionData.boundingBox.width,
+            height: intersectionParams.intersectionData.boundingBox.height,
+            depth: intersectionParams.intersectionData.boundingBox.depth
+          }
+        });
+      } else {
+        console.log('⚠️ No intersection found between shapes');
+      }
+    } catch (error) {
+      console.error('❌ Failed to compute intersection:', error);
     }
   }
 }));
