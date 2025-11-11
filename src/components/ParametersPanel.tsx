@@ -210,7 +210,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       let expr = expression
         .replace(/\bW\b/g, width.toString())
         .replace(/\bH\b/g, height.toString())
-        .replace(/\bD\b/g, depth.toString());
+        .replace(/\bD\b/g, depth.toString())
+        .replace(/\bCW\b/g, cuttingWidth.toString())
+        .replace(/\bCH\b/g, cuttingHeight.toString())
+        .replace(/\bCD\b/g, cuttingDepth.toString())
+        .replace(/\bCPX\b/g, cuttingPosX.toString())
+        .replace(/\bCPY\b/g, cuttingPosY.toString())
+        .replace(/\bCPZ\b/g, cuttingPosZ.toString());
 
       customParameters.forEach((param) => {
         const regex = new RegExp(`\\b${param.name}\\b`, 'g');
@@ -770,6 +776,49 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             </div>
 
+            {customParameters.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-stone-200">
+                {customParameters.map((param) => (
+                  <div key={param.id} className="flex gap-1 items-center">
+                    <input
+                      type="text"
+                      value={param.name}
+                      onChange={(e) => updateCustomParameter(param.id, 'name', e.target.value)}
+                      className="w-10 px-2 py-1 text-xs font-medium text-center border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                      placeholder="P"
+                    />
+                    <input
+                      type="text"
+                      value={param.expression}
+                      onChange={(e) => updateCustomParameter(param.id, 'expression', e.target.value)}
+                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                      placeholder="0"
+                    />
+                    <input
+                      type="text"
+                      value={param.result}
+                      readOnly
+                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    />
+                    <input
+                      type="text"
+                      value={param.description}
+                      onChange={(e) => updateCustomParameter(param.id, 'description', e.target.value)}
+                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                      placeholder="Description"
+                    />
+                    <button
+                      onClick={() => deleteCustomParameter(param.id)}
+                      className="p-1 hover:bg-red-100 rounded transition-colors flex-shrink-0"
+                      title="Delete Parameter"
+                    >
+                      <X size={14} className="text-red-600" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             {selectedShape.parameters?.isCSGResult && cuttingWidth > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
                 <div className="flex gap-1 items-center">
@@ -941,50 +990,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             )}
 
-
-            {customParameters.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-stone-200">
-                {customParameters.map((param) => (
-                  <div key={param.id} className="flex gap-1 items-center">
-                    <input
-                      type="text"
-                      value={param.name}
-                      onChange={(e) => updateCustomParameter(param.id, 'name', e.target.value)}
-                      className="w-10 px-2 py-1 text-xs font-medium text-center border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
-                      placeholder="P"
-                    />
-                    <input
-                      type="text"
-                      value={param.expression}
-                      onChange={(e) => updateCustomParameter(param.id, 'expression', e.target.value)}
-                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
-                      placeholder="0"
-                    />
-                    <input
-                      type="text"
-                      value={param.result}
-                      readOnly
-                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
-                    />
-                    <input
-                      type="text"
-                      value={param.description}
-                      onChange={(e) => updateCustomParameter(param.id, 'description', e.target.value)}
-                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
-                      placeholder="Description"
-                    />
-                    <button
-                      onClick={() => deleteCustomParameter(param.id)}
-                      className="p-1 hover:bg-red-100 rounded transition-colors flex-shrink-0"
-                      title="Delete Parameter"
-                    >
-                      <X size={14} className="text-red-600" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
             {vertexModifications.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
                 {vertexModifications.map((mod: any, idx: number) => {
@@ -997,7 +1002,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       let evalExpr = expr
                         .replace(/\bW\b/g, width.toString())
                         .replace(/\bH\b/g, height.toString())
-                        .replace(/\bD\b/g, depth.toString());
+                        .replace(/\bD\b/g, depth.toString())
+                        .replace(/\bCW\b/g, cuttingWidth.toString())
+                        .replace(/\bCH\b/g, cuttingHeight.toString())
+                        .replace(/\bCD\b/g, cuttingDepth.toString())
+                        .replace(/\bCPX\b/g, cuttingPosX.toString())
+                        .replace(/\bCPY\b/g, cuttingPosY.toString())
+                        .replace(/\bCPZ\b/g, cuttingPosZ.toString());
 
                       customParameters.forEach((p) => {
                         const regex = new RegExp(`\\b${p.name}\\b`, 'g');
