@@ -554,14 +554,23 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const intersectionCenter = new THREE.Vector3();
         intersectionBox.getCenter(intersectionCenter);
 
-        console.log('🔲 Intersection (collision) info:', {
-          dimensions: {
+        const originalTargetWidth = targetShape.parameters?.width || targetShape.originalBounds?.width || 0;
+        const originalTargetHeight = targetShape.parameters?.height || targetShape.originalBounds?.height || 0;
+        const originalTargetDepth = targetShape.parameters?.depth || targetShape.originalBounds?.depth || 0;
+
+        console.log('🔲 Intersection (cutting area) info:', {
+          cuttingDimensions: {
             width: intersectionSize.x,
             height: intersectionSize.y,
             depth: intersectionSize.z
           },
           worldCenter: intersectionCenter.toArray(),
-          targetPosition: targetShape.position
+          targetPosition: targetShape.position,
+          originalTargetSize: {
+            width: originalTargetWidth,
+            height: originalTargetHeight,
+            depth: originalTargetDepth
+          }
         });
 
         updateShape(targetShape.id, {
@@ -569,9 +578,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           replicadShape: resultShape,
           originalGeometry: newGeometry.clone(),
           originalBounds: {
-            width: Math.abs(size.x),
-            height: Math.abs(size.y),
-            depth: Math.abs(size.z)
+            width: originalTargetWidth,
+            height: originalTargetHeight,
+            depth: originalTargetDepth
           },
           baseReplicadShape: targetShape.replicadShape,
           baseShapePosition: targetShape.position,
@@ -580,9 +589,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           cuttingPosition: intersectionCenter.toArray() as [number, number, number],
           parameters: {
             ...targetShape.parameters,
-            width: Math.abs(size.x),
-            height: Math.abs(size.y),
-            depth: Math.abs(size.z),
+            width: originalTargetWidth,
+            height: originalTargetHeight,
+            depth: originalTargetDepth,
             cuttingWidth: Math.abs(intersectionSize.x),
             cuttingHeight: Math.abs(intersectionSize.y),
             cuttingDepth: Math.abs(intersectionSize.z),
