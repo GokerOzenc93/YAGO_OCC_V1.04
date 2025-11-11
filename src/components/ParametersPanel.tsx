@@ -434,33 +434,41 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const basePos = selectedShape.baseShapePosition || [0, 0, 0];
         const baseRot = selectedShape.baseShapeRotation || [0, 0, 0];
 
-        const originalCuttingPos = selectedShape.cuttingPosition || [0, 0, 0];
+        const originalCuttingWorldPos = selectedShape.cuttingPosition || [0, 0, 0];
 
-        const currentBaseWidth = selectedShape.parameters.width || width;
-        const currentBaseHeight = selectedShape.parameters.height || height;
-        const currentBaseDepth = selectedShape.parameters.depth || depth;
+        const currentBaseWidth = selectedShape.originalBounds?.width || width;
+        const currentBaseHeight = selectedShape.originalBounds?.height || height;
+        const currentBaseDepth = selectedShape.originalBounds?.depth || depth;
 
         const scaleX_base = width / currentBaseWidth;
         const scaleY_base = height / currentBaseHeight;
         const scaleZ_base = depth / currentBaseDepth;
 
-        const scaledCuttingPos: [number, number, number] = [
-          originalCuttingPos[0] * scaleX_base,
-          originalCuttingPos[1] * scaleY_base,
-          originalCuttingPos[2] * scaleZ_base
+        const scaledCuttingWorldPos: [number, number, number] = [
+          originalCuttingWorldPos[0] * scaleX_base,
+          originalCuttingWorldPos[1] * scaleY_base,
+          originalCuttingWorldPos[2] * scaleZ_base
+        ];
+
+        const relativeCuttingPos: [number, number, number] = [
+          scaledCuttingWorldPos[0] - basePos[0],
+          scaledCuttingWorldPos[1] - basePos[1],
+          scaledCuttingWorldPos[2] - basePos[2]
         ];
 
         console.log('📍 Cutting position info:', {
-          original: originalCuttingPos,
+          originalWorld: originalCuttingWorldPos,
+          basePosition: basePos,
           baseScale: { x: scaleX_base, y: scaleY_base, z: scaleZ_base },
-          scaled: scaledCuttingPos
+          scaledWorld: scaledCuttingWorldPos,
+          relativeToBase: relativeCuttingPos
         });
 
         const resultShape = await performBooleanCut(
           newBaseShape,
           cuttingShape,
           basePos,
-          scaledCuttingPos,
+          relativeCuttingPos,
           baseRot,
           [0, 0, 0],
           [1, 1, 1],
@@ -475,7 +483,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           replicadShape: resultShape,
           originalGeometry: scaledGeometry.clone(),
           baseReplicadShape: newBaseShape,
-          cuttingPosition: scaledCuttingPos,
+          cuttingPosition: scaledCuttingWorldPos,
           originalBounds: {
             width: Math.abs(width),
             height: Math.abs(height),
