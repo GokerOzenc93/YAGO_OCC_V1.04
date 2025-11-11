@@ -515,12 +515,34 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
         const newBaseVertices = await getReplicadVertices(resultShape);
 
+        const bbox = new THREE.Box3().setFromBufferAttribute(
+          newGeometry.getAttribute('position')
+        );
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+
+        console.log('📦 Result geometry bounding box:', {
+          width: size.x,
+          height: size.y,
+          depth: size.z
+        });
+
         updateShape(targetShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
+          originalGeometry: newGeometry.clone(),
+          originalBounds: {
+            width: Math.abs(size.x),
+            height: Math.abs(size.y),
+            depth: Math.abs(size.z)
+          },
           parameters: {
             ...targetShape.parameters,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+            width: Math.abs(size.x),
+            height: Math.abs(size.y),
+            depth: Math.abs(size.z),
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+            isCSGResult: true
           }
         });
 
