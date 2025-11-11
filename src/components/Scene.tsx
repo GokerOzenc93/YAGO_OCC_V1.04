@@ -176,11 +176,42 @@ const ShapeWithTransform: React.FC<{
       const onChange = () => {
         if (groupRef.current) {
           isUpdatingRef.current = true;
-          updateShape(shape.id, {
-            position: groupRef.current.position.toArray() as [number, number, number],
-            rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
-            scale: groupRef.current.scale.toArray() as [number, number, number]
-          });
+          const newPosition = groupRef.current.position.toArray() as [number, number, number];
+          const newRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
+          const newScale = groupRef.current.scale.toArray() as [number, number, number];
+
+          const updates: any = {
+            position: newPosition,
+            rotation: newRotation,
+            scale: newScale
+          };
+
+          if (shape.cuttingCorner && shape.baseShapePosition) {
+            const positionDelta = [
+              newPosition[0] - shape.position[0],
+              newPosition[1] - shape.position[1],
+              newPosition[2] - shape.position[2]
+            ];
+
+            const newCuttingCorner: [number, number, number] = [
+              shape.cuttingCorner[0] + positionDelta[0],
+              shape.cuttingCorner[1] + positionDelta[1],
+              shape.cuttingCorner[2] + positionDelta[2]
+            ];
+
+            updates.cuttingCorner = newCuttingCorner;
+
+            if (shape.cuttingPosition) {
+              const newCuttingPosition: [number, number, number] = [
+                shape.cuttingPosition[0] + positionDelta[0],
+                shape.cuttingPosition[1] + positionDelta[1],
+                shape.cuttingPosition[2] + positionDelta[2]
+              ];
+              updates.cuttingPosition = newCuttingPosition;
+            }
+          }
+
+          updateShape(shape.id, updates);
           setTimeout(() => {
             isUpdatingRef.current = false;
           }, 0);
@@ -400,6 +431,18 @@ const CuttingAreaVisualization: React.FC<{
   const [localCorner, setLocalCorner] = useState(cuttingCorner);
   const [localSize, setLocalSize] = useState([cuttingWidth, cuttingHeight, cuttingDepth]);
   const isUpdatingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isUpdatingRef.current) {
+      setLocalCorner(cuttingCorner);
+    }
+  }, [cuttingCorner]);
+
+  useEffect(() => {
+    if (!isUpdatingRef.current) {
+      setLocalSize([cuttingWidth, cuttingHeight, cuttingDepth]);
+    }
+  }, [cuttingWidth, cuttingHeight, cuttingDepth]);
 
   const relativeCorner: [number, number, number] = [
     localCorner[0] - basePosition[0],
