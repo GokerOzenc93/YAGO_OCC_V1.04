@@ -349,7 +349,49 @@ const ShapeWithTransform: React.FC<{
           size={0.8}
         />
       )}
+
+      {isSelected && shape.parameters?.isCSGResult && shape.cuttingPosition && (
+        <CuttingAreaVisualization
+          cuttingWidth={shape.parameters.cuttingWidth || 0}
+          cuttingHeight={shape.parameters.cuttingHeight || 0}
+          cuttingDepth={shape.parameters.cuttingDepth || 0}
+          cuttingPosition={shape.cuttingPosition}
+          basePosition={shape.position}
+        />
+      )}
     </>
+  );
+};
+
+const CuttingAreaVisualization: React.FC<{
+  cuttingWidth: number;
+  cuttingHeight: number;
+  cuttingDepth: number;
+  cuttingPosition: [number, number, number];
+  basePosition: [number, number, number];
+}> = ({ cuttingWidth, cuttingHeight, cuttingDepth, cuttingPosition, basePosition }) => {
+  const relativeCuttingPos: [number, number, number] = [
+    cuttingPosition[0] - basePosition[0],
+    cuttingPosition[1] - basePosition[1],
+    cuttingPosition[2] - basePosition[2]
+  ];
+
+  return (
+    <group position={basePosition}>
+      <mesh position={relativeCuttingPos}>
+        <boxGeometry args={[cuttingWidth, cuttingHeight, cuttingDepth]} />
+        <meshStandardMaterial
+          color="#ef4444"
+          transparent
+          opacity={0.3}
+          depthWrite={false}
+        />
+      </mesh>
+      <lineSegments position={relativeCuttingPos}>
+        <edgesGeometry args={[new THREE.BoxGeometry(cuttingWidth, cuttingHeight, cuttingDepth)]} />
+        <lineBasicMaterial color="#dc2626" linewidth={2} />
+      </lineSegments>
+    </group>
   );
 };
 
