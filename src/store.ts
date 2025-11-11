@@ -415,9 +415,23 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
+            const geom1Transformed = shape1.geometry.clone();
+            geom1Transformed.applyMatrix4(new THREE.Matrix4().compose(
+              new THREE.Vector3(...shape1.position),
+              new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape1.rotation)),
+              new THREE.Vector3(...shape1.scale)
+            ));
+
+            const geom2Transformed = shape2.geometry.clone();
+            geom2Transformed.applyMatrix4(new THREE.Matrix4().compose(
+              new THREE.Vector3(...shape2.position),
+              new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape2.rotation)),
+              new THREE.Vector3(...shape2.scale)
+            ));
+
             const intersectionCenter = getIntersectionCenter(
-              shape1.geometry,
-              shape2.geometry
+              geom1Transformed,
+              geom2Transformed
             );
 
             const bbox = new THREE.Box3().setFromBufferAttribute(
@@ -433,7 +447,14 @@ export const useAppStore = create<AppState>((set, get) => ({
             });
 
             if (intersectionCenter) {
-              console.log('🎯 Intersection center:', intersectionCenter.toArray());
+              console.log('🎯 Intersection center (world space):', {
+                x: intersectionCenter.x.toFixed(2),
+                y: intersectionCenter.y.toFixed(2),
+                z: intersectionCenter.z.toFixed(2),
+                position: intersectionCenter.toArray()
+              });
+            } else {
+              console.warn('⚠️ No intersection center calculated');
             }
 
             set((state) => ({

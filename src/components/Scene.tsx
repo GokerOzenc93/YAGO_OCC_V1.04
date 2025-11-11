@@ -682,14 +682,30 @@ const Scene: React.FC = () => {
               />
             )}
             {shape.intersectionCenter && (
-              <mesh position={shape.intersectionCenter}>
-                <sphereGeometry args={[20, 16, 16]} />
-                <meshStandardMaterial
-                  color="#ff0000"
-                  emissive="#ff0000"
-                  emissiveIntensity={0.5}
-                />
-              </mesh>
+              <group position={shape.intersectionCenter}>
+                <mesh>
+                  <sphereGeometry args={[20, 16, 16]} />
+                  <meshStandardMaterial
+                    color="#ff0000"
+                    emissive="#ff0000"
+                    emissiveIntensity={0.8}
+                    toneMapped={false}
+                  />
+                </mesh>
+                <mesh>
+                  <sphereGeometry args={[25, 16, 16]} />
+                  <meshBasicMaterial
+                    color="#ff0000"
+                    transparent
+                    opacity={0.3}
+                    depthTest={false}
+                  />
+                </mesh>
+                <lineSegments>
+                  <edgesGeometry args={[new THREE.SphereGeometry(20, 16, 16)]} />
+                  <lineBasicMaterial color="#ff0000" linewidth={2} />
+                </lineSegments>
+              </group>
             )}
           </React.Fragment>
         );
