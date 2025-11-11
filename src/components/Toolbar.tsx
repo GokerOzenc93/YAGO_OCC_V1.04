@@ -554,6 +554,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const intersectionCenter = new THREE.Vector3();
         intersectionBox.getCenter(intersectionCenter);
 
+        const intersectionCorner = intersectionBox.min.clone();
+
         const originalTargetWidth = targetShape.parameters?.width || targetShape.originalBounds?.width || 0;
         const originalTargetHeight = targetShape.parameters?.height || targetShape.originalBounds?.height || 0;
         const originalTargetDepth = targetShape.parameters?.depth || targetShape.originalBounds?.depth || 0;
@@ -565,6 +567,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             depth: intersectionSize.z
           },
           worldCenter: intersectionCenter.toArray(),
+          worldCorner: intersectionCorner.toArray(),
           targetPosition: targetShape.position,
           originalTargetSize: {
             width: originalTargetWidth,
@@ -587,6 +590,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           baseShapeRotation: targetShape.rotation,
           baseShapeScale: targetShape.scale,
           cuttingPosition: intersectionCenter.toArray() as [number, number, number],
+          cuttingCorner: intersectionCorner.toArray() as [number, number, number],
           parameters: {
             ...targetShape.parameters,
             width: originalTargetWidth,

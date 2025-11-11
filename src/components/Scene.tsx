@@ -350,12 +350,12 @@ const ShapeWithTransform: React.FC<{
         />
       )}
 
-      {isSelected && shape.parameters?.isCSGResult && shape.cuttingPosition && (
+      {isSelected && shape.parameters?.isCSGResult && shape.cuttingCorner && (
         <CuttingAreaVisualization
           cuttingWidth={shape.parameters.cuttingWidth || 0}
           cuttingHeight={shape.parameters.cuttingHeight || 0}
           cuttingDepth={shape.parameters.cuttingDepth || 0}
-          cuttingPosition={shape.cuttingPosition}
+          cuttingCorner={shape.cuttingCorner}
           basePosition={shape.position}
         />
       )}
@@ -367,30 +367,36 @@ const CuttingAreaVisualization: React.FC<{
   cuttingWidth: number;
   cuttingHeight: number;
   cuttingDepth: number;
-  cuttingPosition: [number, number, number];
+  cuttingCorner: [number, number, number];
   basePosition: [number, number, number];
-}> = ({ cuttingWidth, cuttingHeight, cuttingDepth, cuttingPosition, basePosition }) => {
-  const relativeCuttingPos: [number, number, number] = [
-    cuttingPosition[0] - basePosition[0],
-    cuttingPosition[1] - basePosition[1],
-    cuttingPosition[2] - basePosition[2]
+}> = ({ cuttingWidth, cuttingHeight, cuttingDepth, cuttingCorner, basePosition }) => {
+  const relativeCorner: [number, number, number] = [
+    cuttingCorner[0] - basePosition[0],
+    cuttingCorner[1] - basePosition[1],
+    cuttingCorner[2] - basePosition[2]
   ];
+
+  const halfWidth = cuttingWidth / 2;
+  const halfHeight = cuttingHeight / 2;
+  const halfDepth = cuttingDepth / 2;
 
   return (
     <group position={basePosition}>
-      <mesh position={relativeCuttingPos}>
-        <boxGeometry args={[cuttingWidth, cuttingHeight, cuttingDepth]} />
-        <meshStandardMaterial
-          color="#ef4444"
-          transparent
-          opacity={0.3}
-          depthWrite={false}
-        />
-      </mesh>
-      <lineSegments position={relativeCuttingPos}>
-        <edgesGeometry args={[new THREE.BoxGeometry(cuttingWidth, cuttingHeight, cuttingDepth)]} />
-        <lineBasicMaterial color="#dc2626" linewidth={2} />
-      </lineSegments>
+      <group position={relativeCorner}>
+        <mesh position={[halfWidth, halfHeight, halfDepth]}>
+          <boxGeometry args={[cuttingWidth, cuttingHeight, cuttingDepth]} />
+          <meshStandardMaterial
+            color="#ef4444"
+            transparent
+            opacity={0.3}
+            depthWrite={false}
+          />
+        </mesh>
+        <lineSegments position={[halfWidth, halfHeight, halfDepth]}>
+          <edgesGeometry args={[new THREE.BoxGeometry(cuttingWidth, cuttingHeight, cuttingDepth)]} />
+          <lineBasicMaterial color="#dc2626" linewidth={2} />
+        </lineSegments>
+      </group>
     </group>
   );
 };

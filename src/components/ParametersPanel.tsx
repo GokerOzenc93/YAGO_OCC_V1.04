@@ -478,12 +478,19 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         scaledGeometry = convertReplicadToThreeGeometry(resultShape);
         newBaseVertices = await getReplicadVertices(resultShape);
 
+        const scaledCuttingCorner: [number, number, number] = [
+          scaledCuttingWorldPos[0] - cuttingWidth / 2,
+          scaledCuttingWorldPos[1] - cuttingHeight / 2,
+          scaledCuttingWorldPos[2] - cuttingDepth / 2
+        ];
+
         updateShape(selectedShape.id, {
           geometry: scaledGeometry,
           replicadShape: resultShape,
           originalGeometry: scaledGeometry.clone(),
           baseReplicadShape: newBaseShape,
           cuttingPosition: scaledCuttingWorldPos,
+          cuttingCorner: scaledCuttingCorner,
           originalBounds: {
             width: Math.abs(width),
             height: Math.abs(height),
