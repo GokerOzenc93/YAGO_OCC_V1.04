@@ -551,10 +551,23 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const intersectionSize = new THREE.Vector3();
         intersectionBox.getSize(intersectionSize);
 
-        console.log('🔲 Intersection (collision) dimensions:', {
-          width: intersectionSize.x,
-          height: intersectionSize.y,
-          depth: intersectionSize.z
+        const intersectionCenter = new THREE.Vector3();
+        intersectionBox.getCenter(intersectionCenter);
+
+        const relativeNotchPosition: [number, number, number] = [
+          intersectionCenter.x - targetShape.position[0],
+          intersectionCenter.y - targetShape.position[1],
+          intersectionCenter.z - targetShape.position[2]
+        ];
+
+        console.log('🔲 Intersection (notch) info:', {
+          dimensions: {
+            width: intersectionSize.x,
+            height: intersectionSize.y,
+            depth: intersectionSize.z
+          },
+          absoluteCenter: [intersectionCenter.x, intersectionCenter.y, intersectionCenter.z],
+          relativePosition: relativeNotchPosition
         });
 
         updateShape(targetShape.id, {
@@ -570,6 +583,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           baseShapePosition: targetShape.position,
           baseShapeRotation: targetShape.rotation,
           baseShapeScale: targetShape.scale,
+          cuttingShapePosition: relativeNotchPosition,
           parameters: {
             ...targetShape.parameters,
             width: Math.abs(size.x),

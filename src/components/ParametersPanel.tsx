@@ -434,11 +434,32 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const basePos = selectedShape.baseShapePosition || [0, 0, 0];
         const baseRot = selectedShape.baseShapeRotation || [0, 0, 0];
 
+        const originalCuttingPos = selectedShape.cuttingShapePosition || [0, 0, 0];
+
+        const scaleFactorX = width / currentWidth;
+        const scaleFactorY = height / currentHeight;
+        const scaleFactorZ = depth / currentDepth;
+
+        const scaledCuttingPos: [number, number, number] = [
+          originalCuttingPos[0] * scaleFactorX,
+          originalCuttingPos[1] * scaleFactorY,
+          originalCuttingPos[2] * scaleFactorZ
+        ];
+
+        console.log('📍 Notch positioning:', {
+          original: originalCuttingPos,
+          scaleFactors: [scaleFactorX, scaleFactorY, scaleFactorZ],
+          scaled: scaledCuttingPos,
+          dimensions: { width, height, depth },
+          currentDimensions: { currentWidth, currentHeight, currentDepth },
+          cuttingDimensions: { cuttingWidth, cuttingHeight, cuttingDepth }
+        });
+
         const resultShape = await performBooleanCut(
           newBaseShape,
           cuttingShape,
           basePos,
-          [0, 0, 0],
+          scaledCuttingPos,
           baseRot,
           [0, 0, 0],
           [1, 1, 1],
@@ -453,6 +474,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           replicadShape: resultShape,
           originalGeometry: scaledGeometry.clone(),
           baseReplicadShape: newBaseShape,
+          cuttingShapePosition: scaledCuttingPos,
           originalBounds: {
             width: Math.abs(width),
             height: Math.abs(height),
