@@ -36,6 +36,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [cuttingWidth, setCuttingWidth] = useState(0);
   const [cuttingHeight, setCuttingHeight] = useState(0);
   const [cuttingDepth, setCuttingDepth] = useState(0);
+  const [cuttingWidthDesc, setCuttingWidthDesc] = useState('Cut Width');
+  const [cuttingHeightDesc, setCuttingHeightDesc] = useState('Cut Height');
+  const [cuttingDepthDesc, setCuttingDepthDesc] = useState('Cut Depth');
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
@@ -57,6 +60,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setCuttingWidth(selectedShape.parameters.cuttingWidth || 0);
       setCuttingHeight(selectedShape.parameters.cuttingHeight || 0);
       setCuttingDepth(selectedShape.parameters.cuttingDepth || 0);
+      setCuttingWidthDesc(selectedShape.parameters.cuttingWidthDesc || 'Cut Width');
+      setCuttingHeightDesc(selectedShape.parameters.cuttingHeightDesc || 'Cut Height');
+      setCuttingDepthDesc(selectedShape.parameters.cuttingDepthDesc || 'Cut Depth');
       setCustomParameters(selectedShape.parameters.customParameters || []);
       setVertexModifications(selectedShape.vertexModifications || []);
     } else {
@@ -109,7 +115,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       let expr = param.expression
         .replace(/\bW\b/g, newWidth.toString())
         .replace(/\bH\b/g, newHeight.toString())
-        .replace(/\bD\b/g, newDepth.toString());
+        .replace(/\bD\b/g, newDepth.toString())
+        .replace(/\bCW\b/g, cuttingWidth.toString())
+        .replace(/\bCH\b/g, cuttingHeight.toString())
+        .replace(/\bCD\b/g, cuttingDepth.toString());
 
       customParameters.forEach((p) => {
         const regex = new RegExp(`\\b${p.name}\\b`, 'g');
@@ -144,8 +153,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setCustomParameters(updatedCustomParams);
   };
 
-  const handleCuttingDimensionChange = async (dimension: 'width' | 'height' | 'depth', value: number) => {
-    if (!selectedShape || !selectedShape.parameters?.isCSGResult) return;
+  const handleCuttingDimensionChange = (dimension: 'width' | 'height' | 'depth', value: number) => {
+    if (!selectedShape) return;
 
     const newCuttingWidth = dimension === 'width' ? value : cuttingWidth;
     const newCuttingHeight = dimension === 'height' ? value : cuttingHeight;
@@ -154,86 +163,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setCuttingWidth(newCuttingWidth);
     setCuttingHeight(newCuttingHeight);
     setCuttingDepth(newCuttingDepth);
-
-    console.log('✂️ Cutting dimensions changed, regenerating geometry...');
-    console.log('📐 New cutting dimensions:', { w: newCuttingWidth, h: newCuttingHeight, d: newCuttingDepth });
-
-    try {
-      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      const { getReplicadVertices } = await import('../services/vertexEditor');
-
-      if (!selectedShape.baseReplicadShape) {
-        console.error('❌ No baseReplicadShape found - cannot regenerate');
-        return;
-      }
-
-      console.log('🔧 Using base shape for regeneration');
-
-      const cuttingShape = await createReplicadBox({
-        width: newCuttingWidth,
-        height: newCuttingHeight,
-        depth: newCuttingDepth
-      });
-
-      const basePos = selectedShape.baseShapePosition || [0, 0, 0];
-      const baseRot = selectedShape.baseShapeRotation || [0, 0, 0];
-      const baseScale = selectedShape.baseShapeScale || [1, 1, 1];
-
-      const resultShape = await performBooleanCut(
-        selectedShape.baseReplicadShape,
-        cuttingShape,
-        basePos,
-        [0, 0, 0],
-        baseRot,
-        [0, 0, 0],
-        baseScale,
-        [1, 1, 1]
-      );
-
-      const newGeometry = convertReplicadToThreeGeometry(resultShape);
-      const newBaseVertices = await getReplicadVertices(resultShape);
-
-      const bbox = new THREE.Box3().setFromBufferAttribute(
-        newGeometry.getAttribute('position')
-      );
-      const size = new THREE.Vector3();
-      bbox.getSize(size);
-
-      console.log('📦 New result geometry size:', {
-        width: Math.abs(size.x),
-        height: Math.abs(size.y),
-        depth: Math.abs(size.z)
-      });
-
-      updateShape(selectedShape.id, {
-        geometry: newGeometry,
-        replicadShape: resultShape,
-        originalGeometry: newGeometry.clone(),
-        originalBounds: {
-          width: Math.abs(size.x),
-          height: Math.abs(size.y),
-          depth: Math.abs(size.z)
-        },
-        parameters: {
-          ...selectedShape.parameters,
-          width: Math.abs(size.x),
-          height: Math.abs(size.y),
-          depth: Math.abs(size.z),
-          cuttingWidth: newCuttingWidth,
-          cuttingHeight: newCuttingHeight,
-          cuttingDepth: newCuttingDepth,
-          scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-        }
-      });
-
-      setWidth(Math.abs(size.x));
-      setHeight(Math.abs(size.y));
-      setDepth(Math.abs(size.z));
-
-      console.log('✅ Geometry regenerated with new cutting dimensions');
-    } catch (error) {
-      console.error('❌ Failed to regenerate geometry:', error);
-    }
   };
 
   const addCustomParameter = () => {
@@ -327,7 +256,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         let evalExpr = expr
           .replace(/\bW\b/g, width.toString())
           .replace(/\bH\b/g, height.toString())
-          .replace(/\bD\b/g, depth.toString());
+          .replace(/\bD\b/g, depth.toString())
+          .replace(/\bCW\b/g, cuttingWidth.toString())
+          .replace(/\bCH\b/g, cuttingHeight.toString())
+          .replace(/\bCD\b/g, cuttingDepth.toString());
 
         customParameters.forEach((p) => {
           const regex = new RegExp(`\\b${p.name}\\b`, 'g');
@@ -453,14 +385,27 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         };
       });
 
+      const currentCuttingWidth = selectedShape.parameters.cuttingWidth || 0;
+      const currentCuttingHeight = selectedShape.parameters.cuttingHeight || 0;
+      const currentCuttingDepth = selectedShape.parameters.cuttingDepth || 0;
+
+      const cuttingDimensionsChanged =
+        cuttingWidth !== currentCuttingWidth ||
+        cuttingHeight !== currentCuttingHeight ||
+        cuttingDepth !== currentCuttingDepth;
+
       let scaledGeometry = selectedShape.geometry;
       let regenerateCSG = false;
 
-      if (dimensionsChanged && selectedShape.geometry) {
+      if (selectedShape.geometry) {
         if (selectedShape.parameters.isCSGResult && selectedShape.baseReplicadShape) {
-          console.log('🔄 CSG result dimensions changed - will regenerate with boolean operation');
-          regenerateCSG = true;
-        } else {
+          if (dimensionsChanged || cuttingDimensionsChanged) {
+            console.log('🔄 CSG dimensions changed - will regenerate with boolean operation');
+            console.log('  Base dimensions changed:', dimensionsChanged);
+            console.log('  Cutting dimensions changed:', cuttingDimensionsChanged);
+            regenerateCSG = true;
+          }
+        } else if (dimensionsChanged) {
           console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
           scaledGeometry = selectedShape.geometry.clone();
           scaledGeometry.scale(scaleX, scaleY, scaleZ);
@@ -521,6 +466,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             cuttingWidth,
             cuttingHeight,
             cuttingDepth,
+            cuttingWidthDesc,
+            cuttingHeightDesc,
+            cuttingDepthDesc,
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
           },
           vertexModifications: updatedVertexMods
@@ -547,6 +495,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           cuttingWidth,
           cuttingHeight,
           cuttingDepth,
+          cuttingWidthDesc,
+          cuttingHeightDesc,
+          cuttingDepthDesc,
           customParameters,
           scaledBaseVertices: newBaseVertices.length > 0 ?
             newBaseVertices.map(v => [v.x, v.y, v.z]) :
@@ -732,9 +683,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value="Cut Width"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    value={cuttingWidthDesc}
+                    onChange={(e) => setCuttingWidthDesc(e.target.value)}
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-stone-700"
+                    placeholder="Cut Width"
                   />
                 </div>
 
@@ -759,9 +711,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value="Cut Height"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    value={cuttingHeightDesc}
+                    onChange={(e) => setCuttingHeightDesc(e.target.value)}
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-stone-700"
+                    placeholder="Cut Height"
                   />
                 </div>
 
@@ -786,9 +739,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value="Cut Depth"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    value={cuttingDepthDesc}
+                    onChange={(e) => setCuttingDepthDesc(e.target.value)}
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-stone-700"
+                    placeholder="Cut Depth"
                   />
                 </div>
               </div>
