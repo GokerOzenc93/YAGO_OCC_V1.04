@@ -144,6 +144,18 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setCustomParameters(updatedCustomParams);
   };
 
+  const handleCuttingDimensionChange = (dimension: 'width' | 'height' | 'depth', value: number) => {
+    if (!selectedShape) return;
+
+    const newCuttingWidth = dimension === 'width' ? value : cuttingWidth;
+    const newCuttingHeight = dimension === 'height' ? value : cuttingHeight;
+    const newCuttingDepth = dimension === 'depth' ? value : cuttingDepth;
+
+    setCuttingWidth(newCuttingWidth);
+    setCuttingHeight(newCuttingHeight);
+    setCuttingDepth(newCuttingDepth);
+  };
+
   const addCustomParameter = () => {
     const nextNumber = customParameters.length + 1;
     const newParam: CustomParameter = {
@@ -402,6 +414,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           width,
           height,
           depth,
+          cuttingWidth,
+          cuttingHeight,
+          cuttingDepth,
           customParameters,
           scaledBaseVertices: newBaseVertices.length > 0 ?
             newBaseVertices.map(v => [v.x, v.y, v.z]) :
@@ -576,8 +591,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   <input
                     type="number"
                     value={cuttingWidth}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e) => handleCuttingDimensionChange('width', Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <input
                     type="text"
@@ -603,8 +618,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   <input
                     type="number"
                     value={cuttingHeight}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e) => handleCuttingDimensionChange('height', Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <input
                     type="text"
@@ -630,8 +645,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   <input
                     type="number"
                     value={cuttingDepth}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    onChange={(e) => handleCuttingDimensionChange('depth', Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <input
                     type="text"

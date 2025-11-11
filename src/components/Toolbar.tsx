@@ -521,22 +521,40 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const size = new THREE.Vector3();
         bbox.getSize(size);
 
-        const cuttingBbox = new THREE.Box3().setFromBufferAttribute(
-          selectedShape.geometry.getAttribute('position')
-        );
-        const cuttingSize = new THREE.Vector3();
-        cuttingBbox.getSize(cuttingSize);
-
         console.log('📦 Result geometry bounding box:', {
           width: size.x,
           height: size.y,
           depth: size.z
         });
 
-        console.log('✂️ Cutting geometry dimensions:', {
-          width: cuttingSize.x,
-          height: cuttingSize.y,
-          depth: cuttingSize.z
+        const targetBox = new THREE.Box3().setFromBufferAttribute(
+          targetShape.geometry.getAttribute('position')
+        );
+        const targetMin = targetBox.min.clone();
+        const targetMax = targetBox.max.clone();
+        targetMin.add(new THREE.Vector3(...targetShape.position));
+        targetMax.add(new THREE.Vector3(...targetShape.position));
+        targetBox.set(targetMin, targetMax);
+
+        const cuttingBox = new THREE.Box3().setFromBufferAttribute(
+          selectedShape.geometry.getAttribute('position')
+        );
+        const cuttingMin = cuttingBox.min.clone();
+        const cuttingMax = cuttingBox.max.clone();
+        cuttingMin.add(new THREE.Vector3(...selectedShape.position));
+        cuttingMax.add(new THREE.Vector3(...selectedShape.position));
+        cuttingBox.set(cuttingMin, cuttingMax);
+
+        const intersectionBox = targetBox.clone();
+        intersectionBox.intersect(cuttingBox);
+
+        const intersectionSize = new THREE.Vector3();
+        intersectionBox.getSize(intersectionSize);
+
+        console.log('🔲 Intersection (collision) dimensions:', {
+          width: intersectionSize.x,
+          height: intersectionSize.y,
+          depth: intersectionSize.z
         });
 
         updateShape(targetShape.id, {
@@ -553,9 +571,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             width: Math.abs(size.x),
             height: Math.abs(size.y),
             depth: Math.abs(size.z),
-            cuttingWidth: Math.abs(cuttingSize.x),
-            cuttingHeight: Math.abs(cuttingSize.y),
-            cuttingDepth: Math.abs(cuttingSize.z),
+            cuttingWidth: Math.abs(intersectionSize.x),
+            cuttingHeight: Math.abs(intersectionSize.y),
+            cuttingDepth: Math.abs(intersectionSize.z),
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
             isCSGResult: true
           }
