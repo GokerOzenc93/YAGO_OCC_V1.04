@@ -13,11 +13,13 @@ const ShapeWithTransform: React.FC<{
   isSelected: boolean;
   orbitControlsRef: any;
   onContextMenu: (e: any, shapeId: string) => void;
+  shapes?: any[];
 }> = ({
   shape,
   isSelected,
   orbitControlsRef,
-  onContextMenu
+  onContextMenu,
+  shapes = []
 }) => {
   const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup } = useAppStore();
   const transformRef = useRef<any>(null);
@@ -216,6 +218,7 @@ const ShapeWithTransform: React.FC<{
   const isReferenceBox = shape.isReferenceBox;
   const isCuttingReferenceBox = shape.isCuttingReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
+  const cuttingRefShape = shapes.find(s => s.groupId === shape.id && s.isCuttingReferenceBox);
 
   if (shape.isolated === false) {
     return null;
@@ -342,47 +345,16 @@ const ShapeWithTransform: React.FC<{
             </lineSegments>
           </>
         )}
-      </group>
 
-      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
-        <TransformControls
-          key={geometryKey}
-          ref={transformRef}
-          object={groupRef.current}
-          mode={getTransformMode()}
-          size={0.8}
-        />
-      )}
-    </>
-  );
-};
-
-interface ShapeWithCuttingRefProps {
-  shape: Shape;
-  isSelected: boolean;
-  orbitControlsRef: React.RefObject<any>;
-  onContextMenu: (e: ThreeEvent<MouseEvent>, shapeId: string) => void;
-  shapes: Shape[];
-}
-
-const ShapeWithCuttingRef: React.FC<ShapeWithCuttingRefProps> = ({ shape, isSelected, orbitControlsRef, onContextMenu, shapes }) => {
-  const cuttingRefShape = shapes.find(s => s.groupId === shape.id && s.isCuttingReferenceBox);
-
-  return (
-    <>
-      <ShapeWithTransform
-        shape={shape}
-        isSelected={isSelected}
-        orbitControlsRef={orbitControlsRef}
-        onContextMenu={onContextMenu}
-      />
-      {cuttingRefShape && shape.cuttingShapeCenterPosition && (
-        <group position={[
-          shape.position[0] + shape.cuttingShapeCenterPosition[0],
-          shape.position[1] + shape.cuttingShapeCenterPosition[1],
-          shape.position[2] + shape.cuttingShapeCenterPosition[2]
-        ]}>
-          <mesh geometry={cuttingRefShape.geometry}>
+        {cuttingRefShape && shape.cuttingShapeCenterPosition && (
+          <mesh
+            geometry={cuttingRefShape.geometry}
+            position={[
+              shape.cuttingShapeCenterPosition[0],
+              shape.cuttingShapeCenterPosition[1],
+              shape.cuttingShapeCenterPosition[2]
+            ]}
+          >
             <meshStandardMaterial
               color="#ffeb3b"
               transparent
@@ -402,7 +374,17 @@ const ShapeWithCuttingRef: React.FC<ShapeWithCuttingRefProps> = ({ shape, isSele
               />
             </lineSegments>
           </mesh>
-        </group>
+        )}
+      </group>
+
+      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
+        <TransformControls
+          key={geometryKey}
+          ref={transformRef}
+          object={groupRef.current}
+          mode={getTransformMode()}
+          size={0.8}
+        />
       )}
     </>
   );
@@ -714,7 +696,7 @@ const Scene: React.FC = () => {
         const isSelected = selectedShapeId === shape.id;
         return (
           <React.Fragment key={shape.id}>
-            <ShapeWithCuttingRef
+            <ShapeWithTransform
               shape={shape}
               isSelected={isSelected}
               orbitControlsRef={controlsRef}

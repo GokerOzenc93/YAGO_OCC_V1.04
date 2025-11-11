@@ -46,6 +46,54 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
   useEffect(() => {
+    const createOrUpdateCuttingRefBox = async () => {
+      if (!selectedShape || !selectedShape.parameters.isCSGResult) return;
+      if (!selectedShape.parameters.cuttingWidth || !selectedShape.cuttingShapeCenterPosition) return;
+
+      const THREE = await import('three');
+      const cuttingRefGeometry = new THREE.BoxGeometry(
+        selectedShape.parameters.cuttingWidth,
+        selectedShape.parameters.cuttingHeight,
+        selectedShape.parameters.cuttingDepth
+      );
+
+      const existingCuttingRef = shapes.find(s => s.groupId === selectedShape.id && s.isCuttingReferenceBox);
+
+      if (existingCuttingRef) {
+        updateShape(existingCuttingRef.id, {
+          geometry: cuttingRefGeometry,
+          parameters: {
+            ...existingCuttingRef.parameters,
+            width: selectedShape.parameters.cuttingWidth,
+            height: selectedShape.parameters.cuttingHeight,
+            depth: selectedShape.parameters.cuttingDepth
+          }
+        });
+      } else {
+        const { addShape } = useAppStore.getState();
+        addShape({
+          id: `cutting-ref-${selectedShape.id}-${Date.now()}`,
+          type: 'box',
+          position: [0, 0, 0],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+          geometry: cuttingRefGeometry,
+          color: '#ffeb3b',
+          parameters: {
+            width: selectedShape.parameters.cuttingWidth,
+            height: selectedShape.parameters.cuttingHeight,
+            depth: selectedShape.parameters.cuttingDepth
+          },
+          groupId: selectedShape.id,
+          isCuttingReferenceBox: true
+        });
+      }
+    };
+
+    createOrUpdateCuttingRefBox();
+  }, [selectedShapeId, selectedShape?.parameters?.isCSGResult]);
+
+  useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
       selectedShapeId,
       shapesCount: shapes.length,
