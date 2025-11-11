@@ -406,21 +406,28 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       const currentCuttingWidth = selectedShape.parameters.cuttingWidth || 0;
       const currentCuttingHeight = selectedShape.parameters.cuttingHeight || 0;
       const currentCuttingDepth = selectedShape.parameters.cuttingDepth || 0;
+      const currentCuttingPos = selectedShape.cuttingShapePosition || [0, 0, 0];
 
       const cuttingDimensionsChanged =
         cuttingWidth !== currentCuttingWidth ||
         cuttingHeight !== currentCuttingHeight ||
         cuttingDepth !== currentCuttingDepth;
 
+      const cuttingPositionChanged =
+        cuttingPosX !== currentCuttingPos[0] ||
+        cuttingPosY !== currentCuttingPos[1] ||
+        cuttingPosZ !== currentCuttingPos[2];
+
       let scaledGeometry = selectedShape.geometry;
       let regenerateCSG = false;
 
       if (selectedShape.geometry) {
         if (selectedShape.parameters.isCSGResult && selectedShape.baseReplicadShape) {
-          if (dimensionsChanged || cuttingDimensionsChanged) {
-            console.log('🔄 CSG dimensions changed - will regenerate with boolean operation');
+          if (dimensionsChanged || cuttingDimensionsChanged || cuttingPositionChanged) {
+            console.log('🔄 CSG parameters changed - will regenerate with boolean operation');
             console.log('  Base dimensions changed:', dimensionsChanged);
             console.log('  Cutting dimensions changed:', cuttingDimensionsChanged);
+            console.log('  Cutting position changed:', cuttingPositionChanged);
             regenerateCSG = true;
           }
         } else if (dimensionsChanged) {
@@ -507,6 +514,48 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
         scaledGeometry = convertReplicadToThreeGeometry(resultShape);
         newBaseVertices = await getReplicadVertices(resultShape);
+
+        const cuttingRefGeometry = new (await import('three')).BoxGeometry(cuttingWidth, cuttingHeight, cuttingDepth);
+        const existingCuttingRef = shapes.find(s => s.groupId === selectedShape.id && s.isCuttingReferenceBox);
+
+        if (existingCuttingRef) {
+          updateShape(existingCuttingRef.id, {
+            geometry: cuttingRefGeometry,
+            position: [
+              selectedShape.position[0] + cuttingCenterPos[0],
+              selectedShape.position[1] + cuttingCenterPos[1],
+              selectedShape.position[2] + cuttingCenterPos[2]
+            ],
+            parameters: {
+              ...existingCuttingRef.parameters,
+              width: cuttingWidth,
+              height: cuttingHeight,
+              depth: cuttingDepth
+            }
+          });
+        } else {
+          const { addShape } = useAppStore.getState();
+          addShape({
+            id: `cutting-ref-${selectedShape.id}-${Date.now()}`,
+            type: 'box',
+            position: [
+              selectedShape.position[0] + cuttingCenterPos[0],
+              selectedShape.position[1] + cuttingCenterPos[1],
+              selectedShape.position[2] + cuttingCenterPos[2]
+            ],
+            rotation: [0, 0, 0],
+            scale: [1, 1, 1],
+            geometry: cuttingRefGeometry,
+            color: '#ffeb3b',
+            parameters: {
+              width: cuttingWidth,
+              height: cuttingHeight,
+              depth: cuttingDepth
+            },
+            groupId: selectedShape.id,
+            isCuttingReferenceBox: true
+          });
+        }
 
         updateShape(selectedShape.id, {
           geometry: scaledGeometry,

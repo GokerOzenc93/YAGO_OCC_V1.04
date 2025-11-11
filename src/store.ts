@@ -18,6 +18,7 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
+  isCuttingReferenceBox?: boolean;
   originalGeometry?: THREE.BufferGeometry;
   originalBounds?: { width: number; height: number; depth: number };
   baseReplicadShape?: any;
@@ -185,7 +186,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   deleteShape: (id) =>
     set((state) => ({
-      shapes: state.shapes.filter((s) => s.id !== id),
+      shapes: state.shapes.filter((s) => s.id !== id && s.groupId !== id),
       selectedShapeId: state.selectedShapeId === id ? null : state.selectedShapeId
     })),
 

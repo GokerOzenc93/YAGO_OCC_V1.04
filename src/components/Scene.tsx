@@ -214,6 +214,7 @@ const ShapeWithTransform: React.FC<{
   const isXray = viewMode === ViewMode.XRAY;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
+  const isCuttingReferenceBox = shape.isCuttingReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
   if (shape.isolated === false) {
@@ -225,6 +226,7 @@ const ShapeWithTransform: React.FC<{
       <group
         ref={groupRef}
         onClick={(e) => {
+          if (isCuttingReferenceBox) return;
           e.stopPropagation();
           if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
             if (shape.id === secondarySelectedShapeId) {
@@ -238,11 +240,12 @@ const ShapeWithTransform: React.FC<{
           }
         }}
         onContextMenu={(e) => {
+          if (isCuttingReferenceBox) return;
           e.stopPropagation();
           onContextMenu(e, shape.id);
         }}
       >
-        {!isWireframe && !isXray && !shouldShowAsReference && (
+        {!isWireframe && !isXray && !shouldShowAsReference && !isCuttingReferenceBox && (
           <mesh
             ref={meshRef}
             geometry={localGeometry}
@@ -270,7 +273,40 @@ const ShapeWithTransform: React.FC<{
             </lineSegments>
           </mesh>
         )}
-        {isWireframe && (
+
+        {isCuttingReferenceBox && (
+          <mesh
+            ref={meshRef}
+            geometry={localGeometry}
+            castShadow={false}
+            receiveShadow={false}
+          >
+            <meshStandardMaterial
+              color="#ffeb3b"
+              transparent
+              opacity={0.15}
+              metalness={0.1}
+              roughness={0.8}
+              depthWrite={false}
+            />
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 1]} />
+              )}
+              <lineBasicMaterial
+                color="#fdd835"
+                linewidth={2}
+                opacity={0.6}
+                transparent
+                depthTest={true}
+              />
+            </lineSegments>
+          </mesh>
+        )}
+
+        {isWireframe && !isCuttingReferenceBox && (
           <>
             <mesh
               ref={meshRef}
