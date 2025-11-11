@@ -138,6 +138,26 @@ export const computeIntersection = async (
     const height = boundingBox.max.y - boundingBox.min.y;
     const depth = boundingBox.max.z - boundingBox.min.z;
 
+    const geometryCenter = new THREE.Vector3(
+      (boundingBox.min.x + boundingBox.max.x) / 2,
+      (boundingBox.min.y + boundingBox.max.y) / 2,
+      (boundingBox.min.z + boundingBox.max.z) / 2
+    );
+
+    const positionAttribute = geometry.getAttribute('position');
+    for (let i = 0; i < positionAttribute.count; i++) {
+      positionAttribute.setXYZ(
+        i,
+        positionAttribute.getX(i) - geometryCenter.x,
+        positionAttribute.getY(i) - geometryCenter.y,
+        positionAttribute.getZ(i) - geometryCenter.z
+      );
+    }
+    positionAttribute.needsUpdate = true;
+    geometry.computeVertexNormals();
+    geometry.computeBoundingBox();
+    geometry.computeBoundingSphere();
+
     let volume = 0;
     let surfaceArea = 0;
     let centerOfMass: [number, number, number] = [0, 0, 0];
@@ -149,26 +169,20 @@ export const computeIntersection = async (
         const com = intersectionShape.centerOfMass();
         centerOfMass = [com[0] || 0, com[1] || 0, com[2] || 0];
       } else {
-        centerOfMass = [
-          (boundingBox.min.x + boundingBox.max.x) / 2,
-          (boundingBox.min.y + boundingBox.max.y) / 2,
-          (boundingBox.min.z + boundingBox.max.z) / 2
-        ];
+        centerOfMass = [geometryCenter.x, geometryCenter.y, geometryCenter.z];
       }
     } catch (error) {
       console.warn('⚠️ Could not compute all properties:', error);
-      centerOfMass = [
-        (boundingBox.min.x + boundingBox.max.x) / 2,
-        (boundingBox.min.y + boundingBox.max.y) / 2,
-        (boundingBox.min.z + boundingBox.max.z) / 2
-      ];
+      centerOfMass = [geometryCenter.x, geometryCenter.y, geometryCenter.z];
     }
+
+    const newBoundingBox = geometry.boundingBox!;
 
     const intersectionData: IntersectionData = {
       volume,
       boundingBox: {
-        min: [boundingBox.min.x, boundingBox.min.y, boundingBox.min.z],
-        max: [boundingBox.max.x, boundingBox.max.y, boundingBox.max.z],
+        min: [newBoundingBox.min.x, newBoundingBox.min.y, newBoundingBox.min.z],
+        max: [newBoundingBox.max.x, newBoundingBox.max.y, newBoundingBox.max.z],
         width,
         height,
         depth

@@ -53,8 +53,11 @@ await computeIntersectionForShapes(shape1Id, shape2Id);
 Sistem otomatik olarak:
 1. Kesişim geometrisini hesaplar (Replicad `intersect()`)
 2. Three.js geometrisine dönüştürür
-3. Sahneye yeşil renkli bir shape olarak ekler
-4. Parametreleri store'da saklar
+3. **Geometriyi merkezine kaydırır** (doğru pozisyonda görünmesi için)
+4. Sahneye yeşil renkli bir shape olarak ekler (tam kesişen alanda)
+5. Parametreleri store'da saklar
+
+**Önemli:** Geometri artık kendi bounding box merkezine göre kaydırılır, bu sayede kesişim tam olarak iki geometrinin kesiştiği yerde görünür (önceden geometri orijinden çiziliyordu ve yanlış konumda görünüyordu).
 
 ### Adım 4: Parametreleri İnceleme
 
@@ -175,6 +178,8 @@ const result = await detectIntersection(
 ### computeIntersection()
 Kesişim geometrisini hesaplar ve tüm parametreleri döndürür.
 
+**Geometri Merkezleme:** Bu fonksiyon, kesişim geometrisini hesapladıktan sonra, tüm vertex'leri bounding box merkezine göre kaydırır. Bu sayede geometri orijinden değil, kendi merkezinden çizilir ve doğru konumda görünür.
+
 ```typescript
 const params = await computeIntersection(
   shape1.replicadShape,
@@ -223,9 +228,41 @@ computeIntersectionForShapes(shape1Id: string, shape2Id: string)
 ## Notlar
 
 - Kesişim hesaplaması transform'ları (position, rotation) dikkate alır
+- **Kesişim geometrisi tam kesişen alanda görünür** (geometri merkezleme işlemi ile)
 - Kesişim geometrisi yeşil renkte görüntülenir
 - Her kesişim `intersection-${timestamp}` ID'si ile saklanır
 - Kesişim bulunamazsa `null` döner ve kullanıcı uyarılır
+
+## Teknik Detaylar: Geometri Merkezleme
+
+Kesişim geometrisi hesaplandıktan sonra şu işlemler uygulanır:
+
+```typescript
+// 1. Bounding box merkezini hesapla
+const geometryCenter = new THREE.Vector3(
+  (boundingBox.min.x + boundingBox.max.x) / 2,
+  (boundingBox.min.y + boundingBox.max.y) / 2,
+  (boundingBox.min.z + boundingBox.max.z) / 2
+);
+
+// 2. Tüm vertex'leri merkeze kaydır
+const positionAttribute = geometry.getAttribute('position');
+for (let i = 0; i < positionAttribute.count; i++) {
+  positionAttribute.setXYZ(
+    i,
+    positionAttribute.getX(i) - geometryCenter.x,
+    positionAttribute.getY(i) - geometryCenter.y,
+    positionAttribute.getZ(i) - geometryCenter.z
+  );
+}
+
+// 3. Geometriyi merkezde çiz, shape position'ı geometryCenter olarak ayarla
+```
+
+Bu sayede kesişim geometrisi artık:
+- Kendi merkezinden çizilir (local origin = geometric center)
+- Shape position'ı gerçek dünya koordinatlarındaki merkez noktası olur
+- Diğer geometrilerle doğru şekilde hizalanır
 
 ## Gelecek Geliştirmeler
 
