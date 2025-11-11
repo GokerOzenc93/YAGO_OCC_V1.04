@@ -39,6 +39,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [cuttingPosX, setCuttingPosX] = useState(0);
   const [cuttingPosY, setCuttingPosY] = useState(0);
   const [cuttingPosZ, setCuttingPosZ] = useState(0);
+  const [cuttingWidthExpr, setCuttingWidthExpr] = useState('');
+  const [cuttingHeightExpr, setCuttingHeightExpr] = useState('');
+  const [cuttingDepthExpr, setCuttingDepthExpr] = useState('');
+  const [cuttingPosXExpr, setCuttingPosXExpr] = useState('');
+  const [cuttingPosYExpr, setCuttingPosYExpr] = useState('');
+  const [cuttingPosZExpr, setCuttingPosZExpr] = useState('');
   const [cuttingWidthDesc, setCuttingWidthDesc] = useState('Cut Width');
   const [cuttingHeightDesc, setCuttingHeightDesc] = useState('Cut Height');
   const [cuttingDepthDesc, setCuttingDepthDesc] = useState('Cut Depth');
@@ -67,6 +73,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setCuttingPosX(cuttingPos[0]);
       setCuttingPosY(cuttingPos[1]);
       setCuttingPosZ(cuttingPos[2]);
+      setCuttingWidthExpr(selectedShape.parameters.cuttingWidthExpr || String(selectedShape.parameters.cuttingWidth || 0));
+      setCuttingHeightExpr(selectedShape.parameters.cuttingHeightExpr || String(selectedShape.parameters.cuttingHeight || 0));
+      setCuttingDepthExpr(selectedShape.parameters.cuttingDepthExpr || String(selectedShape.parameters.cuttingDepth || 0));
+      setCuttingPosXExpr(selectedShape.parameters.cuttingPosXExpr || String(cuttingPos[0]));
+      setCuttingPosYExpr(selectedShape.parameters.cuttingPosYExpr || String(cuttingPos[1]));
+      setCuttingPosZExpr(selectedShape.parameters.cuttingPosZExpr || String(cuttingPos[2]));
       setCuttingWidthDesc(selectedShape.parameters.cuttingWidthDesc || 'Cut Width');
       setCuttingHeightDesc(selectedShape.parameters.cuttingHeightDesc || 'Cut Height');
       setCuttingDepthDesc(selectedShape.parameters.cuttingDepthDesc || 'Cut Depth');
@@ -202,6 +214,29 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           customParameters: updatedParams,
         },
       });
+    }
+  };
+
+  const evaluateCuttingExpression = (expression: string, fallback: number = 0): number => {
+    try {
+      let expr = expression.trim();
+      if (!expr) return fallback;
+
+      expr = expr
+        .replace(/\bW\b/g, width.toString())
+        .replace(/\bH\b/g, height.toString())
+        .replace(/\bD\b/g, depth.toString());
+
+      customParameters.forEach((param) => {
+        const regex = new RegExp(`\\b${param.name}\\b`, 'g');
+        expr = expr.replace(regex, param.result.toString());
+      });
+
+      const sanitized = expr.replace(/[^0-9+\-*/().\s]/g, '');
+      const result = Function(`"use strict"; return (${sanitized})`)();
+      return typeof result === 'number' && !isNaN(result) ? result : fallback;
+    } catch {
+      return fallback;
     }
   };
 
@@ -582,6 +617,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             cuttingWidth,
             cuttingHeight,
             cuttingDepth,
+            cuttingWidthExpr,
+            cuttingHeightExpr,
+            cuttingDepthExpr,
+            cuttingPosXExpr,
+            cuttingPosYExpr,
+            cuttingPosZExpr,
             cuttingWidthDesc,
             cuttingHeightDesc,
             cuttingDepthDesc,
@@ -611,6 +652,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           cuttingWidth,
           cuttingHeight,
           cuttingDepth,
+          cuttingWidthExpr,
+          cuttingHeightExpr,
+          cuttingDepthExpr,
+          cuttingPosXExpr,
+          cuttingPosYExpr,
+          cuttingPosZExpr,
           cuttingWidthDesc,
           cuttingHeightDesc,
           cuttingDepthDesc,
@@ -829,16 +876,21 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
                   />
                   <input
-                    type="number"
-                    value={cuttingWidth}
-                    onChange={(e) => handleCuttingDimensionChange('width', Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    type="text"
+                    value={cuttingWidthExpr}
+                    onChange={(e) => {
+                      setCuttingWidthExpr(e.target.value);
+                      const result = evaluateCuttingExpression(e.target.value, cuttingWidth);
+                      setCuttingWidth(result);
+                    }}
+                    className="w-16 px-2 py-1 text-xs text-center border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    placeholder="0"
                   />
                   <input
                     type="text"
-                    value={cuttingWidth}
+                    value={cuttingWidth.toFixed(1)}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
@@ -857,16 +909,21 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
                   />
                   <input
-                    type="number"
-                    value={cuttingHeight}
-                    onChange={(e) => handleCuttingDimensionChange('height', Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    type="text"
+                    value={cuttingHeightExpr}
+                    onChange={(e) => {
+                      setCuttingHeightExpr(e.target.value);
+                      const result = evaluateCuttingExpression(e.target.value, cuttingHeight);
+                      setCuttingHeight(result);
+                    }}
+                    className="w-16 px-2 py-1 text-xs text-center border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    placeholder="0"
                   />
                   <input
                     type="text"
-                    value={cuttingHeight}
+                    value={cuttingHeight.toFixed(1)}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
@@ -885,16 +942,21 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     className="w-10 px-2 py-1 text-xs font-medium border border-red-300 rounded bg-red-50 text-red-700 text-center"
                   />
                   <input
-                    type="number"
-                    value={cuttingDepth}
-                    onChange={(e) => handleCuttingDimensionChange('depth', Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    type="text"
+                    value={cuttingDepthExpr}
+                    onChange={(e) => {
+                      setCuttingDepthExpr(e.target.value);
+                      const result = evaluateCuttingExpression(e.target.value, cuttingDepth);
+                      setCuttingDepth(result);
+                    }}
+                    className="w-16 px-2 py-1 text-xs text-center border border-red-300 rounded focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                    placeholder="0"
                   />
                   <input
                     type="text"
-                    value={cuttingDepth}
+                    value={cuttingDepth.toFixed(1)}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
@@ -914,16 +976,21 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
                     />
                     <input
-                      type="number"
-                      value={cuttingPosX}
-                      onChange={(e) => handleCuttingPositionChange('x', Number(e.target.value))}
-                      className="w-16 px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      type="text"
+                      value={cuttingPosXExpr}
+                      onChange={(e) => {
+                        setCuttingPosXExpr(e.target.value);
+                        const result = evaluateCuttingExpression(e.target.value, cuttingPosX);
+                        setCuttingPosX(result);
+                      }}
+                      className="w-16 px-2 py-1 text-xs text-center border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="0"
                     />
                     <input
                       type="text"
-                      value={cuttingPosX}
+                      value={cuttingPosX.toFixed(1)}
                       readOnly
-                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
                     />
                     <input
                       type="text"
@@ -941,16 +1008,21 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
                     />
                     <input
-                      type="number"
-                      value={cuttingPosY}
-                      onChange={(e) => handleCuttingPositionChange('y', Number(e.target.value))}
-                      className="w-16 px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      type="text"
+                      value={cuttingPosYExpr}
+                      onChange={(e) => {
+                        setCuttingPosYExpr(e.target.value);
+                        const result = evaluateCuttingExpression(e.target.value, cuttingPosY);
+                        setCuttingPosY(result);
+                      }}
+                      className="w-16 px-2 py-1 text-xs text-center border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="0"
                     />
                     <input
                       type="text"
-                      value={cuttingPosY}
+                      value={cuttingPosY.toFixed(1)}
                       readOnly
-                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
                     />
                     <input
                       type="text"
@@ -968,16 +1040,21 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
                     />
                     <input
-                      type="number"
-                      value={cuttingPosZ}
-                      onChange={(e) => handleCuttingPositionChange('z', Number(e.target.value))}
-                      className="w-16 px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      type="text"
+                      value={cuttingPosZExpr}
+                      onChange={(e) => {
+                        setCuttingPosZExpr(e.target.value);
+                        const result = evaluateCuttingExpression(e.target.value, cuttingPosZ);
+                        setCuttingPosZ(result);
+                      }}
+                      className="w-16 px-2 py-1 text-xs text-center border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      placeholder="0"
                     />
                     <input
                       type="text"
-                      value={cuttingPosZ}
+                      value={cuttingPosZ.toFixed(1)}
                       readOnly
-                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                      className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-stone-50 text-stone-600"
                     />
                     <input
                       type="text"
