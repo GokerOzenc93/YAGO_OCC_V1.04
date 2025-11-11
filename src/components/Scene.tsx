@@ -432,6 +432,7 @@ const CuttingAreaVisualization: React.FC<{
   const [localSize, setLocalSize] = useState([cuttingWidth, cuttingHeight, cuttingDepth]);
   const isUpdatingRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const changeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!isUpdatingRef.current) {
@@ -557,14 +558,34 @@ const CuttingAreaVisualization: React.FC<{
       const handleDraggingChanged = (event: any) => {
         isDraggingRef.current = event.value;
         if (!event.value) {
+          if (changeTimeoutRef.current) {
+            clearTimeout(changeTimeoutRef.current);
+            changeTimeoutRef.current = null;
+          }
           handleChange();
         }
       };
 
+      const handleObjectChange = () => {
+        if (isDraggingRef.current && !isUpdatingRef.current) {
+          if (changeTimeoutRef.current) {
+            clearTimeout(changeTimeoutRef.current);
+          }
+          changeTimeoutRef.current = setTimeout(() => {
+            handleChange();
+          }, 500);
+        }
+      };
+
       controls.addEventListener('dragging-changed', handleDraggingChanged);
+      controls.addEventListener('objectChange', handleObjectChange);
 
       return () => {
         controls.removeEventListener('dragging-changed', handleDraggingChanged);
+        controls.removeEventListener('objectChange', handleObjectChange);
+        if (changeTimeoutRef.current) {
+          clearTimeout(changeTimeoutRef.current);
+        }
       };
     }
   }, [localCorner, localSize, cuttingWidth, cuttingHeight, cuttingDepth, basePosition, shapeId, baseReplicadShape, baseShapePosition, baseShapeRotation, baseShapeScale, updateShape]);
