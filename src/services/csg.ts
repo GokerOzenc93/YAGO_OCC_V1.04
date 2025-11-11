@@ -18,6 +18,36 @@ export function performCSGSubtraction(
   return resultGeometry;
 }
 
+export function getIntersectionCenter(
+  geometry1: THREE.BufferGeometry,
+  geometry2: THREE.BufferGeometry
+): THREE.Vector3 | null {
+  try {
+    const evaluator = new Evaluator();
+    const brush1 = new Brush(geometry1);
+    const brush2 = new Brush(geometry2);
+
+    const intersection = evaluator.evaluate(brush1, brush2, INTERSECTION);
+    const intersectionGeometry = intersection.geometry;
+
+    if (!intersectionGeometry || intersectionGeometry.getAttribute('position').count === 0) {
+      return null;
+    }
+
+    const bbox = new THREE.Box3().setFromBufferAttribute(
+      intersectionGeometry.getAttribute('position')
+    );
+
+    const center = new THREE.Vector3();
+    bbox.getCenter(center);
+
+    return center;
+  } catch (error) {
+    console.error('Failed to calculate intersection center:', error);
+    return null;
+  }
+}
+
 export function extractSharpEdges(
   geometry: THREE.BufferGeometry,
   thresholdAngle: number = 30

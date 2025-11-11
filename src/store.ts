@@ -26,6 +26,7 @@ export interface Shape {
   baseShapeRotation?: [number, number, number];
   baseShapeScale?: [number, number, number];
   cuttingShapePosition?: [number, number, number];
+  intersectionCenter?: [number, number, number];
 }
 
 export enum CameraType {
@@ -404,6 +405,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
+            const { getIntersectionCenter } = await import('./services/csg');
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
@@ -412,6 +414,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
+
+            const intersectionCenter = getIntersectionCenter(
+              shape1.geometry,
+              shape2.geometry
+            );
 
             const bbox = new THREE.Box3().setFromBufferAttribute(
               newGeometry.getAttribute('position')
@@ -424,6 +431,10 @@ export const useAppStore = create<AppState>((set, get) => ({
               height: size.y,
               depth: size.z
             });
+
+            if (intersectionCenter) {
+              console.log('🎯 Intersection center:', intersectionCenter.toArray());
+            }
 
             set((state) => ({
               shapes: state.shapes.map((s) => {
@@ -438,6 +449,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                       height: Math.abs(size.y),
                       depth: Math.abs(size.z)
                     },
+                    intersectionCenter: intersectionCenter ? intersectionCenter.toArray() as [number, number, number] : undefined,
                     parameters: {
                       ...s.parameters,
                       width: Math.abs(size.x),
