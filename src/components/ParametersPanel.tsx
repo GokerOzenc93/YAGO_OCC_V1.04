@@ -52,6 +52,33 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
   useEffect(() => {
+    if (cuttingWidthExpr) {
+      const result = evaluateCuttingExpression(cuttingWidthExpr, cuttingWidth);
+      setCuttingWidth(result);
+    }
+    if (cuttingHeightExpr) {
+      const result = evaluateCuttingExpression(cuttingHeightExpr, cuttingHeight);
+      setCuttingHeight(result);
+    }
+    if (cuttingDepthExpr) {
+      const result = evaluateCuttingExpression(cuttingDepthExpr, cuttingDepth);
+      setCuttingDepth(result);
+    }
+    if (cuttingPosXExpr) {
+      const result = evaluateCuttingExpression(cuttingPosXExpr, cuttingPosX);
+      setCuttingPosX(result);
+    }
+    if (cuttingPosYExpr) {
+      const result = evaluateCuttingExpression(cuttingPosYExpr, cuttingPosY);
+      setCuttingPosY(result);
+    }
+    if (cuttingPosZExpr) {
+      const result = evaluateCuttingExpression(cuttingPosZExpr, cuttingPosZ);
+      setCuttingPosZ(result);
+    }
+  }, [width, height, depth, customParameters]);
+
+  useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
       selectedShapeId,
       shapesCount: shapes.length,
@@ -171,8 +198,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setHeight(newHeight);
     setDepth(newDepth);
 
-    const updatedCustomParams = recalculateCustomParameters(newWidth, newHeight, newDepth);
-    setCustomParameters(updatedCustomParams);
+    const updatedParams = recalculateCustomParameters(newWidth, newHeight, newDepth);
+    setCustomParameters(updatedParams);
   };
 
   const handleCuttingDimensionChange = (dimension: 'width' | 'height' | 'depth', value: number) => {
@@ -278,29 +305,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       return param;
     });
     setCustomParameters(updatedParams);
-
-    if (selectedShape) {
-      updateShape(selectedShape.id, {
-        parameters: {
-          ...selectedShape.parameters,
-          customParameters: updatedParams,
-        },
-      });
-    }
   };
 
   const deleteCustomParameter = (id: string) => {
     const updatedParams = customParameters.filter((param) => param.id !== id);
     setCustomParameters(updatedParams);
-
-    if (selectedShape) {
-      updateShape(selectedShape.id, {
-        parameters: {
-          ...selectedShape.parameters,
-          customParameters: updatedParams,
-        },
-      });
-    }
   };
 
   const applyChanges = async () => {
