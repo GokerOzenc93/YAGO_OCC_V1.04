@@ -36,6 +36,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [cuttingWidth, setCuttingWidth] = useState(0);
   const [cuttingHeight, setCuttingHeight] = useState(0);
   const [cuttingDepth, setCuttingDepth] = useState(0);
+  const [cuttingPosX, setCuttingPosX] = useState(0);
+  const [cuttingPosY, setCuttingPosY] = useState(0);
+  const [cuttingPosZ, setCuttingPosZ] = useState(0);
   const [cuttingWidthDesc, setCuttingWidthDesc] = useState('Cut Width');
   const [cuttingHeightDesc, setCuttingHeightDesc] = useState('Cut Height');
   const [cuttingDepthDesc, setCuttingDepthDesc] = useState('Cut Depth');
@@ -60,6 +63,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setCuttingWidth(selectedShape.parameters.cuttingWidth || 0);
       setCuttingHeight(selectedShape.parameters.cuttingHeight || 0);
       setCuttingDepth(selectedShape.parameters.cuttingDepth || 0);
+      const cuttingPos = selectedShape.cuttingShapePosition || [0, 0, 0];
+      setCuttingPosX(cuttingPos[0]);
+      setCuttingPosY(cuttingPos[1]);
+      setCuttingPosZ(cuttingPos[2]);
       setCuttingWidthDesc(selectedShape.parameters.cuttingWidthDesc || 'Cut Width');
       setCuttingHeightDesc(selectedShape.parameters.cuttingHeightDesc || 'Cut Height');
       setCuttingDepthDesc(selectedShape.parameters.cuttingDepthDesc || 'Cut Depth');
@@ -72,6 +79,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setCuttingWidth(0);
       setCuttingHeight(0);
       setCuttingDepth(0);
+      setCuttingPosX(0);
+      setCuttingPosY(0);
+      setCuttingPosZ(0);
       setCustomParameters([]);
       setVertexModifications([]);
     }
@@ -163,6 +173,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setCuttingWidth(newCuttingWidth);
     setCuttingHeight(newCuttingHeight);
     setCuttingDepth(newCuttingDepth);
+  };
+
+  const handleCuttingPositionChange = (axis: 'x' | 'y' | 'z', value: number) => {
+    if (!selectedShape) return;
+
+    if (axis === 'x') setCuttingPosX(value);
+    else if (axis === 'y') setCuttingPosY(value);
+    else setCuttingPosZ(value);
   };
 
   const addCustomParameter = () => {
@@ -440,7 +458,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const scaleFactorY = height / currentHeight;
         const scaleFactorZ = depth / currentDepth;
 
-        const scaledAnchor: [number, number, number] = [
+        const userAnchor: [number, number, number] = [cuttingPosX, cuttingPosY, cuttingPosZ];
+        const anchorChanged = userAnchor[0] !== originalAnchor[0] || userAnchor[1] !== originalAnchor[1] || userAnchor[2] !== originalAnchor[2];
+
+        const scaledAnchor: [number, number, number] = anchorChanged ? userAnchor : [
           originalAnchor[0] * scaleFactorX,
           originalAnchor[1] * scaleFactorY,
           originalAnchor[2] * scaleFactorZ
@@ -462,13 +483,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
         console.log('📍 Notch positioning (anchor-based):', {
           originalAnchor,
+          userAnchor,
+          anchorChanged,
           scaledAnchor,
           scaleFactors: [scaleFactorX, scaleFactorY, scaleFactorZ],
           cuttingDimensions: { width: cuttingWidth, height: cuttingHeight, depth: cuttingDepth },
           currentCuttingDimensions: { width: currentCuttingWidth, height: currentCuttingHeight, depth: currentCuttingDepth },
           offsets: { x: offsetX, y: offsetY, z: offsetZ },
           cuttingCenterPos,
-          explanation: 'Anchor stays fixed, notch grows/shrinks from anchor point'
+          explanation: anchorChanged ? 'User changed anchor position manually' : 'Anchor stays fixed, notch grows/shrinks from anchor point'
         });
 
         const resultShape = await performBooleanCut(
@@ -782,6 +805,89 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 text-stone-700"
                     placeholder="Cut Depth"
                   />
+                </div>
+
+                <div className="pt-2 border-t border-red-200 space-y-2">
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="text"
+                      value="CPX"
+                      readOnly
+                      className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
+                    />
+                    <input
+                      type="number"
+                      value={cuttingPosX}
+                      onChange={(e) => handleCuttingPositionChange('x', Number(e.target.value))}
+                      className="w-16 px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <input
+                      type="text"
+                      value={cuttingPosX}
+                      readOnly
+                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    />
+                    <input
+                      type="text"
+                      value="Cut Pos X"
+                      readOnly
+                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    />
+                  </div>
+
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="text"
+                      value="CPY"
+                      readOnly
+                      className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
+                    />
+                    <input
+                      type="number"
+                      value={cuttingPosY}
+                      onChange={(e) => handleCuttingPositionChange('y', Number(e.target.value))}
+                      className="w-16 px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <input
+                      type="text"
+                      value={cuttingPosY}
+                      readOnly
+                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    />
+                    <input
+                      type="text"
+                      value="Cut Pos Y"
+                      readOnly
+                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    />
+                  </div>
+
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="text"
+                      value="CPZ"
+                      readOnly
+                      className="w-10 px-2 py-1 text-xs font-medium border border-blue-300 rounded bg-blue-50 text-blue-700 text-center"
+                    />
+                    <input
+                      type="number"
+                      value={cuttingPosZ}
+                      onChange={(e) => handleCuttingPositionChange('z', Number(e.target.value))}
+                      className="w-16 px-2 py-1 text-xs border border-blue-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <input
+                      type="text"
+                      value={cuttingPosZ}
+                      readOnly
+                      className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    />
+                    <input
+                      type="text"
+                      value="Cut Pos Z"
+                      readOnly
+                      className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    />
+                  </div>
                 </div>
               </div>
             )}
