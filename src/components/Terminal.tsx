@@ -81,6 +81,19 @@ const Terminal: React.FC = () => {
       return;
     }
 
+    if ((window as any).pendingFaceExtrude) {
+      const absoluteValue = parseFloat(trimmedCommand);
+      if (!isNaN(absoluteValue)) {
+        if ((window as any).handleFaceExtrudeValue) {
+          (window as any).handleFaceExtrudeValue(absoluteValue);
+          setCommandInput('');
+          return;
+        }
+      }
+      console.log('Invalid absolute value. Enter a number.');
+      return;
+    }
+
     if ((window as any).pendingExtrudeShape) {
       if (trimmedCommand === '' || trimmedCommand.toLowerCase() === 'enter') {
         if ((window as any).handleConvertTo2D) {

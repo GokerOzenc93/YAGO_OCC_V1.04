@@ -6,6 +6,7 @@ import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
+import { FaceExtrudeEditor } from './FaceExtrudeEditor';
 import * as THREE from 'three';
 
 const ShapeWithTransform: React.FC<{
@@ -372,7 +373,9 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification
+    addVertexModification,
+    faceExtrudeMode,
+    setFaceExtrudeMode
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -385,6 +388,7 @@ const Scene: React.FC = () => {
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
+        setFaceExtrudeMode(false);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -405,7 +409,7 @@ const Scene: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
+  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode, setFaceExtrudeMode]);
 
   useEffect(() => {
     (window as any).handleVertexOffset = async (newValue: number) => {
@@ -674,6 +678,12 @@ const Scene: React.FC = () => {
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
+              />
+            )}
+            {isSelected && faceExtrudeMode && (
+              <FaceExtrudeEditor
+                shape={shape}
+                isActive={true}
               />
             )}
           </React.Fragment>

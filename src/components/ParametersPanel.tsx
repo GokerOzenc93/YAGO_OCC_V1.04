@@ -22,7 +22,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     shapes,
     updateShape,
     vertexEditMode,
-    setVertexEditMode
+    setVertexEditMode,
+    faceExtrudeMode,
+    setFaceExtrudeMode
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -433,6 +435,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             title="Edit Vertices"
           >
             VERTEX
+          </button>
+          <button
+            onClick={() => {
+              setFaceExtrudeMode(!faceExtrudeMode);
+              if (!faceExtrudeMode) {
+                setVertexEditMode(false);
+              }
+            }}
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+              faceExtrudeMode
+                ? 'bg-blue-600 text-white'
+                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+            }`}
+            title="Face Extrude"
+          >
+            FE
           </button>
           <button
             onClick={addCustomParameter}
