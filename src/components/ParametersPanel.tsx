@@ -91,7 +91,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     };
 
     createOrUpdateCuttingRefBox();
-  }, [selectedShapeId, selectedShape?.parameters?.isCSGResult]);
+  }, [selectedShapeId, selectedShape?.parameters?.isCSGResult, selectedShape?.cuttingShapeCenterPosition, selectedShape?.parameters?.cuttingWidth, selectedShape?.parameters?.cuttingHeight, selectedShape?.parameters?.cuttingDepth]);
 
   useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {

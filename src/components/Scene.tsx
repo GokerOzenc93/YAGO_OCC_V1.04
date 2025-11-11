@@ -348,6 +348,7 @@ const ShapeWithTransform: React.FC<{
 
         {cuttingRefShape && shape.cuttingShapeCenterPosition && (
           <mesh
+            key={`cutting-ref-${shape.id}-${cuttingRefShape.parameters?.width}-${cuttingRefShape.parameters?.height}-${cuttingRefShape.parameters?.depth}-${shape.cuttingShapeCenterPosition.join(',')}`}
             geometry={cuttingRefShape.geometry}
             position={[
               shape.cuttingShapeCenterPosition[0],
