@@ -140,7 +140,11 @@ export function applyVertexModifications(
     vertexKeyToIndices.get(key)!.push(i);
   }
 
-  const uniqueVertices = Array.from(uniqueVertexMap.values());
+  const uniqueVertices = Array.from(uniqueVertexMap.values()).sort((a, b) => {
+    if (Math.abs(a.z - b.z) > 0.01) return a.z - b.z;
+    if (Math.abs(a.y - b.y) > 0.01) return a.y - b.y;
+    return a.x - b.x;
+  });
 
   const offsetMap = new Map<number, THREE.Vector3>();
 

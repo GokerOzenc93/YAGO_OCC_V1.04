@@ -8,60 +8,6 @@ import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
 
-const CuttingBox: React.FC<{ shape: any; cut: any }> = ({ shape, cut }) => {
-  const baseWidth = cut.width || 0;
-  const baseHeight = cut.height || 0;
-  const baseDepth = cut.depth || 0;
-
-  const offsetWidth = cut.intersectionWidth || 0;
-  const offsetHeight = cut.intersectionHeight || 0;
-  const offsetDepth = cut.intersectionDepth || 0;
-
-  const width = baseWidth + offsetWidth;
-  const height = baseHeight + offsetHeight;
-  const depth = baseDepth + offsetDepth;
-
-  const scale = cut.scale || [1, 1, 1];
-
-  console.log('🔴 CuttingBox render:', {
-    base: { width: baseWidth, height: baseHeight, depth: baseDepth },
-    offset: { width: offsetWidth, height: offsetHeight, depth: offsetDepth },
-    final: { width, height, depth },
-    scale: scale,
-    cutPosition: cut.position,
-    shapePosition: shape.position
-  });
-
-  if (width <= 0 || height <= 0 || depth <= 0) {
-    console.log('⚠️ CuttingBox: invalid dimensions, skipping render');
-    return null;
-  }
-
-  const finalWidth = width * scale[0];
-  const finalHeight = height * scale[1];
-  const finalDepth = depth * scale[2];
-
-  const position: [number, number, number] = [
-    shape.position[0] + (cut.position?.[0] || 0) + finalWidth / 2,
-    shape.position[1] + (cut.position?.[1] || 0) + finalHeight / 2,
-    shape.position[2] + (cut.position?.[2] || 0) + finalDepth / 2
-  ];
-
-  console.log('✅ CuttingBox rendering at:', position, 'with scale:', scale, 'final dims:', { finalWidth, finalHeight, finalDepth });
-
-  return (
-    <mesh position={position} rotation={cut.rotation || [0, 0, 0]} scale={scale}>
-      <boxGeometry args={[width, height, depth]} />
-      <meshStandardMaterial
-        color="#ff0000"
-        transparent
-        opacity={0.3}
-        side={THREE.DoubleSide}
-      />
-    </mesh>
-  );
-};
-
 const ShapeWithTransform: React.FC<{
   shape: any;
   isSelected: boolean;
@@ -86,16 +32,10 @@ const ShapeWithTransform: React.FC<{
   useEffect(() => {
     const loadEdges = async () => {
       const hasVertexMods = shape.vertexModifications && shape.vertexModifications.length > 0;
-      const hasModified = shape.parameters?.modified;
-      const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods || hasModified;
+      const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods;
 
       if (shouldUpdate && shape.geometry) {
-        console.log(`🔄 Geometry update for shape ${shape.id}`, {
-          hasVertexMods,
-          vertexModCount: shape.vertexModifications?.length || 0,
-          hasModified: !!hasModified,
-          geometryChanged: shape.geometry !== localGeometry
-        });
+        console.log(`🔄 Geometry update for shape ${shape.id}`, { hasVertexMods, vertexModCount: shape.vertexModifications?.length || 0 });
 
         let geom = shape.geometry.clone();
 
@@ -433,8 +373,7 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    updateShape,
-    showCuttingBoxes
+    updateShape
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -756,10 +695,6 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
-        const shouldRender = !shape.isHidden || showCuttingBoxes;
-
-        if (!shouldRender) return null;
-
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -779,13 +714,6 @@ const Scene: React.FC = () => {
                 }}
               />
             )}
-            {isSelected && showCuttingBoxes && shape.parameters.subtractedShapes && shape.parameters.subtractedShapes.map((cut: any, idx: number) => (
-              <CuttingBox
-                key={`${shape.id}-cut-${idx}`}
-                shape={shape}
-                cut={cut}
-              />
-            ))}
           </React.Fragment>
         );
       })}

@@ -21,7 +21,6 @@ export interface Shape {
   baseVerticesSnapshot?: THREE.Vector3[];
   baseDimensions?: { width: number; height: number; depth: number };
   baseGeometrySnapshot?: THREE.BufferGeometry;
-  isHidden?: boolean;
 }
 
 export enum CameraType {
@@ -123,9 +122,6 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
-
-  showCuttingBoxes: boolean;
-  setShowCuttingBoxes: (show: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -418,37 +414,16 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
-            const relativePosition = [
-              shape2.position[0] - shape1.position[0],
-              shape2.position[1] - shape1.position[1],
-              shape2.position[2] - shape1.position[2]
-            ];
-
-            console.log('📍 Relative position of cut (relative to shape1):', relativePosition);
-
-            const intersectionWidth = shape2.parameters.width || 0;
-            const intersectionHeight = shape2.parameters.height || 0;
-            const intersectionDepth = shape2.parameters.depth || 0;
-
-            console.log('📏 Intersection dimensions:', {
-              width: intersectionWidth,
-              height: intersectionHeight,
-              depth: intersectionDepth
-            });
-
             const subtractedParameters = {
               width: shape2.parameters.width || 0,
               height: shape2.parameters.height || 0,
               depth: shape2.parameters.depth || 0,
               customParameters: shape2.parameters.customParameters || [],
               scaledBaseVertices: shape2.parameters.scaledBaseVertices || [],
-              vertexModifications: shape2.vertexModifications || [],
-              intersectionWidth,
-              intersectionHeight,
-              intersectionDepth
+              vertexModifications: shape2.vertexModifications || []
             };
 
-            console.log('📦 Captured subtracted shape parameters with intersection:', subtractedParameters);
+            console.log('📦 Captured subtracted shape parameters:', subtractedParameters);
 
             set((state) => {
               const updatedShapes = state.shapes.map((s) => {
@@ -467,7 +442,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         {
                           id: shape2.id,
                           type: shape2.type,
-                          position: relativePosition,
+                          position: shape2.position,
                           rotation: shape2.rotation,
                           scale: shape2.scale,
                           ...subtractedParameters
@@ -484,14 +459,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
                   return updatedShape;
                 }
-                if (s.id === shape2.id) {
-                  return {
-                    ...s,
-                    isHidden: true
-                  };
-                }
                 return s;
-              });
+              }).filter(s => s.id !== shape2.id);
 
               console.log('📊 All shapes after boolean cut:', updatedShapes.map(s => ({
                 id: s.id,
@@ -511,8 +480,5 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       }
     }
-  },
-
-  showCuttingBoxes: false,
-  setShowCuttingBoxes: (show) => set({ showCuttingBoxes: show }),
+  }
 }));

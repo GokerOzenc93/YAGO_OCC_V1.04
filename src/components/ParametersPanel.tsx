@@ -22,9 +22,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     shapes,
     updateShape,
     vertexEditMode,
-    setVertexEditMode,
-    showCuttingBoxes,
-    setShowCuttingBoxes
+    setVertexEditMode
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -37,141 +35,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [depth, setDepth] = useState(0);
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
-  const [netDimensions, setNetDimensions] = useState<{[key: string]: string}>({});
-  const [pendingCutChanges, setPendingCutChanges] = useState<{[key: string]: any}>({});
-  const [intersectionVolumes, setIntersectionVolumes] = useState<{[key: string]: number}>({});
-
-  const calculateIntersectionVolume = (cut: any): number => {
-    if (!cut.width || !cut.height || !cut.depth) return 0;
-    return cut.width * cut.height * cut.depth;
-  };
-
-  const handleIntersectionChange = (shapeIdx: number, field: string, value: number) => {
-    if (!selectedShape || !selectedShape.parameters.subtractedShapes) {
-      return;
-    }
-
-    const updatedSubtractedShapes = [...selectedShape.parameters.subtractedShapes];
-    const currentCut = updatedSubtractedShapes[shapeIdx];
-
-    const currentIntersectionW = currentCut.intersectionWidth || 0;
-    const currentIntersectionH = currentCut.intersectionHeight || 0;
-    const currentIntersectionD = currentCut.intersectionDepth || 0;
-
-    let newWidth = currentCut.width || 0;
-    let newHeight = currentCut.height || 0;
-    let newDepth = currentCut.depth || 0;
-    let newPosition = [...(currentCut.position || [0, 0, 0])];
-
-    if (field === 'intersectionWidth') {
-      const delta = value - currentIntersectionW;
-      newWidth += delta;
-      newPosition[0] -= delta / 2;
-    } else if (field === 'intersectionHeight') {
-      const delta = value - currentIntersectionH;
-      newHeight += delta;
-      newPosition[1] -= delta / 2;
-    } else if (field === 'intersectionDepth') {
-      const delta = value - currentIntersectionD;
-      newDepth += delta;
-      newPosition[2] -= delta / 2;
-    }
-
-    updatedSubtractedShapes[shapeIdx] = {
-      ...currentCut,
-      [field]: value,
-      width: newWidth,
-      height: newHeight,
-      depth: newDepth,
-      position: newPosition
-    };
-
-    const volume = calculateIntersectionVolume(updatedSubtractedShapes[shapeIdx]);
-    setIntersectionVolumes(prev => ({
-      ...prev,
-      [shapeIdx]: volume
-    }));
-
-    setPendingCutChanges(prev => ({
-      ...prev,
-      [shapeIdx]: updatedSubtractedShapes[shapeIdx]
-    }));
-
-    updateShape(selectedShape.id, {
-      parameters: {
-        ...selectedShape.parameters,
-        subtractedShapes: updatedSubtractedShapes
-      }
-    });
-  };
-
-  const applyPendingChanges = async () => {
-    if (!selectedShape || Object.keys(pendingCutChanges).length === 0) return;
-
-    console.log('🔄 Applying pending cut changes...');
-
-    try {
-      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      const { getReplicadVertices } = await import('../services/vertexEditor');
-
-      let resultShape;
-      if (selectedShape.type === 'box') {
-        resultShape = await createReplicadBox({
-          width: selectedShape.parameters.width || 100,
-          height: selectedShape.parameters.height || 100,
-          depth: selectedShape.parameters.depth || 100
-        });
-      } else {
-        console.warn('⚠️ Only box type is currently supported');
-        return;
-      }
-
-      const subtractedShapes = selectedShape.parameters.subtractedShapes || [];
-
-      for (let i = 0; i < subtractedShapes.length; i++) {
-        const cut = subtractedShapes[i];
-
-        const cuttingShape = await createReplicadBox({
-          width: Math.max(cut.width || 0, 0.1),
-          height: Math.max(cut.height || 0, 0.1),
-          depth: Math.max(cut.depth || 0, 0.1)
-        });
-
-        resultShape = await performBooleanCut(
-          resultShape,
-          cuttingShape,
-          [0, 0, 0],
-          cut.position || [0, 0, 0],
-          [0, 0, 0],
-          cut.rotation || [0, 0, 0],
-          [1, 1, 1],
-          [1, 1, 1]
-        );
-      }
-
-      const newGeometry = convertReplicadToThreeGeometry(resultShape);
-      newGeometry.computeVertexNormals();
-      newGeometry.computeBoundingBox();
-      newGeometry.computeBoundingSphere();
-
-      const newBaseVertices = await getReplicadVertices(resultShape);
-
-      updateShape(selectedShape.id, {
-        geometry: newGeometry,
-        replicadShape: resultShape,
-        parameters: {
-          ...selectedShape.parameters,
-          scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-          modified: Date.now()
-        }
-      });
-
-      setPendingCutChanges({});
-      console.log('✅ Changes applied successfully');
-    } catch (error) {
-      console.error('❌ Failed to apply changes:', error);
-    }
-  };
 
   useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
@@ -192,21 +55,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setDepth(selectedShape.parameters.depth || 0);
       setCustomParameters(selectedShape.parameters.customParameters || []);
       setVertexModifications(selectedShape.vertexModifications || []);
-
-      if (selectedShape.parameters.subtractedShapes) {
-        const volumes: {[key: string]: number} = {};
-        selectedShape.parameters.subtractedShapes.forEach((cut: any, idx: number) => {
-          volumes[idx] = calculateIntersectionVolume(cut);
-        });
-        setIntersectionVolumes(volumes);
-      }
     } else {
       setWidth(0);
       setHeight(0);
       setDepth(0);
       setCustomParameters([]);
       setVertexModifications([]);
-      setIntersectionVolumes({});
     }
   }, [selectedShape, selectedShapeId, shapes]);
 
@@ -368,25 +222,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     console.log('📐 Applying parameter changes...');
     console.log('Shape type:', selectedShape.type);
     console.log('New dimensions:', { width, height, depth });
-
-    if (Object.keys(pendingCutChanges).length > 0) {
-      console.log('✂️ Applying pending cut changes...');
-      for (const [cutKey, changes] of Object.entries(pendingCutChanges)) {
-        const shapeIdx = parseInt(cutKey);
-        if (changes.intersectionWidth !== undefined) {
-          await handleIntersectionChange(shapeIdx, 'intersectionWidth', parseFloat(changes.intersectionWidth as string) || 0);
-        }
-        if (changes.intersectionHeight !== undefined) {
-          await handleIntersectionChange(shapeIdx, 'intersectionHeight', parseFloat(changes.intersectionHeight as string) || 0);
-        }
-        if (changes.intersectionDepth !== undefined) {
-          await handleIntersectionChange(shapeIdx, 'intersectionDepth', parseFloat(changes.intersectionDepth as string) || 0);
-        }
-      }
-      setPendingCutChanges({});
-      console.log('✅ Cut changes applied');
-      return;
-    }
 
     const evaluateVertexExpression = (expr: string): number => {
       try {
@@ -628,17 +463,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             V
           </button>
           <button
-            onClick={() => setShowCuttingBoxes(!showCuttingBoxes)}
-            className={`w-5 h-5 flex items-center justify-center text-xs font-bold rounded transition-colors ${
-              showCuttingBoxes
-                ? 'bg-red-600 text-white'
-                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-            }`}
-            title="Show Cutting Boxes"
-          >
-            B
-          </button>
-          <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
             title="Add Parameter"
@@ -794,74 +618,31 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               return hasSubtractedShapes;
             })() && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs font-semibold text-slate-700">
-                    Subtracted Shapes ({selectedShape.parameters.subtractedShapes.length})
-                  </div>
-                  {Object.keys(pendingCutChanges).length > 0 && (
-                    <button
-                      onClick={applyPendingChanges}
-                      className="flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                    >
-                      <Check size={12} />
-                      Apply Changes
-                    </button>
-                  )}
+                <div className="text-xs font-semibold text-slate-700 mb-2">
+                  Subtracted Shapes ({selectedShape.parameters.subtractedShapes.length})
                 </div>
-                {selectedShape.parameters.subtractedShapes.map((subtractedShape: any, shapeIdx: number) => {
-                  const cutKey = `${shapeIdx}`;
-                  const pendingCut = pendingCutChanges[cutKey] || {};
-                  const hasPendingChanges = !!pendingCutChanges[cutKey];
-
-                  return (
-                  <div key={subtractedShape.id || shapeIdx} className={`space-y-1 p-2 rounded ${hasPendingChanges ? 'bg-yellow-50 border border-yellow-200' : ''}`}>
-                    <div className="text-xs font-medium text-stone-600 mb-1">
-                      Cut {shapeIdx + 1} {hasPendingChanges && <span className="text-yellow-600">(modified)</span>}
+                {selectedShape.parameters.subtractedShapes.map((subtractedShape: any, shapeIdx: number) => (
+                  <div key={subtractedShape.id || shapeIdx} className="space-y-2 bg-stone-50 p-2 rounded border border-stone-200">
+                    <div className="text-xs font-medium text-orange-700 mb-1">
+                      Shape {shapeIdx + 1}: {subtractedShape.type}
                     </div>
 
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`C${shapeIdx + 1}W`}
+                        value={`S${shapeIdx + 1}W`}
                         readOnly
                         className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
-                        type="number"
-                        value={pendingCut.intersectionWidth ?? (subtractedShape.intersectionWidth || 0)}
-                        onChange={(e) => {
-                          const inputValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionWidth', inputValue);
-                        }}
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <input
                         type="text"
-                        value={`Intersection: ${(intersectionVolumes[shapeIdx] || 0).toFixed(0)} mm³`}
+                        value={subtractedShape.width || 0}
                         readOnly
-                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-red-50 text-red-700 font-medium"
-                      />
-                    </div>
-
-                    <div className="flex gap-1 items-center">
-                      <input
-                        type="text"
-                        value={`C${shapeIdx + 1}H`}
-                        readOnly
-                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
-                      />
-                      <input
-                        type="number"
-                        value={pendingCut.intersectionHeight ?? (subtractedShape.intersectionHeight || 0)}
-                        onChange={(e) => {
-                          const inputValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionHeight', inputValue);
-                        }}
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
                       <input
                         type="text"
-                        value=""
+                        value="Width"
                         readOnly
                         className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
@@ -870,28 +651,114 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     <div className="flex gap-1 items-center">
                       <input
                         type="text"
-                        value={`C${shapeIdx + 1}D`}
+                        value={`S${shapeIdx + 1}H`}
                         readOnly
                         className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
                       />
                       <input
-                        type="number"
-                        value={pendingCut.intersectionDepth ?? (subtractedShape.intersectionDepth || 0)}
-                        onChange={(e) => {
-                          const inputValue = parseFloat(e.target.value) || 0;
-                          handleIntersectionChange(shapeIdx, 'intersectionDepth', inputValue);
-                        }}
-                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        type="text"
+                        value={subtractedShape.height || 0}
+                        readOnly
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
                       <input
                         type="text"
-                        value=""
+                        value="Height"
                         readOnly
                         className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
                       />
                     </div>
+
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value={`S${shapeIdx + 1}D`}
+                        readOnly
+                        className="w-12 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-white text-stone-700 text-center"
+                      />
+                      <input
+                        type="text"
+                        value={subtractedShape.depth || 0}
+                        readOnly
+                        className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                      <input
+                        type="text"
+                        value="Depth"
+                        readOnly
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                      />
+                    </div>
+
+                    {subtractedShape.customParameters && subtractedShape.customParameters.length > 0 && (
+                      <div className="space-y-1 pt-1 border-t border-stone-300">
+                        <div className="text-xs text-stone-600 mb-1">Custom Parameters</div>
+                        {subtractedShape.customParameters.map((param: any) => (
+                          <div key={param.id} className="flex gap-1 items-center">
+                            <input
+                              type="text"
+                              value={param.name}
+                              readOnly
+                              className="w-10 px-2 py-1 text-xs font-medium text-center border border-stone-300 rounded bg-white text-stone-700"
+                            />
+                            <input
+                              type="text"
+                              value={param.expression}
+                              readOnly
+                              className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-white text-stone-600"
+                            />
+                            <input
+                              type="text"
+                              value={param.result}
+                              readOnly
+                              className="w-16 px-2 py-1 text-xs text-center border border-stone-300 rounded bg-white text-stone-600"
+                            />
+                            <input
+                              type="text"
+                              value={param.description}
+                              readOnly
+                              className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-white text-stone-600"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {subtractedShape.vertexModifications && subtractedShape.vertexModifications.length > 0 && (
+                      <div className="pt-1 border-t border-stone-300">
+                        <div className="text-xs text-stone-600 mb-1">Vertex Modifications ({subtractedShape.vertexModifications.length})</div>
+                        <div className="max-h-24 overflow-y-auto space-y-1">
+                          {subtractedShape.vertexModifications.map((mod: any, idx: number) => (
+                            <div key={idx} className="flex gap-1 text-[10px] text-stone-500">
+                              <span className="w-12">V{mod.vertexIndex}:</span>
+                              <span className="w-12">{mod.direction}</span>
+                              <span className="flex-1">{mod.expression || mod.offset}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {subtractedShape.scaledBaseVertices && subtractedShape.scaledBaseVertices.length > 0 && (
+                      <div className="pt-1 border-t border-stone-300">
+                        <div className="text-xs text-stone-600 mb-1">Vertices ({subtractedShape.scaledBaseVertices.length})</div>
+                        <div className="max-h-24 overflow-y-auto space-y-1">
+                          {subtractedShape.scaledBaseVertices.slice(0, 3).map((vertex: any, idx: number) => (
+                            <div key={idx} className="flex gap-1 text-[10px] text-stone-500">
+                              <span className="w-8">V{idx}:</span>
+                              <span>[{vertex[0]?.toFixed(1)}, {vertex[1]?.toFixed(1)}, {vertex[2]?.toFixed(1)}]</span>
+                            </div>
+                          ))}
+                          {subtractedShape.scaledBaseVertices.length > 3 && (
+                            <div className="text-[10px] text-stone-400">
+                              ... and {subtractedShape.scaledBaseVertices.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )})}
+                ))}
               </div>
             )}
 

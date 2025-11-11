@@ -233,8 +233,12 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
             }
           }
 
-          baseVerts = Array.from(uniqueVerts.values());
-          console.log(`✅ Extracted ${baseVerts.length} unique vertices from geometry`);
+          baseVerts = Array.from(uniqueVerts.values()).sort((a, b) => {
+            if (Math.abs(a.z - b.z) > 0.01) return a.z - b.z;
+            if (Math.abs(a.y - b.y) > 0.01) return a.y - b.y;
+            return a.x - b.x;
+          });
+          console.log(`✅ Extracted ${baseVerts.length} unique vertices from geometry (sorted)`);
         }
       } else if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
         console.log('📍 Using pre-computed scaled base vertices...');
