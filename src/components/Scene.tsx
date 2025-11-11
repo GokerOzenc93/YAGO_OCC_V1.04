@@ -13,13 +13,11 @@ const ShapeWithTransform: React.FC<{
   isSelected: boolean;
   orbitControlsRef: any;
   onContextMenu: (e: any, shapeId: string) => void;
-  shapes?: any[];
 }> = ({
   shape,
   isSelected,
   orbitControlsRef,
-  onContextMenu,
-  shapes = []
+  onContextMenu
 }) => {
   const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup } = useAppStore();
   const transformRef = useRef<any>(null);
@@ -218,7 +216,6 @@ const ShapeWithTransform: React.FC<{
   const isReferenceBox = shape.isReferenceBox;
   const isCuttingReferenceBox = shape.isCuttingReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
-  const cuttingRefShape = shapes.find(s => s.groupId === shape.id && s.isCuttingReferenceBox);
 
   if (shape.isolated === false) {
     return null;
@@ -277,7 +274,39 @@ const ShapeWithTransform: React.FC<{
           </mesh>
         )}
 
-        {isWireframe && (
+        {isCuttingReferenceBox && (
+          <mesh
+            ref={meshRef}
+            geometry={localGeometry}
+            castShadow={false}
+            receiveShadow={false}
+          >
+            <meshStandardMaterial
+              color="#ffeb3b"
+              transparent
+              opacity={0.15}
+              metalness={0.1}
+              roughness={0.8}
+              depthWrite={false}
+            />
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 1]} />
+              )}
+              <lineBasicMaterial
+                color="#fdd835"
+                linewidth={2}
+                opacity={0.6}
+                transparent
+                depthTest={true}
+              />
+            </lineSegments>
+          </mesh>
+        )}
+
+        {isWireframe && !isCuttingReferenceBox && (
           <>
             <mesh
               ref={meshRef}
@@ -344,37 +373,6 @@ const ShapeWithTransform: React.FC<{
               />
             </lineSegments>
           </>
-        )}
-
-        {cuttingRefShape && shape.cuttingShapeCenterPosition && (
-          <mesh
-            key={`cutting-ref-${shape.id}-${cuttingRefShape.parameters?.width}-${cuttingRefShape.parameters?.height}-${cuttingRefShape.parameters?.depth}-${shape.cuttingShapeCenterPosition.join(',')}`}
-            geometry={cuttingRefShape.geometry}
-            position={[
-              shape.cuttingShapeCenterPosition[0] / shape.scale[0],
-              shape.cuttingShapeCenterPosition[1] / shape.scale[1],
-              shape.cuttingShapeCenterPosition[2] / shape.scale[2]
-            ]}
-          >
-            <meshStandardMaterial
-              color="#ffeb3b"
-              transparent
-              opacity={0.15}
-              metalness={0.1}
-              roughness={0.8}
-              depthWrite={false}
-            />
-            <lineSegments>
-              <edgesGeometry args={[cuttingRefShape.geometry, 1]} />
-              <lineBasicMaterial
-                color="#fdd835"
-                linewidth={2}
-                opacity={0.6}
-                transparent
-                depthTest={true}
-              />
-            </lineSegments>
-          </mesh>
         )}
       </group>
 
@@ -693,7 +691,7 @@ const Scene: React.FC = () => {
         />
       </group>
 
-      {shapes.filter(s => !s.isCuttingReferenceBox).map((shape) => {
+      {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
         return (
           <React.Fragment key={shape.id}>
@@ -702,7 +700,6 @@ const Scene: React.FC = () => {
               isSelected={isSelected}
               orbitControlsRef={controlsRef}
               onContextMenu={handleContextMenu}
-              shapes={shapes}
             />
             {isSelected && vertexEditMode && (
               <VertexEditor
