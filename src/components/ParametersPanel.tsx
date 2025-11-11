@@ -521,11 +521,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         if (existingCuttingRef) {
           updateShape(existingCuttingRef.id, {
             geometry: cuttingRefGeometry,
-            position: [
-              selectedShape.position[0] + cuttingCenterPos[0],
-              selectedShape.position[1] + cuttingCenterPos[1],
-              selectedShape.position[2] + cuttingCenterPos[2]
-            ],
             parameters: {
               ...existingCuttingRef.parameters,
               width: cuttingWidth,
@@ -538,11 +533,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           addShape({
             id: `cutting-ref-${selectedShape.id}-${Date.now()}`,
             type: 'box',
-            position: [
-              selectedShape.position[0] + cuttingCenterPos[0],
-              selectedShape.position[1] + cuttingCenterPos[1],
-              selectedShape.position[2] + cuttingCenterPos[2]
-            ],
+            position: [0, 0, 0],
             rotation: [0, 0, 0],
             scale: [1, 1, 1],
             geometry: cuttingRefGeometry,
@@ -563,6 +554,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           originalGeometry: scaledGeometry.clone(),
           baseReplicadShape: newBaseShape,
           cuttingShapePosition: scaledAnchor,
+          cuttingShapeCenterPosition: cuttingCenterPos,
           originalBounds: {
             width: Math.abs(width),
             height: Math.abs(height),

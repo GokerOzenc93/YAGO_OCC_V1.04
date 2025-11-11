@@ -274,39 +274,7 @@ const ShapeWithTransform: React.FC<{
           </mesh>
         )}
 
-        {isCuttingReferenceBox && (
-          <mesh
-            ref={meshRef}
-            geometry={localGeometry}
-            castShadow={false}
-            receiveShadow={false}
-          >
-            <meshStandardMaterial
-              color="#ffeb3b"
-              transparent
-              opacity={0.15}
-              metalness={0.1}
-              roughness={0.8}
-              depthWrite={false}
-            />
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, 1]} />
-              )}
-              <lineBasicMaterial
-                color="#fdd835"
-                linewidth={2}
-                opacity={0.6}
-                transparent
-                depthTest={true}
-              />
-            </lineSegments>
-          </mesh>
-        )}
-
-        {isWireframe && !isCuttingReferenceBox && (
+        {isWireframe && (
           <>
             <mesh
               ref={meshRef}
@@ -384,6 +352,57 @@ const ShapeWithTransform: React.FC<{
           mode={getTransformMode()}
           size={0.8}
         />
+      )}
+    </>
+  );
+};
+
+interface ShapeWithCuttingRefProps {
+  shape: Shape;
+  isSelected: boolean;
+  orbitControlsRef: React.RefObject<any>;
+  onContextMenu: (e: ThreeEvent<MouseEvent>, shapeId: string) => void;
+  shapes: Shape[];
+}
+
+const ShapeWithCuttingRef: React.FC<ShapeWithCuttingRefProps> = ({ shape, isSelected, orbitControlsRef, onContextMenu, shapes }) => {
+  const cuttingRefShape = shapes.find(s => s.groupId === shape.id && s.isCuttingReferenceBox);
+
+  return (
+    <>
+      <ShapeWithTransform
+        shape={shape}
+        isSelected={isSelected}
+        orbitControlsRef={orbitControlsRef}
+        onContextMenu={onContextMenu}
+      />
+      {cuttingRefShape && shape.cuttingShapeCenterPosition && (
+        <group position={[
+          shape.position[0] + shape.cuttingShapeCenterPosition[0],
+          shape.position[1] + shape.cuttingShapeCenterPosition[1],
+          shape.position[2] + shape.cuttingShapeCenterPosition[2]
+        ]}>
+          <mesh geometry={cuttingRefShape.geometry}>
+            <meshStandardMaterial
+              color="#ffeb3b"
+              transparent
+              opacity={0.15}
+              metalness={0.1}
+              roughness={0.8}
+              depthWrite={false}
+            />
+            <lineSegments>
+              <edgesGeometry args={[cuttingRefShape.geometry, 1]} />
+              <lineBasicMaterial
+                color="#fdd835"
+                linewidth={2}
+                opacity={0.6}
+                transparent
+                depthTest={true}
+              />
+            </lineSegments>
+          </mesh>
+        </group>
       )}
     </>
   );
@@ -691,15 +710,16 @@ const Scene: React.FC = () => {
         />
       </group>
 
-      {shapes.map((shape) => {
+      {shapes.filter(s => !s.isCuttingReferenceBox).map((shape) => {
         const isSelected = selectedShapeId === shape.id;
         return (
           <React.Fragment key={shape.id}>
-            <ShapeWithTransform
+            <ShapeWithCuttingRef
               shape={shape}
               isSelected={isSelected}
               orbitControlsRef={controlsRef}
               onContextMenu={handleContextMenu}
+              shapes={shapes}
             />
             {isSelected && vertexEditMode && (
               <VertexEditor

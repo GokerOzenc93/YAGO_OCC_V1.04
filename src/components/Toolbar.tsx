@@ -580,6 +580,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           notchAnchorPoint.z - targetShape.position[2]
         ];
 
+        const relativeCuttingCenter: [number, number, number] = [
+          intersectionCenter.x - targetShape.position[0],
+          intersectionCenter.y - targetShape.position[1],
+          intersectionCenter.z - targetShape.position[2]
+        ];
+
         console.log('🔲 Intersection (notch) info:', {
           dimensions: {
             width: intersectionSize.x,
@@ -607,6 +613,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           baseShapeRotation: targetShape.rotation,
           baseShapeScale: targetShape.scale,
           cuttingShapePosition: relativeNotchPosition,
+          cuttingShapeCenterPosition: relativeCuttingCenter,
           parameters: {
             ...targetShape.parameters,
             width: Math.abs(size.x),
