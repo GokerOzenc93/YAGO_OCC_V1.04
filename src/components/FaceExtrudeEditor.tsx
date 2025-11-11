@@ -30,7 +30,7 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
         referenceFace: null
       });
     }
-  }, [isActive]);
+  }, [isActive, faceExtrudeState, setFaceExtrudeState]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -43,21 +43,22 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
 
       raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
 
+      const scene = (gl as any)?.scene || gl?.domElement?.parentElement;
+      if (!scene) return;
+
       const meshes: THREE.Mesh[] = [];
       const findMeshes = (obj: THREE.Object3D) => {
-        if (obj instanceof THREE.Mesh && obj.geometry === shape.geometry) {
-          meshes.push(obj);
+        if (obj instanceof THREE.Mesh) {
+          const geom = obj.geometry;
+          if (geom && shape.geometry && geom.uuid === shape.geometry.uuid) {
+            meshes.push(obj);
+          }
         }
         obj.children.forEach(findMeshes);
       };
-      gl.domElement.parentElement?.querySelectorAll('canvas').forEach(() => {
-        if (gl.domElement.parentElement) {
-          const scene = (gl as any).scene;
-          if (scene) findMeshes(scene);
-        }
-      });
+      findMeshes(scene);
 
-      const intersects = raycaster.intersectObjects(meshes, false);
+      const intersects = raycaster.intersectObjects(meshes, true);
 
       if (intersects.length > 0) {
         const intersection = intersects[0];
@@ -130,7 +131,7 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
     return () => {
       canvas.removeEventListener('click', handleClick);
     };
-  }, [isActive, faceExtrudeState, shape, camera, raycaster, gl]);
+  }, [isActive, faceExtrudeState, shape, camera, raycaster, gl, setFaceExtrudeState]);
 
   useEffect(() => {
     (window as any).handleFaceExtrudeValue = async (absoluteValue: number) => {

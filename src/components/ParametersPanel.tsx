@@ -438,8 +438,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           </button>
           <button
             onClick={() => {
-              setFaceExtrudeMode(!faceExtrudeMode);
-              if (!faceExtrudeMode) {
+              const newMode = !faceExtrudeMode;
+              setFaceExtrudeMode(newMode);
+              if (newMode) {
                 setVertexEditMode(false);
               }
             }}
