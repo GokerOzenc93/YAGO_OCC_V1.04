@@ -20,6 +20,10 @@ export interface Shape {
   isReferenceBox?: boolean;
   originalGeometry?: THREE.BufferGeometry;
   originalBounds?: { width: number; height: number; depth: number };
+  baseReplicadShape?: any;
+  baseShapePosition?: [number, number, number];
+  baseShapeRotation?: [number, number, number];
+  baseShapeScale?: [number, number, number];
 }
 
 export enum CameraType {

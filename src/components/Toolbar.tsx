@@ -566,6 +566,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             height: Math.abs(size.y),
             depth: Math.abs(size.z)
           },
+          baseReplicadShape: targetShape.replicadShape,
+          baseShapePosition: targetShape.position,
+          baseShapeRotation: targetShape.rotation,
+          baseShapeScale: targetShape.scale,
           parameters: {
             ...targetShape.parameters,
             width: Math.abs(size.x),

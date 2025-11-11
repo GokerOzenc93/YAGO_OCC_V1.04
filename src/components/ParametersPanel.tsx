@@ -144,8 +144,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setCustomParameters(updatedCustomParams);
   };
 
-  const handleCuttingDimensionChange = (dimension: 'width' | 'height' | 'depth', value: number) => {
-    if (!selectedShape) return;
+  const handleCuttingDimensionChange = async (dimension: 'width' | 'height' | 'depth', value: number) => {
+    if (!selectedShape || !selectedShape.parameters?.isCSGResult) return;
 
     const newCuttingWidth = dimension === 'width' ? value : cuttingWidth;
     const newCuttingHeight = dimension === 'height' ? value : cuttingHeight;
@@ -154,6 +154,86 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setCuttingWidth(newCuttingWidth);
     setCuttingHeight(newCuttingHeight);
     setCuttingDepth(newCuttingDepth);
+
+    console.log('✂️ Cutting dimensions changed, regenerating geometry...');
+    console.log('📐 New cutting dimensions:', { w: newCuttingWidth, h: newCuttingHeight, d: newCuttingDepth });
+
+    try {
+      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { getReplicadVertices } = await import('../services/vertexEditor');
+
+      if (!selectedShape.baseReplicadShape) {
+        console.error('❌ No baseReplicadShape found - cannot regenerate');
+        return;
+      }
+
+      console.log('🔧 Using base shape for regeneration');
+
+      const cuttingShape = await createReplicadBox({
+        width: newCuttingWidth,
+        height: newCuttingHeight,
+        depth: newCuttingDepth
+      });
+
+      const basePos = selectedShape.baseShapePosition || [0, 0, 0];
+      const baseRot = selectedShape.baseShapeRotation || [0, 0, 0];
+      const baseScale = selectedShape.baseShapeScale || [1, 1, 1];
+
+      const resultShape = await performBooleanCut(
+        selectedShape.baseReplicadShape,
+        cuttingShape,
+        basePos,
+        [0, 0, 0],
+        baseRot,
+        [0, 0, 0],
+        baseScale,
+        [1, 1, 1]
+      );
+
+      const newGeometry = convertReplicadToThreeGeometry(resultShape);
+      const newBaseVertices = await getReplicadVertices(resultShape);
+
+      const bbox = new THREE.Box3().setFromBufferAttribute(
+        newGeometry.getAttribute('position')
+      );
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+
+      console.log('📦 New result geometry size:', {
+        width: Math.abs(size.x),
+        height: Math.abs(size.y),
+        depth: Math.abs(size.z)
+      });
+
+      updateShape(selectedShape.id, {
+        geometry: newGeometry,
+        replicadShape: resultShape,
+        originalGeometry: newGeometry.clone(),
+        originalBounds: {
+          width: Math.abs(size.x),
+          height: Math.abs(size.y),
+          depth: Math.abs(size.z)
+        },
+        parameters: {
+          ...selectedShape.parameters,
+          width: Math.abs(size.x),
+          height: Math.abs(size.y),
+          depth: Math.abs(size.z),
+          cuttingWidth: newCuttingWidth,
+          cuttingHeight: newCuttingHeight,
+          cuttingDepth: newCuttingDepth,
+          scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+        }
+      });
+
+      setWidth(Math.abs(size.x));
+      setHeight(Math.abs(size.y));
+      setDepth(Math.abs(size.z));
+
+      console.log('✅ Geometry regenerated with new cutting dimensions');
+    } catch (error) {
+      console.error('❌ Failed to regenerate geometry:', error);
+    }
   };
 
   const addCustomParameter = () => {
