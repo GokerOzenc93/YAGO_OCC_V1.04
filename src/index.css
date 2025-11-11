@@ -1,22 +1,3 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@layer utilities {
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    @apply bg-stone-200 rounded;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    @apply bg-stone-400 rounded hover:bg-stone-500;
-  }
-
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: rgb(168 162 158) rgb(231 229 228);
-  }
-}
