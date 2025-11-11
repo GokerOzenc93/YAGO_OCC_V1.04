@@ -24,6 +24,8 @@ export interface Shape {
   baseShapePosition?: [number, number, number];
   baseShapeRotation?: [number, number, number];
   baseShapeScale?: [number, number, number];
+  cuttingPosition?: [number, number, number];
+  cuttingCorner?: [number, number, number];
 }
 
 export enum CameraType {
