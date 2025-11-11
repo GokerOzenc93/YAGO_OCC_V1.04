@@ -554,10 +554,30 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const intersectionCenter = new THREE.Vector3();
         intersectionBox.getCenter(intersectionCenter);
 
+        const targetCenter = new THREE.Vector3(
+          targetShape.position[0],
+          targetShape.position[1],
+          targetShape.position[2]
+        );
+
+        const notchAnchorPoint = new THREE.Vector3();
+
+        notchAnchorPoint.x = (intersectionCenter.x < targetCenter.x)
+          ? intersectionBox.max.x
+          : intersectionBox.min.x;
+
+        notchAnchorPoint.y = (intersectionCenter.y < targetCenter.y)
+          ? intersectionBox.max.y
+          : intersectionBox.min.y;
+
+        notchAnchorPoint.z = (intersectionCenter.z < targetCenter.z)
+          ? intersectionBox.max.z
+          : intersectionBox.min.z;
+
         const relativeNotchPosition: [number, number, number] = [
-          intersectionCenter.x - targetShape.position[0],
-          intersectionCenter.y - targetShape.position[1],
-          intersectionCenter.z - targetShape.position[2]
+          notchAnchorPoint.x - targetShape.position[0],
+          notchAnchorPoint.y - targetShape.position[1],
+          notchAnchorPoint.z - targetShape.position[2]
         ];
 
         console.log('🔲 Intersection (notch) info:', {
@@ -566,8 +586,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             height: intersectionSize.y,
             depth: intersectionSize.z
           },
-          absoluteCenter: [intersectionCenter.x, intersectionCenter.y, intersectionCenter.z],
-          relativePosition: relativeNotchPosition
+          intersectionCenter: [intersectionCenter.x, intersectionCenter.y, intersectionCenter.z],
+          targetCenter: [targetCenter.x, targetCenter.y, targetCenter.z],
+          anchorPoint: [notchAnchorPoint.x, notchAnchorPoint.y, notchAnchorPoint.z],
+          relativeAnchor: relativeNotchPosition,
+          explanation: 'Anchor point is the corner of notch closest to target geometry center'
         });
 
         updateShape(targetShape.id, {

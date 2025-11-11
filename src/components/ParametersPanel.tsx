@@ -434,32 +434,48 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const basePos = selectedShape.baseShapePosition || [0, 0, 0];
         const baseRot = selectedShape.baseShapeRotation || [0, 0, 0];
 
-        const originalCuttingPos = selectedShape.cuttingShapePosition || [0, 0, 0];
+        const originalAnchor = selectedShape.cuttingShapePosition || [0, 0, 0];
 
         const scaleFactorX = width / currentWidth;
         const scaleFactorY = height / currentHeight;
         const scaleFactorZ = depth / currentDepth;
 
-        const scaledCuttingPos: [number, number, number] = [
-          originalCuttingPos[0] * scaleFactorX,
-          originalCuttingPos[1] * scaleFactorY,
-          originalCuttingPos[2] * scaleFactorZ
+        const scaledAnchor: [number, number, number] = [
+          originalAnchor[0] * scaleFactorX,
+          originalAnchor[1] * scaleFactorY,
+          originalAnchor[2] * scaleFactorZ
         ];
 
-        console.log('📍 Notch positioning:', {
-          original: originalCuttingPos,
+        const currentCuttingWidth = selectedShape.parameters.cuttingWidth || cuttingWidth;
+        const currentCuttingHeight = selectedShape.parameters.cuttingHeight || cuttingHeight;
+        const currentCuttingDepth = selectedShape.parameters.cuttingDepth || cuttingDepth;
+
+        const offsetX = (originalAnchor[0] > 0) ? (cuttingWidth - currentCuttingWidth) / 2 : -(cuttingWidth - currentCuttingWidth) / 2;
+        const offsetY = (originalAnchor[1] > 0) ? (cuttingHeight - currentCuttingHeight) / 2 : -(cuttingHeight - currentCuttingHeight) / 2;
+        const offsetZ = (originalAnchor[2] > 0) ? (cuttingDepth - currentCuttingDepth) / 2 : -(cuttingDepth - currentCuttingDepth) / 2;
+
+        const cuttingCenterPos: [number, number, number] = [
+          scaledAnchor[0] + offsetX,
+          scaledAnchor[1] + offsetY,
+          scaledAnchor[2] + offsetZ
+        ];
+
+        console.log('📍 Notch positioning (anchor-based):', {
+          originalAnchor,
+          scaledAnchor,
           scaleFactors: [scaleFactorX, scaleFactorY, scaleFactorZ],
-          scaled: scaledCuttingPos,
-          dimensions: { width, height, depth },
-          currentDimensions: { currentWidth, currentHeight, currentDepth },
-          cuttingDimensions: { cuttingWidth, cuttingHeight, cuttingDepth }
+          cuttingDimensions: { width: cuttingWidth, height: cuttingHeight, depth: cuttingDepth },
+          currentCuttingDimensions: { width: currentCuttingWidth, height: currentCuttingHeight, depth: currentCuttingDepth },
+          offsets: { x: offsetX, y: offsetY, z: offsetZ },
+          cuttingCenterPos,
+          explanation: 'Anchor stays fixed, notch grows/shrinks from anchor point'
         });
 
         const resultShape = await performBooleanCut(
           newBaseShape,
           cuttingShape,
           basePos,
-          scaledCuttingPos,
+          cuttingCenterPos,
           baseRot,
           [0, 0, 0],
           [1, 1, 1],
@@ -474,7 +490,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           replicadShape: resultShape,
           originalGeometry: scaledGeometry.clone(),
           baseReplicadShape: newBaseShape,
-          cuttingShapePosition: scaledCuttingPos,
+          cuttingShapePosition: scaledAnchor,
           originalBounds: {
             width: Math.abs(width),
             height: Math.abs(height),
