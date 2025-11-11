@@ -372,8 +372,7 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification,
-    updateShape
+    addVertexModification
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -417,31 +416,7 @@ const Scene: React.FC = () => {
 
           let baseVertices: number[][] = [];
 
-          if (shape.geometry) {
-            console.log('📍 Extracting unique vertices from geometry for offset calculation...');
-            const positionAttr = shape.geometry.getAttribute('position');
-            if (positionAttr) {
-              const uniqueVerts = new Map<string, number[]>();
-
-              for (let i = 0; i < positionAttr.count; i++) {
-                const x = Math.round(positionAttr.getX(i) * 100) / 100;
-                const y = Math.round(positionAttr.getY(i) * 100) / 100;
-                const z = Math.round(positionAttr.getZ(i) * 100) / 100;
-                const key = `${x},${y},${z}`;
-
-                if (!uniqueVerts.has(key)) {
-                  uniqueVerts.set(key, [x, y, z]);
-                }
-              }
-
-              baseVertices = Array.from(uniqueVerts.values()).sort((a, b) => {
-                if (Math.abs(a[2] - b[2]) > 0.01) return a[2] - b[2];
-                if (Math.abs(a[1] - b[1]) > 0.01) return a[1] - b[1];
-                return a[0] - b[0];
-              });
-              console.log(`✅ Extracted ${baseVertices.length} unique vertices from geometry (sorted)`);
-            }
-          } else if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
+          if (shape.parameters.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
             console.log('📍 Using pre-computed scaled base vertices for offset calculation...');
             baseVertices = shape.parameters.scaledBaseVertices;
             console.log(`✅ Using ${baseVertices.length} scaled base vertices`);
@@ -489,19 +464,6 @@ const Scene: React.FC = () => {
             offsetAmount: offsetAmount.toFixed(1),
             explanation: `${axisName}${directionSymbol} → move to ${newValue} (offset: ${offsetAmount.toFixed(1)})`
           });
-
-          if (!shape.baseVerticesSnapshot) {
-            console.log('📸 Taking initial snapshot of base vertices and geometry');
-            updateShape(selectedShapeId, {
-              baseVerticesSnapshot: baseVertices.map(v => new THREE.Vector3(v[0], v[1], v[2])),
-              baseDimensions: {
-                width: shape.parameters.width,
-                height: shape.parameters.height,
-                depth: shape.parameters.depth
-              },
-              baseGeometrySnapshot: shape.geometry.clone()
-            });
-          }
 
           addVertexModification(selectedShapeId, {
             vertexIndex: selectedVertexIndex,
