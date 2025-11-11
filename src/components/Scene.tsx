@@ -350,13 +350,19 @@ const ShapeWithTransform: React.FC<{
         />
       )}
 
-      {isSelected && shape.parameters?.isCSGResult && shape.cuttingCorner && (
+      {isSelected && shape.parameters?.isCSGResult && shape.cuttingCorner && shape.baseReplicadShape && (
         <CuttingAreaVisualization
           cuttingWidth={shape.parameters.cuttingWidth || 0}
           cuttingHeight={shape.parameters.cuttingHeight || 0}
           cuttingDepth={shape.parameters.cuttingDepth || 0}
           cuttingCorner={shape.cuttingCorner}
           basePosition={shape.position}
+          shapeId={shape.id}
+          baseReplicadShape={shape.baseReplicadShape}
+          baseShapePosition={shape.baseShapePosition || shape.position}
+          baseShapeRotation={shape.baseShapeRotation || shape.rotation}
+          baseShapeScale={shape.baseShapeScale || shape.scale}
+          activeTool={activeTool}
         />
       )}
     </>
@@ -369,35 +375,165 @@ const CuttingAreaVisualization: React.FC<{
   cuttingDepth: number;
   cuttingCorner: [number, number, number];
   basePosition: [number, number, number];
-}> = ({ cuttingWidth, cuttingHeight, cuttingDepth, cuttingCorner, basePosition }) => {
+  shapeId: string;
+  baseReplicadShape: any;
+  baseShapePosition: [number, number, number];
+  baseShapeRotation: [number, number, number];
+  baseShapeScale: [number, number, number];
+  activeTool: Tool;
+}> = ({
+  cuttingWidth,
+  cuttingHeight,
+  cuttingDepth,
+  cuttingCorner,
+  basePosition,
+  shapeId,
+  baseReplicadShape,
+  baseShapePosition,
+  baseShapeRotation,
+  baseShapeScale,
+  activeTool
+}) => {
+  const { updateShape } = useAppStore();
+  const groupRef = useRef<THREE.Group>(null);
+  const transformRef = useRef<any>(null);
+  const [localCorner, setLocalCorner] = useState(cuttingCorner);
+  const [localSize, setLocalSize] = useState([cuttingWidth, cuttingHeight, cuttingDepth]);
+  const isUpdatingRef = useRef(false);
+
   const relativeCorner: [number, number, number] = [
-    cuttingCorner[0] - basePosition[0],
-    cuttingCorner[1] - basePosition[1],
-    cuttingCorner[2] - basePosition[2]
+    localCorner[0] - basePosition[0],
+    localCorner[1] - basePosition[1],
+    localCorner[2] - basePosition[2]
   ];
 
-  const halfWidth = cuttingWidth / 2;
-  const halfHeight = cuttingHeight / 2;
-  const halfDepth = cuttingDepth / 2;
+  const halfWidth = localSize[0] / 2;
+  const halfHeight = localSize[1] / 2;
+  const halfDepth = localSize[2] / 2;
+
+  useEffect(() => {
+    const handleChange = async () => {
+      if (!groupRef.current || isUpdatingRef.current) return;
+
+      const worldPos = new THREE.Vector3();
+      groupRef.current.getWorldPosition(worldPos);
+
+      const newCorner: [number, number, number] = [worldPos.x, worldPos.y, worldPos.z];
+      const worldScale = groupRef.current.scale;
+      const newSize = [
+        cuttingWidth * worldScale.x,
+        cuttingHeight * worldScale.y,
+        cuttingDepth * worldScale.z
+      ];
+
+      if (
+        Math.abs(newCorner[0] - localCorner[0]) > 0.01 ||
+        Math.abs(newCorner[1] - localCorner[1]) > 0.01 ||
+        Math.abs(newCorner[2] - localCorner[2]) > 0.01 ||
+        Math.abs(newSize[0] - localSize[0]) > 0.01 ||
+        Math.abs(newSize[1] - localSize[1]) > 0.01 ||
+        Math.abs(newSize[2] - localSize[2]) > 0.01
+      ) {
+        setLocalCorner(newCorner);
+        setLocalSize(newSize as [number, number, number]);
+
+        console.log('🔄 Cutting area changed, regenerating geometry...', {
+          newCorner,
+          newSize
+        });
+
+        const { performBooleanCut, convertReplicadToThreeGeometry, getReplicadVertices } = await import('../services/replicad');
+
+        const cuttingCenter: [number, number, number] = [
+          newCorner[0] + newSize[0] / 2,
+          newCorner[1] + newSize[1] / 2,
+          newCorner[2] + newSize[2] / 2
+        ];
+
+        const cuttingBoxShape = await (await import('replicad')).makeSolid(async ({ makeBaseBox }) => {
+          return makeBaseBox(newSize[0], newSize[1], newSize[2]);
+        });
+
+        const resultShape = await performBooleanCut(
+          baseReplicadShape,
+          cuttingBoxShape,
+          baseShapePosition,
+          cuttingCenter,
+          baseShapeRotation,
+          [0, 0, 0],
+          baseShapeScale,
+          [1, 1, 1]
+        );
+
+        const newGeometry = convertReplicadToThreeGeometry(resultShape);
+        const newBaseVertices = await getReplicadVertices(resultShape);
+
+        isUpdatingRef.current = true;
+
+        const shapes = useAppStore.getState().shapes;
+        const currentShape = shapes.find(s => s.id === shapeId);
+
+        updateShape(shapeId, {
+          geometry: newGeometry,
+          replicadShape: resultShape,
+          originalGeometry: newGeometry.clone(),
+          cuttingCorner: newCorner,
+          cuttingPosition: cuttingCenter,
+          parameters: {
+            ...(currentShape?.parameters || {}),
+            cuttingWidth: newSize[0],
+            cuttingHeight: newSize[1],
+            cuttingDepth: newSize[2],
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+          }
+        });
+        setTimeout(() => {
+          isUpdatingRef.current = false;
+        }, 100);
+      }
+    };
+
+    const controls = transformRef.current;
+    if (controls) {
+      controls.addEventListener('objectChange', handleChange);
+      controls.addEventListener('mouseUp', handleChange);
+
+      return () => {
+        controls.removeEventListener('objectChange', handleChange);
+        controls.removeEventListener('mouseUp', handleChange);
+      };
+    }
+  }, [localCorner, localSize, cuttingWidth, cuttingHeight, cuttingDepth, basePosition, shapeId, baseReplicadShape, baseShapePosition, baseShapeRotation, baseShapeScale, updateShape]);
 
   return (
-    <group position={basePosition}>
-      <group position={relativeCorner}>
-        <mesh position={[halfWidth, halfHeight, halfDepth]}>
-          <boxGeometry args={[cuttingWidth, cuttingHeight, cuttingDepth]} />
-          <meshStandardMaterial
-            color="#ef4444"
-            transparent
-            opacity={0.3}
-            depthWrite={false}
-          />
-        </mesh>
-        <lineSegments position={[halfWidth, halfHeight, halfDepth]}>
-          <edgesGeometry args={[new THREE.BoxGeometry(cuttingWidth, cuttingHeight, cuttingDepth)]} />
-          <lineBasicMaterial color="#dc2626" linewidth={2} />
-        </lineSegments>
+    <>
+      <group position={basePosition}>
+        <group ref={groupRef} position={relativeCorner}>
+          <mesh position={[halfWidth, halfHeight, halfDepth]}>
+            <boxGeometry args={[cuttingWidth, cuttingHeight, cuttingDepth]} />
+            <meshStandardMaterial
+              color="#ef4444"
+              transparent
+              opacity={0.3}
+              depthWrite={false}
+            />
+          </mesh>
+          <lineSegments position={[halfWidth, halfHeight, halfDepth]}>
+            <edgesGeometry args={[new THREE.BoxGeometry(cuttingWidth, cuttingHeight, cuttingDepth)]} />
+            <lineBasicMaterial color="#dc2626" linewidth={2} />
+          </lineSegments>
+        </group>
       </group>
-    </group>
+
+      {groupRef.current && (
+        <TransformControls
+          ref={transformRef}
+          object={groupRef.current}
+          mode={activeTool === Tool.SCALE ? 'scale' : 'translate'}
+          size={0.6}
+        />
+      )}
+    </>
   );
 };
 
