@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
 import { detectFaceFromRaycast, calculateFaceDimension, extrudeFaceToAbsoluteValue } from '../services/faceExtrude';
@@ -11,7 +11,7 @@ interface FaceExtrudeEditorProps {
 
 export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isActive }) => {
   const { faceExtrudeState, setFaceExtrudeState, updateShape } = useAppStore();
-  const { camera, raycaster, gl } = useThree();
+  const { camera, scene, gl } = useThree();
   const [selectedFaceMarker, setSelectedFaceMarker] = useState<THREE.Vector3 | null>(null);
   const [referenceFaceMarker, setReferenceFaceMarker] = useState<THREE.Vector3 | null>(null);
 
@@ -36,39 +36,42 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
     if (!isActive) return;
 
     const handleClick = (event: MouseEvent) => {
+      event.stopPropagation();
+      event.preventDefault();
+
       const canvas = gl.domElement;
       const rect = canvas.getBoundingClientRect();
       const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
+      const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
 
-      const scene = (gl as any)?.scene || gl?.domElement?.parentElement;
-      if (!scene) return;
-
       const meshes: THREE.Mesh[] = [];
-      const findMeshes = (obj: THREE.Object3D) => {
-        if (obj instanceof THREE.Mesh) {
-          const geom = obj.geometry;
-          if (geom && shape.geometry && geom.uuid === shape.geometry.uuid) {
-            meshes.push(obj);
-          }
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.geometry) {
+          meshes.push(obj);
         }
-        obj.children.forEach(findMeshes);
-      };
-      findMeshes(scene);
+      });
 
-      const intersects = raycaster.intersectObjects(meshes, true);
+      const intersects = raycaster.intersectObjects(meshes, false);
+
+      console.log('🎯 Face extrude click:', {
+        meshesFound: meshes.length,
+        intersects: intersects.length,
+        step: faceExtrudeState?.step
+      });
 
       if (intersects.length > 0) {
         const intersection = intersects[0];
+        const mesh = intersection.object as THREE.Mesh;
         const point = intersection.point;
 
         const worldToLocal = new THREE.Matrix4();
-        worldToLocal.copy(intersection.object.matrixWorld).invert();
+        worldToLocal.copy(mesh.matrixWorld).invert();
         const localPoint = point.clone().applyMatrix4(worldToLocal);
 
-        const faceData = detectFaceFromRaycast(shape.geometry, localPoint);
+        const faceData = detectFaceFromRaycast(mesh.geometry as THREE.BufferGeometry, localPoint);
 
         if (faceData && faceExtrudeState) {
           if (faceExtrudeState.step === 'select-face') {
@@ -80,7 +83,7 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
               dimension: dimension.toFixed(2)
             });
 
-            setSelectedFaceMarker(faceData.center.clone().applyMatrix4(intersection.object.matrixWorld));
+            setSelectedFaceMarker(faceData.center.clone().applyMatrix4(mesh.matrixWorld));
 
             setFaceExtrudeState({
               ...faceExtrudeState,
@@ -101,7 +104,7 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
               dimension: dimension.toFixed(2)
             });
 
-            setReferenceFaceMarker(faceData.center.clone().applyMatrix4(intersection.object.matrixWorld));
+            setReferenceFaceMarker(faceData.center.clone().applyMatrix4(mesh.matrixWorld));
 
             setFaceExtrudeState({
               ...faceExtrudeState,
@@ -116,7 +119,8 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
             (window as any).faceExtrudeData = {
               shapeId: shape.id,
               selectedFace: faceExtrudeState.selectedFace,
-              referenceDimension: dimension
+              referenceDimension: dimension,
+              geometry: mesh.geometry
             };
 
             console.log('✅ Face extrude ready. Waiting for absolute value input...');
@@ -126,19 +130,19 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
     };
 
     const canvas = gl.domElement;
-    canvas.addEventListener('click', handleClick);
+    canvas.addEventListener('click', handleClick, true);
 
     return () => {
-      canvas.removeEventListener('click', handleClick);
+      canvas.removeEventListener('click', handleClick, true);
     };
-  }, [isActive, faceExtrudeState, shape, camera, raycaster, gl, setFaceExtrudeState]);
+  }, [isActive, faceExtrudeState, shape, camera, scene, gl, setFaceExtrudeState]);
 
   useEffect(() => {
     (window as any).handleFaceExtrudeValue = async (absoluteValue: number) => {
       const data = (window as any).faceExtrudeData;
       if (!data) return;
 
-      const { shapeId, selectedFace, referenceDimension } = data;
+      const { shapeId, selectedFace, referenceDimension, geometry } = data;
 
       console.log('🎯 Applying face extrude:', {
         absoluteValue,
@@ -147,7 +151,7 @@ export const FaceExtrudeEditor: React.FC<FaceExtrudeEditorProps> = ({ shape, isA
       });
 
       const newGeometry = extrudeFaceToAbsoluteValue(
-        shape.geometry,
+        geometry,
         selectedFace.center,
         selectedFace.normal,
         absoluteValue,
