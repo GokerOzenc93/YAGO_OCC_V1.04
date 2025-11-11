@@ -431,6 +431,7 @@ const CuttingAreaVisualization: React.FC<{
   const [localCorner, setLocalCorner] = useState(cuttingCorner);
   const [localSize, setLocalSize] = useState([cuttingWidth, cuttingHeight, cuttingDepth]);
   const isUpdatingRef = useRef(false);
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
     if (!isUpdatingRef.current) {
@@ -461,12 +462,21 @@ const CuttingAreaVisualization: React.FC<{
       const worldPos = new THREE.Vector3();
       groupRef.current.getWorldPosition(worldPos);
 
-      const newCorner: [number, number, number] = [worldPos.x, worldPos.y, worldPos.z];
       const worldScale = groupRef.current.scale;
       const newSize = [
         cuttingWidth * worldScale.x,
         cuttingHeight * worldScale.y,
         cuttingDepth * worldScale.z
+      ];
+
+      const scaledHalfWidth = (newSize[0] - cuttingWidth) / 2;
+      const scaledHalfHeight = (newSize[1] - cuttingHeight) / 2;
+      const scaledHalfDepth = (newSize[2] - cuttingDepth) / 2;
+
+      const newCorner: [number, number, number] = [
+        worldPos.x - scaledHalfWidth,
+        worldPos.y - scaledHalfHeight,
+        worldPos.z - scaledHalfDepth
       ];
 
       if (
@@ -482,7 +492,8 @@ const CuttingAreaVisualization: React.FC<{
 
         console.log('🔄 Cutting area changed, regenerating geometry...', {
           newCorner,
-          newSize
+          newSize,
+          scale: worldScale.toArray()
         });
 
         const { performBooleanCut, convertReplicadToThreeGeometry, getReplicadVertices } = await import('../services/replicad');
@@ -530,6 +541,11 @@ const CuttingAreaVisualization: React.FC<{
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
           }
         });
+
+        if (groupRef.current) {
+          groupRef.current.scale.set(1, 1, 1);
+        }
+
         setTimeout(() => {
           isUpdatingRef.current = false;
         }, 100);
@@ -538,12 +554,17 @@ const CuttingAreaVisualization: React.FC<{
 
     const controls = transformRef.current;
     if (controls) {
-      controls.addEventListener('objectChange', handleChange);
-      controls.addEventListener('mouseUp', handleChange);
+      const handleDraggingChanged = (event: any) => {
+        isDraggingRef.current = event.value;
+        if (!event.value) {
+          handleChange();
+        }
+      };
+
+      controls.addEventListener('dragging-changed', handleDraggingChanged);
 
       return () => {
-        controls.removeEventListener('objectChange', handleChange);
-        controls.removeEventListener('mouseUp', handleChange);
+        controls.removeEventListener('dragging-changed', handleDraggingChanged);
       };
     }
   }, [localCorner, localSize, cuttingWidth, cuttingHeight, cuttingDepth, basePosition, shapeId, baseReplicadShape, baseShapePosition, baseShapeRotation, baseShapeScale, updateShape]);
