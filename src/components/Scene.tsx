@@ -274,37 +274,6 @@ const ShapeWithTransform: React.FC<{
           </mesh>
         )}
 
-        {isCuttingReferenceBox && (
-          <mesh
-            ref={meshRef}
-            geometry={localGeometry}
-            castShadow={false}
-            receiveShadow={false}
-          >
-            <meshStandardMaterial
-              color="#ffeb3b"
-              transparent
-              opacity={0.15}
-              metalness={0.1}
-              roughness={0.8}
-              depthWrite={false}
-            />
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, 1]} />
-              )}
-              <lineBasicMaterial
-                color="#fdd835"
-                linewidth={2}
-                opacity={0.6}
-                transparent
-                depthTest={true}
-              />
-            </lineSegments>
-          </mesh>
-        )}
 
         {isWireframe && !isCuttingReferenceBox && (
           <>
