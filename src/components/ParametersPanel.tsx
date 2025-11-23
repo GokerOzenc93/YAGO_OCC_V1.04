@@ -437,7 +437,16 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             VERTEX
           </button>
           <button
-            onClick={() => setSubtractionViewMode(!subtractionViewMode)}
+            onClick={() => {
+              const newMode = !subtractionViewMode;
+              console.log('🔘 SUB button clicked:', {
+                oldMode: subtractionViewMode,
+                newMode,
+                selectedShape: selectedShape?.id,
+                hasSubtractionGeometry: !!selectedShape?.subtractionGeometry
+              });
+              setSubtractionViewMode(newMode);
+            }}
             className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
               subtractionViewMode
                 ? 'bg-yellow-500 text-white'

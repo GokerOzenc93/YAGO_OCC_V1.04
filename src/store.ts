@@ -414,6 +414,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             const subtractedGeometry = shape2.geometry.clone();
 
+            console.log('🔍 Capturing subtracted geometry:', {
+              shape2Id: shape2.id,
+              shape2Position: shape2.position,
+              shape2Rotation: shape2.rotation,
+              shape2Scale: shape2.scale,
+              geometryVertices: subtractedGeometry.attributes.position.count
+            });
+
             set((state) => ({
               shapes: state.shapes.map((s) => {
                 if (s.id === shape1.id) {
