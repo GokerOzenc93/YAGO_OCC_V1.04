@@ -19,7 +19,7 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup } = useAppStore();
+  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup, subtractionViewMode } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -242,6 +242,16 @@ const ShapeWithTransform: React.FC<{
           onContextMenu(e, shape.id);
         }}
       >
+        {shape.subtractionGeometry && subtractionViewMode && (
+          <mesh geometry={shape.subtractionGeometry}>
+            <meshStandardMaterial
+              color={0xffff00}
+              transparent
+              opacity={0.35}
+              depthWrite={false}
+            />
+          </mesh>
+        )}
         {!isWireframe && !isXray && !shouldShowAsReference && (
           <mesh
             ref={meshRef}
@@ -372,7 +382,8 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification
+    addVertexModification,
+    subtractionViewMode
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });

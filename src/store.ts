@@ -18,6 +18,7 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
+  subtractionGeometry?: THREE.BufferGeometry;
 }
 
 export enum CameraType {
@@ -119,6 +120,9 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
+
+  subtractionViewMode: boolean;
+  setSubtractionViewMode: (enabled: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -364,6 +368,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       })
     })),
 
+  subtractionViewMode: false,
+  setSubtractionViewMode: (enabled) => set({ subtractionViewMode: enabled }),
+
   checkAndPerformBooleanOperations: async () => {
     const state = get();
     const shapes = state.shapes;
@@ -396,6 +403,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
+            const { performCSGIntersection } = await import('./services/csg');
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
@@ -405,6 +413,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
+            const intersectionGeometry = performCSGIntersection(
+              shape1.geometry,
+              shape2.geometry
+            );
+
             set((state) => ({
               shapes: state.shapes.map((s) => {
                 if (s.id === shape1.id) {
@@ -412,6 +425,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     ...s,
                     geometry: newGeometry,
                     replicadShape: resultShape,
+                    subtractionGeometry: intersectionGeometry,
                     parameters: {
                       ...s.parameters,
                       scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
@@ -422,7 +436,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               }).filter(s => s.id !== shape2.id)
             }));
 
-            console.log('✅ Boolean cut applied, shape2 removed');
+            console.log('✅ Boolean cut applied, intersection geometry captured, shape2 removed');
             return;
           } catch (error) {
             console.error('❌ Failed to perform boolean operation:', error);
