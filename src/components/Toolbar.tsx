@@ -515,16 +515,30 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
         const newBaseVertices = await getReplicadVertices(resultShape);
 
+        const subtractedGeometry = selectedShape.geometry.clone();
+
+        console.log('🔍 Capturing subtracted geometry in Toolbar:', {
+          selectedShapeId: selectedShape.id,
+          selectedPosition: selectedShape.position,
+          selectedRotation: selectedShape.rotation,
+          selectedScale: selectedShape.scale,
+          geometryVertices: subtractedGeometry.attributes.position.count
+        });
+
         updateShape(targetShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
+          subtractionGeometry: subtractedGeometry,
           parameters: {
             ...targetShape.parameters,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+            subtractedShapePosition: selectedShape.position,
+            subtractedShapeRotation: selectedShape.rotation,
+            subtractedShapeScale: selectedShape.scale
           }
         });
 
-        console.log(`✅ Updated ${targetShape.id} with cut result`);
+        console.log(`✅ Updated ${targetShape.id} with cut result and subtracted geometry`);
       }
 
       deleteShape(selectedShapeId);
