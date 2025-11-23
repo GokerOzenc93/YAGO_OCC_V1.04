@@ -454,18 +454,34 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             const originalCutting = selectedShape.subtractionRegion.originalCuttingShape;
 
             if (originalCutting?.replicadShape && selectedShape.originalReplicadShape) {
-              const originalSize = selectedShape.subtractionRegion.size;
+              const originalCuttingSize = originalCutting.parameters?.width && originalCutting.parameters?.height && originalCutting.parameters?.depth
+                ? [originalCutting.parameters.width, originalCutting.parameters.height, originalCutting.parameters.depth]
+                : [1, 1, 1];
+
               const adjustedScale: [number, number, number] = [
-                subtractionSizeX / originalSize[0],
-                subtractionSizeY / originalSize[1],
-                subtractionSizeZ / originalSize[2]
+                subtractionSizeX / originalCuttingSize[0],
+                subtractionSizeY / originalCuttingSize[1],
+                subtractionSizeZ / originalCuttingSize[2]
               ];
+
+              console.log('📐 Scale calculation:', {
+                originalCuttingSize,
+                newSize: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
+                adjustedScale
+              });
 
               const adjustedPosition: [number, number, number] = [
                 selectedShape.position[0] + (subtractionDirX === '+' ? subtractionX : -subtractionX),
                 selectedShape.position[1] + (subtractionDirY === '+' ? subtractionY : -subtractionY),
                 selectedShape.position[2] + (subtractionDirZ === '+' ? subtractionZ : -subtractionZ)
               ];
+
+              console.log('📍 Position calculation:', {
+                basePosition: selectedShape.position,
+                offset: [subtractionX, subtractionY, subtractionZ],
+                direction: [subtractionDirX, subtractionDirY, subtractionDirZ],
+                adjustedPosition
+              });
 
               const resultShape = await performBooleanCut(
                 selectedShape.originalReplicadShape,
