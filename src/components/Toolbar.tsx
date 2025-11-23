@@ -441,8 +441,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       return;
     }
 
-    console.log('🔪 Subtract button clicked');
-    console.log('🎯 Selected shape (to be subtracted/removed):', selectedShapeId);
+    console.log('🔪 Subtract button clicked - PARAMETRIC MODE');
+    console.log('🎯 Selected shape (cutting shape - will be hidden):', selectedShapeId);
 
     try {
       const selectedShape = shapes.find(s => s.id === selectedShapeId);
@@ -486,7 +486,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         return;
       }
 
-      console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) that will keep the result`);
+      console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) - setting up parametric cut`);
 
       const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
       const { getReplicadVertices } = await import('../services/vertexEditor');
@@ -499,7 +499,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         console.log(`🔪 Cutting ${selectedShapeId} FROM ${targetShape.id}`);
         console.log(`📍 Target (base) position: [${targetShape.position}], rotation: [${targetShape.rotation}], scale: [${targetShape.scale}]`);
-        console.log(`📍 Selected (cutting) position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
+        console.log(`📍 Cutting position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
 
         const resultShape = await performBooleanCut(
           targetShape.replicadShape,
@@ -515,51 +515,35 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
         const newBaseVertices = await getReplicadVertices(resultShape);
 
-        const relativePosition: [number, number, number] = [
-          selectedShape.position[0] - targetShape.position[0],
-          selectedShape.position[1] - targetShape.position[1],
-          selectedShape.position[2] - targetShape.position[2]
-        ];
-
-        const cuttingBox = new THREE.Box3().setFromBufferAttribute(
-          selectedShape.geometry.getAttribute('position')
-        );
-        const cuttingSize: [number, number, number] = [
-          (cuttingBox.max.x - cuttingBox.min.x) * selectedShape.scale[0],
-          (cuttingBox.max.y - cuttingBox.min.y) * selectedShape.scale[1],
-          (cuttingBox.max.z - cuttingBox.min.z) * selectedShape.scale[2]
-        ];
-
         updateShape(targetShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
-          originalReplicadShape: targetShape.originalReplicadShape || targetShape.replicadShape,
-          subtractionRegion: {
-            position: relativePosition,
-            size: cuttingSize,
-            growthDirection: { x: '+', y: '+', z: '+' },
-            cuttingShapeId: selectedShapeId,
-            originalCuttingShape: {
-              type: selectedShape.type,
-              parameters: { ...selectedShape.parameters },
-              replicadShape: selectedShape.replicadShape,
-              position: [...selectedShape.position] as [number, number, number],
-              rotation: [...selectedShape.rotation] as [number, number, number],
-              scale: [...selectedShape.scale] as [number, number, number]
-            }
-          },
+          cuttingShapeId: selectedShapeId,
           parameters: {
             ...targetShape.parameters,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+            parametricCut: {
+              enabled: true,
+              cuttingShapeId: selectedShapeId,
+              originalCuttingParams: { ...selectedShape.parameters },
+              cuttingPosition: [...selectedShape.position],
+              cuttingRotation: [...selectedShape.rotation],
+              cuttingScale: [...selectedShape.scale]
+            }
           }
         });
 
-        console.log(`✅ Updated ${targetShape.id} with cut result and subtraction region data`);
+        console.log(`✅ Updated ${targetShape.id} with parametric cut`);
       }
 
-      updateShape(selectedShapeId, { hidden: true });
-      console.log(`👁️ Hidden cutting shape ${selectedShapeId}`);
-      console.log(`✅ All subtract operations completed`);
+      updateShape(selectedShapeId, {
+        isHidden: true,
+        isCuttingShape: true,
+        targetShapeId: intersectingShapes[0].id
+      });
+
+      console.log(`👻 Hidden cutting shape ${selectedShapeId} - ready for parametric editing`);
+      console.log(`✅ Parametric subtract operation completed`);
 
     } catch (error) {
       console.error('❌ Failed to perform subtract operation:', error);
