@@ -247,10 +247,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     });
 
     const { convertReplicadToThreeGeometry, getReplicadVertices } = await import('../services/vertexEditor');
-    const { initReplicad } = await import('../services/replicad');
-
-    const replicad = await initReplicad();
-    if (!replicad) return;
+    const { createReplicadBox } = await import('../services/replicad');
 
     const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
 
@@ -272,11 +269,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       d: currentShape.parameters.depth
     });
 
-    const baseShape = replicad.makeBox(
-      currentShape.parameters.width || 1,
-      currentShape.parameters.height || 1,
-      currentShape.parameters.depth || 1
-    );
+    const baseShape = await createReplicadBox({
+      width: currentShape.parameters.width || 1,
+      height: currentShape.parameters.height || 1,
+      depth: currentShape.parameters.depth || 1
+    });
 
     let resultShape = baseShape
       .translate(currentShape.position[0], currentShape.position[1], currentShape.position[2])
@@ -300,7 +297,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       const subSize = getOriginalSize(subtraction.geometry);
       console.log('✂️ Subtracting box:', { size: subSize, pos: absolutePos });
 
-      const subBox = replicad.makeBox(subSize.x, subSize.y, subSize.z);
+      const subBox = await createReplicadBox({
+        width: subSize.x,
+        height: subSize.y,
+        depth: subSize.z
+      });
 
       let transformedSub = subBox
         .translate(absolutePos[0], absolutePos[1], absolutePos[2])
