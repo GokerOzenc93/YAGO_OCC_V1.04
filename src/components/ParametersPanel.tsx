@@ -39,6 +39,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [subtractionX, setSubtractionX] = useState(0);
   const [subtractionY, setSubtractionY] = useState(0);
   const [subtractionZ, setSubtractionZ] = useState(0);
+  const [subtractionSizeX, setSubtractionSizeX] = useState(0);
+  const [subtractionSizeY, setSubtractionSizeY] = useState(0);
+  const [subtractionSizeZ, setSubtractionSizeZ] = useState(0);
   const [subtractionDirX, setSubtractionDirX] = useState<'+' | '-'>('+');
   const [subtractionDirY, setSubtractionDirY] = useState<'+' | '-'>('+');
   const [subtractionDirZ, setSubtractionDirZ] = useState<'+' | '-'>('+');
@@ -65,6 +68,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         setSubtractionX(selectedShape.subtractionRegion.position[0]);
         setSubtractionY(selectedShape.subtractionRegion.position[1]);
         setSubtractionZ(selectedShape.subtractionRegion.position[2]);
+        setSubtractionSizeX(selectedShape.subtractionRegion.size[0]);
+        setSubtractionSizeY(selectedShape.subtractionRegion.size[1]);
+        setSubtractionSizeZ(selectedShape.subtractionRegion.size[2]);
         setSubtractionDirX(selectedShape.subtractionRegion.growthDirection.x);
         setSubtractionDirY(selectedShape.subtractionRegion.growthDirection.y);
         setSubtractionDirZ(selectedShape.subtractionRegion.growthDirection.z);
@@ -78,6 +84,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setSubtractionX(0);
       setSubtractionY(0);
       setSubtractionZ(0);
+      setSubtractionSizeX(0);
+      setSubtractionSizeY(0);
+      setSubtractionSizeZ(0);
       setSubtractionDirX('+');
       setSubtractionDirY('+');
       setSubtractionDirZ('+');
@@ -254,6 +263,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         return;
       }
 
+      const originalSize = selectedShape.subtractionRegion.size;
+      const adjustedScale: [number, number, number] = [
+        subtractionSizeX / originalSize[0],
+        subtractionSizeY / originalSize[1],
+        subtractionSizeZ / originalSize[2]
+      ];
+
       const adjustedPosition: [number, number, number] = [
         selectedShape.position[0] + (subtractionDirX === '+' ? subtractionX : -subtractionX),
         selectedShape.position[1] + (subtractionDirY === '+' ? subtractionY : -subtractionY),
@@ -261,6 +277,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       ];
 
       console.log('📍 Adjusted cutting position:', adjustedPosition);
+      console.log('📐 Adjusted cutting scale:', adjustedScale);
       console.log('📐 Growth directions:', { x: subtractionDirX, y: subtractionDirY, z: subtractionDirZ });
 
       const resultShape = await performBooleanCut(
@@ -269,9 +286,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         selectedShape.position,
         adjustedPosition,
         selectedShape.rotation,
-        [0, 0, 0],
+        originalCutting.rotation,
         selectedShape.scale,
-        [1, 1, 1]
+        adjustedScale
       );
 
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
@@ -283,6 +300,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         subtractionRegion: {
           ...selectedShape.subtractionRegion,
           position: [subtractionX, subtractionY, subtractionZ],
+          size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
           growthDirection: {
             x: subtractionDirX,
             y: subtractionDirY,
@@ -670,110 +688,147 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
             {selectedShape.subtractionRegion && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
-                <div className="text-xs font-semibold text-stone-700 mb-2">Subtraction Region</div>
+                <div className="text-xs font-semibold text-stone-700 mb-2">Kesim Bölgesi</div>
 
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="X"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subtractionX}
-                    onChange={(e) => setSubtractionX(Number(e.target.value))}
-                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <button
-                    onClick={() => setSubtractionDirX(subtractionDirX === '+' ? '-' : '+')}
-                    className={`px-2 py-1 text-xs font-semibold rounded transition-colors ${
-                      subtractionDirX === '+'
-                        ? 'bg-green-500 text-white hover:bg-green-600'
-                        : 'bg-red-500 text-white hover:bg-red-600'
-                    }`}
-                    title="Toggle growth direction"
-                  >
-                    {subtractionDirX === '+' ? '+' : '-'}
-                  </button>
-                  <input
-                    type="text"
-                    value="X Position"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-medium text-stone-500 uppercase">Pozisyon</div>
 
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="Y"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subtractionY}
-                    onChange={(e) => setSubtractionY(Number(e.target.value))}
-                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <button
-                    onClick={() => setSubtractionDirY(subtractionDirY === '+' ? '-' : '+')}
-                    className={`px-2 py-1 text-xs font-semibold rounded transition-colors ${
-                      subtractionDirY === '+'
-                        ? 'bg-green-500 text-white hover:bg-green-600'
-                        : 'bg-red-500 text-white hover:bg-red-600'
-                    }`}
-                    title="Toggle growth direction"
-                  >
-                    {subtractionDirY === '+' ? '+' : '-'}
-                  </button>
-                  <input
-                    type="text"
-                    value="Y Position"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                </div>
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value="X"
+                        readOnly
+                        className="w-8 px-1 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractionX}
+                        onChange={(e) => setSubtractionX(Number(e.target.value))}
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        onClick={() => setSubtractionDirX(subtractionDirX === '+' ? '-' : '+')}
+                        className={`w-8 px-1 py-1 text-xs font-semibold rounded transition-colors ${
+                          subtractionDirX === '+'
+                            ? 'bg-green-500 text-white hover:bg-green-600'
+                            : 'bg-red-500 text-white hover:bg-red-600'
+                        }`}
+                        title="Büyüme yönü"
+                      >
+                        {subtractionDirX === '+' ? '+' : '-'}
+                      </button>
+                    </div>
 
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="Z"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subtractionZ}
-                    onChange={(e) => setSubtractionZ(Number(e.target.value))}
-                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <button
-                    onClick={() => setSubtractionDirZ(subtractionDirZ === '+' ? '-' : '+')}
-                    className={`px-2 py-1 text-xs font-semibold rounded transition-colors ${
-                      subtractionDirZ === '+'
-                        ? 'bg-green-500 text-white hover:bg-green-600'
-                        : 'bg-red-500 text-white hover:bg-red-600'
-                    }`}
-                    title="Toggle growth direction"
-                  >
-                    {subtractionDirZ === '+' ? '+' : '-'}
-                  </button>
-                  <input
-                    type="text"
-                    value="Z Position"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value="Y"
+                        readOnly
+                        className="w-8 px-1 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractionY}
+                        onChange={(e) => setSubtractionY(Number(e.target.value))}
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        onClick={() => setSubtractionDirY(subtractionDirY === '+' ? '-' : '+')}
+                        className={`w-8 px-1 py-1 text-xs font-semibold rounded transition-colors ${
+                          subtractionDirY === '+'
+                            ? 'bg-green-500 text-white hover:bg-green-600'
+                            : 'bg-red-500 text-white hover:bg-red-600'
+                        }`}
+                        title="Büyüme yönü"
+                      >
+                        {subtractionDirY === '+' ? '+' : '-'}
+                      </button>
+                    </div>
+
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value="Z"
+                        readOnly
+                        className="w-8 px-1 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractionZ}
+                        onChange={(e) => setSubtractionZ(Number(e.target.value))}
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <button
+                        onClick={() => setSubtractionDirZ(subtractionDirZ === '+' ? '-' : '+')}
+                        className={`w-8 px-1 py-1 text-xs font-semibold rounded transition-colors ${
+                          subtractionDirZ === '+'
+                            ? 'bg-green-500 text-white hover:bg-green-600'
+                            : 'bg-red-500 text-white hover:bg-red-600'
+                        }`}
+                        title="Büyüme yönü"
+                      >
+                        {subtractionDirZ === '+' ? '+' : '-'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <div className="text-[10px] font-medium text-stone-500 uppercase">Boyut</div>
+
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value="X"
+                        readOnly
+                        className="w-8 px-1 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractionSizeX}
+                        onChange={(e) => setSubtractionSizeX(Number(e.target.value))}
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value="Y"
+                        readOnly
+                        className="w-8 px-1 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractionSizeY}
+                        onChange={(e) => setSubtractionSizeY(Number(e.target.value))}
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+
+                    <div className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value="Z"
+                        readOnly
+                        className="w-8 px-1 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                      />
+                      <input
+                        type="number"
+                        value={subtractionSizeZ}
+                        onChange={(e) => setSubtractionSizeZ(Number(e.target.value))}
+                        className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <button
                   onClick={applySubtractionChanges}
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors flex items-center justify-center gap-1.5"
+                  className="w-full px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors flex items-center justify-center gap-1.5 mt-2"
                 >
                   <Check size={14} />
-                  Update Subtraction
+                  Kesimi Güncelle
                 </button>
               </div>
             )}

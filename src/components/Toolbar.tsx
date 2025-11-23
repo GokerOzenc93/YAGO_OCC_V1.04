@@ -540,8 +540,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             growthDirection: { x: '+', y: '+', z: '+' },
             originalCuttingShape: {
               type: selectedShape.type,
-              parameters: selectedShape.parameters,
-              replicadShape: selectedShape.replicadShape
+              parameters: { ...selectedShape.parameters },
+              replicadShape: selectedShape.replicadShape,
+              position: [...selectedShape.position] as [number, number, number],
+              rotation: [...selectedShape.rotation] as [number, number, number],
+              scale: [...selectedShape.scale] as [number, number, number]
             }
           },
           parameters: {
