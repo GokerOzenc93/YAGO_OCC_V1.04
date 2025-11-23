@@ -403,7 +403,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
-            const { performCSGIntersection } = await import('./services/csg');
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
@@ -413,10 +412,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
-            const intersectionGeometry = performCSGIntersection(
-              shape1.geometry,
-              shape2.geometry
-            );
+            const subtractedGeometry = shape2.geometry.clone();
 
             set((state) => ({
               shapes: state.shapes.map((s) => {
@@ -425,10 +421,13 @@ export const useAppStore = create<AppState>((set, get) => ({
                     ...s,
                     geometry: newGeometry,
                     replicadShape: resultShape,
-                    subtractionGeometry: intersectionGeometry,
+                    subtractionGeometry: subtractedGeometry,
                     parameters: {
                       ...s.parameters,
-                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+                      subtractedShapePosition: shape2.position,
+                      subtractedShapeRotation: shape2.rotation,
+                      subtractedShapeScale: shape2.scale
                     }
                   };
                 }
@@ -436,7 +435,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               }).filter(s => s.id !== shape2.id)
             }));
 
-            console.log('✅ Boolean cut applied, intersection geometry captured, shape2 removed');
+            console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
             return;
           } catch (error) {
             console.error('❌ Failed to perform boolean operation:', error);

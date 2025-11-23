@@ -243,14 +243,38 @@ const ShapeWithTransform: React.FC<{
         }}
       >
         {shape.subtractionGeometry && subtractionViewMode && (
-          <mesh geometry={shape.subtractionGeometry}>
-            <meshStandardMaterial
-              color={0xffff00}
-              transparent
-              opacity={0.35}
-              depthWrite={false}
-            />
-          </mesh>
+          <group
+            position={
+              shape.parameters?.subtractedShapePosition
+                ? [
+                    shape.parameters.subtractedShapePosition[0] - shape.position[0],
+                    shape.parameters.subtractedShapePosition[1] - shape.position[1],
+                    shape.parameters.subtractedShapePosition[2] - shape.position[2]
+                  ]
+                : [0, 0, 0]
+            }
+            rotation={
+              shape.parameters?.subtractedShapeRotation
+                ? [
+                    shape.parameters.subtractedShapeRotation[0] - shape.rotation[0],
+                    shape.parameters.subtractedShapeRotation[1] - shape.rotation[1],
+                    shape.parameters.subtractedShapeRotation[2] - shape.rotation[2]
+                  ]
+                : [0, 0, 0]
+            }
+            scale={
+              shape.parameters?.subtractedShapeScale || [1, 1, 1]
+            }
+          >
+            <mesh geometry={shape.subtractionGeometry}>
+              <meshStandardMaterial
+                color={0xffff00}
+                transparent
+                opacity={0.35}
+                depthWrite={false}
+              />
+            </mesh>
+          </group>
         )}
         {!isWireframe && !isXray && !shouldShowAsReference && (
           <mesh
