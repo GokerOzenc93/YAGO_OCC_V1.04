@@ -91,7 +91,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setSubtractionDirY('+');
       setSubtractionDirZ('+');
     }
-  }, [selectedShape, selectedShapeId, shapes]);
+  }, [selectedShapeId, shapes]);
 
 
   const handleMouseDown = (e: React.MouseEvent) => {
