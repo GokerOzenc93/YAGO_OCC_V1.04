@@ -696,117 +696,209 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
             {selectedShape.subtractionRegion && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
-                <div className="text-xs font-semibold text-stone-700 mb-2">Kesim Bölgesi</div>
+                <div className="text-xs font-semibold text-stone-700 mb-2">Kesim Bölgesi - Pozisyon</div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <div className="text-[10px] font-medium text-stone-500 uppercase mb-1">Pozisyon</div>
-                    <div className="space-y-1">
-                      <div className="flex gap-1 items-center">
-                        <span className="w-5 text-[10px] font-medium text-stone-700">X</span>
-                        <input
-                          type="number"
-                          value={parseFloat(subtractionX.toFixed(2))}
-                          onChange={(e) => setSubtractionX(Number(e.target.value))}
-                          step="0.1"
-                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <button
-                          onClick={() => setSubtractionDirX(subtractionDirX === '+' ? '-' : '+')}
-                          className={`w-6 h-6 text-[10px] font-bold rounded transition-colors ${
-                            subtractionDirX === '+'
-                              ? 'bg-green-500 text-white hover:bg-green-600'
-                              : 'bg-red-500 text-white hover:bg-red-600'
-                          }`}
-                          title="Büyüme yönü"
-                        >
-                          {subtractionDirX}
-                        </button>
-                      </div>
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="X"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={parseFloat(subtractionX.toFixed(2))}
+                    onChange={(e) => setSubtractionX(Number(e.target.value))}
+                    step="0.1"
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={parseFloat(subtractionX.toFixed(2))}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <button
+                    onClick={() => setSubtractionDirX(subtractionDirX === '+' ? '-' : '+')}
+                    className={`w-10 px-2 py-1 text-xs font-semibold rounded transition-colors ${
+                      subtractionDirX === '+'
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : 'bg-red-500 text-white hover:bg-red-600'
+                    }`}
+                    title="Büyüme yönü"
+                  >
+                    {subtractionDirX}
+                  </button>
+                  <input
+                    type="text"
+                    value="X Position"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
 
-                      <div className="flex gap-1 items-center">
-                        <span className="w-5 text-[10px] font-medium text-stone-700">Y</span>
-                        <input
-                          type="number"
-                          value={parseFloat(subtractionY.toFixed(2))}
-                          onChange={(e) => setSubtractionY(Number(e.target.value))}
-                          step="0.1"
-                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <button
-                          onClick={() => setSubtractionDirY(subtractionDirY === '+' ? '-' : '+')}
-                          className={`w-6 h-6 text-[10px] font-bold rounded transition-colors ${
-                            subtractionDirY === '+'
-                              ? 'bg-green-500 text-white hover:bg-green-600'
-                              : 'bg-red-500 text-white hover:bg-red-600'
-                          }`}
-                          title="Büyüme yönü"
-                        >
-                          {subtractionDirY}
-                        </button>
-                      </div>
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Y"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={parseFloat(subtractionY.toFixed(2))}
+                    onChange={(e) => setSubtractionY(Number(e.target.value))}
+                    step="0.1"
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={parseFloat(subtractionY.toFixed(2))}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <button
+                    onClick={() => setSubtractionDirY(subtractionDirY === '+' ? '-' : '+')}
+                    className={`w-10 px-2 py-1 text-xs font-semibold rounded transition-colors ${
+                      subtractionDirY === '+'
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : 'bg-red-500 text-white hover:bg-red-600'
+                    }`}
+                    title="Büyüme yönü"
+                  >
+                    {subtractionDirY}
+                  </button>
+                  <input
+                    type="text"
+                    value="Y Position"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
 
-                      <div className="flex gap-1 items-center">
-                        <span className="w-5 text-[10px] font-medium text-stone-700">Z</span>
-                        <input
-                          type="number"
-                          value={parseFloat(subtractionZ.toFixed(2))}
-                          onChange={(e) => setSubtractionZ(Number(e.target.value))}
-                          step="0.1"
-                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                        <button
-                          onClick={() => setSubtractionDirZ(subtractionDirZ === '+' ? '-' : '+')}
-                          className={`w-6 h-6 text-[10px] font-bold rounded transition-colors ${
-                            subtractionDirZ === '+'
-                              ? 'bg-green-500 text-white hover:bg-green-600'
-                              : 'bg-red-500 text-white hover:bg-red-600'
-                          }`}
-                          title="Büyüme yönü"
-                        >
-                          {subtractionDirZ}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Z"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={parseFloat(subtractionZ.toFixed(2))}
+                    onChange={(e) => setSubtractionZ(Number(e.target.value))}
+                    step="0.1"
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={parseFloat(subtractionZ.toFixed(2))}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <button
+                    onClick={() => setSubtractionDirZ(subtractionDirZ === '+' ? '-' : '+')}
+                    className={`w-10 px-2 py-1 text-xs font-semibold rounded transition-colors ${
+                      subtractionDirZ === '+'
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : 'bg-red-500 text-white hover:bg-red-600'
+                    }`}
+                    title="Büyüme yönü"
+                  >
+                    {subtractionDirZ}
+                  </button>
+                  <input
+                    type="text"
+                    value="Z Position"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
 
-                  <div>
-                    <div className="text-[10px] font-medium text-stone-500 uppercase mb-1">Boyut</div>
-                    <div className="space-y-1">
-                      <div className="flex gap-1 items-center">
-                        <span className="w-5 text-[10px] font-medium text-stone-700">X</span>
-                        <input
-                          type="number"
-                          value={parseFloat(subtractionSizeX.toFixed(2))}
-                          onChange={(e) => setSubtractionSizeX(Number(e.target.value))}
-                          step="0.1"
-                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                      </div>
+                <div className="text-xs font-semibold text-stone-700 mt-3 mb-2">Kesim Bölgesi - Boyut</div>
 
-                      <div className="flex gap-1 items-center">
-                        <span className="w-5 text-[10px] font-medium text-stone-700">Y</span>
-                        <input
-                          type="number"
-                          value={parseFloat(subtractionSizeY.toFixed(2))}
-                          onChange={(e) => setSubtractionSizeY(Number(e.target.value))}
-                          step="0.1"
-                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                      </div>
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="X"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={parseFloat(subtractionSizeX.toFixed(2))}
+                    onChange={(e) => setSubtractionSizeX(Number(e.target.value))}
+                    step="0.1"
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={parseFloat(subtractionSizeX.toFixed(2))}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="X Size"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
 
-                      <div className="flex gap-1 items-center">
-                        <span className="w-5 text-[10px] font-medium text-stone-700">Z</span>
-                        <input
-                          type="number"
-                          value={parseFloat(subtractionSizeZ.toFixed(2))}
-                          onChange={(e) => setSubtractionSizeZ(Number(e.target.value))}
-                          step="0.1"
-                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Y"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={parseFloat(subtractionSizeY.toFixed(2))}
+                    onChange={(e) => setSubtractionSizeY(Number(e.target.value))}
+                    step="0.1"
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={parseFloat(subtractionSizeY.toFixed(2))}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Y Size"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Z"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={parseFloat(subtractionSizeZ.toFixed(2))}
+                    onChange={(e) => setSubtractionSizeZ(Number(e.target.value))}
+                    step="0.1"
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={parseFloat(subtractionSizeZ.toFixed(2))}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Z Size"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
                 </div>
               </div>
             )}
