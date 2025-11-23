@@ -368,9 +368,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     { icon: <Redo2 size={11} />, label: 'Redo', shortcut: 'Ctrl+Y' },
   ];
 
-  const handleAddBox = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
+  const handleAddBox = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
 
     console.log('📦 Adding box geometry with Replicad...');
 
@@ -401,9 +401,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     }
   };
 
-  const handleAddCylinder = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
+  const handleAddCylinder = async (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
 
     console.log('🛢️ Adding cylinder geometry with Replicad...');
 
