@@ -378,7 +378,9 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    updateShape
+    updateShape,
+    pendingCutOperation,
+    confirmCutOperation
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -664,7 +666,6 @@ const Scene: React.FC = () => {
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
         const isCuttingShape = shape.isCuttingShape && shape.isHidden;
-        const isPendingCut = pendingCutOperation && pendingCutOperation.cuttingShapeId === shape.id;
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -673,47 +674,27 @@ const Scene: React.FC = () => {
               orbitControlsRef={controlsRef}
               onContextMenu={handleContextMenu}
             />
-            {isSelected && vertexEditMode && !isPendingCut && !isCuttingShape && (
-              <VertexEditor
-                shape={shape}
-                isActive={true}
-                onVertexSelect={(index) => setSelectedVertexIndex(index)}
-                onDirectionChange={(dir) => setVertexDirection(dir)}
-                onOffsetConfirm={(vertexIndex, direction, offset) => {
-                  console.log('Offset confirmed:', { vertexIndex, direction, offset });
-                }}
-              />
-            )}
-            {isSelected && isPendingCut && vertexEditMode && (
+            {isSelected && vertexEditMode && (
               <VertexEditor
                 shape={shape}
                 isActive={true}
                 onVertexSelect={async (index) => {
-                  console.log('🎯 Cutting shape vertex selected:', index);
-                  updateShape(shape.id, { selectedCuttingVertex: index });
+                  if (pendingCutOperation && pendingCutOperation.cuttingShapeId === shape.id) {
+                    console.log('🎯 Cutting shape vertex selected for parametric cut:', index);
+                    updateShape(shape.id, { selectedCuttingVertex: index });
 
-                  await confirmCutOperation();
+                    await confirmCutOperation();
 
-                  setVertexEditMode(false);
-                  console.log('✅ Cut operation confirmed with vertex:', index);
+                    setVertexEditMode(false);
+                    console.log('✅ Parametric cut completed with reference vertex:', index);
+                  } else {
+                    console.log('📍 Normal vertex selected:', index);
+                    setSelectedVertexIndex(index);
+                  }
                 }}
                 onDirectionChange={(dir) => setVertexDirection(dir)}
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
-                  console.log('Cutting shape vertex offset:', { vertexIndex, direction, offset });
-                }}
-              />
-            )}
-            {isSelected && isCuttingShape && !isPendingCut && (
-              <VertexEditor
-                shape={shape}
-                isActive={true}
-                onVertexSelect={(index) => {
-                  console.log('🎯 Hidden cutting shape vertex selected:', index);
-                  updateShape(shape.id, { selectedCuttingVertex: index });
-                }}
-                onDirectionChange={(dir) => setVertexDirection(dir)}
-                onOffsetConfirm={(vertexIndex, direction, offset) => {
-                  console.log('Hidden cutting shape vertex offset:', { vertexIndex, direction, offset });
+                  console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
               />
             )}
