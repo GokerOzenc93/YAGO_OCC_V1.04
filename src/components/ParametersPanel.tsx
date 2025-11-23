@@ -230,20 +230,90 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   };
 
-  const applySubtractionChanges = () => {
+  const applySubtractionChanges = async () => {
     if (!selectedShape || selectedSubtractionIndex === null || !selectedShape.subtractionGeometries) return;
 
-    const updatedSubtractions = [...selectedShape.subtractionGeometries];
-    const currentSubtraction = updatedSubtractions[selectedSubtractionIndex];
+    const { convertReplicadToThreeGeometry, getReplicadVertices } = await import('../services/vertexEditor');
+    const { initReplicad } = await import('../services/replicad');
 
-    updatedSubtractions[selectedSubtractionIndex] = {
+    const replicad = await initReplicad();
+    if (!replicad) return;
+
+    const currentSubtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
+    const currentSize = getOriginalSize(currentSubtraction.geometry);
+
+    const newScaleX = subWidth / currentSize.x;
+    const newScaleY = subHeight / currentSize.y;
+    const newScaleZ = subDepth / currentSize.z;
+
+    const updatedSubtraction = {
       ...currentSubtraction,
-      relativeOffset: [subPosX, subPosY, subPosZ]
+      relativeOffset: [subPosX, subPosY, subPosZ],
+      scale: [newScaleX, newScaleY, newScaleZ] as [number, number, number]
     };
 
+    const allSubtractions = selectedShape.subtractionGeometries.map((sub, idx) =>
+      idx === selectedSubtractionIndex ? updatedSubtraction : sub
+    );
+
+    const baseShape = replicad.makeBox(
+      selectedShape.parameters.width || 1,
+      selectedShape.parameters.height || 1,
+      selectedShape.parameters.depth || 1
+    );
+
+    let resultShape = baseShape
+      .translate(selectedShape.position[0], selectedShape.position[1], selectedShape.position[2])
+      .rotate(selectedShape.rotation[0], selectedShape.rotation[1], selectedShape.rotation[2]);
+
+    for (const subtraction of allSubtractions) {
+      const absolutePos = [
+        selectedShape.position[0] + subtraction.relativeOffset[0],
+        selectedShape.position[1] + subtraction.relativeOffset[1],
+        selectedShape.position[2] + subtraction.relativeOffset[2]
+      ] as [number, number, number];
+
+      const absoluteRot = [
+        selectedShape.rotation[0] + subtraction.relativeRotation[0],
+        selectedShape.rotation[1] + subtraction.relativeRotation[1],
+        selectedShape.rotation[2] + subtraction.relativeRotation[2]
+      ] as [number, number, number];
+
+      const subSize = getOriginalSize(subtraction.geometry);
+      const subBox = replicad.makeBox(
+        subSize.x * subtraction.scale[0],
+        subSize.y * subtraction.scale[1],
+        subSize.z * subtraction.scale[2]
+      );
+
+      let transformedSub = subBox
+        .translate(absolutePos[0], absolutePos[1], absolutePos[2])
+        .rotate(absoluteRot[0], absoluteRot[1], absoluteRot[2]);
+
+      resultShape = resultShape.cut(transformedSub);
+    }
+
+    const newGeometry = convertReplicadToThreeGeometry(resultShape);
+    const newBaseVertices = await getReplicadVertices(resultShape);
+
     updateShape(selectedShape.id, {
-      subtractionGeometries: updatedSubtractions
+      geometry: newGeometry,
+      replicadShape: resultShape,
+      subtractionGeometries: allSubtractions,
+      parameters: {
+        ...selectedShape.parameters,
+        scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+      }
     });
+  };
+
+  const getOriginalSize = (geometry: THREE.BufferGeometry) => {
+    const box = new THREE.Box3().setFromBufferAttribute(
+      geometry.attributes.position as THREE.BufferAttribute
+    );
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    return size;
   };
 
   const deleteCustomParameter = (id: string) => {
@@ -417,20 +487,28 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         geometryScaled: dimensionsChanged
       });
 
-      updateShape(selectedShape.id, {
-        parameters: {
-          ...selectedShape.parameters,
-          width,
-          height,
-          depth,
-          customParameters,
-          scaledBaseVertices: newBaseVertices.length > 0 ?
-            newBaseVertices.map(v => [v.x, v.y, v.z]) :
-            (selectedShape.parameters.scaledBaseVertices || undefined)
-        },
-        vertexModifications: updatedVertexMods,
-        ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
-      });
+      const hasSubtractionChanges = selectedSubtractionIndex !== null &&
+        selectedShape.subtractionGeometries &&
+        selectedShape.subtractionGeometries.length > 0;
+
+      if (hasSubtractionChanges) {
+        await applySubtractionChanges();
+      } else {
+        updateShape(selectedShape.id, {
+          parameters: {
+            ...selectedShape.parameters,
+            width,
+            height,
+            depth,
+            customParameters,
+            scaledBaseVertices: newBaseVertices.length > 0 ?
+              newBaseVertices.map(v => [v.x, v.y, v.z]) :
+              (selectedShape.parameters.scaledBaseVertices || undefined)
+          },
+          vertexModifications: updatedVertexMods,
+          ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
+        });
+      }
 
       console.log('✅ Parameters applied successfully - geometry' + (dimensionsChanged ? ' scaled' : ' preserved'));
     } catch (error) {
@@ -620,8 +698,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   <input
                     type="number"
                     value={subWidth.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-500"
+                    onChange={(e) => setSubWidth(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <input
                     type="text"
@@ -631,7 +709,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value="Width (read-only)"
+                    value="Width"
                     readOnly
                     className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
@@ -647,8 +725,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   <input
                     type="number"
                     value={subHeight.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-500"
+                    onChange={(e) => setSubHeight(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <input
                     type="text"
@@ -658,7 +736,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value="Height (read-only)"
+                    value="Height"
                     readOnly
                     className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
@@ -674,8 +752,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   <input
                     type="number"
                     value={subDepth.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-500"
+                    onChange={(e) => setSubDepth(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                   <input
                     type="text"
@@ -685,7 +763,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value="Depth (read-only)"
+                    value="Depth"
                     readOnly
                     className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
@@ -771,14 +849,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                 </div>
-
-                <button
-                  onClick={applySubtractionChanges}
-                  className="w-full mt-2 px-3 py-1.5 text-xs font-medium bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors flex items-center justify-center gap-1"
-                >
-                  <Check size={14} />
-                  Apply Changes
-                </button>
               </div>
             )}
 
