@@ -83,6 +83,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const size = new THREE.Vector3();
         box.getSize(size);
 
+        console.log('🔄 Updating subtraction UI values:', {
+          index: selectedSubtractionIndex,
+          size: { x: size.x, y: size.y, z: size.z },
+          offset: subtraction.relativeOffset
+        });
+
         setSubWidth(size.x);
         setSubHeight(size.y);
         setSubDepth(size.z);
@@ -91,7 +97,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         setSubPosZ(subtraction.relativeOffset[2]);
       }
     }
-  }, [selectedShape, selectedSubtractionIndex]);
+  }, [selectedShape, selectedSubtractionIndex, selectedShape?.subtractionGeometries]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -246,10 +252,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const newScaleY = subHeight / currentSize.y;
     const newScaleZ = subDepth / currentSize.z;
 
+    const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
+
     const updatedSubtraction = {
       ...currentSubtraction,
+      geometry: newSubGeometry,
       relativeOffset: [subPosX, subPosY, subPosZ],
-      scale: [newScaleX, newScaleY, newScaleZ] as [number, number, number]
+      scale: [1, 1, 1] as [number, number, number]
     };
 
     const allSubtractions = selectedShape.subtractionGeometries.map((sub, idx) =>
@@ -280,11 +289,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       ] as [number, number, number];
 
       const subSize = getOriginalSize(subtraction.geometry);
-      const subBox = replicad.makeBox(
-        subSize.x * subtraction.scale[0],
-        subSize.y * subtraction.scale[1],
-        subSize.z * subtraction.scale[2]
-      );
+      const subBox = replicad.makeBox(subSize.x, subSize.y, subSize.z);
 
       let transformedSub = subBox
         .translate(absolutePos[0], absolutePos[1], absolutePos[2])

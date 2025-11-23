@@ -551,7 +551,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
               geometry: subtractedGeometry,
               relativeOffset,
               relativeRotation,
-              scale: selectedShape.scale
+              scale: [1, 1, 1] as [number, number, number]
             }
           ],
           parameters: {

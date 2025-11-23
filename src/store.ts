@@ -465,7 +465,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         geometry: subtractedGeometry,
                         relativeOffset,
                         relativeRotation,
-                        scale: shape2.scale
+                        scale: [1, 1, 1] as [number, number, number]
                       }
                     ],
                     parameters: {
