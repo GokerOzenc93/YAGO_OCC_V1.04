@@ -18,11 +18,6 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
-  isCuttingShape?: boolean;
-  isHidden?: boolean;
-  cuttingShapeId?: string;
-  targetShapeId?: string;
-  selectedCuttingVertex?: number;
 }
 
 export enum CameraType {

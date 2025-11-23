@@ -215,13 +215,8 @@ const ShapeWithTransform: React.FC<{
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
-  const isCuttingShape = shape.isCuttingShape && shape.isHidden;
 
   if (shape.isolated === false) {
-    return null;
-  }
-
-  if (isCuttingShape && !isSelected) {
     return null;
   }
 
@@ -377,8 +372,7 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification,
-    updateShape
+    addVertexModification
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -663,7 +657,6 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
-        const isCuttingShape = shape.isCuttingShape && shape.isHidden;
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -672,7 +665,7 @@ const Scene: React.FC = () => {
               orbitControlsRef={controlsRef}
               onContextMenu={handleContextMenu}
             />
-            {isSelected && vertexEditMode && !isCuttingShape && (
+            {isSelected && vertexEditMode && (
               <VertexEditor
                 shape={shape}
                 isActive={true}
@@ -680,20 +673,6 @@ const Scene: React.FC = () => {
                 onDirectionChange={(dir) => setVertexDirection(dir)}
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
-                }}
-              />
-            )}
-            {isSelected && isCuttingShape && (
-              <VertexEditor
-                shape={shape}
-                isActive={true}
-                onVertexSelect={(index) => {
-                  console.log('🎯 Cutting shape vertex selected:', index);
-                  updateShape(shape.id, { selectedCuttingVertex: index });
-                }}
-                onDirectionChange={(dir) => setVertexDirection(dir)}
-                onOffsetConfirm={(vertexIndex, direction, offset) => {
-                  console.log('Cutting shape vertex offset:', { vertexIndex, direction, offset });
                 }}
               />
             )}
