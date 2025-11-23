@@ -248,8 +248,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const applyChanges = async () => {
     if (!selectedShape) return;
 
+    const currentShape = shapes.find(s => s.id === selectedShape.id);
+    if (!currentShape) {
+      console.error('❌ Could not find current shape in store');
+      return;
+    }
+
     console.log('📐 Applying parameter changes...');
-    console.log('Shape type:', selectedShape.type);
+    console.log('Shape type:', currentShape.type);
     console.log('New dimensions:', { width, height, depth });
 
     const evaluateVertexExpression = (expr: string): number => {
@@ -277,9 +283,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       let newBaseVertices: THREE.Vector3[] = [];
       let currentBaseVertices: THREE.Vector3[] = [];
 
-      const currentWidth = selectedShape.parameters.width;
-      const currentHeight = selectedShape.parameters.height;
-      const currentDepth = selectedShape.parameters.depth;
+      const currentWidth = currentShape.parameters.width;
+      const currentHeight = currentShape.parameters.height;
+      const currentDepth = currentShape.parameters.depth;
 
       const scaleX = width / currentWidth;
       const scaleY = height / currentHeight;
@@ -294,9 +300,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         changed: dimensionsChanged
       });
 
-      if (selectedShape.parameters.scaledBaseVertices && selectedShape.parameters.scaledBaseVertices.length > 0) {
+      if (currentShape.parameters.scaledBaseVertices && currentShape.parameters.scaledBaseVertices.length > 0) {
         console.log('🔍 Using existing scaled base vertices');
-        currentBaseVertices = selectedShape.parameters.scaledBaseVertices.map((v: number[]) =>
+        currentBaseVertices = currentShape.parameters.scaledBaseVertices.map((v: number[]) =>
           new THREE.Vector3(v[0], v[1], v[2])
         );
 
@@ -308,9 +314,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         } else {
           newBaseVertices = currentBaseVertices;
         }
-      } else if (selectedShape.replicadShape) {
+      } else if (currentShape.replicadShape) {
         console.log('🔍 Using replicadShape for initial base vertices');
-        currentBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
+        currentBaseVertices = await getReplicadVertices(currentShape.replicadShape);
 
         if (dimensionsChanged) {
           console.log('📏 Scaling base vertices from replicad by:', { scaleX, scaleY, scaleZ });
@@ -320,7 +326,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         } else {
           newBaseVertices = currentBaseVertices;
         }
-      } else if (selectedShape.type === 'box') {
+      } else if (currentShape.type === 'box') {
         console.log('📦 Calculating base vertices from box parameters');
         newBaseVertices = getBoxVertices(width, height, depth);
         currentBaseVertices = getBoxVertices(currentWidth, currentHeight, currentDepth);
@@ -383,11 +389,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         };
       });
 
-      let scaledGeometry = selectedShape.geometry;
+      let scaledGeometry = currentShape.geometry;
 
-      if (dimensionsChanged && selectedShape.geometry) {
+      if (dimensionsChanged && currentShape.geometry) {
         console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
-        scaledGeometry = selectedShape.geometry.clone();
+        scaledGeometry = currentShape.geometry.clone();
         scaledGeometry.scale(scaleX, scaleY, scaleZ);
         scaledGeometry.computeVertexNormals();
         scaledGeometry.computeBoundingBox();
@@ -396,22 +402,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       console.log('📝 Updating shape parameters and vertex modifications:', {
         vertexModsCount: updatedVertexMods.length,
-        preservingGeometry: !!selectedShape.geometry,
-        preservingReplicadShape: !!selectedShape.replicadShape,
+        preservingGeometry: !!currentShape.geometry,
+        preservingReplicadShape: !!currentShape.replicadShape,
         dimensionsChanged,
         geometryScaled: dimensionsChanged
       });
 
       let updateData: any = {
         parameters: {
-          ...selectedShape.parameters,
+          ...currentShape.parameters,
           width,
           height,
           depth,
           customParameters,
           scaledBaseVertices: newBaseVertices.length > 0 ?
             newBaseVertices.map(v => [v.x, v.y, v.z]) :
-            (selectedShape.parameters.scaledBaseVertices || undefined)
+            (currentShape.parameters.scaledBaseVertices || undefined)
         },
         vertexModifications: updatedVertexMods
       };
@@ -420,28 +426,46 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         updateData.geometry = scaledGeometry;
       }
 
-      if (selectedShape.subtractionRegion) {
+      if (currentShape.subtractionRegion) {
         console.log('📐 Shape has subtraction region, checking for updates...');
+        console.log('Current values from store:', {
+          position: currentShape.subtractionRegion.position,
+          size: currentShape.subtractionRegion.size,
+          growthDirection: currentShape.subtractionRegion.growthDirection
+        });
+        console.log('New values from state:', {
+          position: [subtractionX, subtractionY, subtractionZ],
+          size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
+          growthDirection: { x: subtractionDirX, y: subtractionDirY, z: subtractionDirZ }
+        });
 
         const subtractionPosChanged =
-          subtractionX !== selectedShape.subtractionRegion.position[0] ||
-          subtractionY !== selectedShape.subtractionRegion.position[1] ||
-          subtractionZ !== selectedShape.subtractionRegion.position[2];
+          subtractionX !== currentShape.subtractionRegion.position[0] ||
+          subtractionY !== currentShape.subtractionRegion.position[1] ||
+          subtractionZ !== currentShape.subtractionRegion.position[2];
 
         const subtractionSizeChanged =
-          subtractionSizeX !== selectedShape.subtractionRegion.size[0] ||
-          subtractionSizeY !== selectedShape.subtractionRegion.size[1] ||
-          subtractionSizeZ !== selectedShape.subtractionRegion.size[2];
+          subtractionSizeX !== currentShape.subtractionRegion.size[0] ||
+          subtractionSizeY !== currentShape.subtractionRegion.size[1] ||
+          subtractionSizeZ !== currentShape.subtractionRegion.size[2];
 
         const subtractionDirChanged =
-          subtractionDirX !== selectedShape.subtractionRegion.growthDirection.x ||
-          subtractionDirY !== selectedShape.subtractionRegion.growthDirection.y ||
-          subtractionDirZ !== selectedShape.subtractionRegion.growthDirection.z;
+          subtractionDirX !== currentShape.subtractionRegion.growthDirection.x ||
+          subtractionDirY !== currentShape.subtractionRegion.growthDirection.y ||
+          subtractionDirZ !== currentShape.subtractionRegion.growthDirection.z;
 
         const subtractionChanged = subtractionPosChanged || subtractionSizeChanged || subtractionDirChanged || dimensionsChanged;
 
+        console.log('Change detection:', {
+          posChanged: subtractionPosChanged,
+          sizeChanged: subtractionSizeChanged,
+          dirChanged: subtractionDirChanged,
+          dimensionsChanged,
+          overallChanged: subtractionChanged
+        });
+
         updateData.subtractionRegion = {
-          ...selectedShape.subtractionRegion,
+          ...currentShape.subtractionRegion,
           position: [subtractionX, subtractionY, subtractionZ],
           size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
           growthDirection: {
@@ -463,10 +487,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
             const { getReplicadVertices } = await import('../services/vertexEditor');
 
-            const cuttingShapeId = selectedShape.subtractionRegion.cuttingShapeId;
+            const cuttingShapeId = currentShape.subtractionRegion.cuttingShapeId;
             const cuttingShape = cuttingShapeId ? shapes.find(s => s.id === cuttingShapeId) : null;
 
-            if (cuttingShape?.replicadShape && selectedShape.originalReplicadShape) {
+            if (cuttingShape?.replicadShape && currentShape.originalReplicadShape) {
               console.log('🎯 Found hidden cutting shape, using it for boolean operation');
               const originalCuttingSize = cuttingShape.parameters?.width && cuttingShape.parameters?.height && cuttingShape.parameters?.depth
                 ? [cuttingShape.parameters.width, cuttingShape.parameters.height, cuttingShape.parameters.depth]
@@ -485,26 +509,26 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               });
 
               const adjustedPosition: [number, number, number] = [
-                selectedShape.position[0] + (subtractionDirX === '+' ? subtractionX : -subtractionX),
-                selectedShape.position[1] + (subtractionDirY === '+' ? subtractionY : -subtractionY),
-                selectedShape.position[2] + (subtractionDirZ === '+' ? subtractionZ : -subtractionZ)
+                currentShape.position[0] + (subtractionDirX === '+' ? subtractionX : -subtractionX),
+                currentShape.position[1] + (subtractionDirY === '+' ? subtractionY : -subtractionY),
+                currentShape.position[2] + (subtractionDirZ === '+' ? subtractionZ : -subtractionZ)
               ];
 
               console.log('📍 Position calculation:', {
-                basePosition: selectedShape.position,
+                basePosition: currentShape.position,
                 offset: [subtractionX, subtractionY, subtractionZ],
                 direction: [subtractionDirX, subtractionDirY, subtractionDirZ],
                 adjustedPosition
               });
 
               const resultShape = await performBooleanCut(
-                selectedShape.originalReplicadShape,
+                currentShape.originalReplicadShape,
                 cuttingShape.replicadShape,
-                selectedShape.position,
+                currentShape.position,
                 adjustedPosition,
-                selectedShape.rotation,
+                currentShape.rotation,
                 cuttingShape.rotation,
-                dimensionsChanged ? [scaleX, scaleY, scaleZ] : selectedShape.scale,
+                dimensionsChanged ? [scaleX, scaleY, scaleZ] : currentShape.scale,
                 adjustedScale
               );
 
@@ -527,15 +551,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         }
       }
 
-      updateShape(selectedShape.id, updateData);
+      updateShape(currentShape.id, updateData);
 
       console.log('✅ Parameters applied successfully - geometry' + (dimensionsChanged ? ' scaled' : ' preserved'));
     } catch (error) {
       console.error('❌ Failed to update parameters:', error);
 
-      updateShape(selectedShape.id, {
+      updateShape(currentShape.id, {
         parameters: {
-          ...selectedShape.parameters,
+          ...currentShape.parameters,
           width,
           height,
           depth,
