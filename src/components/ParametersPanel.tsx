@@ -275,9 +275,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       depth: currentShape.parameters.depth || 1
     });
 
-    let resultShape = baseShape
-      .translate(currentShape.position[0], currentShape.position[1], currentShape.position[2])
-      .rotate(currentShape.rotation[0], currentShape.rotation[1], currentShape.rotation[2]);
+    let resultShape = baseShape;
+
+    if (currentShape.rotation[0] !== 0) resultShape = resultShape.rotate(currentShape.rotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+    if (currentShape.rotation[1] !== 0) resultShape = resultShape.rotate(currentShape.rotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+    if (currentShape.rotation[2] !== 0) resultShape = resultShape.rotate(currentShape.rotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+
+    resultShape = resultShape.translate(currentShape.position[0], currentShape.position[1], currentShape.position[2]);
 
     console.log(`🔄 Applying ${allSubtractions.length} subtraction(s)...`);
 
@@ -303,9 +307,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         depth: subSize.z
       });
 
-      let transformedSub = subBox
-        .translate(absolutePos[0], absolutePos[1], absolutePos[2])
-        .rotate(absoluteRot[0], absoluteRot[1], absoluteRot[2]);
+      let transformedSub = subBox;
+
+      if (absoluteRot[0] !== 0) transformedSub = transformedSub.rotate(absoluteRot[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      if (absoluteRot[1] !== 0) transformedSub = transformedSub.rotate(absoluteRot[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (absoluteRot[2] !== 0) transformedSub = transformedSub.rotate(absoluteRot[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+
+      transformedSub = transformedSub.translate(absolutePos[0], absolutePos[1], absolutePos[2]);
 
       resultShape = resultShape.cut(transformedSub);
     }
