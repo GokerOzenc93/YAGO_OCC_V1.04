@@ -515,16 +515,42 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
         const newBaseVertices = await getReplicadVertices(resultShape);
 
+        const relativePosition: [number, number, number] = [
+          selectedShape.position[0] - targetShape.position[0],
+          selectedShape.position[1] - targetShape.position[1],
+          selectedShape.position[2] - targetShape.position[2]
+        ];
+
+        const cuttingBox = new THREE.Box3().setFromBufferAttribute(
+          selectedShape.geometry.getAttribute('position')
+        );
+        const cuttingSize: [number, number, number] = [
+          (cuttingBox.max.x - cuttingBox.min.x) * selectedShape.scale[0],
+          (cuttingBox.max.y - cuttingBox.min.y) * selectedShape.scale[1],
+          (cuttingBox.max.z - cuttingBox.min.z) * selectedShape.scale[2]
+        ];
+
         updateShape(targetShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
+          originalReplicadShape: targetShape.originalReplicadShape || targetShape.replicadShape,
+          subtractionRegion: {
+            position: relativePosition,
+            size: cuttingSize,
+            growthDirection: { x: '+', y: '+', z: '+' },
+            originalCuttingShape: {
+              type: selectedShape.type,
+              parameters: selectedShape.parameters,
+              replicadShape: selectedShape.replicadShape
+            }
+          },
           parameters: {
             ...targetShape.parameters,
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
           }
         });
 
-        console.log(`✅ Updated ${targetShape.id} with cut result`);
+        console.log(`✅ Updated ${targetShape.id} with cut result and subtraction region data`);
       }
 
       deleteShape(selectedShapeId);

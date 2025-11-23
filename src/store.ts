@@ -3,6 +3,21 @@ import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
 import { VertexModification } from './services/vertexEditor';
 
+export interface SubtractionRegion {
+  position: [number, number, number];
+  size: [number, number, number];
+  growthDirection: {
+    x: '+' | '-';
+    y: '+' | '-';
+    z: '+' | '-';
+  };
+  originalCuttingShape?: {
+    type: string;
+    parameters: Record<string, any>;
+    replicadShape?: any;
+  };
+}
+
 export interface Shape {
   id: string;
   type: string;
@@ -18,6 +33,8 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
+  subtractionRegion?: SubtractionRegion;
+  originalReplicadShape?: any;
 }
 
 export enum CameraType {
