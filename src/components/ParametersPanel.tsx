@@ -24,7 +24,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     vertexEditMode,
     setVertexEditMode,
     subtractionViewMode,
-    setSubtractionViewMode
+    setSubtractionViewMode,
+    selectedSubtractionIndex,
+    setSelectedSubtractionIndex
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -37,6 +39,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [depth, setDepth] = useState(0);
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
+
+  const [subWidth, setSubWidth] = useState(0);
+  const [subHeight, setSubHeight] = useState(0);
+  const [subDepth, setSubDepth] = useState(0);
+  const [subPosX, setSubPosX] = useState(0);
+  const [subPosY, setSubPosY] = useState(0);
+  const [subPosZ, setSubPosZ] = useState(0);
 
   useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
@@ -64,6 +73,25 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   }, [selectedShape, selectedShapeId, shapes]);
 
+  useEffect(() => {
+    if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
+      const subtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
+      if (subtraction) {
+        const box = new THREE.Box3().setFromBufferAttribute(
+          subtraction.geometry.attributes.position as THREE.BufferAttribute
+        );
+        const size = new THREE.Vector3();
+        box.getSize(size);
+
+        setSubWidth(size.x);
+        setSubHeight(size.y);
+        setSubDepth(size.z);
+        setSubPosX(subtraction.relativeOffset[0]);
+        setSubPosY(subtraction.relativeOffset[1]);
+        setSubPosZ(subtraction.relativeOffset[2]);
+      }
+    }
+  }, [selectedShape, selectedSubtractionIndex]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -200,6 +228,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         },
       });
     }
+  };
+
+  const applySubtractionChanges = () => {
+    if (!selectedShape || selectedSubtractionIndex === null || !selectedShape.subtractionGeometries) return;
+
+    const updatedSubtractions = [...selectedShape.subtractionGeometries];
+    const currentSubtraction = updatedSubtractions[selectedSubtractionIndex];
+
+    updatedSubtractions[selectedSubtractionIndex] = {
+      ...currentSubtraction,
+      relativeOffset: [subPosX, subPosY, subPosZ]
+    };
+
+    updateShape(selectedShape.id, {
+      subtractionGeometries: updatedSubtractions
+    });
   };
 
   const deleteCustomParameter = (id: string) => {
@@ -560,6 +604,183 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             </div>
 
+            {selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
+              <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
+                <div className="text-xs font-semibold text-yellow-700 mb-2">
+                  Subtraction #{selectedSubtractionIndex + 1} Parameters
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="W"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subWidth.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-500"
+                  />
+                  <input
+                    type="text"
+                    value={subWidth.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Width (read-only)"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="H"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subHeight.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-500"
+                  />
+                  <input
+                    type="text"
+                    value={subHeight.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Height (read-only)"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="D"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subDepth.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-100 text-stone-500"
+                  />
+                  <input
+                    type="text"
+                    value={subDepth.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Depth (read-only)"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="X"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subPosX.toFixed(2)}
+                    onChange={(e) => setSubPosX(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subPosX.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Position X"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Y"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subPosY.toFixed(2)}
+                    onChange={(e) => setSubPosY(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subPosY.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Position Y"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Z"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subPosZ.toFixed(2)}
+                    onChange={(e) => setSubPosZ(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subPosZ.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Position Z"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <button
+                  onClick={applySubtractionChanges}
+                  className="w-full mt-2 px-3 py-1.5 text-xs font-medium bg-orange-600 text-white rounded hover:bg-orange-700 transition-colors flex items-center justify-center gap-1"
+                >
+                  <Check size={14} />
+                  Apply Changes
+                </button>
+              </div>
+            )}
 
             {customParameters.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">

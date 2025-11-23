@@ -19,7 +19,20 @@ const ShapeWithTransform: React.FC<{
   orbitControlsRef,
   onContextMenu
 }) => {
-  const { selectShape, selectSecondaryShape, secondarySelectedShapeId, updateShape, activeTool, viewMode, createGroup, subtractionViewMode } = useAppStore();
+  const {
+    selectShape,
+    selectSecondaryShape,
+    secondarySelectedShapeId,
+    updateShape,
+    activeTool,
+    viewMode,
+    createGroup,
+    subtractionViewMode,
+    hoveredSubtractionIndex,
+    setHoveredSubtractionIndex,
+    selectedSubtractionIndex,
+    setSelectedSubtractionIndex
+  } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -243,13 +256,8 @@ const ShapeWithTransform: React.FC<{
         }}
       >
         {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
-          console.log('🟡 Rendering subtraction geometry:', {
-            shapeId: shape.id,
-            index,
-            relativePos: subtraction.relativeOffset,
-            relativeRot: subtraction.relativeRotation,
-            vertices: subtraction.geometry.attributes.position.count
-          });
+          const isHovered = hoveredSubtractionIndex === index && isSelected;
+          const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
 
           const edgesGeometry = new THREE.EdgesGeometry(subtraction.geometry, 30);
 
@@ -260,9 +268,27 @@ const ShapeWithTransform: React.FC<{
               rotation={subtraction.relativeRotation}
               scale={subtraction.scale}
             >
-              <mesh geometry={subtraction.geometry}>
+              <mesh
+                geometry={subtraction.geometry}
+                onPointerOver={(e) => {
+                  e.stopPropagation();
+                  if (isSelected) {
+                    setHoveredSubtractionIndex(index);
+                  }
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation();
+                  setHoveredSubtractionIndex(null);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isSelected) {
+                    setSelectedSubtractionIndex(isSubtractionSelected ? null : index);
+                  }
+                }}
+              >
                 <meshStandardMaterial
-                  color={0xffff00}
+                  color={isSubtractionSelected ? 0x00ff00 : isHovered ? 0xff0000 : 0xffff00}
                   transparent
                   opacity={0.35}
                   depthWrite={false}

@@ -130,6 +130,10 @@ interface AppState {
 
   subtractionViewMode: boolean;
   setSubtractionViewMode: (enabled: boolean) => void;
+  selectedSubtractionIndex: number | null;
+  setSelectedSubtractionIndex: (index: number | null) => void;
+  hoveredSubtractionIndex: number | null;
+  setHoveredSubtractionIndex: (index: number | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -377,6 +381,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   subtractionViewMode: false,
   setSubtractionViewMode: (enabled) => set({ subtractionViewMode: enabled }),
+  selectedSubtractionIndex: null,
+  setSelectedSubtractionIndex: (index) => set({ selectedSubtractionIndex: index }),
+  hoveredSubtractionIndex: null,
+  setHoveredSubtractionIndex: (index) => set({ hoveredSubtractionIndex: index }),
 
   checkAndPerformBooleanOperations: async () => {
     const state = get();
