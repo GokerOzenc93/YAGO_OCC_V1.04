@@ -517,10 +517,24 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         const subtractedGeometry = selectedShape.geometry.clone();
 
+        const relativeOffset = [
+          selectedShape.position[0] - targetShape.position[0],
+          selectedShape.position[1] - targetShape.position[1],
+          selectedShape.position[2] - targetShape.position[2]
+        ] as [number, number, number];
+
+        const relativeRotation = [
+          selectedShape.rotation[0] - targetShape.rotation[0],
+          selectedShape.rotation[1] - targetShape.rotation[1],
+          selectedShape.rotation[2] - targetShape.rotation[2]
+        ] as [number, number, number];
+
         console.log('🔍 Capturing subtracted geometry in Toolbar:', {
           selectedShapeId: selectedShape.id,
+          targetPosition: targetShape.position,
           selectedPosition: selectedShape.position,
-          selectedRotation: selectedShape.rotation,
+          relativeOffset,
+          relativeRotation,
           selectedScale: selectedShape.scale,
           geometryVertices: subtractedGeometry.attributes.position.count
         });
@@ -532,8 +546,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           parameters: {
             ...targetShape.parameters,
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-            subtractedShapePosition: selectedShape.position,
-            subtractedShapeRotation: selectedShape.rotation,
+            subtractedShapeRelativeOffset: relativeOffset,
+            subtractedShapeRelativeRotation: relativeRotation,
             subtractedShapeScale: selectedShape.scale
           }
         });

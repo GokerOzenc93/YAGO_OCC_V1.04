@@ -243,39 +243,23 @@ const ShapeWithTransform: React.FC<{
         }}
       >
         {shape.subtractionGeometry && subtractionViewMode && (() => {
-          const relativePos = shape.parameters?.subtractedShapePosition
-            ? [
-                shape.parameters.subtractedShapePosition[0] - shape.position[0],
-                shape.parameters.subtractedShapePosition[1] - shape.position[1],
-                shape.parameters.subtractedShapePosition[2] - shape.position[2]
-              ]
-            : [0, 0, 0];
+          const relativePos = shape.parameters?.subtractedShapeRelativeOffset || [0, 0, 0];
+          const relativeRot = shape.parameters?.subtractedShapeRelativeRotation || [0, 0, 0];
 
           console.log('🟡 Rendering subtraction geometry:', {
             shapeId: shape.id,
             hasGeometry: !!shape.subtractionGeometry,
             subtractionViewMode,
-            mainShapePos: shape.position,
-            subtractedShapePos: shape.parameters?.subtractedShapePosition,
             relativePos,
+            relativeRot,
             vertices: shape.subtractionGeometry.attributes.position.count
           });
 
           return (
             <group
               position={relativePos as [number, number, number]}
-              rotation={
-                shape.parameters?.subtractedShapeRotation
-                  ? [
-                      shape.parameters.subtractedShapeRotation[0] - shape.rotation[0],
-                      shape.parameters.subtractedShapeRotation[1] - shape.rotation[1],
-                      shape.parameters.subtractedShapeRotation[2] - shape.rotation[2]
-                    ]
-                  : [0, 0, 0]
-              }
-              scale={
-                shape.parameters?.subtractedShapeScale || [1, 1, 1]
-              }
+              rotation={relativeRot as [number, number, number]}
+              scale={shape.parameters?.subtractedShapeScale || [1, 1, 1]}
             >
               <mesh geometry={shape.subtractionGeometry}>
                 <meshStandardMaterial

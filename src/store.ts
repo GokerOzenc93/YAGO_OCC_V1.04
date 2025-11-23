@@ -414,10 +414,24 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             const subtractedGeometry = shape2.geometry.clone();
 
+            const relativeOffset = [
+              shape2.position[0] - shape1.position[0],
+              shape2.position[1] - shape1.position[1],
+              shape2.position[2] - shape1.position[2]
+            ] as [number, number, number];
+
+            const relativeRotation = [
+              shape2.rotation[0] - shape1.rotation[0],
+              shape2.rotation[1] - shape1.rotation[1],
+              shape2.rotation[2] - shape1.rotation[2]
+            ] as [number, number, number];
+
             console.log('🔍 Capturing subtracted geometry:', {
               shape2Id: shape2.id,
+              shape1Position: shape1.position,
               shape2Position: shape2.position,
-              shape2Rotation: shape2.rotation,
+              relativeOffset,
+              relativeRotation,
               shape2Scale: shape2.scale,
               geometryVertices: subtractedGeometry.attributes.position.count
             });
@@ -433,8 +447,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                     parameters: {
                       ...s.parameters,
                       scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-                      subtractedShapePosition: shape2.position,
-                      subtractedShapeRotation: shape2.rotation,
+                      subtractedShapeRelativeOffset: relativeOffset,
+                      subtractedShapeRelativeRotation: relativeRotation,
                       subtractedShapeScale: shape2.scale
                     }
                   };
