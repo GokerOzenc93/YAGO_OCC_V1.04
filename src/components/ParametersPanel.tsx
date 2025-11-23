@@ -245,81 +245,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   };
 
-  const applySubtractionChanges = async () => {
-    if (!selectedShape || !selectedShape.subtractionRegion || !selectedShape.originalReplicadShape) {
-      console.warn('No subtraction region data available');
-      return;
-    }
-
-    console.log('🔄 Reapplying boolean cut with updated subtraction region...');
-
-    try {
-      const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      const { getReplicadVertices } = await import('../services/vertexEditor');
-      const originalCutting = selectedShape.subtractionRegion.originalCuttingShape;
-
-      if (!originalCutting?.replicadShape) {
-        console.error('Original cutting shape data not available');
-        return;
-      }
-
-      const originalSize = selectedShape.subtractionRegion.size;
-      const adjustedScale: [number, number, number] = [
-        subtractionSizeX / originalSize[0],
-        subtractionSizeY / originalSize[1],
-        subtractionSizeZ / originalSize[2]
-      ];
-
-      const adjustedPosition: [number, number, number] = [
-        selectedShape.position[0] + (subtractionDirX === '+' ? subtractionX : -subtractionX),
-        selectedShape.position[1] + (subtractionDirY === '+' ? subtractionY : -subtractionY),
-        selectedShape.position[2] + (subtractionDirZ === '+' ? subtractionZ : -subtractionZ)
-      ];
-
-      console.log('📍 Adjusted cutting position:', adjustedPosition);
-      console.log('📐 Adjusted cutting scale:', adjustedScale);
-      console.log('📐 Growth directions:', { x: subtractionDirX, y: subtractionDirY, z: subtractionDirZ });
-
-      const resultShape = await performBooleanCut(
-        selectedShape.originalReplicadShape,
-        originalCutting.replicadShape,
-        selectedShape.position,
-        adjustedPosition,
-        selectedShape.rotation,
-        originalCutting.rotation,
-        selectedShape.scale,
-        adjustedScale
-      );
-
-      const newGeometry = convertReplicadToThreeGeometry(resultShape);
-      const newBaseVertices = await getReplicadVertices(resultShape);
-
-      updateShape(selectedShape.id, {
-        geometry: newGeometry,
-        replicadShape: resultShape,
-        subtractionRegion: {
-          ...selectedShape.subtractionRegion,
-          position: [subtractionX, subtractionY, subtractionZ],
-          size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
-          growthDirection: {
-            x: subtractionDirX,
-            y: subtractionDirY,
-            z: subtractionDirZ
-          }
-        },
-        parameters: {
-          ...selectedShape.parameters,
-          scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-        }
-      });
-
-      console.log('✅ Subtraction region updated successfully');
-    } catch (error) {
-      console.error('❌ Failed to update subtraction region:', error);
-      alert(`Failed to update subtraction: ${(error as Error).message}`);
-    }
-  };
-
   const applyChanges = async () => {
     if (!selectedShape) return;
 
@@ -495,52 +420,81 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         updateData.geometry = scaledGeometry;
       }
 
-      if (selectedShape.subtractionRegion && dimensionsChanged) {
-        console.log('📐 Shape has subtraction region, reapplying cut with updated base dimensions...');
+      if (selectedShape.subtractionRegion) {
+        console.log('📐 Shape has subtraction region, checking for updates...');
 
-        try {
-          const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-          const { getReplicadVertices } = await import('../services/vertexEditor');
-          const originalCutting = selectedShape.subtractionRegion.originalCuttingShape;
+        const subtractionPosChanged =
+          subtractionX !== selectedShape.subtractionRegion.position[0] ||
+          subtractionY !== selectedShape.subtractionRegion.position[1] ||
+          subtractionZ !== selectedShape.subtractionRegion.position[2];
 
-          if (originalCutting?.replicadShape && selectedShape.originalReplicadShape) {
-            const originalSize = selectedShape.subtractionRegion.size;
-            const adjustedScale: [number, number, number] = [
-              subtractionSizeX / originalSize[0],
-              subtractionSizeY / originalSize[1],
-              subtractionSizeZ / originalSize[2]
-            ];
+        const subtractionSizeChanged =
+          subtractionSizeX !== selectedShape.subtractionRegion.size[0] ||
+          subtractionSizeY !== selectedShape.subtractionRegion.size[1] ||
+          subtractionSizeZ !== selectedShape.subtractionRegion.size[2];
 
-            const adjustedPosition: [number, number, number] = [
-              selectedShape.position[0] + (subtractionDirX === '+' ? subtractionX : -subtractionX),
-              selectedShape.position[1] + (subtractionDirY === '+' ? subtractionY : -subtractionY),
-              selectedShape.position[2] + (subtractionDirZ === '+' ? subtractionZ : -subtractionZ)
-            ];
+        const subtractionDirChanged =
+          subtractionDirX !== selectedShape.subtractionRegion.growthDirection.x ||
+          subtractionDirY !== selectedShape.subtractionRegion.growthDirection.y ||
+          subtractionDirZ !== selectedShape.subtractionRegion.growthDirection.z;
 
-            const scaledOriginalShape = selectedShape.originalReplicadShape;
+        const subtractionChanged = subtractionPosChanged || subtractionSizeChanged || subtractionDirChanged || dimensionsChanged;
 
-            const resultShape = await performBooleanCut(
-              scaledOriginalShape,
-              originalCutting.replicadShape,
-              selectedShape.position,
-              adjustedPosition,
-              selectedShape.rotation,
-              originalCutting.rotation,
-              [scaleX, scaleY, scaleZ],
-              adjustedScale
-            );
+        if (subtractionChanged) {
+          console.log('🔄 Subtraction region or base dimensions changed, reapplying cut...');
 
-            const newGeometry = convertReplicadToThreeGeometry(resultShape);
-            const newBaseVertices = await getReplicadVertices(resultShape);
+          try {
+            const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+            const { getReplicadVertices } = await import('../services/vertexEditor');
+            const originalCutting = selectedShape.subtractionRegion.originalCuttingShape;
 
-            updateData.geometry = newGeometry;
-            updateData.replicadShape = resultShape;
-            updateData.parameters.scaledBaseVertices = newBaseVertices.map(v => [v.x, v.y, v.z]);
+            if (originalCutting?.replicadShape && selectedShape.originalReplicadShape) {
+              const originalSize = selectedShape.subtractionRegion.size;
+              const adjustedScale: [number, number, number] = [
+                subtractionSizeX / originalSize[0],
+                subtractionSizeY / originalSize[1],
+                subtractionSizeZ / originalSize[2]
+              ];
 
-            console.log('✅ Reapplied cut with updated base dimensions');
+              const adjustedPosition: [number, number, number] = [
+                selectedShape.position[0] + (subtractionDirX === '+' ? subtractionX : -subtractionX),
+                selectedShape.position[1] + (subtractionDirY === '+' ? subtractionY : -subtractionY),
+                selectedShape.position[2] + (subtractionDirZ === '+' ? subtractionZ : -subtractionZ)
+              ];
+
+              const resultShape = await performBooleanCut(
+                selectedShape.originalReplicadShape,
+                originalCutting.replicadShape,
+                selectedShape.position,
+                adjustedPosition,
+                selectedShape.rotation,
+                originalCutting.rotation,
+                dimensionsChanged ? [scaleX, scaleY, scaleZ] : selectedShape.scale,
+                adjustedScale
+              );
+
+              const newGeometry = convertReplicadToThreeGeometry(resultShape);
+              const newBaseVertices = await getReplicadVertices(resultShape);
+
+              updateData.geometry = newGeometry;
+              updateData.replicadShape = resultShape;
+              updateData.parameters.scaledBaseVertices = newBaseVertices.map(v => [v.x, v.y, v.z]);
+              updateData.subtractionRegion = {
+                ...selectedShape.subtractionRegion,
+                position: [subtractionX, subtractionY, subtractionZ],
+                size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
+                growthDirection: {
+                  x: subtractionDirX,
+                  y: subtractionDirY,
+                  z: subtractionDirZ
+                }
+              };
+
+              console.log('✅ Reapplied cut with updated parameters');
+            }
+          } catch (error) {
+            console.error('⚠️ Failed to reapply cut, using scaled geometry only:', error);
           }
-        } catch (error) {
-          console.error('⚠️ Failed to reapply cut, using scaled geometry only:', error);
         }
       }
 
@@ -744,22 +698,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               <div className="space-y-2 pt-2 border-t border-stone-200">
                 <div className="text-xs font-semibold text-stone-700 mb-2">Kesim Bölgesi</div>
 
-                <div className="space-y-2">
+                <div className="grid grid-cols-2 gap-2">
                   <div>
                     <div className="text-[10px] font-medium text-stone-500 uppercase mb-1">Pozisyon</div>
                     <div className="space-y-1">
                       <div className="flex gap-1 items-center">
-                        <span className="w-6 text-[10px] font-medium text-stone-700">X</span>
+                        <span className="w-5 text-[10px] font-medium text-stone-700">X</span>
                         <input
                           type="number"
                           value={parseFloat(subtractionX.toFixed(2))}
                           onChange={(e) => setSubtractionX(Number(e.target.value))}
                           step="0.1"
-                          className="w-20 px-2 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <button
                           onClick={() => setSubtractionDirX(subtractionDirX === '+' ? '-' : '+')}
-                          className={`w-7 h-7 text-xs font-semibold rounded transition-colors ${
+                          className={`w-6 h-6 text-[10px] font-bold rounded transition-colors ${
                             subtractionDirX === '+'
                               ? 'bg-green-500 text-white hover:bg-green-600'
                               : 'bg-red-500 text-white hover:bg-red-600'
@@ -768,21 +722,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         >
                           {subtractionDirX}
                         </button>
-                        <span className="flex-1 text-[10px] text-stone-500">Yön</span>
                       </div>
 
                       <div className="flex gap-1 items-center">
-                        <span className="w-6 text-[10px] font-medium text-stone-700">Y</span>
+                        <span className="w-5 text-[10px] font-medium text-stone-700">Y</span>
                         <input
                           type="number"
                           value={parseFloat(subtractionY.toFixed(2))}
                           onChange={(e) => setSubtractionY(Number(e.target.value))}
                           step="0.1"
-                          className="w-20 px-2 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <button
                           onClick={() => setSubtractionDirY(subtractionDirY === '+' ? '-' : '+')}
-                          className={`w-7 h-7 text-xs font-semibold rounded transition-colors ${
+                          className={`w-6 h-6 text-[10px] font-bold rounded transition-colors ${
                             subtractionDirY === '+'
                               ? 'bg-green-500 text-white hover:bg-green-600'
                               : 'bg-red-500 text-white hover:bg-red-600'
@@ -791,21 +744,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         >
                           {subtractionDirY}
                         </button>
-                        <span className="flex-1 text-[10px] text-stone-500">Yön</span>
                       </div>
 
                       <div className="flex gap-1 items-center">
-                        <span className="w-6 text-[10px] font-medium text-stone-700">Z</span>
+                        <span className="w-5 text-[10px] font-medium text-stone-700">Z</span>
                         <input
                           type="number"
                           value={parseFloat(subtractionZ.toFixed(2))}
                           onChange={(e) => setSubtractionZ(Number(e.target.value))}
                           step="0.1"
-                          className="w-20 px-2 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <button
                           onClick={() => setSubtractionDirZ(subtractionDirZ === '+' ? '-' : '+')}
-                          className={`w-7 h-7 text-xs font-semibold rounded transition-colors ${
+                          className={`w-6 h-6 text-[10px] font-bold rounded transition-colors ${
                             subtractionDirZ === '+'
                               ? 'bg-green-500 text-white hover:bg-green-600'
                               : 'bg-red-500 text-white hover:bg-red-600'
@@ -814,7 +766,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         >
                           {subtractionDirZ}
                         </button>
-                        <span className="flex-1 text-[10px] text-stone-500">Yön</span>
                       </div>
                     </div>
                   </div>
@@ -823,48 +774,40 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     <div className="text-[10px] font-medium text-stone-500 uppercase mb-1">Boyut</div>
                     <div className="space-y-1">
                       <div className="flex gap-1 items-center">
-                        <span className="w-6 text-[10px] font-medium text-stone-700">X</span>
+                        <span className="w-5 text-[10px] font-medium text-stone-700">X</span>
                         <input
                           type="number"
                           value={parseFloat(subtractionSizeX.toFixed(2))}
                           onChange={(e) => setSubtractionSizeX(Number(e.target.value))}
                           step="0.1"
-                          className="w-20 px-2 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
 
                       <div className="flex gap-1 items-center">
-                        <span className="w-6 text-[10px] font-medium text-stone-700">Y</span>
+                        <span className="w-5 text-[10px] font-medium text-stone-700">Y</span>
                         <input
                           type="number"
                           value={parseFloat(subtractionSizeY.toFixed(2))}
                           onChange={(e) => setSubtractionSizeY(Number(e.target.value))}
                           step="0.1"
-                          className="w-20 px-2 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
 
                       <div className="flex gap-1 items-center">
-                        <span className="w-6 text-[10px] font-medium text-stone-700">Z</span>
+                        <span className="w-5 text-[10px] font-medium text-stone-700">Z</span>
                         <input
                           type="number"
                           value={parseFloat(subtractionSizeZ.toFixed(2))}
                           onChange={(e) => setSubtractionSizeZ(Number(e.target.value))}
                           step="0.1"
-                          className="w-20 px-2 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          className="flex-1 px-1 py-1 text-xs text-right border border-stone-300 rounded focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                       </div>
                     </div>
                   </div>
                 </div>
-
-                <button
-                  onClick={applySubtractionChanges}
-                  className="w-full px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded transition-colors flex items-center justify-center gap-1.5 mt-2"
-                >
-                  <Check size={14} />
-                  Kesimi Güncelle
-                </button>
               </div>
             )}
 
