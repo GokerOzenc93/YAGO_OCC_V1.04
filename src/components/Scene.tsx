@@ -216,7 +216,7 @@ const ShapeWithTransform: React.FC<{
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
-  if (shape.isolated === false) {
+  if (shape.isolated === false || shape.hidden === true) {
     return null;
   }
 

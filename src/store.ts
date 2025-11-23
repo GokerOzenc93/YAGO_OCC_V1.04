@@ -11,6 +11,7 @@ export interface SubtractionRegion {
     y: '+' | '-';
     z: '+' | '-';
   };
+  cuttingShapeId?: string;
   originalCuttingShape?: {
     type: string;
     parameters: Record<string, any>;
@@ -33,6 +34,7 @@ export interface Shape {
   ocShape?: any;
   replicadShape?: any;
   isolated?: boolean;
+  hidden?: boolean;
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;

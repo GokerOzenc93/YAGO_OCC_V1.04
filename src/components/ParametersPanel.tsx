@@ -440,6 +440,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
         const subtractionChanged = subtractionPosChanged || subtractionSizeChanged || subtractionDirChanged || dimensionsChanged;
 
+        updateData.subtractionRegion = {
+          ...selectedShape.subtractionRegion,
+          position: [subtractionX, subtractionY, subtractionZ],
+          size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
+          growthDirection: {
+            x: subtractionDirX,
+            y: subtractionDirY,
+            z: subtractionDirZ
+          }
+        };
+
         if (subtractionChanged) {
           console.log('🔄 Subtraction region or base dimensions changed, reapplying cut...');
           console.log('Current subtraction state:', {
@@ -451,11 +462,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
             const { getReplicadVertices } = await import('../services/vertexEditor');
-            const originalCutting = selectedShape.subtractionRegion.originalCuttingShape;
 
-            if (originalCutting?.replicadShape && selectedShape.originalReplicadShape) {
-              const originalCuttingSize = originalCutting.parameters?.width && originalCutting.parameters?.height && originalCutting.parameters?.depth
-                ? [originalCutting.parameters.width, originalCutting.parameters.height, originalCutting.parameters.depth]
+            const cuttingShapeId = selectedShape.subtractionRegion.cuttingShapeId;
+            const cuttingShape = cuttingShapeId ? shapes.find(s => s.id === cuttingShapeId) : null;
+
+            if (cuttingShape?.replicadShape && selectedShape.originalReplicadShape) {
+              console.log('🎯 Found hidden cutting shape, using it for boolean operation');
+              const originalCuttingSize = cuttingShape.parameters?.width && cuttingShape.parameters?.height && cuttingShape.parameters?.depth
+                ? [cuttingShape.parameters.width, cuttingShape.parameters.height, cuttingShape.parameters.depth]
                 : [1, 1, 1];
 
               const adjustedScale: [number, number, number] = [
@@ -485,11 +499,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
               const resultShape = await performBooleanCut(
                 selectedShape.originalReplicadShape,
-                originalCutting.replicadShape,
+                cuttingShape.replicadShape,
                 selectedShape.position,
                 adjustedPosition,
                 selectedShape.rotation,
-                originalCutting.rotation,
+                cuttingShape.rotation,
                 dimensionsChanged ? [scaleX, scaleY, scaleZ] : selectedShape.scale,
                 adjustedScale
               );
@@ -500,35 +514,16 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               updateData.geometry = newGeometry;
               updateData.replicadShape = resultShape;
               updateData.parameters.scaledBaseVertices = newBaseVertices.map(v => [v.x, v.y, v.z]);
-              updateData.subtractionRegion = {
-                ...selectedShape.subtractionRegion,
-                position: [subtractionX, subtractionY, subtractionZ],
-                size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
-                growthDirection: {
-                  x: subtractionDirX,
-                  y: subtractionDirY,
-                  z: subtractionDirZ
-                }
-              };
 
-              console.log('✅ Reapplied cut with updated parameters');
-              console.log('Updated subtraction region:', updateData.subtractionRegion);
+              console.log('✅ Reapplied cut with updated parameters using hidden cutting shape');
+            } else {
+              console.log('⚠️ Cutting shape not found, keeping current geometry');
             }
           } catch (error) {
-            console.error('⚠️ Failed to reapply cut, using scaled geometry only:', error);
+            console.error('⚠️ Failed to reapply cut:', error);
           }
         } else {
-          updateData.subtractionRegion = {
-            ...selectedShape.subtractionRegion,
-            position: [subtractionX, subtractionY, subtractionZ],
-            size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
-            growthDirection: {
-              x: subtractionDirX,
-              y: subtractionDirY,
-              z: subtractionDirZ
-            }
-          };
-          console.log('📦 Subtraction region unchanged, preserving current state values');
+          console.log('📦 Subtraction region parameters updated, no geometry recalculation needed');
         }
       }
 

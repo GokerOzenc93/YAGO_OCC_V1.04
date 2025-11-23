@@ -538,6 +538,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             position: relativePosition,
             size: cuttingSize,
             growthDirection: { x: '+', y: '+', z: '+' },
+            cuttingShapeId: selectedShapeId,
             originalCuttingShape: {
               type: selectedShape.type,
               parameters: { ...selectedShape.parameters },
@@ -556,8 +557,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         console.log(`✅ Updated ${targetShape.id} with cut result and subtraction region data`);
       }
 
-      deleteShape(selectedShapeId);
-      console.log(`🗑️ Deleted selected shape ${selectedShapeId}`);
+      updateShape(selectedShapeId, { hidden: true });
+      console.log(`👁️ Hidden cutting shape ${selectedShapeId}`);
       console.log(`✅ All subtract operations completed`);
 
     } catch (error) {
