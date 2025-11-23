@@ -246,8 +246,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       newPos: { x: subPosX, y: subPosY, z: subPosZ }
     });
 
-    const { convertReplicadToThreeGeometry, getReplicadVertices } = await import('../services/vertexEditor');
-    const { createReplicadBox } = await import('../services/replicad');
+    const { getReplicadVertices } = await import('../services/vertexEditor');
+    const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
     const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
 
