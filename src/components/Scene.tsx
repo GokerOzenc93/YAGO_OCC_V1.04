@@ -242,26 +242,25 @@ const ShapeWithTransform: React.FC<{
           onContextMenu(e, shape.id);
         }}
       >
-        {shape.subtractionGeometry && subtractionViewMode && (() => {
-          const relativePos = shape.parameters?.subtractedShapeRelativeOffset || [0, 0, 0];
-          const relativeRot = shape.parameters?.subtractedShapeRelativeRotation || [0, 0, 0];
-
+        {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
           console.log('🟡 Rendering subtraction geometry:', {
             shapeId: shape.id,
-            hasGeometry: !!shape.subtractionGeometry,
-            subtractionViewMode,
-            relativePos,
-            relativeRot,
-            vertices: shape.subtractionGeometry.attributes.position.count
+            index,
+            relativePos: subtraction.relativeOffset,
+            relativeRot: subtraction.relativeRotation,
+            vertices: subtraction.geometry.attributes.position.count
           });
+
+          const edgesGeometry = new THREE.EdgesGeometry(subtraction.geometry, 30);
 
           return (
             <group
-              position={relativePos as [number, number, number]}
-              rotation={relativeRot as [number, number, number]}
-              scale={shape.parameters?.subtractedShapeScale || [1, 1, 1]}
+              key={`${shape.id}-subtraction-${index}`}
+              position={subtraction.relativeOffset}
+              rotation={subtraction.relativeRotation}
+              scale={subtraction.scale}
             >
-              <mesh geometry={shape.subtractionGeometry}>
+              <mesh geometry={subtraction.geometry}>
                 <meshStandardMaterial
                   color={0xffff00}
                   transparent
@@ -269,9 +268,12 @@ const ShapeWithTransform: React.FC<{
                   depthWrite={false}
                 />
               </mesh>
+              <lineSegments geometry={edgesGeometry}>
+                <lineBasicMaterial color={0x00ff00} linewidth={2} />
+              </lineSegments>
             </group>
           );
-        })()}
+        })}
         {!isWireframe && !isXray && !shouldShowAsReference && (
           <mesh
             ref={meshRef}

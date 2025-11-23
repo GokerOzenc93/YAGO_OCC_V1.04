@@ -3,6 +3,13 @@ import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
 import { VertexModification } from './services/vertexEditor';
 
+export interface SubtractedGeometry {
+  geometry: THREE.BufferGeometry;
+  relativeOffset: [number, number, number];
+  relativeRotation: [number, number, number];
+  scale: [number, number, number];
+}
+
 export interface Shape {
   id: string;
   type: string;
@@ -18,7 +25,7 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
-  subtractionGeometry?: THREE.BufferGeometry;
+  subtractionGeometries?: SubtractedGeometry[];
 }
 
 export enum CameraType {
@@ -439,17 +446,23 @@ export const useAppStore = create<AppState>((set, get) => ({
             set((state) => ({
               shapes: state.shapes.map((s) => {
                 if (s.id === shape1.id) {
+                  const existingSubtractions = s.subtractionGeometries || [];
                   return {
                     ...s,
                     geometry: newGeometry,
                     replicadShape: resultShape,
-                    subtractionGeometry: subtractedGeometry,
+                    subtractionGeometries: [
+                      ...existingSubtractions,
+                      {
+                        geometry: subtractedGeometry,
+                        relativeOffset,
+                        relativeRotation,
+                        scale: shape2.scale
+                      }
+                    ],
                     parameters: {
                       ...s.parameters,
-                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-                      subtractedShapeRelativeOffset: relativeOffset,
-                      subtractedShapeRelativeRotation: relativeRotation,
-                      subtractedShapeScale: shape2.scale
+                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
                     }
                   };
                 }

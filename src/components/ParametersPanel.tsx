@@ -436,26 +436,28 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           >
             VERTEX
           </button>
-          <button
-            onClick={() => {
-              const newMode = !subtractionViewMode;
-              console.log('🔘 SUB button clicked:', {
-                oldMode: subtractionViewMode,
-                newMode,
-                selectedShape: selectedShape?.id,
-                hasSubtractionGeometry: !!selectedShape?.subtractionGeometry
-              });
-              setSubtractionViewMode(newMode);
-            }}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
-              subtractionViewMode
-                ? 'bg-yellow-500 text-white'
-                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-            }`}
-            title="Show Subtraction Geometry"
-          >
-            SUB
-          </button>
+          {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.length > 0 && (
+            <button
+              onClick={() => {
+                const newMode = !subtractionViewMode;
+                console.log('🔘 SUB button clicked:', {
+                  oldMode: subtractionViewMode,
+                  newMode,
+                  selectedShape: selectedShape?.id,
+                  subtractionCount: selectedShape?.subtractionGeometries?.length || 0
+                });
+                setSubtractionViewMode(newMode);
+              }}
+              className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+                subtractionViewMode
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+              }`}
+              title={`Show ${selectedShape.subtractionGeometries.length} Subtraction Geometr${selectedShape.subtractionGeometries.length > 1 ? 'ies' : 'y'}`}
+            >
+              SUB ({selectedShape.subtractionGeometries.length})
+            </button>
+          )}
           <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
