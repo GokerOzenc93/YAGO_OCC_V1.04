@@ -91,7 +91,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setSubtractionDirY('+');
       setSubtractionDirZ('+');
     }
-  }, [selectedShapeId, shapes]);
+  }, [selectedShapeId]);
 
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -442,6 +442,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
         if (subtractionChanged) {
           console.log('🔄 Subtraction region or base dimensions changed, reapplying cut...');
+          console.log('Current subtraction state:', {
+            position: [subtractionX, subtractionY, subtractionZ],
+            size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
+            growthDirection: { x: subtractionDirX, y: subtractionDirY, z: subtractionDirZ }
+          });
 
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
@@ -491,10 +496,23 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               };
 
               console.log('✅ Reapplied cut with updated parameters');
+              console.log('Updated subtraction region:', updateData.subtractionRegion);
             }
           } catch (error) {
             console.error('⚠️ Failed to reapply cut, using scaled geometry only:', error);
           }
+        } else {
+          updateData.subtractionRegion = {
+            ...selectedShape.subtractionRegion,
+            position: [subtractionX, subtractionY, subtractionZ],
+            size: [subtractionSizeX, subtractionSizeY, subtractionSizeZ],
+            growthDirection: {
+              x: subtractionDirX,
+              y: subtractionDirY,
+              z: subtractionDirZ
+            }
+          };
+          console.log('📦 Subtraction region unchanged, preserving current state values');
         }
       }
 
