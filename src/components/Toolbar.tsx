@@ -441,8 +441,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       return;
     }
 
-    console.log('🔪 Subtract button clicked');
-    console.log('🎯 Selected shape (to be subtracted/removed):', selectedShapeId);
+    console.log('🔪 Subtract button clicked - PARAMETRIC MODE');
+    console.log('🎯 Selected shape (cutting shape - will be hidden):', selectedShapeId);
 
     try {
       const selectedShape = shapes.find(s => s.id === selectedShapeId);
@@ -486,7 +486,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         return;
       }
 
-      console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) that will keep the result`);
+      console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) - setting up parametric cut`);
 
       const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
       const { getReplicadVertices } = await import('../services/vertexEditor');
@@ -499,7 +499,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         console.log(`🔪 Cutting ${selectedShapeId} FROM ${targetShape.id}`);
         console.log(`📍 Target (base) position: [${targetShape.position}], rotation: [${targetShape.rotation}], scale: [${targetShape.scale}]`);
-        console.log(`📍 Selected (cutting) position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
+        console.log(`📍 Cutting position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
 
         const resultShape = await performBooleanCut(
           targetShape.replicadShape,
@@ -518,18 +518,32 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         updateShape(targetShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
+          cuttingShapeId: selectedShapeId,
           parameters: {
             ...targetShape.parameters,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+            parametricCut: {
+              enabled: true,
+              cuttingShapeId: selectedShapeId,
+              originalCuttingParams: { ...selectedShape.parameters },
+              cuttingPosition: [...selectedShape.position],
+              cuttingRotation: [...selectedShape.rotation],
+              cuttingScale: [...selectedShape.scale]
+            }
           }
         });
 
-        console.log(`✅ Updated ${targetShape.id} with cut result`);
+        console.log(`✅ Updated ${targetShape.id} with parametric cut`);
       }
 
-      deleteShape(selectedShapeId);
-      console.log(`🗑️ Deleted selected shape ${selectedShapeId}`);
-      console.log(`✅ All subtract operations completed`);
+      updateShape(selectedShapeId, {
+        isHidden: true,
+        isCuttingShape: true,
+        targetShapeId: intersectingShapes[0].id
+      });
+
+      console.log(`👻 Hidden cutting shape ${selectedShapeId} - ready for parametric editing`);
+      console.log(`✅ Parametric subtract operation completed`);
 
     } catch (error) {
       console.error('❌ Failed to perform subtract operation:', error);
