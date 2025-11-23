@@ -83,7 +83,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const size = new THREE.Vector3();
         box.getSize(size);
 
-        console.log('🔄 Updating subtraction UI values:', {
+        console.log('🔄 Updating subtraction UI values from geometry:', {
           index: selectedSubtractionIndex,
           size: { x: size.x, y: size.y, z: size.z },
           offset: subtraction.relativeOffset
@@ -97,7 +97,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         setSubPosZ(subtraction.relativeOffset[2]);
       }
     }
-  }, [selectedShape, selectedSubtractionIndex, selectedShape?.subtractionGeometries]);
+  }, [selectedShape, selectedSubtractionIndex]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -313,7 +313,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const newGeometry = convertReplicadToThreeGeometry(resultShape);
     const newBaseVertices = await getReplicadVertices(resultShape);
 
-    console.log('✅ Subtraction complete, updating shape');
+    console.log('✅ Subtraction complete, updating shape with new subtractions:', {
+      count: allSubtractions.length,
+      updated: {
+        size: { w: subWidth, h: subHeight, d: subDepth },
+        pos: { x: subPosX, y: subPosY, z: subPosZ }
+      }
+    });
 
     updateShape(currentShape.id, {
       geometry: newGeometry,
@@ -323,6 +329,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         ...currentShape.parameters,
         scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
       }
+    });
+
+    console.log('🎯 Shape updated, current UI values:', {
+      subWidth, subHeight, subDepth,
+      subPosX, subPosY, subPosZ
     });
   };
 
