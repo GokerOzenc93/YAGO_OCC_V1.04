@@ -487,13 +487,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
             const { getReplicadVertices } = await import('../services/vertexEditor');
 
-            const cuttingShapeId = currentShape.subtractionRegion.cuttingShapeId;
-            const cuttingShape = cuttingShapeId ? shapes.find(s => s.id === cuttingShapeId) : null;
+            const originalCuttingShape = currentShape.subtractionRegion.originalCuttingShape;
 
-            if (cuttingShape?.replicadShape && currentShape.originalReplicadShape) {
-              console.log('🎯 Found hidden cutting shape, using it for boolean operation');
-              const originalCuttingSize = cuttingShape.parameters?.width && cuttingShape.parameters?.height && cuttingShape.parameters?.depth
-                ? [cuttingShape.parameters.width, cuttingShape.parameters.height, cuttingShape.parameters.depth]
+            if (originalCuttingShape?.replicadShape && currentShape.originalReplicadShape) {
+              console.log('🎯 Using original cutting shape data for boolean operation');
+              const originalCuttingSize = originalCuttingShape.parameters?.width && originalCuttingShape.parameters?.height && originalCuttingShape.parameters?.depth
+                ? [originalCuttingShape.parameters.width, originalCuttingShape.parameters.height, originalCuttingShape.parameters.depth]
                 : [1, 1, 1];
 
               const adjustedScale: [number, number, number] = [
@@ -523,11 +522,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
               const resultShape = await performBooleanCut(
                 currentShape.originalReplicadShape,
-                cuttingShape.replicadShape,
+                originalCuttingShape.replicadShape,
                 currentShape.position,
                 adjustedPosition,
                 currentShape.rotation,
-                cuttingShape.rotation,
+                originalCuttingShape.rotation,
                 dimensionsChanged ? [scaleX, scaleY, scaleZ] : currentShape.scale,
                 adjustedScale
               );
