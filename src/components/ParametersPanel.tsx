@@ -371,45 +371,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         geometryScaled: dimensionsChanged
       });
 
-      if (selectedShape.isCuttingShape && selectedShape.targetShapeId) {
-        console.log('🔄 This is a cutting shape - recalculating parametric cut...');
-        const { recalculateParametricCut } = await import('../services/parametricCut');
-
-        const targetShape = shapes.find(s => s.id === selectedShape.targetShapeId);
-        if (targetShape) {
-          const updatedCuttingShape = {
-            ...selectedShape,
-            parameters: {
-              ...selectedShape.parameters,
-              width,
-              height,
-              depth
-            }
-          };
-
-          const cutResult = await recalculateParametricCut(targetShape, updatedCuttingShape, shapes);
-
-          updateShape(targetShape.id, {
-            geometry: cutResult.geometry,
-            replicadShape: cutResult.replicadShape,
-            parameters: {
-              ...targetShape.parameters,
-              scaledBaseVertices: cutResult.scaledBaseVertices,
-              parametricCut: {
-                ...targetShape.parameters.parametricCut,
-                originalCuttingParams: {
-                  width,
-                  height,
-                  depth
-                }
-              }
-            }
-          });
-
-          console.log('✅ Parametric cut recalculated for target shape');
-        }
-      }
-
       updateShape(selectedShape.id, {
         parameters: {
           ...selectedShape.parameters,

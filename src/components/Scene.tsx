@@ -215,13 +215,8 @@ const ShapeWithTransform: React.FC<{
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
-  const isCuttingShape = shape.isCuttingShape && shape.isHidden;
 
   if (shape.isolated === false) {
-    return null;
-  }
-
-  if (isCuttingShape && !isSelected) {
     return null;
   }
 
@@ -377,10 +372,7 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification,
-    updateShape,
-    pendingCutOperation,
-    confirmCutOperation
+    addVertexModification
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -665,7 +657,6 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
-        const isCuttingShape = shape.isCuttingShape && shape.isHidden;
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -678,20 +669,7 @@ const Scene: React.FC = () => {
               <VertexEditor
                 shape={shape}
                 isActive={true}
-                onVertexSelect={async (index) => {
-                  if (pendingCutOperation && pendingCutOperation.cuttingShapeId === shape.id) {
-                    console.log('🎯 Cutting shape vertex selected for parametric cut:', index);
-                    updateShape(shape.id, { selectedCuttingVertex: index });
-
-                    await confirmCutOperation();
-
-                    setVertexEditMode(false);
-                    console.log('✅ Parametric cut completed with reference vertex:', index);
-                  } else {
-                    console.log('📍 Normal vertex selected:', index);
-                    setSelectedVertexIndex(index);
-                  }
-                }}
+                onVertexSelect={(index) => setSelectedVertexIndex(index)}
                 onDirectionChange={(dir) => setVertexDirection(dir)}
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
