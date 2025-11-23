@@ -247,7 +247,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     });
 
     const { getReplicadVertices } = await import('../services/vertexEditor');
-    const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
+    const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
     const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
 
@@ -255,7 +255,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const updatedSubtraction = {
       ...currentSubtraction,
       geometry: newSubGeometry,
-      relativeOffset: [subPosX, subPosY, subPosZ],
+      relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
       scale: [1, 1, 1] as [number, number, number]
     };
 
@@ -263,11 +263,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       idx === selectedSubtractionIndex ? updatedSubtraction : sub
     );
 
-    console.log('📦 Creating base shape with dimensions:', {
-      w: currentShape.parameters.width,
-      h: currentShape.parameters.height,
-      d: currentShape.parameters.depth
-    });
+    console.log('📦 Recreating base shape and applying all subtractions...');
+    console.log(`🔄 Total subtractions to apply: ${allSubtractions.length}`);
 
     const baseShape = await createReplicadBox({
       width: currentShape.parameters.width || 1,
@@ -277,15 +274,16 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
     let resultShape = baseShape;
 
-    if (currentShape.rotation[0] !== 0) resultShape = resultShape.rotate(currentShape.rotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-    if (currentShape.rotation[1] !== 0) resultShape = resultShape.rotate(currentShape.rotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-    if (currentShape.rotation[2] !== 0) resultShape = resultShape.rotate(currentShape.rotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+    for (let i = 0; i < allSubtractions.length; i++) {
+      const subtraction = allSubtractions[i];
+      const subSize = getOriginalSize(subtraction.geometry);
 
-    resultShape = resultShape.translate(currentShape.position[0], currentShape.position[1], currentShape.position[2]);
+      const subBox = await createReplicadBox({
+        width: subSize.x,
+        height: subSize.y,
+        depth: subSize.z
+      });
 
-    console.log(`🔄 Applying ${allSubtractions.length} subtraction(s)...`);
-
-    for (const subtraction of allSubtractions) {
       const absolutePos = [
         currentShape.position[0] + subtraction.relativeOffset[0],
         currentShape.position[1] + subtraction.relativeOffset[1],
@@ -298,24 +296,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         currentShape.rotation[2] + subtraction.relativeRotation[2]
       ] as [number, number, number];
 
-      const subSize = getOriginalSize(subtraction.geometry);
-      console.log('✂️ Subtracting box:', { size: subSize, pos: absolutePos });
-
-      const subBox = await createReplicadBox({
-        width: subSize.x,
-        height: subSize.y,
-        depth: subSize.z
+      console.log(`✂️ Subtraction ${i + 1}/${allSubtractions.length}:`, {
+        size: subSize,
+        relativeOffset: subtraction.relativeOffset,
+        absolutePos
       });
 
-      let transformedSub = subBox;
-
-      if (absoluteRot[0] !== 0) transformedSub = transformedSub.rotate(absoluteRot[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-      if (absoluteRot[1] !== 0) transformedSub = transformedSub.rotate(absoluteRot[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-      if (absoluteRot[2] !== 0) transformedSub = transformedSub.rotate(absoluteRot[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-
-      transformedSub = transformedSub.translate(absolutePos[0], absolutePos[1], absolutePos[2]);
-
-      resultShape = resultShape.cut(transformedSub);
+      resultShape = await performBooleanCut(
+        resultShape,
+        subBox,
+        currentShape.position,
+        absolutePos,
+        currentShape.rotation,
+        absoluteRot,
+        currentShape.scale,
+        [1, 1, 1] as [number, number, number]
+      );
     }
 
     const newGeometry = convertReplicadToThreeGeometry(resultShape);
