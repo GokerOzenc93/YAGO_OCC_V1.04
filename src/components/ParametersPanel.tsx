@@ -480,11 +480,41 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const newGeometry = convertReplicadToThreeGeometry(resultShape);
         const newBaseVertices = await getReplicadVertices(resultShape);
 
+        const newBox = new THREE.Box3().setFromBufferAttribute(
+          newGeometry.attributes.position as THREE.BufferAttribute
+        );
+        const newCenter = new THREE.Vector3();
+        newBox.getCenter(newCenter);
+
+        const originalBox = new THREE.Box3().setFromObject(new THREE.Mesh(
+          new THREE.BoxGeometry(width, height, depth)
+        ));
+        const originalCenter = new THREE.Vector3();
+        originalBox.getCenter(originalCenter);
+
+        const positionOffset = [
+          originalCenter.x - newCenter.x,
+          originalCenter.y - newCenter.y,
+          originalCenter.z - newCenter.z
+        ] as [number, number, number];
+
+        console.log('📍 Position correction after cut:', {
+          originalCenter: [originalCenter.x.toFixed(2), originalCenter.y.toFixed(2), originalCenter.z.toFixed(2)],
+          newCenter: [newCenter.x.toFixed(2), newCenter.y.toFixed(2), newCenter.z.toFixed(2)],
+          offset: [positionOffset[0].toFixed(2), positionOffset[1].toFixed(2), positionOffset[2].toFixed(2)],
+          oldPosition: selectedShape.position
+        });
+
         updateShape(selectedShape.id, {
           ...baseUpdate,
           geometry: newGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
+          position: [
+            selectedShape.position[0] + positionOffset[0],
+            selectedShape.position[1] + positionOffset[1],
+            selectedShape.position[2] + positionOffset[2]
+          ] as [number, number, number],
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
