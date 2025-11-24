@@ -398,11 +398,19 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       if (dimensionsChanged && selectedShape.geometry) {
         console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
+        console.log('📍 Geometry center should remain at origin (0,0,0)');
         scaledGeometry = selectedShape.geometry.clone();
         scaledGeometry.scale(scaleX, scaleY, scaleZ);
         scaledGeometry.computeVertexNormals();
         scaledGeometry.computeBoundingBox();
         scaledGeometry.computeBoundingSphere();
+
+        const box = new THREE.Box3().setFromBufferAttribute(
+          scaledGeometry.getAttribute('position')
+        );
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        console.log('✓ Scaled geometry center:', { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) });
       }
 
       const hasSubtractionChanges = selectedSubtractionIndex !== null && selectedShape.subtractionGeometries?.length > 0;
