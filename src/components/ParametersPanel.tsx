@@ -81,12 +81,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           subtraction.geometry.attributes.position as THREE.BufferAttribute
         );
         const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
         box.getSize(size);
+        box.getCenter(center);
 
         console.log('🔄 Updating subtraction UI values from geometry:', {
           index: selectedSubtractionIndex,
           size: { x: size.x, y: size.y, z: size.z },
-          offset: subtraction.relativeOffset
+          geometryCenter: { x: center.x, y: center.y, z: center.z },
+          relativeOffset: subtraction.relativeOffset,
+          min: { x: box.min.x, y: box.min.y, z: box.min.z },
+          max: { x: box.max.x, y: box.max.y, z: box.max.z }
         });
 
         setSubWidth(Math.round(size.x * 100) / 100);
@@ -251,11 +256,31 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
     const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
 
+    const newGeometryBox = new THREE.Box3().setFromBufferAttribute(
+      newSubGeometry.attributes.position as THREE.BufferAttribute
+    );
+    const newGeometryCenter = new THREE.Vector3();
+    newGeometryBox.getCenter(newGeometryCenter);
+
+    console.log('🆕 New geometry info:', {
+      size: { w: subWidth, h: subHeight, d: subDepth },
+      center: { x: newGeometryCenter.x, y: newGeometryCenter.y, z: newGeometryCenter.z },
+      min: { x: newGeometryBox.min.x, y: newGeometryBox.min.y, z: newGeometryBox.min.z },
+      max: { x: newGeometryBox.max.x, y: newGeometryBox.max.y, z: newGeometryBox.max.z }
+    });
+
     const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];
+
+    const oldGeometryBox = new THREE.Box3().setFromBufferAttribute(
+      currentSubtraction.geometry.attributes.position as THREE.BufferAttribute
+    );
+    const oldGeometryCenter = new THREE.Vector3();
+    oldGeometryBox.getCenter(oldGeometryCenter);
 
     console.log('📋 Current subtraction before update:', {
       relativeOffset: currentSubtraction.relativeOffset,
-      relativeRotation: currentSubtraction.relativeRotation
+      relativeRotation: currentSubtraction.relativeRotation,
+      oldGeometryCenter: { x: oldGeometryCenter.x, y: oldGeometryCenter.y, z: oldGeometryCenter.z }
     });
 
     const updatedSubtraction = {
