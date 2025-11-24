@@ -89,15 +89,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           offset: subtraction.relativeOffset
         });
 
-        setSubWidth(size.x);
-        setSubHeight(size.y);
-        setSubDepth(size.z);
-        setSubPosX(subtraction.relativeOffset[0]);
-        setSubPosY(subtraction.relativeOffset[1]);
-        setSubPosZ(subtraction.relativeOffset[2]);
+        setSubWidth(Math.round(size.x * 100) / 100);
+        setSubHeight(Math.round(size.y * 100) / 100);
+        setSubDepth(Math.round(size.z * 100) / 100);
+        setSubPosX(Math.round(subtraction.relativeOffset[0] * 100) / 100);
+        setSubPosY(Math.round(subtraction.relativeOffset[1] * 100) / 100);
+        setSubPosZ(Math.round(subtraction.relativeOffset[2] * 100) / 100);
       }
     }
-  }, [selectedShape, selectedSubtractionIndex]);
+  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -252,12 +252,24 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
 
     const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];
+
+    console.log('📋 Current subtraction before update:', {
+      relativeOffset: currentSubtraction.relativeOffset,
+      relativeRotation: currentSubtraction.relativeRotation
+    });
+
     const updatedSubtraction = {
       ...currentSubtraction,
       geometry: newSubGeometry,
       relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
+      relativeRotation: currentSubtraction.relativeRotation || [0, 0, 0] as [number, number, number],
       scale: [1, 1, 1] as [number, number, number]
     };
+
+    console.log('✏️ Updated subtraction:', {
+      relativeOffset: updatedSubtraction.relativeOffset,
+      relativeRotation: updatedSubtraction.relativeRotation
+    });
 
     const allSubtractions = currentShape.subtractionGeometries.map((sub, idx) =>
       idx === selectedSubtractionIndex ? updatedSubtraction : sub
