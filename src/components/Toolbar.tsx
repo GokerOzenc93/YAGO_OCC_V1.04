@@ -517,18 +517,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         const subtractedGeometry = selectedShape.geometry.clone();
 
-        const geometryBox = new THREE.Box3().setFromBufferAttribute(
-          subtractedGeometry.attributes.position as THREE.BufferAttribute
-        );
-        const geometryCenter = new THREE.Vector3();
-        geometryBox.getCenter(geometryCenter);
-
-        subtractedGeometry.translate(-geometryCenter.x, -geometryCenter.y, -geometryCenter.z);
-
         const relativeOffset = [
-          selectedShape.position[0] - targetShape.position[0] + geometryCenter.x,
-          selectedShape.position[1] - targetShape.position[1] + geometryCenter.y,
-          selectedShape.position[2] - targetShape.position[2] + geometryCenter.z
+          selectedShape.position[0] - targetShape.position[0],
+          selectedShape.position[1] - targetShape.position[1],
+          selectedShape.position[2] - targetShape.position[2]
         ] as [number, number, number];
 
         const relativeRotation = [
@@ -543,7 +535,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           selectedShapeId: selectedShape.id,
           targetPosition: targetShape.position,
           selectedPosition: selectedShape.position,
-          geometryCenter: { x: geometryCenter.x, y: geometryCenter.y, z: geometryCenter.z },
           relativeOffset,
           relativeRotation,
           selectedScale: selectedShape.scale,
