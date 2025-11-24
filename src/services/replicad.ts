@@ -57,16 +57,22 @@ export const createReplicadBox = async (params: ReplicadBoxParams): Promise<any>
   });
 
   const { draw } = await import('replicad');
+
+  const halfW = width / 2;
+  const halfH = height / 2;
+  const halfD = depth / 2;
+
   const boxSketch = draw()
-    .movePointerTo([0, 0])
-    .lineTo([width, 0])
-    .lineTo([width, height])
-    .lineTo([0, height])
+    .movePointerTo([-halfW, -halfH])
+    .lineTo([halfW, -halfH])
+    .lineTo([halfW, halfH])
+    .lineTo([-halfW, halfH])
     .close()
     .sketchOnPlane()
-    .extrude(depth);
+    .extrude(depth)
+    .translate(0, 0, -halfD);
 
-  console.log('✅ Replicad box created with correct axis mapping');
+  console.log('✅ Replicad box created centered at origin');
   return boxSketch;
 };
 
