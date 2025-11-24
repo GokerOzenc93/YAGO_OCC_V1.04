@@ -85,6 +85,32 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         box.getSize(size);
         box.getCenter(center);
 
+        let initialPosX = subtraction.relativeOffset[0];
+        let initialPosY = subtraction.relativeOffset[1];
+        let initialPosZ = subtraction.relativeOffset[2];
+        
+        // --- Düzeltme: Yeni eklenen çıkarma geometrilerinin yanlış hizalanmasını düzeltme ---
+        const halfW = size.x / 2;
+        const halfH = size.y / 2;
+        const halfD = size.z / 2;
+        const tolerance = 0.01; // Kayan nokta güvenliği için tolerans
+
+        // Dış kodun (muhtemelen `addSubtraction` fonksiyonunun) offset'i
+        // yanlışlıkla [-W/2, -H/2, -D/2] olarak ayarladığı durumu tespit et
+        const isMisalignedDefault =
+            (Math.abs(initialPosX + halfW) < tolerance) &&
+            (Math.abs(initialPosY + halfH) < tolerance) &&
+            (Math.abs(initialPosZ + halfD) < tolerance);
+
+        if (isMisalignedDefault) {
+            console.log("🐛 Subtraction Initialization Bug Detected: Correcting UI offset to [0, 0, 0]. User must click Apply.");
+            // UI değerlerini 0'a ayarlıyoruz. Kullanıcının 'Uygula' butonuna basması gerekecek.
+            initialPosX = 0;
+            initialPosY = 0;
+            initialPosZ = 0;
+        }
+        // --- Düzeltme Sonu ---
+
         console.log('🔄 Updating subtraction UI values from geometry:', {
           index: selectedSubtractionIndex,
           size: { x: size.x, y: size.y, z: size.z },
@@ -97,9 +123,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         setSubWidth(Math.round(size.x * 100) / 100);
         setSubHeight(Math.round(size.y * 100) / 100);
         setSubDepth(Math.round(size.z * 100) / 100);
-        setSubPosX(Math.round(subtraction.relativeOffset[0] * 100) / 100);
-        setSubPosY(Math.round(subtraction.relativeOffset[1] * 100) / 100);
-        setSubPosZ(Math.round(subtraction.relativeOffset[2] * 100) / 100);
+        setSubPosX(Math.round(initialPosX * 100) / 100);
+        setSubPosY(Math.round(initialPosY * 100) / 100);
+        setSubPosZ(Math.round(initialPosZ * 100) / 100);
       }
     }
   }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length]);
@@ -288,7 +314,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       geometry: newSubGeometry,
       relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
       relativeRotation: currentSubtraction.relativeRotation || [0, 0, 0] as [number, number, number],
-      scale: [1, 1, 1] as [number, number, number]
+      scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
     };
 
     console.log('✏️ Updated subtraction:', {
@@ -347,7 +373,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         currentShape.rotation,
         absoluteRot,
         currentShape.scale,
-        [1, 1, 1] as [number, number, number]
+        subtraction.scale || [1, 1, 1] as [number, number, number]
       );
     }
 
@@ -563,6 +589,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         selectedShape.subtractionGeometries.length > 0;
 
       if (hasSubtractionChanges) {
+        // Subtraction changes are applied *after* dimension updates
         updateShape(selectedShape.id, {
           parameters: {
             ...selectedShape.parameters,
@@ -578,6 +605,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         });
 
         setTimeout(async () => {
+          // Bu, yeni boyutlar/offsetler ile tekrar mesh oluşturur
           await applySubtractionChanges();
         }, 50);
       } else {
