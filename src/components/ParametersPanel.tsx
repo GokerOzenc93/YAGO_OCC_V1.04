@@ -607,7 +607,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="number"
-                    value={subWidth.toFixed(2)}
+                    value={subWidth}
+                    step="0.01"
                     onChange={(e) => setSubWidth(Number(e.target.value))}
                     className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
@@ -634,7 +635,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="number"
-                    value={subHeight.toFixed(2)}
+                    value={subHeight}
+                    step="0.01"
                     onChange={(e) => setSubHeight(Number(e.target.value))}
                     className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
@@ -661,7 +663,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="number"
-                    value={subDepth.toFixed(2)}
+                    value={subDepth}
+                    step="0.01"
                     onChange={(e) => setSubDepth(Number(e.target.value))}
                     className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
@@ -688,7 +691,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="number"
-                    value={subPosX.toFixed(2)}
+                    value={subPosX}
+                    step="0.01"
                     onChange={(e) => setSubPosX(Number(e.target.value))}
                     className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
@@ -715,7 +719,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="number"
-                    value={subPosY.toFixed(2)}
+                    value={subPosY}
+                    step="0.01"
                     onChange={(e) => setSubPosY(Number(e.target.value))}
                     className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
@@ -742,7 +747,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="number"
-                    value={subPosZ.toFixed(2)}
+                    value={subPosZ}
+                    step="0.01"
                     onChange={(e) => setSubPosZ(Number(e.target.value))}
                     className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
