@@ -414,7 +414,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           customParameters,
           scaledBaseVertices: newBaseVertices.length > 0 ? newBaseVertices.map(v => [v.x, v.y, v.z]) : selectedShape.parameters.scaledBaseVertices
         },
-        vertexModifications: updatedVertexMods
+        vertexModifications: updatedVertexMods,
+        position: selectedShape.position,
+        rotation: selectedShape.rotation,
+        scale: selectedShape.scale
       };
 
       if (hasSubtractionChanges) {
