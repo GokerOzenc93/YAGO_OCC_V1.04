@@ -85,47 +85,21 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         box.getSize(size);
         box.getCenter(center);
 
-        let initialPosX = subtraction.relativeOffset[0];
-        let initialPosY = subtraction.relativeOffset[1];
-        let initialPosZ = subtraction.relativeOffset[2];
-        
-        // --- Düzeltme: Yeni eklenen çıkarma geometrilerinin yanlış hizalanmasını düzeltme ---
-        const halfW = size.x / 2;
-        const halfH = size.y / 2;
-        const halfD = size.z / 2;
-        const tolerance = 0.01; // Kayan nokta güvenliği için tolerans
+        const round = (n: number) => Math.round(n * 100) / 100;
 
-        // Dış kodun (muhtemelen `addSubtraction` fonksiyonunun) offset'i
-        // yanlışlıkla [-W/2, -H/2, -D/2] olarak ayarladığı durumu tespit et
-        const isMisalignedDefault =
-            (Math.abs(initialPosX + halfW) < tolerance) &&
-            (Math.abs(initialPosY + halfH) < tolerance) &&
-            (Math.abs(initialPosZ + halfD) < tolerance);
-
-        if (isMisalignedDefault) {
-            console.log("🐛 Subtraction Initialization Bug Detected: Correcting UI offset to [0, 0, 0]. User must click Apply.");
-            // UI değerlerini 0'a ayarlıyoruz. Kullanıcının 'Uygula' butonuna basması gerekecek.
-            initialPosX = 0;
-            initialPosY = 0;
-            initialPosZ = 0;
-        }
-        // --- Düzeltme Sonu ---
-
-        console.log('🔄 Updating subtraction UI values from geometry:', {
+        console.log('🔄 Updating subtraction UI from geometry:', {
           index: selectedSubtractionIndex,
           size: { x: size.x, y: size.y, z: size.z },
-          geometryCenter: { x: center.x, y: center.y, z: center.z },
-          relativeOffset: subtraction.relativeOffset,
-          min: { x: box.min.x, y: box.min.y, z: box.min.z },
-          max: { x: box.max.x, y: box.max.y, z: box.max.z }
+          center: { x: center.x, y: center.y, z: center.z },
+          offset: subtraction.relativeOffset
         });
 
-        setSubWidth(Math.round(size.x * 100) / 100);
-        setSubHeight(Math.round(size.y * 100) / 100);
-        setSubDepth(Math.round(size.z * 100) / 100);
-        setSubPosX(Math.round(initialPosX * 100) / 100);
-        setSubPosY(Math.round(initialPosY * 100) / 100);
-        setSubPosZ(Math.round(initialPosZ * 100) / 100);
+        setSubWidth(round(size.x));
+        setSubHeight(round(size.y));
+        setSubDepth(round(size.z));
+        setSubPosX(round(subtraction.relativeOffset[0]));
+        setSubPosY(round(subtraction.relativeOffset[1]));
+        setSubPosZ(round(subtraction.relativeOffset[2]));
       }
     }
   }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length]);
@@ -162,30 +136,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   }, [isDragging, dragOffset]);
 
-  const recalculateCustomParameters = (newWidth: number, newHeight: number, newDepth: number) => {
-    return customParameters.map((param) => {
-      let expr = param.expression
-        .replace(/\bW\b/g, newWidth.toString())
-        .replace(/\bH\b/g, newHeight.toString())
-        .replace(/\bD\b/g, newDepth.toString());
-
-      customParameters.forEach((p) => {
-        const regex = new RegExp(`\\b${p.name}\\b`, 'g');
-        expr = expr.replace(regex, p.result.toString());
-      });
-
-      try {
-        const sanitized = expr.replace(/[^0-9+\-*/().\s]/g, '');
-        const result = Function(`"use strict"; return (${sanitized})`)();
-        return {
-          ...param,
-          result: typeof result === 'number' && !isNaN(result) ? result : 0,
-        };
-      } catch {
-        return { ...param, result: 0 };
-      }
-    });
-  };
 
   const handleDimensionChange = (dimension: 'width' | 'height' | 'depth', value: number) => {
     if (!selectedShape) return;
@@ -198,7 +148,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setHeight(newHeight);
     setDepth(newDepth);
 
-    const updatedCustomParams = recalculateCustomParameters(newWidth, newHeight, newDepth);
+    const updatedCustomParams = customParameters.map((param) => ({
+      ...param,
+      result: evaluateExpression(param.expression.replace(/\bW\b/g, newWidth.toString()).replace(/\bH\b/g, newHeight.toString()).replace(/\bD\b/g, newDepth.toString()))
+    }));
     setCustomParameters(updatedCustomParams);
   };
 
@@ -224,7 +177,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   };
 
-  const evaluateExpression = (expression: string): number => {
+  const evaluateExpression = (expression: string, fallback: number = 0): number => {
     try {
       let expr = expression
         .replace(/\bW\b/g, width.toString())
@@ -238,31 +191,24 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       const sanitized = expr.replace(/[^0-9+\-*/().\s]/g, '');
       const result = Function(`"use strict"; return (${sanitized})`)();
-      return typeof result === 'number' && !isNaN(result) ? result : 0;
+      return typeof result === 'number' && !isNaN(result) ? result : fallback;
     } catch {
-      return 0;
+      return fallback;
     }
   };
 
   const updateCustomParameter = (id: string, field: keyof CustomParameter, value: string) => {
     const updatedParams = customParameters.map((param) => {
-      if (param.id === id) {
-        const updated = { ...param, [field]: value };
-        if (field === 'expression') {
-          updated.result = evaluateExpression(value);
-        }
-        return updated;
-      }
-      return param;
+      if (param.id !== id) return param;
+      const updated = { ...param, [field]: value };
+      if (field === 'expression') updated.result = evaluateExpression(value);
+      return updated;
     });
     setCustomParameters(updatedParams);
 
     if (selectedShape) {
       updateShape(selectedShape.id, {
-        parameters: {
-          ...selectedShape.parameters,
-          customParameters: updatedParams,
-        },
+        parameters: { ...selectedShape.parameters, customParameters: updatedParams }
       });
     }
   };
@@ -281,32 +227,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
     const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
-
-    const newGeometryBox = new THREE.Box3().setFromBufferAttribute(
-      newSubGeometry.attributes.position as THREE.BufferAttribute
-    );
-    const newGeometryCenter = new THREE.Vector3();
-    newGeometryBox.getCenter(newGeometryCenter);
-
-    console.log('🆕 New geometry info:', {
-      size: { w: subWidth, h: subHeight, d: subDepth },
-      center: { x: newGeometryCenter.x, y: newGeometryCenter.y, z: newGeometryCenter.z },
-      min: { x: newGeometryBox.min.x, y: newGeometryBox.min.y, z: newGeometryBox.min.z },
-      max: { x: newGeometryBox.max.x, y: newGeometryBox.max.y, z: newGeometryBox.max.z }
-    });
-
     const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];
 
-    const oldGeometryBox = new THREE.Box3().setFromBufferAttribute(
-      currentSubtraction.geometry.attributes.position as THREE.BufferAttribute
-    );
-    const oldGeometryCenter = new THREE.Vector3();
-    oldGeometryBox.getCenter(oldGeometryCenter);
-
-    console.log('📋 Current subtraction before update:', {
-      relativeOffset: currentSubtraction.relativeOffset,
-      relativeRotation: currentSubtraction.relativeRotation,
-      oldGeometryCenter: { x: oldGeometryCenter.x, y: oldGeometryCenter.y, z: oldGeometryCenter.z }
+    console.log('🔧 Updating subtraction:', {
+      size: { w: subWidth, h: subHeight, d: subDepth },
+      pos: { x: subPosX, y: subPosY, z: subPosZ }
     });
 
     const updatedSubtraction = {
@@ -317,17 +242,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
     };
 
-    console.log('✏️ Updated subtraction:', {
-      relativeOffset: updatedSubtraction.relativeOffset,
-      relativeRotation: updatedSubtraction.relativeRotation
-    });
-
     const allSubtractions = currentShape.subtractionGeometries.map((sub, idx) =>
       idx === selectedSubtractionIndex ? updatedSubtraction : sub
     );
 
-    console.log('📦 Recreating base shape and applying all subtractions...');
-    console.log(`🔄 Total subtractions to apply: ${allSubtractions.length}`);
+    console.log(`🔄 Applying ${allSubtractions.length} subtraction(s)...`);
 
     const baseShape = await createReplicadBox({
       width: currentShape.parameters.width || 1,
@@ -359,12 +278,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         currentShape.rotation[2] + subtraction.relativeRotation[2]
       ] as [number, number, number];
 
-      console.log(`✂️ Subtraction ${i + 1}/${allSubtractions.length}:`, {
-        size: subSize,
-        relativeOffset: subtraction.relativeOffset,
-        absolutePos
-      });
-
       resultShape = await performBooleanCut(
         resultShape,
         subBox,
@@ -380,13 +293,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const newGeometry = convertReplicadToThreeGeometry(resultShape);
     const newBaseVertices = await getReplicadVertices(resultShape);
 
-    console.log('✅ Subtraction complete, updating shape with new subtractions:', {
-      count: allSubtractions.length,
-      updated: {
-        size: { w: subWidth, h: subHeight, d: subDepth },
-        pos: { x: subPosX, y: subPosY, z: subPosZ }
-      }
-    });
+    console.log('✅ Subtraction complete');
 
     updateShape(currentShape.id, {
       geometry: newGeometry,
@@ -396,11 +303,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         ...currentShape.parameters,
         scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
       }
-    });
-
-    console.log('🎯 Shape updated, current UI values:', {
-      subWidth, subHeight, subDepth,
-      subPosX, subPosY, subPosZ
     });
   };
 
@@ -419,10 +321,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
     if (selectedShape) {
       updateShape(selectedShape.id, {
-        parameters: {
-          ...selectedShape.parameters,
-          customParameters: updatedParams,
-        },
+        parameters: { ...selectedShape.parameters, customParameters: updatedParams }
       });
     }
   };
@@ -430,29 +329,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const applyChanges = async () => {
     if (!selectedShape) return;
 
-    console.log('📐 Applying parameter changes...');
-    console.log('Shape type:', selectedShape.type);
-    console.log('New dimensions:', { width, height, depth });
-
-    const evaluateVertexExpression = (expr: string): number => {
-      try {
-        let evalExpr = expr
-          .replace(/\bW\b/g, width.toString())
-          .replace(/\bH\b/g, height.toString())
-          .replace(/\bD\b/g, depth.toString());
-
-        customParameters.forEach((p) => {
-          const regex = new RegExp(`\\b${p.name}\\b`, 'g');
-          evalExpr = evalExpr.replace(regex, p.result.toString());
-        });
-
-        const sanitized = evalExpr.replace(/[^0-9+\-*/().\s]/g, '');
-        const result = Function(`"use strict"; return (${sanitized})`)();
-        return typeof result === 'number' && !isNaN(result) ? result : 0;
-      } catch {
-        return 0;
-      }
-    };
+    console.log('📐 Applying parameter changes:', { width, height, depth });
 
     try {
       const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
@@ -469,41 +346,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       const dimensionsChanged = width !== currentWidth || height !== currentHeight || depth !== currentDepth;
 
-      console.log('📐 Dimension changes:', {
-        current: { w: currentWidth, h: currentHeight, d: currentDepth },
-        new: { w: width, h: height, d: depth },
-        scale: { x: scaleX, y: scaleY, z: scaleZ },
-        changed: dimensionsChanged
-      });
-
-      if (selectedShape.parameters.scaledBaseVertices && selectedShape.parameters.scaledBaseVertices.length > 0) {
-        console.log('🔍 Using existing scaled base vertices');
-        currentBaseVertices = selectedShape.parameters.scaledBaseVertices.map((v: number[]) =>
-          new THREE.Vector3(v[0], v[1], v[2])
-        );
-
-        if (dimensionsChanged) {
-          console.log('📏 Scaling base vertices from current by:', { scaleX, scaleY, scaleZ });
-          newBaseVertices = currentBaseVertices.map(v =>
-            new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
-          );
-        } else {
-          newBaseVertices = currentBaseVertices;
-        }
+      if (selectedShape.parameters.scaledBaseVertices?.length > 0) {
+        currentBaseVertices = selectedShape.parameters.scaledBaseVertices.map((v: number[]) => new THREE.Vector3(v[0], v[1], v[2]));
+        newBaseVertices = dimensionsChanged ? currentBaseVertices.map(v => new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)) : currentBaseVertices;
       } else if (selectedShape.replicadShape) {
-        console.log('🔍 Using replicadShape for initial base vertices');
         currentBaseVertices = await getReplicadVertices(selectedShape.replicadShape);
-
-        if (dimensionsChanged) {
-          console.log('📏 Scaling base vertices from replicad by:', { scaleX, scaleY, scaleZ });
-          newBaseVertices = currentBaseVertices.map(v =>
-            new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)
-          );
-        } else {
-          newBaseVertices = currentBaseVertices;
-        }
+        newBaseVertices = dimensionsChanged ? currentBaseVertices.map(v => new THREE.Vector3(v.x * scaleX, v.y * scaleY, v.z * scaleZ)) : currentBaseVertices;
       } else if (selectedShape.type === 'box') {
-        console.log('📦 Calculating base vertices from box parameters');
         newBaseVertices = getBoxVertices(width, height, depth);
         currentBaseVertices = getBoxVertices(currentWidth, currentHeight, currentDepth);
       }
@@ -519,12 +368,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           vertexFinalPositions.set(mod.vertexIndex, [...newOriginalPos] as [number, number, number]);
         }
 
-        const expression = mod.expression;
-        const offsetValue = evaluateVertexExpression(expression);
+        const offsetValue = evaluateExpression(mod.expression);
         const axisIndex = mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2;
-
-        const finalPos = vertexFinalPositions.get(mod.vertexIndex)!;
-        finalPos[axisIndex] = offsetValue;
+        vertexFinalPositions.get(mod.vertexIndex)![axisIndex] = offsetValue;
       });
 
       const updatedVertexMods = vertexModifications.map((mod: any) => {
@@ -532,36 +378,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           ? [newBaseVertices[mod.vertexIndex].x, newBaseVertices[mod.vertexIndex].y, newBaseVertices[mod.vertexIndex].z] as [number, number, number]
           : mod.originalPosition;
 
-        const expression = mod.expression;
-        const offsetValue = evaluateVertexExpression(expression);
         const axisIndex = mod.direction.startsWith('x') ? 0 : mod.direction.startsWith('y') ? 1 : 2;
-
         const finalPos = vertexFinalPositions.get(mod.vertexIndex)!;
-        const offsetAmount = finalPos[axisIndex] - newOriginalPos[axisIndex];
         const newOffset = [0, 0, 0] as [number, number, number];
-        newOffset[axisIndex] = offsetAmount;
-
-        const axisName = mod.direction.startsWith('x') ? 'X' : mod.direction.startsWith('y') ? 'Y' : 'Z';
-        const directionSymbol = mod.direction[1] === '+' ? '+' : '-';
-
-        console.log(`📍 Vertex ${mod.vertexIndex} dimension update:`, {
-          vertexIndex: mod.vertexIndex,
-          direction: mod.direction,
-          axis: axisName,
-          newBaseVertex: `[${newOriginalPos[0].toFixed(1)}, ${newOriginalPos[1].toFixed(1)}, ${newOriginalPos[2].toFixed(1)}]`,
-          expression,
-          offsetValue: offsetValue.toFixed(1),
-          offsetAmount: offsetAmount.toFixed(1),
-          finalPosition: `[${finalPos[0].toFixed(1)}, ${finalPos[1].toFixed(1)}, ${finalPos[2].toFixed(1)}]`,
-          explanation: `${axisName}${directionSymbol} → move to ${offsetValue} (offset: ${offsetAmount.toFixed(1)})`
-        });
+        newOffset[axisIndex] = finalPos[axisIndex] - newOriginalPos[axisIndex];
 
         return {
           ...mod,
           originalPosition: newOriginalPos,
           newPosition: finalPos,
           offset: newOffset,
-          expression
+          expression: mod.expression
         };
       });
 
@@ -576,68 +403,36 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         scaledGeometry.computeBoundingSphere();
       }
 
-      console.log('📝 Updating shape parameters and vertex modifications:', {
-        vertexModsCount: updatedVertexMods.length,
-        preservingGeometry: !!selectedShape.geometry,
-        preservingReplicadShape: !!selectedShape.replicadShape,
-        dimensionsChanged,
-        geometryScaled: dimensionsChanged
-      });
+      const hasSubtractionChanges = selectedSubtractionIndex !== null && selectedShape.subtractionGeometries?.length > 0;
 
-      const hasSubtractionChanges = selectedSubtractionIndex !== null &&
-        selectedShape.subtractionGeometries &&
-        selectedShape.subtractionGeometries.length > 0;
-
-      if (hasSubtractionChanges) {
-        // Subtraction changes are applied *after* dimension updates
-        updateShape(selectedShape.id, {
-          parameters: {
-            ...selectedShape.parameters,
-            width,
-            height,
-            depth,
-            customParameters,
-            scaledBaseVertices: newBaseVertices.length > 0 ?
-              newBaseVertices.map(v => [v.x, v.y, v.z]) :
-              (selectedShape.parameters.scaledBaseVertices || undefined)
-          },
-          vertexModifications: updatedVertexMods
-        });
-
-        setTimeout(async () => {
-          // Bu, yeni boyutlar/offsetler ile tekrar mesh oluşturur
-          await applySubtractionChanges();
-        }, 50);
-      } else {
-        updateShape(selectedShape.id, {
-          parameters: {
-            ...selectedShape.parameters,
-            width,
-            height,
-            depth,
-            customParameters,
-            scaledBaseVertices: newBaseVertices.length > 0 ?
-              newBaseVertices.map(v => [v.x, v.y, v.z]) :
-              (selectedShape.parameters.scaledBaseVertices || undefined)
-          },
-          vertexModifications: updatedVertexMods,
-          ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
-        });
-      }
-
-      console.log('✅ Parameters applied successfully - geometry' + (dimensionsChanged ? ' scaled' : ' preserved'));
-    } catch (error) {
-      console.error('❌ Failed to update parameters:', error);
-
-      updateShape(selectedShape.id, {
+      const baseUpdate = {
         parameters: {
           ...selectedShape.parameters,
           width,
           height,
           depth,
           customParameters,
+          scaledBaseVertices: newBaseVertices.length > 0 ? newBaseVertices.map(v => [v.x, v.y, v.z]) : selectedShape.parameters.scaledBaseVertices
         },
         vertexModifications: updatedVertexMods
+      };
+
+      if (hasSubtractionChanges) {
+        updateShape(selectedShape.id, baseUpdate);
+        setTimeout(() => applySubtractionChanges(), 50);
+      } else {
+        updateShape(selectedShape.id, {
+          ...baseUpdate,
+          ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
+        });
+      }
+
+      console.log('✅ Parameters applied');
+    } catch (error) {
+      console.error('❌ Failed to update parameters:', error);
+      updateShape(selectedShape.id, {
+        parameters: { ...selectedShape.parameters, width, height, depth, customParameters },
+        vertexModifications: []
       });
     }
   };
@@ -1017,28 +812,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                                        mod.direction.startsWith('y') ? mod.newPosition[1] :
                                        mod.newPosition[2];
 
-                  const evaluateVertexExpression = (expr: string): number => {
-                    try {
-                      let evalExpr = expr
-                        .replace(/\bW\b/g, width.toString())
-                        .replace(/\bH\b/g, height.toString())
-                        .replace(/\bD\b/g, depth.toString());
-
-                      customParameters.forEach((p) => {
-                        const regex = new RegExp(`\\b${p.name}\\b`, 'g');
-                        evalExpr = evalExpr.replace(regex, p.result.toString());
-                      });
-
-                      const sanitized = evalExpr.replace(/[^0-9+\-*/().\s]/g, '');
-                      const result = Function(`"use strict"; return (${sanitized})`)();
-                      return typeof result === 'number' && !isNaN(result) ? result : currentValue;
-                    } catch {
-                      return currentValue;
-                    }
-                  };
-
                   const expression = mod.expression || String(currentValue);
-                  const result = evaluateVertexExpression(expression);
+                  const result = evaluateExpression(expression, currentValue);
 
                   return (
                     <div key={idx} className="flex gap-1 items-center">
