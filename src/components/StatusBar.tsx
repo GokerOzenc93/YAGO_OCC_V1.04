@@ -15,16 +15,9 @@ const StatusBar: React.FC = () => {
           Selected: {selectedShape ? `${selectedShape.type} (${selectedShape.id.slice(0, 8)})` : 'None'}
         </span>
         {selectedShape && (
-          <>
-            <span className="text-stone-400">
-              Pos: [{selectedShape.position.map(v => v.toFixed(0)).join(', ')}] mm
-            </span>
-            {selectedShape.parameters && (
-              <span className="text-stone-400">
-                Size: {selectedShape.parameters.width || 0} × {selectedShape.parameters.height || 0} × {selectedShape.parameters.depth || selectedShape.parameters.radius || 0} mm
-              </span>
-            )}
-          </>
+          <span className="text-stone-400">
+            Pos: [{selectedShape.position.map(v => v.toFixed(0)).join(', ')}]
+          </span>
         )}
         {vertexEditMode && (
           <span className="text-blue-400">
