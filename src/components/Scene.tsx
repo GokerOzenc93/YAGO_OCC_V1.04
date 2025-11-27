@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls, Sphere } from '@react-three/drei';
 import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
@@ -229,6 +229,9 @@ const ShapeWithTransform: React.FC<{
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
+  const pivot = shape.pivot || [0, 0, 0];
+  const hasPivot = pivot[0] !== 0 || pivot[1] !== 0 || pivot[2] !== 0;
+
   if (shape.isolated === false) {
     return null;
   }
@@ -395,6 +398,30 @@ const ShapeWithTransform: React.FC<{
             </lineSegments>
           </>
         )}
+
+        {isSelected && hasPivot && (
+          <group position={pivot}>
+            <mesh>
+              <sphereGeometry args={[15, 16, 16]} />
+              <meshStandardMaterial
+                color="#10b981"
+                transparent
+                opacity={0.7}
+                emissive="#10b981"
+                emissiveIntensity={0.5}
+              />
+            </mesh>
+            <mesh>
+              <sphereGeometry args={[17, 16, 16]} />
+              <meshBasicMaterial
+                color="#10b981"
+                wireframe
+                transparent
+                opacity={0.3}
+              />
+            </mesh>
+          </group>
+        )}
       </group>
 
       {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
@@ -430,7 +457,8 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    subtractionViewMode
+    subtractionViewMode,
+    pivotEditMode
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -746,6 +774,28 @@ const Scene: React.FC = () => {
         <planeGeometry args={[100000, 100000]} />
         <meshStandardMaterial transparent opacity={0} />
       </mesh>
+
+      <group position={[0, 0, 0]}>
+        <mesh>
+          <sphereGeometry args={[8, 16, 16]} />
+          <meshStandardMaterial
+            color="#ef4444"
+            emissive="#ef4444"
+            emissiveIntensity={0.3}
+            transparent
+            opacity={0.6}
+          />
+        </mesh>
+        <mesh>
+          <sphereGeometry args={[10, 16, 16]} />
+          <meshBasicMaterial
+            color="#ef4444"
+            wireframe
+            transparent
+            opacity={0.2}
+          />
+        </mesh>
+      </group>
 
       <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
         <GizmoViewport
