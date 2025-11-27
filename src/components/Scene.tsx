@@ -265,13 +265,19 @@ const ShapeWithTransform: React.FC<{
             subtraction.geometry.attributes.position as THREE.BufferAttribute
           );
           const size = new THREE.Vector3();
+          const center = new THREE.Vector3();
           box.getSize(size);
+          box.getCenter(center);
 
-          const displayOffset = [
-            subtraction.relativeOffset[0] + size.x / 2,
-            subtraction.relativeOffset[1] + size.y / 2,
-            subtraction.relativeOffset[2] + size.z / 2
-          ] as [number, number, number];
+          const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
+
+          const displayOffset = isCentered
+            ? [
+                subtraction.relativeOffset[0] + size.x / 2,
+                subtraction.relativeOffset[1] + size.y / 2,
+                subtraction.relativeOffset[2] + size.z / 2
+              ] as [number, number, number]
+            : subtraction.relativeOffset;
 
           return (
             <group

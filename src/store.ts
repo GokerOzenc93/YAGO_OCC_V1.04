@@ -484,7 +484,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               relativeOffset,
               relativeRotation,
               shape2Scale: shape2.scale,
-              geometryVertices: subtractedGeometry.attributes.position.count
+              geometryVertices: subtractedGeometry.attributes.position.count,
+              note: 'relativeOffset is position difference (origin-based), Scene.tsx will add size/2 for THREE.BoxGeometry centering'
             });
 
             set((state) => ({
