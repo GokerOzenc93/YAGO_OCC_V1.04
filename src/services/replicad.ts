@@ -58,21 +58,16 @@ export const createReplicadBox = async (params: ReplicadBoxParams): Promise<any>
 
   const { draw } = await import('replicad');
 
-  const halfW = width / 2;
-  const halfH = height / 2;
-  const halfD = depth / 2;
-
   const boxSketch = draw()
-    .movePointerTo([-halfW, -halfH])
-    .lineTo([halfW, -halfH])
-    .lineTo([halfW, halfH])
-    .lineTo([-halfW, halfH])
+    .movePointerTo([0, 0])
+    .lineTo([width, 0])
+    .lineTo([width, height])
+    .lineTo([0, height])
     .close()
     .sketchOnPlane()
-    .extrude(depth)
-    .translate(0, 0, -halfD);
+    .extrude(depth);
 
-  console.log('✅ Replicad box created centered at origin');
+  console.log('✅ Replicad box created with origin at bottom-left-back corner');
   return boxSketch;
 };
 
@@ -85,9 +80,10 @@ export const createReplicadCylinder = async (params: ReplicadCylinderParams): Pr
   const { drawCircle } = await import('replicad');
   const cylinder = drawCircle(radius)
     .sketchOnPlane()
-    .extrude(height);
+    .extrude(height)
+    .translate(radius, radius, 0);
 
-  console.log('✅ Replicad cylinder created:', { radius, height });
+  console.log('✅ Replicad cylinder created with origin at bottom-left-back corner:', { radius, height });
   return cylinder;
 };
 
@@ -100,9 +96,10 @@ export const createReplicadSphere = async (params: ReplicadSphereParams): Promis
   const { drawCircle } = await import('replicad');
   const sphere = drawCircle(radius)
     .sketchOnPlane()
-    .revolve();
+    .revolve()
+    .translate(radius, radius, radius);
 
-  console.log('✅ Replicad sphere created:', { radius });
+  console.log('✅ Replicad sphere created with origin at bottom-left-back corner:', { radius });
   return sphere;
 };
 
