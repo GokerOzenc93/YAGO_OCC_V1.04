@@ -419,26 +419,15 @@ export const useAppStore = create<AppState>((set, get) => ({
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
 
-            console.log('🔪 Performing boolean cut with transformations:', {
-              shape1: { id: shape1.id, pos: shape1.position, rot: shape1.rotation, scale: shape1.scale },
-              shape2: { id: shape2.id, pos: shape2.position, rot: shape2.rotation, scale: shape2.scale }
-            });
-
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
-              shape2.replicadShape,
-              shape1.position,
-              shape2.position,
-              shape1.rotation,
-              shape2.rotation,
-              shape1.scale,
-              shape2.scale
+              shape2.replicadShape
             );
 
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
-            const baseSubGeometry = convertReplicadToThreeGeometry(shape2.replicadShape);
+            const subtractedGeometry = shape2.geometry.clone();
 
             const relativeOffset = [
               shape2.position[0] - shape1.position[0],
@@ -452,15 +441,14 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
 
-            console.log('🔍 Capturing subtracted geometry with transformations:', {
+            console.log('🔍 Capturing subtracted geometry:', {
               shape2Id: shape2.id,
               shape1Position: shape1.position,
               shape2Position: shape2.position,
               relativeOffset,
               relativeRotation,
               shape2Scale: shape2.scale,
-              baseGeometryVertices: baseSubGeometry.attributes.position.count,
-              note: 'Using base replicad shape for sub geometry, scale will be applied separately'
+              geometryVertices: subtractedGeometry.attributes.position.count
             });
 
             set((state) => ({
@@ -474,10 +462,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                     subtractionGeometries: [
                       ...existingSubtractions,
                       {
-                        geometry: baseSubGeometry,
+                        geometry: subtractedGeometry,
                         relativeOffset,
                         relativeRotation,
-                        scale: shape2.scale
+                        scale: [1, 1, 1] as [number, number, number]
                       }
                     ],
                     parameters: {
