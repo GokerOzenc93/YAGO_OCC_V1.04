@@ -321,13 +321,21 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
     firstVertex: modifiedVertices[0]
   });
 
-  const offsetX = -(shape.parameters?.width || 0) / 2;
-  const offsetY = -(shape.parameters?.height || 0) / 2;
-  const offsetZ = -(shape.parameters?.depth || 0) / 2;
+  const w = shape.parameters?.width || 0;
+  const h = shape.parameters?.height || 0;
+  const d = shape.parameters?.depth || 0;
+
+  const groupPosX = shape.position[0] + (w * shape.scale[0]) / 2;
+  const groupPosY = shape.position[1] + (h * shape.scale[1]) / 2;
+  const groupPosZ = shape.position[2] + (d * shape.scale[2]) / 2;
+
+  const offsetX = -w / 2;
+  const offsetY = -h / 2;
+  const offsetZ = -d / 2;
 
   return (
     <group
-      position={[shape.position[0], shape.position[1], shape.position[2]]}
+      position={[groupPosX, groupPosY, groupPosZ]}
       rotation={[shape.rotation[0], shape.rotation[1], shape.rotation[2]]}
       scale={[shape.scale[0], shape.scale[1], shape.scale[2]]}
     >
