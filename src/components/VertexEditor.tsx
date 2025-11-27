@@ -321,6 +321,10 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
     firstVertex: modifiedVertices[0]
   });
 
+  const offsetX = -(shape.parameters?.width || 0) / 2;
+  const offsetY = -(shape.parameters?.height || 0) / 2;
+  const offsetZ = -(shape.parameters?.depth || 0) / 2;
+
   return (
     <group
       position={[shape.position[0], shape.position[1], shape.position[2]]}
@@ -328,11 +332,16 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
       scale={[shape.scale[0], shape.scale[1], shape.scale[2]]}
     >
       {modifiedVertices.map((vertex, index) => {
-        console.log(`🔴 Rendering vertex ${index}:`, vertex);
+        const offsetVertex = new THREE.Vector3(
+          vertex.x + offsetX,
+          vertex.y + offsetY,
+          vertex.z + offsetZ
+        );
+        console.log(`🔴 Rendering vertex ${index}:`, offsetVertex);
         return (
           <VertexPoint
             key={index}
-            position={vertex}
+            position={offsetVertex}
             index={index}
             isHovered={hoveredIndex === index}
             isSelected={selectedIndex === index}
@@ -345,13 +354,21 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
       })}
       {showDirectionSelector && selectedIndex !== null && (
         <DirectionSelector
-          position={modifiedVertices[selectedIndex]}
+          position={new THREE.Vector3(
+            modifiedVertices[selectedIndex].x + offsetX,
+            modifiedVertices[selectedIndex].y + offsetY,
+            modifiedVertices[selectedIndex].z + offsetZ
+          )}
           onDirectionSelect={handleDirectionSelect}
         />
       )}
       {currentDirection && selectedIndex !== null && !showDirectionSelector && (
         <DirectionArrow
-          position={modifiedVertices[selectedIndex]}
+          position={new THREE.Vector3(
+            modifiedVertices[selectedIndex].x + offsetX,
+            modifiedVertices[selectedIndex].y + offsetY,
+            modifiedVertices[selectedIndex].z + offsetZ
+          )}
           direction={currentDirection}
         />
       )}

@@ -303,6 +303,11 @@ const ShapeWithTransform: React.FC<{
           <mesh
             ref={meshRef}
             geometry={localGeometry}
+            position={[
+              -(shape.parameters?.width || 0) / 2,
+              -(shape.parameters?.height || 0) / 2,
+              -(shape.parameters?.depth || 0) / 2
+            ]}
             castShadow
             receiveShadow
           >
@@ -332,6 +337,11 @@ const ShapeWithTransform: React.FC<{
             <mesh
               ref={meshRef}
               geometry={localGeometry}
+              position={[
+                -(shape.parameters?.width || 0) / 2,
+                -(shape.parameters?.height || 0) / 2,
+                -(shape.parameters?.depth || 0) / 2
+              ]}
               visible={false}
             />
             <lineSegments>
@@ -368,6 +378,11 @@ const ShapeWithTransform: React.FC<{
             <mesh
               ref={meshRef}
               geometry={localGeometry}
+              position={[
+                -(shape.parameters?.width || 0) / 2,
+                -(shape.parameters?.height || 0) / 2,
+                -(shape.parameters?.depth || 0) / 2
+              ]}
               castShadow
               receiveShadow
             >

@@ -50,7 +50,7 @@ export const createReplicadBox = async (params: ReplicadBoxParams): Promise<any>
   const oc = await initReplicad();
   const { width, height, depth } = params;
 
-  console.log('🔨 Creating box with replicad API...', {
+  console.log('🔨 Creating box with replicad API (origin at back-left-bottom corner)...', {
     width: `${width} (X axis)`,
     height: `${height} (Y axis)`,
     depth: `${depth} (Z axis)`
@@ -58,21 +58,16 @@ export const createReplicadBox = async (params: ReplicadBoxParams): Promise<any>
 
   const { draw } = await import('replicad');
 
-  const halfW = width / 2;
-  const halfH = height / 2;
-  const halfD = depth / 2;
-
   const boxSketch = draw()
-    .movePointerTo([-halfW, -halfH])
-    .lineTo([halfW, -halfH])
-    .lineTo([halfW, halfH])
-    .lineTo([-halfW, halfH])
+    .movePointerTo([0, 0])
+    .lineTo([width, 0])
+    .lineTo([width, height])
+    .lineTo([0, height])
     .close()
     .sketchOnPlane()
-    .extrude(depth)
-    .translate(0, 0, -halfD);
+    .extrude(depth);
 
-  console.log('✅ Replicad box created centered at origin');
+  console.log('✅ Replicad box created with origin at back-left-bottom corner (0,0,0)');
   return boxSketch;
 };
 
@@ -192,7 +187,7 @@ export const performBooleanCut = async (
 ): Promise<any> => {
   await initReplicad();
 
-  console.log('🔪 Performing boolean cut operation...');
+  console.log('🔪 Performing boolean cut operation (origin at back-left-bottom)...');
   console.log('Base shape:', baseShape, 'Position:', basePosition, 'Rotation:', baseRotation, 'Scale:', baseScale);
   console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Rotation:', cuttingRotation, 'Scale:', cuttingScale);
 
