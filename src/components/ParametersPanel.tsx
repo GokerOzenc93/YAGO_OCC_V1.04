@@ -85,18 +85,27 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         box.getSize(size);
         box.getCenter(center);
 
+        const scale = subtraction.scale || [1, 1, 1];
+        const scaledSize = new THREE.Vector3(
+          size.x * scale[0],
+          size.y * scale[1],
+          size.z * scale[2]
+        );
+
         const round = (n: number) => Math.round(n * 100) / 100;
 
         console.log('🔄 Updating subtraction UI from geometry:', {
           index: selectedSubtractionIndex,
-          size: { x: size.x, y: size.y, z: size.z },
+          baseSize: { x: size.x, y: size.y, z: size.z },
+          scale: { x: scale[0], y: scale[1], z: scale[2] },
+          scaledSize: { x: scaledSize.x, y: scaledSize.y, z: scaledSize.z },
           center: { x: center.x, y: center.y, z: center.z },
           offset: subtraction.relativeOffset
         });
 
-        setSubWidth(round(size.x));
-        setSubHeight(round(size.y));
-        setSubDepth(round(size.z));
+        setSubWidth(round(scaledSize.x));
+        setSubHeight(round(scaledSize.y));
+        setSubDepth(round(scaledSize.z));
         setSubPosX(round(subtraction.relativeOffset[0]));
         setSubPosY(round(subtraction.relativeOffset[1]));
         setSubPosZ(round(subtraction.relativeOffset[2]));
@@ -433,10 +442,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       if (hasSubtractionChanges) {
         console.log('🔄 Recalculating subtraction with updated dimensions...');
 
+        const currentSubtraction = selectedShape.subtractionGeometries![selectedSubtractionIndex];
         const updatedSubtraction = {
-          ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
+          ...currentSubtraction,
           geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
-          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number]
+          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
+          relativeRotation: currentSubtraction.relativeRotation || [0, 0, 0] as [number, number, number],
+          scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
         };
 
         const allSubtractions = selectedShape.subtractionGeometries!.map((sub, idx) =>

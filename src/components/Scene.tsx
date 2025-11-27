@@ -266,6 +266,7 @@ const ShapeWithTransform: React.FC<{
               key={`${shape.id}-subtraction-${index}`}
               position={subtraction.relativeOffset}
               rotation={subtraction.relativeRotation}
+              scale={subtraction.scale}
             >
               <mesh
                 geometry={subtraction.geometry}

@@ -419,9 +419,20 @@ export const useAppStore = create<AppState>((set, get) => ({
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
 
+            console.log('🔪 Performing boolean cut with transformations:', {
+              shape1: { id: shape1.id, pos: shape1.position, rot: shape1.rotation, scale: shape1.scale },
+              shape2: { id: shape2.id, pos: shape2.position, rot: shape2.rotation, scale: shape2.scale }
+            });
+
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
-              shape2.replicadShape
+              shape2.replicadShape,
+              shape1.position,
+              shape2.position,
+              shape1.rotation,
+              shape2.rotation,
+              shape1.scale,
+              shape2.scale
             );
 
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
@@ -441,7 +452,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
 
-            console.log('🔍 Capturing subtracted geometry:', {
+            console.log('🔍 Capturing subtracted geometry with transformations:', {
               shape2Id: shape2.id,
               shape1Position: shape1.position,
               shape2Position: shape2.position,
@@ -465,7 +476,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         geometry: subtractedGeometry,
                         relativeOffset,
                         relativeRotation,
-                        scale: [1, 1, 1] as [number, number, number]
+                        scale: shape2.scale
                       }
                     ],
                     parameters: {
