@@ -377,7 +377,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     try {
       const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
-      const w = 600, h = 600, d = 600;
+      const w = 100, h = 100, d = 100;
       const replicadShape = await createReplicadBox({ width: w, height: h, depth: d });
       const geometry = convertReplicadToThreeGeometry(replicadShape);
 
@@ -410,7 +410,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     try {
       const { createReplicadCylinder, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
-      const radius = 300, height = 600;
+      const radius = 50, height = 100;
       const replicadShape = await createReplicadCylinder({ radius, height });
       const geometry = convertReplicadToThreeGeometry(replicadShape);
 

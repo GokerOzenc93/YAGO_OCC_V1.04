@@ -250,9 +250,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     console.log(`🔄 Applying ${allSubtractions.length} subtraction(s)...`);
 
     const baseParamSize = [
-      currentShape.parameters.width || 1,
-      currentShape.parameters.height || 1,
-      currentShape.parameters.depth || 1
+      currentShape.parameters.width || 100,
+      currentShape.parameters.height || 100,
+      currentShape.parameters.depth || 100
     ] as [number, number, number];
 
     const baseActualSize = [
@@ -657,9 +657,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 />
                 <input
                   type="text"
-                  value={width}
+                  value={`${width} mm`}
                   readOnly
-                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                 />
                 <input
                   type="text"
@@ -684,9 +684,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 />
                 <input
                   type="text"
-                  value={height}
+                  value={`${height} mm`}
                   readOnly
-                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                 />
                 <input
                   type="text"
@@ -711,9 +711,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 />
                 <input
                   type="text"
-                  value={depth}
+                  value={`${depth} mm`}
                   readOnly
-                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                 />
                 <input
                   type="text"
@@ -746,9 +746,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value={subWidth.toFixed(2)}
+                    value={`${subWidth.toFixed(2)} mm`}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
@@ -774,9 +774,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value={subHeight.toFixed(2)}
+                    value={`${subHeight.toFixed(2)} mm`}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
@@ -802,9 +802,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value={subDepth.toFixed(2)}
+                    value={`${subDepth.toFixed(2)} mm`}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
@@ -830,9 +830,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value={subPosX.toFixed(2)}
+                    value={`${subPosX.toFixed(2)} mm`}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
@@ -858,9 +858,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value={subPosY.toFixed(2)}
+                    value={`${subPosY.toFixed(2)} mm`}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
@@ -886,9 +886,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   />
                   <input
                     type="text"
-                    value={subPosZ.toFixed(2)}
+                    value={`${subPosZ.toFixed(2)} mm`}
                     readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                    className="w-20 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
                   <input
                     type="text"
