@@ -1,67 +1,9 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
+import type { OpenCascadeInstance } from './vite-env';
+import { VertexModification } from './services/vertexEditor';
 
-export enum Tool {
-  SELECT = 'Select',
-  MOVE = 'Move',
-  ROTATE = 'Rotate',
-  SCALE = 'Scale',
-  POINT_TO_POINT_MOVE = 'PointToPointMove',
-  POLYLINE = 'Polyline',
-  POLYLINE_EDIT = 'PolylineEdit',
-  DIMENSION = 'Dimension',
-}
-
-export enum CameraType {
-  PERSPECTIVE = 'perspective',
-  ORTHOGRAPHIC = 'orthographic',
-}
-
-export enum ModificationType {
-  MIRROR = 'mirror',
-  ARRAY = 'array',
-  FILLET = 'fillet',
-  CHAMFER = 'chamfer',
-}
-
-export enum ViewMode {
-  SOLID = 'solid',
-  WIREFRAME = 'wireframe',
-  XRAY = 'xray',
-}
-
-export enum OrthoMode {
-  ON = 'on',
-  OFF = 'off',
-}
-
-export enum SnapType {
-  ENDPOINT = 'endpoint',
-  MIDPOINT = 'midpoint',
-  CENTER = 'center',
-  PERPENDICULAR = 'perpendicular',
-  INTERSECTION = 'intersection',
-  NEAREST = 'nearest',
-}
-
-interface PointToPointMoveState {
-  isActive: boolean;
-  selectedShapeId: string | null;
-  sourcePoint: [number, number, number] | null;
-  targetPoint: [number, number, number] | null;
-}
-
-interface VertexModification {
-  vertexIndex: number;
-  originalPosition: [number, number, number];
-  newPosition: [number, number, number];
-  direction: string;
-  expression: string;
-  description: string;
-  offset: [number, number, number];
-}
-
-interface SubtractionGeometry {
+export interface SubtractedGeometry {
   geometry: THREE.BufferGeometry;
   relativeOffset: [number, number, number];
   relativeRotation: [number, number, number];
@@ -71,266 +13,515 @@ interface SubtractionGeometry {
 export interface Shape {
   id: string;
   type: string;
-  geometry: THREE.BufferGeometry;
-  replicadShape?: any;
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
-  color: string;
-  parameters?: any;
+  geometry: THREE.BufferGeometry;
+  color?: string;
+  parameters: Record<string, any>;
+  ocShape?: any;
+  replicadShape?: any;
+  isolated?: boolean;
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
-  isolated?: boolean;
-  subtractionGeometries?: SubtractionGeometry[];
+  subtractionGeometries?: SubtractedGeometry[];
+}
+
+export enum CameraType {
+  PERSPECTIVE = 'perspective',
+  ORTHOGRAPHIC = 'orthographic'
+}
+
+export enum Tool {
+  SELECT = 'Select',
+  MOVE = 'Move',
+  ROTATE = 'Rotate',
+  SCALE = 'Scale',
+  POINT_TO_POINT_MOVE = 'Point to Point Move',
+  POLYLINE = 'Polyline',
+  POLYLINE_EDIT = 'Polyline Edit',
+  RECTANGLE = 'Rectangle',
+  CIRCLE = 'Circle',
+  DIMENSION = 'Dimension'
+}
+
+export enum ViewMode {
+  WIREFRAME = 'wireframe',
+  SOLID = 'solid',
+  XRAY = 'xray'
+}
+
+export enum ModificationType {
+  MIRROR = 'mirror',
+  ARRAY = 'array',
+  FILLET = 'fillet',
+  CHAMFER = 'chamfer'
+}
+
+export enum SnapType {
+  ENDPOINT = 'endpoint',
+  MIDPOINT = 'midpoint',
+  CENTER = 'center',
+  PERPENDICULAR = 'perpendicular',
+  INTERSECTION = 'intersection',
+  NEAREST = 'nearest'
+}
+
+export enum OrthoMode {
+  ON = 'on',
+  OFF = 'off'
 }
 
 interface AppState {
   shapes: Shape[];
-  selectedShapeId: string | null;
-  secondarySelectedShapeId: string | null;
-  activeTool: Tool;
-  lastTransformTool: Tool;
-  cameraType: CameraType;
-  viewMode: ViewMode;
-  orthoMode: OrthoMode;
-  snapSettings: Record<SnapType, boolean>;
-  opencascadeLoading: boolean;
-  opencascadeInstance: any;
-  pointToPointMoveState: PointToPointMoveState;
-  vertexEditMode: boolean;
-  selectedVertexIndex: number | null;
-  vertexDirection: string | null;
-  subtractionViewMode: boolean;
-  hoveredSubtractionIndex: number | null;
-  selectedSubtractionIndex: number | null;
-
   addShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
-  selectShape: (id: string | null) => void;
-  selectSecondaryShape: (id: string | null) => void;
-  setActiveTool: (tool: Tool) => void;
-  setLastTransformTool: (tool: Tool) => void;
-  setCameraType: (type: CameraType) => void;
-  setViewMode: (mode: ViewMode) => void;
-  cycleViewMode: () => void;
-  toggleOrthoMode: () => void;
-  toggleSnapSetting: (type: SnapType) => void;
-  modifyShape: (id: string, modification: any) => void;
-  extrudeShape: (id: string, height: number) => void;
-  setOpencascadeLoading: (loading: boolean) => void;
-  setOpencascadeInstance: (instance: any) => void;
   copyShape: (id: string) => void;
-  setPointToPointMoveState: (state: Partial<PointToPointMoveState>) => void;
-  enableAutoSnap: (tool: Tool) => void;
-  createGroup: (shapeId1: string, shapeId2: string) => void;
-  ungroupShapes: (groupId: string) => void;
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
-  setVertexEditMode: (mode: boolean) => void;
+  extrudeShape: (id: string, distance: number) => void;
+  checkAndPerformBooleanOperations: () => Promise<void>;
+
+  selectedShapeId: string | null;
+  selectShape: (id: string | null) => void;
+  secondarySelectedShapeId: string | null;
+  selectSecondaryShape: (id: string | null) => void;
+  createGroup: (primaryId: string, secondaryId: string) => void;
+  ungroupShapes: (groupId: string) => void;
+
+  activeTool: Tool;
+  setActiveTool: (tool: Tool) => void;
+  lastTransformTool: Tool;
+  setLastTransformTool: (tool: Tool) => void;
+
+  cameraType: CameraType;
+  setCameraType: (type: CameraType) => void;
+
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  cycleViewMode: () => void;
+
+  orthoMode: OrthoMode;
+  toggleOrthoMode: () => void;
+
+  snapSettings: Record<SnapType, boolean>;
+  toggleSnapSetting: (snapType: SnapType) => void;
+
+  modifyShape: (shapeId: string, modification: any) => void;
+
+  pointToPointMoveState: any;
+  setPointToPointMoveState: (state: any) => void;
+  enableAutoSnap: (tool: Tool) => void;
+
+  opencascadeInstance: OpenCascadeInstance | null;
+  opencascadeLoading: boolean;
+  setOpenCascadeInstance: (instance: OpenCascadeInstance | null) => void;
+  setOpenCascadeLoading: (loading: boolean) => void;
+
+  vertexEditMode: boolean;
+  setVertexEditMode: (enabled: boolean) => void;
+  selectedVertexIndex: number | null;
   setSelectedVertexIndex: (index: number | null) => void;
-  setVertexDirection: (direction: string | null) => void;
+  vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
+  setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
-  setSubtractionViewMode: (mode: boolean) => void;
-  setHoveredSubtractionIndex: (index: number | null) => void;
+
+  subtractionViewMode: boolean;
+  setSubtractionViewMode: (enabled: boolean) => void;
+  selectedSubtractionIndex: number | null;
   setSelectedSubtractionIndex: (index: number | null) => void;
+  hoveredSubtractionIndex: number | null;
+  setHoveredSubtractionIndex: (index: number | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   shapes: [],
+  addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
+  updateShape: (id, updates) =>
+    set((state) => {
+      const shape = state.shapes.find(s => s.id === id);
+      if (!shape) return state;
+
+      const updatedShapes = state.shapes.map((s) => {
+        if (s.id === id) {
+          return { ...s, ...updates };
+        }
+        if (shape.groupId && s.groupId === shape.groupId && s.id !== id) {
+          if ('position' in updates || 'rotation' in updates || 'scale' in updates) {
+            const positionDelta = updates.position ? [
+              updates.position[0] - shape.position[0],
+              updates.position[1] - shape.position[1],
+              updates.position[2] - shape.position[2]
+            ] : [0, 0, 0];
+            const rotationDelta = updates.rotation ? [
+              updates.rotation[0] - shape.rotation[0],
+              updates.rotation[1] - shape.rotation[1],
+              updates.rotation[2] - shape.rotation[2]
+            ] : [0, 0, 0];
+            const scaleDelta = updates.scale ? [
+              updates.scale[0] / shape.scale[0],
+              updates.scale[1] / shape.scale[1],
+              updates.scale[2] / shape.scale[2]
+            ] : [1, 1, 1];
+
+            return {
+              ...s,
+              position: [
+                s.position[0] + positionDelta[0],
+                s.position[1] + positionDelta[1],
+                s.position[2] + positionDelta[2]
+              ] as [number, number, number],
+              rotation: [
+                s.rotation[0] + rotationDelta[0],
+                s.rotation[1] + rotationDelta[1],
+                s.rotation[2] + rotationDelta[2]
+              ] as [number, number, number],
+              scale: [
+                s.scale[0] * scaleDelta[0],
+                s.scale[1] * scaleDelta[1],
+                s.scale[2] * scaleDelta[2]
+              ] as [number, number, number]
+            };
+          }
+        }
+        return s;
+      });
+
+      return { shapes: updatedShapes };
+    }),
+  deleteShape: (id) =>
+    set((state) => ({
+      shapes: state.shapes.filter((s) => s.id !== id),
+      selectedShapeId: state.selectedShapeId === id ? null : state.selectedShapeId
+    })),
+
+  copyShape: (id) => {
+    const state = get();
+    const shapeToCopy = state.shapes.find((s) => s.id === id);
+    if (shapeToCopy) {
+      const newShape = {
+        ...shapeToCopy,
+        id: `${shapeToCopy.type}-${Date.now()}`,
+        position: [
+          shapeToCopy.position[0] + 100,
+          shapeToCopy.position[1],
+          shapeToCopy.position[2] + 100
+        ] as [number, number, number]
+      };
+      set((state) => ({ shapes: [...state.shapes, newShape] }));
+    }
+  },
+
+  isolateShape: (id) =>
+    set((state) => ({
+      shapes: state.shapes.map((s) => ({
+        ...s,
+        isolated: s.id !== id ? false : undefined
+      }))
+    })),
+
+  exitIsolation: () =>
+    set((state) => ({
+      shapes: state.shapes.map((s) => ({ ...s, isolated: undefined }))
+    })),
+
+  extrudeShape: (id, distance) =>
+    set((state) => {
+      const shape = state.shapes.find((s) => s.id === id);
+      if (!shape) return state;
+
+      const { extrudeGeometry } = require('./services/csg');
+      const extrudedGeometry = extrudeGeometry(shape.geometry, distance);
+
+      return {
+        shapes: state.shapes.map((s) =>
+          s.id === id
+            ? { ...s, geometry: extrudedGeometry }
+            : s
+        )
+      };
+    }),
+
   selectedShapeId: null,
+  selectShape: (id) => {
+    const currentMode = get().activeTool;
+    if (id && currentMode === Tool.SELECT) {
+      console.log('🔄 Auto-switching to move mode on selection');
+      set({ selectedShapeId: id, activeTool: Tool.MOVE });
+    } else {
+      set({ selectedShapeId: id });
+    }
+  },
   secondarySelectedShapeId: null,
+  selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
+
+  createGroup: (primaryId, secondaryId) => {
+    const groupId = `group-${Date.now()}`;
+    set((state) => ({
+      shapes: state.shapes.map((s) => {
+        if (s.id === primaryId) {
+          return { ...s, groupId };
+        }
+        if (s.id === secondaryId) {
+          return { ...s, groupId, isReferenceBox: true };
+        }
+        return s;
+      })
+    }));
+    console.log('✅ Created group:', groupId, { primaryId, secondaryId });
+  },
+
+  ungroupShapes: (groupId) => {
+    set((state) => ({
+      shapes: state.shapes.map((s) => {
+        if (s.groupId === groupId) {
+          const { groupId: _, isReferenceBox: __, ...rest } = s;
+          return rest as Shape;
+        }
+        return s;
+      }),
+      selectedShapeId: null,
+      secondarySelectedShapeId: null
+    }));
+    console.log('✅ Ungrouped:', groupId);
+  },
+
   activeTool: Tool.SELECT,
-  lastTransformTool: Tool.MOVE,
+  setActiveTool: (tool) => set({ activeTool: tool }),
+
+  lastTransformTool: Tool.SELECT,
+  setLastTransformTool: (tool) => set({ lastTransformTool: tool }),
+
   cameraType: CameraType.PERSPECTIVE,
+  setCameraType: (type) => set({ cameraType: type }),
+
   viewMode: ViewMode.SOLID,
+  setViewMode: (mode) => set({ viewMode: mode }),
+  cycleViewMode: () => {
+    const state = get();
+    const modes = [ViewMode.SOLID, ViewMode.WIREFRAME, ViewMode.XRAY];
+    const currentIndex = modes.indexOf(state.viewMode);
+    const nextIndex = (currentIndex + 1) % modes.length;
+    set({ viewMode: modes[nextIndex] });
+  },
+
   orthoMode: OrthoMode.OFF,
+  toggleOrthoMode: () =>
+    set((state) => ({
+      orthoMode: state.orthoMode === OrthoMode.ON ? OrthoMode.OFF : OrthoMode.ON
+    })),
+
   snapSettings: {
     [SnapType.ENDPOINT]: false,
     [SnapType.MIDPOINT]: false,
     [SnapType.CENTER]: false,
     [SnapType.PERPENDICULAR]: false,
     [SnapType.INTERSECTION]: false,
-    [SnapType.NEAREST]: false,
+    [SnapType.NEAREST]: false
   },
-  opencascadeLoading: false,
-  opencascadeInstance: null,
-  pointToPointMoveState: {
-    isActive: false,
-    selectedShapeId: null,
-    sourcePoint: null,
-    targetPoint: null,
-  },
-  vertexEditMode: false,
-  selectedVertexIndex: null,
-  vertexDirection: null,
-  subtractionViewMode: false,
-  hoveredSubtractionIndex: null,
-  selectedSubtractionIndex: null,
-
-  addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
-
-  updateShape: (id, updates) =>
-    set((state) => ({
-      shapes: state.shapes.map((shape) =>
-        shape.id === id ? { ...shape, ...updates } : shape
-      ),
-    })),
-
-  deleteShape: (id) =>
-    set((state) => ({
-      shapes: state.shapes.filter((shape) => shape.id !== id),
-      selectedShapeId: state.selectedShapeId === id ? null : state.selectedShapeId,
-    })),
-
-  selectShape: (id) => set({ selectedShapeId: id }),
-
-  selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
-
-  setActiveTool: (tool) => set({ activeTool: tool }),
-
-  setLastTransformTool: (tool) => set({ lastTransformTool: tool }),
-
-  setCameraType: (type) => set({ cameraType: type }),
-
-  setViewMode: (mode) => set({ viewMode: mode }),
-
-  cycleViewMode: () =>
-    set((state) => {
-      const modes = [ViewMode.SOLID, ViewMode.WIREFRAME, ViewMode.XRAY];
-      const currentIndex = modes.indexOf(state.viewMode);
-      const nextIndex = (currentIndex + 1) % modes.length;
-      return { viewMode: modes[nextIndex] };
-    }),
-
-  toggleOrthoMode: () =>
-    set((state) => ({
-      orthoMode: state.orthoMode === OrthoMode.ON ? OrthoMode.OFF : OrthoMode.ON,
-    })),
-
-  toggleSnapSetting: (type) =>
+  toggleSnapSetting: (snapType) =>
     set((state) => ({
       snapSettings: {
         ...state.snapSettings,
-        [type]: !state.snapSettings[type],
-      },
+        [snapType]: !state.snapSettings[snapType]
+      }
     })),
 
-  modifyShape: (id, modification) => {
-    console.log('modifyShape called:', { id, modification });
+  modifyShape: (shapeId, modification) => {
+    console.log('Modify shape:', shapeId, modification);
   },
 
-  extrudeShape: (id, height) => {
-    console.log('extrudeShape called:', { id, height });
-  },
-
-  setOpencascadeLoading: (loading) => set({ opencascadeLoading: loading }),
-
-  setOpencascadeInstance: (instance) => set({ opencascadeInstance: instance }),
-
-  copyShape: (id) => {
-    const state = get();
-    const shape = state.shapes.find((s) => s.id === id);
-    if (shape) {
-      const newShape = {
-        ...shape,
-        id: `${shape.type}-${Date.now()}`,
-        position: [
-          shape.position[0] + 100,
-          shape.position[1],
-          shape.position[2] + 100,
-        ] as [number, number, number],
-      };
-      set((state) => ({ shapes: [...state.shapes, newShape] }));
-    }
-  },
-
-  setPointToPointMoveState: (state) =>
-    set((prevState) => ({
-      pointToPointMoveState: { ...prevState.pointToPointMoveState, ...state },
-    })),
+  pointToPointMoveState: null,
+  setPointToPointMoveState: (state) => set({ pointToPointMoveState: state }),
 
   enableAutoSnap: (tool) => {
-    if (tool === Tool.POINT_TO_POINT_MOVE) {
-      set({
-        snapSettings: {
-          [SnapType.ENDPOINT]: true,
-          [SnapType.MIDPOINT]: true,
-          [SnapType.CENTER]: true,
-          [SnapType.PERPENDICULAR]: false,
-          [SnapType.INTERSECTION]: true,
-          [SnapType.NEAREST]: false,
-        },
-      });
-    }
+    console.log('Enable auto snap for tool:', tool);
   },
 
-  createGroup: (shapeId1, shapeId2) => {
-    const groupId = `group-${Date.now()}`;
-    set((state) => ({
-      shapes: state.shapes.map((shape) =>
-        shape.id === shapeId1 || shape.id === shapeId2
-          ? { ...shape, groupId }
-          : shape
-      ),
-      secondarySelectedShapeId: null,
-    }));
-  },
+  opencascadeInstance: null,
+  opencascadeLoading: false,
+  setOpenCascadeInstance: (instance) => set({ opencascadeInstance: instance }),
+  setOpenCascadeLoading: (loading) => set({ opencascadeLoading: loading }),
 
-  ungroupShapes: (groupId) => {
-    set((state) => ({
-      shapes: state.shapes.map((shape) =>
-        shape.groupId === groupId ? { ...shape, groupId: undefined } : shape
-      ),
-    }));
-  },
-
-  isolateShape: (id) => {
-    set((state) => ({
-      shapes: state.shapes.map((shape) => ({
-        ...shape,
-        isolated: shape.id === id ? undefined : false,
-      })),
-    }));
-  },
-
-  exitIsolation: () => {
-    set((state) => ({
-      shapes: state.shapes.map((shape) => ({
-        ...shape,
-        isolated: undefined,
-      })),
-    }));
-  },
-
-  setVertexEditMode: (mode) => set({ vertexEditMode: mode }),
-
+  vertexEditMode: false,
+  setVertexEditMode: (enabled) => set({ vertexEditMode: enabled }),
+  selectedVertexIndex: null,
   setSelectedVertexIndex: (index) => set({ selectedVertexIndex: index }),
-
+  vertexDirection: null,
   setVertexDirection: (direction) => set({ vertexDirection: direction }),
-
-  addVertexModification: (shapeId, modification) => {
+  addVertexModification: (shapeId, modification) =>
     set((state) => ({
       shapes: state.shapes.map((shape) => {
-        if (shape.id === shapeId) {
-          const existingMods = shape.vertexModifications || [];
-          const filteredMods = existingMods.filter(
-            (mod) => mod.vertexIndex !== modification.vertexIndex
-          );
-          return {
-            ...shape,
-            vertexModifications: [...filteredMods, modification],
-          };
+        if (shape.id !== shapeId) return shape;
+
+        const existingMods = shape.vertexModifications || [];
+        const existingIndex = existingMods.findIndex(
+          m => m.vertexIndex === modification.vertexIndex && m.direction === modification.direction
+        );
+
+        let newMods;
+        if (existingIndex >= 0) {
+          newMods = [...existingMods];
+          newMods[existingIndex] = modification;
+        } else {
+          newMods = [...existingMods, modification];
         }
-        return shape;
-      }),
-    }));
-  },
 
-  setSubtractionViewMode: (mode) => set({ subtractionViewMode: mode }),
+        console.log(`🔧 Vertex modification added for shape ${shapeId}, triggering geometry update`);
 
+        return {
+          ...shape,
+          vertexModifications: newMods,
+          geometry: shape.geometry
+        };
+      })
+    })),
+
+  subtractionViewMode: false,
+  setSubtractionViewMode: (enabled) => set({ subtractionViewMode: enabled }),
+  selectedSubtractionIndex: null,
+  setSelectedSubtractionIndex: (index) => set({ selectedSubtractionIndex: index }),
+  hoveredSubtractionIndex: null,
   setHoveredSubtractionIndex: (index) => set({ hoveredSubtractionIndex: index }),
 
-  setSelectedSubtractionIndex: (index) => set({ selectedSubtractionIndex: index }),
+  checkAndPerformBooleanOperations: async () => {
+    const state = get();
+    const shapes = state.shapes;
+
+    if (shapes.length < 2) return;
+
+    console.log('🔍 Checking for intersecting shapes...');
+
+    for (let i = 0; i < shapes.length; i++) {
+      for (let j = i + 1; j < shapes.length; j++) {
+        const shape1 = shapes[i];
+        const shape2 = shapes[j];
+
+        if (!shape1.geometry || !shape2.geometry) continue;
+        if (!shape1.replicadShape || !shape2.replicadShape) continue;
+
+        const box1 = new THREE.Box3().setFromBufferAttribute(
+          shape1.geometry.getAttribute('position')
+        );
+        const box2 = new THREE.Box3().setFromBufferAttribute(
+          shape2.geometry.getAttribute('position')
+        );
+
+        box1.translate(new THREE.Vector3(...shape1.position));
+        box2.translate(new THREE.Vector3(...shape2.position));
+
+        if (box1.intersectsBox(box2)) {
+          console.log('💥 Collision detected between:', shape1.id, 'and', shape2.id);
+
+          try {
+            const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
+            const { getReplicadVertices } = await import('./services/vertexEditor');
+
+            const shape1Size = [
+              shape1.parameters?.width || 0,
+              shape1.parameters?.height || 0,
+              shape1.parameters?.depth || 0
+            ] as [number, number, number];
+
+            const shape2Size = [
+              shape2.parameters?.width || 0,
+              shape2.parameters?.height || 0,
+              shape2.parameters?.depth || 0
+            ] as [number, number, number];
+
+            const shape1Center = [
+              shape1.position[0] + (shape1Size[0] / 2),
+              shape1.position[1] + (shape1Size[1] / 2),
+              shape1.position[2] + (shape1Size[2] / 2)
+            ];
+
+            const shape2Center = [
+              shape2.position[0] + (shape2Size[0] / 2),
+              shape2.position[1] + (shape2Size[1] / 2),
+              shape2.position[2] + (shape2Size[2] / 2)
+            ];
+
+            const resultShape = await performBooleanCut(
+              shape1.replicadShape,
+              shape2.replicadShape,
+              shape1Center as [number, number, number],
+              shape2Center as [number, number, number],
+              shape1.rotation,
+              shape2.rotation,
+              shape1.scale,
+              shape2.scale,
+              shape1Size,
+              shape2Size
+            );
+
+            const newGeometry = convertReplicadToThreeGeometry(resultShape);
+            const newBaseVertices = await getReplicadVertices(resultShape);
+
+            const subtractedGeometry = shape2.geometry.clone();
+
+            const relativeOffset = [
+              shape2.position[0] - shape1.position[0],
+              shape2.position[1] - shape1.position[1],
+              shape2.position[2] - shape1.position[2]
+            ] as [number, number, number];
+
+            const relativeRotation = [
+              shape2.rotation[0] - shape1.rotation[0],
+              shape2.rotation[1] - shape1.rotation[1],
+              shape2.rotation[2] - shape1.rotation[2]
+            ] as [number, number, number];
+
+            console.log('🔍 Capturing subtracted geometry (origin: bottom-left-back):', {
+              shape2Id: shape2.id,
+              shape1Position: shape1.position,
+              shape2Position: shape2.position,
+              shape1Size,
+              shape2Size,
+              shape1Center,
+              shape2Center,
+              relativeOffset,
+              relativeRotation,
+              shape2Scale: shape2.scale,
+              geometryVertices: subtractedGeometry.attributes.position.count,
+              note: 'relativeOffset is position difference (origin-based), Scene.tsx will add size/2 for THREE.BoxGeometry centering'
+            });
+
+            set((state) => ({
+              shapes: state.shapes.map((s) => {
+                if (s.id === shape1.id) {
+                  const existingSubtractions = s.subtractionGeometries || [];
+                  return {
+                    ...s,
+                    geometry: newGeometry,
+                    replicadShape: resultShape,
+                    subtractionGeometries: [
+                      ...existingSubtractions,
+                      {
+                        geometry: subtractedGeometry,
+                        relativeOffset,
+                        relativeRotation,
+                        scale: [1, 1, 1] as [number, number, number]
+                      }
+                    ],
+                    parameters: {
+                      ...s.parameters,
+                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+                    }
+                  };
+                }
+                return s;
+              }).filter(s => s.id !== shape2.id)
+            }));
+
+            console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
+            return;
+          } catch (error) {
+            console.error('❌ Failed to perform boolean operation:', error);
+          }
+        }
+      }
+    }
+  }
 }));
