@@ -267,10 +267,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         depth: subSize.z
       });
 
-      const absolutePos = [
-        currentShape.position[0] + subtraction.relativeOffset[0],
-        currentShape.position[1] + subtraction.relativeOffset[1],
-        currentShape.position[2] + subtraction.relativeOffset[2]
+      const baseSize = [
+        currentShape.parameters.width || 1,
+        currentShape.parameters.height || 1,
+        currentShape.parameters.depth || 1
+      ] as [number, number, number];
+
+      const baseCenterOffset = [
+        currentShape.position[0] + baseSize[0] / 2,
+        currentShape.position[1] + baseSize[1] / 2,
+        currentShape.position[2] + baseSize[2] / 2
+      ] as [number, number, number];
+
+      const subCenterOffset = [
+        currentShape.position[0] + subtraction.relativeOffset[0] + subSize.x / 2,
+        currentShape.position[1] + subtraction.relativeOffset[1] + subSize.y / 2,
+        currentShape.position[2] + subtraction.relativeOffset[2] + subSize.z / 2
       ] as [number, number, number];
 
       const absoluteRot = [
@@ -282,12 +294,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       resultShape = await performBooleanCut(
         resultShape,
         subBox,
-        currentShape.position,
-        absolutePos,
+        baseCenterOffset,
+        subCenterOffset,
         currentShape.rotation,
         absoluteRot,
         currentShape.scale,
-        subtraction.scale || [1, 1, 1] as [number, number, number]
+        subtraction.scale || [1, 1, 1] as [number, number, number],
+        baseSize,
+        [subSize.x, subSize.y, subSize.z] as [number, number, number]
       );
     }
 

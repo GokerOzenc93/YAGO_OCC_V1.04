@@ -261,10 +261,22 @@ const ShapeWithTransform: React.FC<{
 
           const edgesGeometry = new THREE.EdgesGeometry(subtraction.geometry, 30);
 
+          const box = new THREE.Box3().setFromBufferAttribute(
+            subtraction.geometry.attributes.position as THREE.BufferAttribute
+          );
+          const size = new THREE.Vector3();
+          box.getSize(size);
+
+          const displayOffset = [
+            subtraction.relativeOffset[0] + size.x / 2,
+            subtraction.relativeOffset[1] + size.y / 2,
+            subtraction.relativeOffset[2] + size.z / 2
+          ] as [number, number, number];
+
           return (
             <group
               key={`${shape.id}-subtraction-${index}`}
-              position={subtraction.relativeOffset}
+              position={displayOffset}
               rotation={subtraction.relativeRotation}
             >
               <mesh
