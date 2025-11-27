@@ -395,9 +395,26 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPivotEditMode: (enabled) => set({ pivotEditMode: enabled }),
   updateShapePivot: (id, pivot) =>
     set((state) => ({
-      shapes: state.shapes.map((s) =>
-        s.id === id ? { ...s, pivot } : s
-      )
+      shapes: state.shapes.map((s) => {
+        if (s.id !== id) return s;
+
+        const oldPivot = s.pivot || [0, 0, 0];
+        const pivotDelta = [
+          pivot[0] - oldPivot[0],
+          pivot[1] - oldPivot[1],
+          pivot[2] - oldPivot[2]
+        ];
+
+        return {
+          ...s,
+          pivot,
+          position: [
+            s.position[0] - pivotDelta[0],
+            s.position[1] - pivotDelta[1],
+            s.position[2] - pivotDelta[2]
+          ] as [number, number, number]
+        };
+      })
     })),
 
   checkAndPerformBooleanOperations: async () => {

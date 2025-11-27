@@ -36,6 +36,7 @@ const ShapeWithTransform: React.FC<{
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const pivotGroupRef = useRef<THREE.Group>(null);
   const isUpdatingRef = useRef(false);
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
@@ -157,27 +158,28 @@ const ShapeWithTransform: React.FC<{
   }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
 
   useEffect(() => {
-    if (!groupRef.current || isUpdatingRef.current) return;
+    if (!pivotGroupRef.current || isUpdatingRef.current) return;
 
-    groupRef.current.position.set(
-      shape.position[0],
-      shape.position[1],
-      shape.position[2]
+    const pivot = shape.pivot || [0, 0, 0];
+    pivotGroupRef.current.position.set(
+      shape.position[0] + pivot[0],
+      shape.position[1] + pivot[1],
+      shape.position[2] + pivot[2]
     );
-    groupRef.current.rotation.set(
+    pivotGroupRef.current.rotation.set(
       shape.rotation[0],
       shape.rotation[1],
       shape.rotation[2]
     );
-    groupRef.current.scale.set(
+    pivotGroupRef.current.scale.set(
       shape.scale[0],
       shape.scale[1],
       shape.scale[2]
     );
-  }, [shape.position, shape.rotation, shape.scale]);
+  }, [shape.position, shape.rotation, shape.scale, shape.pivot]);
 
   useEffect(() => {
-    if (transformRef.current && isSelected && groupRef.current) {
+    if (transformRef.current && isSelected && pivotGroupRef.current) {
       const controls = transformRef.current;
 
       const onDraggingChanged = (event: any) => {
@@ -187,12 +189,19 @@ const ShapeWithTransform: React.FC<{
       };
 
       const onChange = () => {
-        if (groupRef.current) {
+        if (pivotGroupRef.current) {
           isUpdatingRef.current = true;
+          const pivot = shape.pivot || [0, 0, 0];
+          const pivotPos = pivotGroupRef.current.position.toArray();
+
           updateShape(shape.id, {
-            position: groupRef.current.position.toArray() as [number, number, number],
-            rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
-            scale: groupRef.current.scale.toArray() as [number, number, number]
+            position: [
+              pivotPos[0] - pivot[0],
+              pivotPos[1] - pivot[1],
+              pivotPos[2] - pivot[2]
+            ] as [number, number, number],
+            rotation: pivotGroupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
+            scale: pivotGroupRef.current.scale.toArray() as [number, number, number]
           });
           setTimeout(() => {
             isUpdatingRef.current = false;
@@ -239,26 +248,34 @@ const ShapeWithTransform: React.FC<{
   return (
     <>
       <group
-        ref={groupRef}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
-            if (shape.id === secondarySelectedShapeId) {
-              selectSecondaryShape(null);
-            } else {
-              selectSecondaryShape(shape.id);
-            }
-          } else {
-            selectShape(shape.id);
-            selectSecondaryShape(null);
-          }
-        }}
-        onContextMenu={(e) => {
-          e.stopPropagation();
-          onContextMenu(e, shape.id);
-        }}
+        ref={pivotGroupRef}
+        position={[
+          shape.position[0] + pivot[0],
+          shape.position[1] + pivot[1],
+          shape.position[2] + pivot[2]
+        ]}
       >
-        <group position={[-pivot[0], -pivot[1], -pivot[2]]}>
+        <group
+          ref={groupRef}
+          position={[-pivot[0], -pivot[1], -pivot[2]]}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
+              if (shape.id === secondarySelectedShapeId) {
+                selectSecondaryShape(null);
+              } else {
+                selectSecondaryShape(shape.id);
+              }
+            } else {
+              selectShape(shape.id);
+              selectSecondaryShape(null);
+            }
+          }}
+          onContextMenu={(e) => {
+            e.stopPropagation();
+            onContextMenu(e, shape.id);
+          }}
+        >
         {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
           const isHovered = hoveredSubtractionIndex === index && isSelected;
           const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
@@ -401,7 +418,7 @@ const ShapeWithTransform: React.FC<{
         )}
         </group>
 
-        {isSelected && hasPivot && (
+        {isSelected && (
           <group position={[0, 0, 0]}>
             <mesh>
               <sphereGeometry args={[15, 16, 16]} />
@@ -426,11 +443,11 @@ const ShapeWithTransform: React.FC<{
         )}
       </group>
 
-      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
+      {isSelected && activeTool !== Tool.SELECT && pivotGroupRef.current && !shape.isReferenceBox && (
         <TransformControls
           key={geometryKey}
           ref={transformRef}
-          object={groupRef.current}
+          object={pivotGroupRef.current}
           mode={getTransformMode()}
           size={0.8}
         />
