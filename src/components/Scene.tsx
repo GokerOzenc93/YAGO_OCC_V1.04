@@ -258,6 +258,7 @@ const ShapeWithTransform: React.FC<{
           onContextMenu(e, shape.id);
         }}
       >
+        <group position={[-pivot[0], -pivot[1], -pivot[2]]}>
         {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
           const isHovered = hoveredSubtractionIndex === index && isSelected;
           const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
@@ -398,9 +399,10 @@ const ShapeWithTransform: React.FC<{
             </lineSegments>
           </>
         )}
+        </group>
 
         {isSelected && hasPivot && (
-          <group position={pivot}>
+          <group position={[0, 0, 0]}>
             <mesh>
               <sphereGeometry args={[15, 16, 16]} />
               <meshStandardMaterial

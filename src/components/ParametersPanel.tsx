@@ -549,6 +549,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           >
             VERTEX
           </button>
+          <button
+            onClick={() => setPivotEditMode(!pivotEditMode)}
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+              pivotEditMode
+                ? 'bg-green-600 text-white'
+                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+            }`}
+            title="Edit Pivot Point"
+          >
+            PIVOT
+          </button>
           {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.length > 0 && (
             <button
               onClick={() => {
@@ -571,17 +582,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               SUB ({selectedShape.subtractionGeometries.length})
             </button>
           )}
-          <button
-            onClick={() => setPivotEditMode(!pivotEditMode)}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
-              pivotEditMode
-                ? 'bg-green-600 text-white'
-                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-            }`}
-            title="Edit Pivot Point"
-          >
-            PIVOT
-          </button>
           <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
