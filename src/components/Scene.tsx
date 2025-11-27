@@ -159,14 +159,10 @@ const ShapeWithTransform: React.FC<{
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
 
-    const w = shape.parameters?.width || 0;
-    const h = shape.parameters?.height || 0;
-    const d = shape.parameters?.depth || 0;
-
     groupRef.current.position.set(
-      shape.position[0] + (w * shape.scale[0]) / 2,
-      shape.position[1] + (h * shape.scale[1]) / 2,
-      shape.position[2] + (d * shape.scale[2]) / 2
+      shape.position[0],
+      shape.position[1],
+      shape.position[2]
     );
     groupRef.current.rotation.set(
       shape.rotation[0],
@@ -178,7 +174,7 @@ const ShapeWithTransform: React.FC<{
       shape.scale[1],
       shape.scale[2]
     );
-  }, [shape.position, shape.rotation, shape.scale, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
+  }, [shape.position, shape.rotation, shape.scale]);
 
   useEffect(() => {
     if (transformRef.current && isSelected && groupRef.current) {
@@ -193,22 +189,10 @@ const ShapeWithTransform: React.FC<{
       const onChange = () => {
         if (groupRef.current) {
           isUpdatingRef.current = true;
-
-          const w = shape.parameters?.width || 0;
-          const h = shape.parameters?.height || 0;
-          const d = shape.parameters?.depth || 0;
-          const currentScale = groupRef.current.scale.toArray() as [number, number, number];
-
-          const backLeftBottomPos = [
-            groupRef.current.position.x - (w * currentScale[0]) / 2,
-            groupRef.current.position.y - (h * currentScale[1]) / 2,
-            groupRef.current.position.z - (d * currentScale[2]) / 2
-          ] as [number, number, number];
-
           updateShape(shape.id, {
-            position: backLeftBottomPos,
+            position: groupRef.current.position.toArray() as [number, number, number],
             rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
-            scale: currentScale
+            scale: groupRef.current.scale.toArray() as [number, number, number]
           });
           setTimeout(() => {
             isUpdatingRef.current = false;
@@ -319,11 +303,6 @@ const ShapeWithTransform: React.FC<{
           <mesh
             ref={meshRef}
             geometry={localGeometry}
-            position={[
-              -(shape.parameters?.width || 0) / 2,
-              -(shape.parameters?.height || 0) / 2,
-              -(shape.parameters?.depth || 0) / 2
-            ]}
             castShadow
             receiveShadow
           >
@@ -353,11 +332,6 @@ const ShapeWithTransform: React.FC<{
             <mesh
               ref={meshRef}
               geometry={localGeometry}
-              position={[
-                -(shape.parameters?.width || 0) / 2,
-                -(shape.parameters?.height || 0) / 2,
-                -(shape.parameters?.depth || 0) / 2
-              ]}
               visible={false}
             />
             <lineSegments>
@@ -394,11 +368,6 @@ const ShapeWithTransform: React.FC<{
             <mesh
               ref={meshRef}
               geometry={localGeometry}
-              position={[
-                -(shape.parameters?.width || 0) / 2,
-                -(shape.parameters?.height || 0) / 2,
-                -(shape.parameters?.depth || 0) / 2
-              ]}
               castShadow
               receiveShadow
             >

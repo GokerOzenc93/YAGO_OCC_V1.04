@@ -26,15 +26,19 @@ export interface VertexState {
 }
 
 export function getBoxVertices(width: number, height: number, depth: number): THREE.Vector3[] {
+  const w2 = width / 2;
+  const h2 = height / 2;
+  const d2 = depth / 2;
+
   return [
-    new THREE.Vector3(0, 0, 0),
-    new THREE.Vector3(width, 0, 0),
-    new THREE.Vector3(width, height, 0),
-    new THREE.Vector3(0, height, 0),
-    new THREE.Vector3(0, 0, depth),
-    new THREE.Vector3(width, 0, depth),
-    new THREE.Vector3(width, height, depth),
-    new THREE.Vector3(0, height, depth),
+    new THREE.Vector3(-w2, -h2, -d2),
+    new THREE.Vector3(w2, -h2, -d2),
+    new THREE.Vector3(w2, h2, -d2),
+    new THREE.Vector3(-w2, h2, -d2),
+    new THREE.Vector3(-w2, -h2, d2),
+    new THREE.Vector3(w2, -h2, d2),
+    new THREE.Vector3(w2, h2, d2),
+    new THREE.Vector3(-w2, h2, d2),
   ];
 }
 

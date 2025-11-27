@@ -321,35 +321,18 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
     firstVertex: modifiedVertices[0]
   });
 
-  const w = shape.parameters?.width || 0;
-  const h = shape.parameters?.height || 0;
-  const d = shape.parameters?.depth || 0;
-
-  const groupPosX = shape.position[0] + (w * shape.scale[0]) / 2;
-  const groupPosY = shape.position[1] + (h * shape.scale[1]) / 2;
-  const groupPosZ = shape.position[2] + (d * shape.scale[2]) / 2;
-
-  const offsetX = -w / 2;
-  const offsetY = -h / 2;
-  const offsetZ = -d / 2;
-
   return (
     <group
-      position={[groupPosX, groupPosY, groupPosZ]}
+      position={[shape.position[0], shape.position[1], shape.position[2]]}
       rotation={[shape.rotation[0], shape.rotation[1], shape.rotation[2]]}
       scale={[shape.scale[0], shape.scale[1], shape.scale[2]]}
     >
       {modifiedVertices.map((vertex, index) => {
-        const offsetVertex = new THREE.Vector3(
-          vertex.x + offsetX,
-          vertex.y + offsetY,
-          vertex.z + offsetZ
-        );
-        console.log(`🔴 Rendering vertex ${index}:`, offsetVertex);
+        console.log(`🔴 Rendering vertex ${index}:`, vertex);
         return (
           <VertexPoint
             key={index}
-            position={offsetVertex}
+            position={vertex}
             index={index}
             isHovered={hoveredIndex === index}
             isSelected={selectedIndex === index}
@@ -362,21 +345,13 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
       })}
       {showDirectionSelector && selectedIndex !== null && (
         <DirectionSelector
-          position={new THREE.Vector3(
-            modifiedVertices[selectedIndex].x + offsetX,
-            modifiedVertices[selectedIndex].y + offsetY,
-            modifiedVertices[selectedIndex].z + offsetZ
-          )}
+          position={modifiedVertices[selectedIndex]}
           onDirectionSelect={handleDirectionSelect}
         />
       )}
       {currentDirection && selectedIndex !== null && !showDirectionSelector && (
         <DirectionArrow
-          position={new THREE.Vector3(
-            modifiedVertices[selectedIndex].x + offsetX,
-            modifiedVertices[selectedIndex].y + offsetY,
-            modifiedVertices[selectedIndex].z + offsetZ
-          )}
+          position={modifiedVertices[selectedIndex]}
           direction={currentDirection}
         />
       )}
