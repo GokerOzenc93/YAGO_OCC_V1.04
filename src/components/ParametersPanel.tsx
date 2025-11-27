@@ -113,6 +113,52 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length]);
 
+  useEffect(() => {
+    if (!selectedShape || selectedSubtractionIndex === null || !selectedShape.subtractionGeometries) return;
+
+    const currentSubtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
+    if (!currentSubtraction) return;
+
+    const scale = currentSubtraction.scale || [1, 1, 1];
+    const baseWidth = subWidth / scale[0];
+    const baseHeight = subHeight / scale[1];
+    const baseDepth = subDepth / scale[2];
+
+    const existingBox = new THREE.Box3().setFromBufferAttribute(
+      currentSubtraction.geometry.attributes.position as THREE.BufferAttribute
+    );
+    const existingSize = new THREE.Vector3();
+    existingBox.getSize(existingSize);
+
+    const sizeChanged = Math.abs(existingSize.x - baseWidth) > 0.001 ||
+                        Math.abs(existingSize.y - baseHeight) > 0.001 ||
+                        Math.abs(existingSize.z - baseDepth) > 0.001;
+
+    const posChanged = Math.abs(currentSubtraction.relativeOffset[0] - subPosX) > 0.001 ||
+                       Math.abs(currentSubtraction.relativeOffset[1] - subPosY) > 0.001 ||
+                       Math.abs(currentSubtraction.relativeOffset[2] - subPosZ) > 0.001;
+
+    if (!sizeChanged && !posChanged) return;
+
+    const newGeometry = new THREE.BoxGeometry(baseWidth, baseHeight, baseDepth);
+
+    const updatedSubtraction = {
+      ...currentSubtraction,
+      geometry: newGeometry,
+      relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number]
+    };
+
+    const allSubtractions = selectedShape.subtractionGeometries.map((sub, idx) =>
+      idx === selectedSubtractionIndex ? updatedSubtraction : sub
+    );
+
+    console.log('🔄 Live preview: updating subtraction geometry (visual only, CSG not recalculated)');
+
+    updateShape(selectedShape.id, {
+      subtractionGeometries: allSubtractions
+    });
+  }, [subWidth, subHeight, subDepth, subPosX, subPosY, subPosZ, selectedSubtractionIndex]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setDragOffset({
