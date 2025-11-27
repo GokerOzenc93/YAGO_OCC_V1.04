@@ -26,7 +26,6 @@ export interface Shape {
   groupId?: string;
   isReferenceBox?: boolean;
   subtractionGeometries?: SubtractedGeometry[];
-  pivot?: [number, number, number];
 }
 
 export enum CameraType {
@@ -135,10 +134,6 @@ interface AppState {
   setSelectedSubtractionIndex: (index: number | null) => void;
   hoveredSubtractionIndex: number | null;
   setHoveredSubtractionIndex: (index: number | null) => void;
-
-  pivotEditMode: boolean;
-  setPivotEditMode: (enabled: boolean) => void;
-  updateShapePivot: (id: string, pivot: [number, number, number]) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -390,32 +385,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedSubtractionIndex: (index) => set({ selectedSubtractionIndex: index }),
   hoveredSubtractionIndex: null,
   setHoveredSubtractionIndex: (index) => set({ hoveredSubtractionIndex: index }),
-
-  pivotEditMode: false,
-  setPivotEditMode: (enabled) => set({ pivotEditMode: enabled }),
-  updateShapePivot: (id, pivot) =>
-    set((state) => ({
-      shapes: state.shapes.map((s) => {
-        if (s.id !== id) return s;
-
-        const oldPivot = s.pivot || [0, 0, 0];
-        const pivotDelta = [
-          pivot[0] - oldPivot[0],
-          pivot[1] - oldPivot[1],
-          pivot[2] - oldPivot[2]
-        ];
-
-        return {
-          ...s,
-          pivot,
-          position: [
-            s.position[0] - pivotDelta[0],
-            s.position[1] - pivotDelta[1],
-            s.position[2] - pivotDelta[2]
-          ] as [number, number, number]
-        };
-      })
-    })),
 
   checkAndPerformBooleanOperations: async () => {
     const state = get();

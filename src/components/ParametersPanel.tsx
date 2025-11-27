@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Check } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
-import { PivotManager } from './PivotManager';
 
 interface CustomParameter {
   id: string;
@@ -27,9 +26,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     subtractionViewMode,
     setSubtractionViewMode,
     selectedSubtractionIndex,
-    setSelectedSubtractionIndex,
-    pivotEditMode,
-    setPivotEditMode
+    setSelectedSubtractionIndex
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -549,17 +546,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           >
             VERTEX
           </button>
-          <button
-            onClick={() => setPivotEditMode(!pivotEditMode)}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
-              pivotEditMode
-                ? 'bg-green-600 text-white'
-                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-            }`}
-            title="Edit Pivot Point"
-          >
-            PIVOT
-          </button>
           {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.length > 0 && (
             <button
               onClick={() => {
@@ -859,8 +845,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 </div>
               </div>
             )}
-
-            <PivotManager shape={selectedShape} />
 
             {customParameters.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">

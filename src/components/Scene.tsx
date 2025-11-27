@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls, Sphere } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls } from '@react-three/drei';
 import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
@@ -36,7 +36,6 @@ const ShapeWithTransform: React.FC<{
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
-  const pivotGroupRef = useRef<THREE.Group>(null);
   const isUpdatingRef = useRef(false);
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
@@ -158,28 +157,27 @@ const ShapeWithTransform: React.FC<{
   }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
 
   useEffect(() => {
-    if (!pivotGroupRef.current || isUpdatingRef.current) return;
+    if (!groupRef.current || isUpdatingRef.current) return;
 
-    const pivot = shape.pivot || [0, 0, 0];
-    pivotGroupRef.current.position.set(
-      shape.position[0] + pivot[0],
-      shape.position[1] + pivot[1],
-      shape.position[2] + pivot[2]
+    groupRef.current.position.set(
+      shape.position[0],
+      shape.position[1],
+      shape.position[2]
     );
-    pivotGroupRef.current.rotation.set(
+    groupRef.current.rotation.set(
       shape.rotation[0],
       shape.rotation[1],
       shape.rotation[2]
     );
-    pivotGroupRef.current.scale.set(
+    groupRef.current.scale.set(
       shape.scale[0],
       shape.scale[1],
       shape.scale[2]
     );
-  }, [shape.position, shape.rotation, shape.scale, shape.pivot]);
+  }, [shape.position, shape.rotation, shape.scale]);
 
   useEffect(() => {
-    if (transformRef.current && isSelected && pivotGroupRef.current) {
+    if (transformRef.current && isSelected && groupRef.current) {
       const controls = transformRef.current;
 
       const onDraggingChanged = (event: any) => {
@@ -189,19 +187,12 @@ const ShapeWithTransform: React.FC<{
       };
 
       const onChange = () => {
-        if (pivotGroupRef.current) {
+        if (groupRef.current) {
           isUpdatingRef.current = true;
-          const pivot = shape.pivot || [0, 0, 0];
-          const pivotPos = pivotGroupRef.current.position.toArray();
-
           updateShape(shape.id, {
-            position: [
-              pivotPos[0] - pivot[0],
-              pivotPos[1] - pivot[1],
-              pivotPos[2] - pivot[2]
-            ] as [number, number, number],
-            rotation: pivotGroupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
-            scale: pivotGroupRef.current.scale.toArray() as [number, number, number]
+            position: groupRef.current.position.toArray() as [number, number, number],
+            rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
+            scale: groupRef.current.scale.toArray() as [number, number, number]
           });
           setTimeout(() => {
             isUpdatingRef.current = false;
@@ -238,9 +229,6 @@ const ShapeWithTransform: React.FC<{
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
-  const pivot = shape.pivot || [0, 0, 0];
-  const hasPivot = pivot[0] !== 0 || pivot[1] !== 0 || pivot[2] !== 0;
-
   if (shape.isolated === false) {
     return null;
   }
@@ -248,34 +236,25 @@ const ShapeWithTransform: React.FC<{
   return (
     <>
       <group
-        ref={pivotGroupRef}
-        position={[
-          shape.position[0] + pivot[0],
-          shape.position[1] + pivot[1],
-          shape.position[2] + pivot[2]
-        ]}
-      >
-        <group
-          ref={groupRef}
-          position={[-pivot[0], -pivot[1], -pivot[2]]}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
-              if (shape.id === secondarySelectedShapeId) {
-                selectSecondaryShape(null);
-              } else {
-                selectSecondaryShape(shape.id);
-              }
-            } else {
-              selectShape(shape.id);
+        ref={groupRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
+            if (shape.id === secondarySelectedShapeId) {
               selectSecondaryShape(null);
+            } else {
+              selectSecondaryShape(shape.id);
             }
-          }}
-          onContextMenu={(e) => {
-            e.stopPropagation();
-            onContextMenu(e, shape.id);
-          }}
-        >
+          } else {
+            selectShape(shape.id);
+            selectSecondaryShape(null);
+          }
+        }}
+        onContextMenu={(e) => {
+          e.stopPropagation();
+          onContextMenu(e, shape.id);
+        }}
+      >
         {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
           const isHovered = hoveredSubtractionIndex === index && isSelected;
           const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
@@ -416,38 +395,13 @@ const ShapeWithTransform: React.FC<{
             </lineSegments>
           </>
         )}
-        </group>
-
-        {isSelected && (
-          <group position={[0, 0, 0]}>
-            <mesh>
-              <sphereGeometry args={[15, 16, 16]} />
-              <meshStandardMaterial
-                color="#10b981"
-                transparent
-                opacity={0.7}
-                emissive="#10b981"
-                emissiveIntensity={0.5}
-              />
-            </mesh>
-            <mesh>
-              <sphereGeometry args={[17, 16, 16]} />
-              <meshBasicMaterial
-                color="#10b981"
-                wireframe
-                transparent
-                opacity={0.3}
-              />
-            </mesh>
-          </group>
-        )}
       </group>
 
-      {isSelected && activeTool !== Tool.SELECT && pivotGroupRef.current && !shape.isReferenceBox && (
+      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
         <TransformControls
           key={geometryKey}
           ref={transformRef}
-          object={pivotGroupRef.current}
+          object={groupRef.current}
           mode={getTransformMode()}
           size={0.8}
         />
@@ -476,8 +430,7 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    subtractionViewMode,
-    pivotEditMode
+    subtractionViewMode
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -793,28 +746,6 @@ const Scene: React.FC = () => {
         <planeGeometry args={[100000, 100000]} />
         <meshStandardMaterial transparent opacity={0} />
       </mesh>
-
-      <group position={[0, 0, 0]}>
-        <mesh>
-          <sphereGeometry args={[8, 16, 16]} />
-          <meshStandardMaterial
-            color="#ef4444"
-            emissive="#ef4444"
-            emissiveIntensity={0.3}
-            transparent
-            opacity={0.6}
-          />
-        </mesh>
-        <mesh>
-          <sphereGeometry args={[10, 16, 16]} />
-          <meshBasicMaterial
-            color="#ef4444"
-            wireframe
-            transparent
-            opacity={0.2}
-          />
-        </mesh>
-      </group>
 
       <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
         <GizmoViewport
