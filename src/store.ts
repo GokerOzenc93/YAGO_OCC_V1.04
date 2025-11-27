@@ -419,16 +419,28 @@ export const useAppStore = create<AppState>((set, get) => ({
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
 
-            const shape1Size = [
+            const shape1BaseSize = [
               shape1.parameters?.width || 0,
               shape1.parameters?.height || 0,
               shape1.parameters?.depth || 0
             ] as [number, number, number];
 
-            const shape2Size = [
+            const shape2BaseSize = [
               shape2.parameters?.width || 0,
               shape2.parameters?.height || 0,
               shape2.parameters?.depth || 0
+            ] as [number, number, number];
+
+            const shape1Size = [
+              shape1BaseSize[0] * shape1.scale[0],
+              shape1BaseSize[1] * shape1.scale[1],
+              shape1BaseSize[2] * shape1.scale[2]
+            ] as [number, number, number];
+
+            const shape2Size = [
+              shape2BaseSize[0] * shape2.scale[0],
+              shape2BaseSize[1] * shape2.scale[1],
+              shape2BaseSize[2] * shape2.scale[2]
             ] as [number, number, number];
 
             const shape1Center = [
