@@ -185,13 +185,15 @@ export const performBooleanCut = async (
   baseRotation?: [number, number, number],
   cuttingRotation?: [number, number, number],
   baseScale?: [number, number, number],
-  cuttingScale?: [number, number, number]
+  cuttingScale?: [number, number, number],
+  baseSize?: [number, number, number],
+  cuttingSize?: [number, number, number]
 ): Promise<any> => {
   await initReplicad();
 
   console.log('🔪 Performing boolean cut operation...');
-  console.log('Base shape:', baseShape, 'Position:', basePosition, 'Rotation:', baseRotation, 'Scale:', baseScale);
-  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Rotation:', cuttingRotation, 'Scale:', cuttingScale);
+  console.log('Base shape:', baseShape, 'Position:', basePosition, 'Size:', baseSize, 'Rotation:', baseRotation, 'Scale:', baseScale);
+  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Size:', cuttingSize, 'Rotation:', cuttingRotation, 'Scale:', cuttingScale);
 
   try {
     let transformedBase = baseShape;

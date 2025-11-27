@@ -419,9 +419,41 @@ export const useAppStore = create<AppState>((set, get) => ({
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
 
+            const shape1Size = [
+              shape1.parameters?.width || 0,
+              shape1.parameters?.height || 0,
+              shape1.parameters?.depth || 0
+            ] as [number, number, number];
+
+            const shape2Size = [
+              shape2.parameters?.width || 0,
+              shape2.parameters?.height || 0,
+              shape2.parameters?.depth || 0
+            ] as [number, number, number];
+
+            const shape1Center = [
+              shape1.position[0] + (shape1Size[0] / 2),
+              shape1.position[1] + (shape1Size[1] / 2),
+              shape1.position[2] + (shape1Size[2] / 2)
+            ];
+
+            const shape2Center = [
+              shape2.position[0] + (shape2Size[0] / 2),
+              shape2.position[1] + (shape2Size[1] / 2),
+              shape2.position[2] + (shape2Size[2] / 2)
+            ];
+
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
-              shape2.replicadShape
+              shape2.replicadShape,
+              shape1Center as [number, number, number],
+              shape2Center as [number, number, number],
+              shape1.rotation,
+              shape2.rotation,
+              shape1.scale,
+              shape2.scale,
+              shape1Size,
+              shape2Size
             );
 
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
@@ -441,10 +473,14 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
 
-            console.log('🔍 Capturing subtracted geometry:', {
+            console.log('🔍 Capturing subtracted geometry (origin: bottom-left-back):', {
               shape2Id: shape2.id,
               shape1Position: shape1.position,
               shape2Position: shape2.position,
+              shape1Size,
+              shape2Size,
+              shape1Center,
+              shape2Center,
               relativeOffset,
               relativeRotation,
               shape2Scale: shape2.scale,
