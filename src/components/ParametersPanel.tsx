@@ -226,22 +226,32 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const currentShape = shapeOverride || shapes.find(s => s.id === selectedShapeId);
     if (!currentShape || selectedSubtractionIndex === null || !currentShape.subtractionGeometries) return;
 
+    const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];
+    const scale = currentSubtraction.scale || [1, 1, 1];
+
+    const baseWidth = subWidth / scale[0];
+    const baseHeight = subHeight / scale[1];
+    const baseDepth = subDepth / scale[2];
+
     console.log('🔧 Applying subtraction changes:', {
       subIndex: selectedSubtractionIndex,
-      newSize: { w: subWidth, h: subHeight, d: subDepth },
+      userInput: { w: subWidth, h: subHeight, d: subDepth },
+      scale: { x: scale[0], y: scale[1], z: scale[2] },
+      baseSize: { w: baseWidth, h: baseHeight, d: baseDepth },
       newPos: { x: subPosX, y: subPosY, z: subPosZ }
     });
 
     const { getReplicadVertices } = await import('../services/vertexEditor');
     const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
 
-    const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
-    const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];
+    const newSubGeometry = new THREE.BoxGeometry(baseWidth, baseHeight, baseDepth);
 
-    console.log('🔧 Updating subtraction (center-based geometry):', {
-      size: { w: subWidth, h: subHeight, d: subDepth },
+    console.log('🔧 Updating subtraction (base geometry + scale):', {
+      baseSize: { w: baseWidth, h: baseHeight, d: baseDepth },
+      scale: { x: scale[0], y: scale[1], z: scale[2] },
+      finalSize: { w: baseWidth * scale[0], h: baseHeight * scale[1], d: baseDepth * scale[2] },
       relativeOffset: { x: subPosX, y: subPosY, z: subPosZ },
-      note: 'THREE.BoxGeometry is created at center, offset is relative to parent shape center'
+      note: 'Base geometry will be scaled by scale prop in rendering'
     });
 
     const updatedSubtraction = {
@@ -249,7 +259,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       geometry: newSubGeometry,
       relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
       relativeRotation: currentSubtraction.relativeRotation || [0, 0, 0] as [number, number, number],
-      scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
+      scale: scale
     };
 
     const allSubtractions = currentShape.subtractionGeometries.map((sub, idx) =>
@@ -443,12 +453,24 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         console.log('🔄 Recalculating subtraction with updated dimensions...');
 
         const currentSubtraction = selectedShape.subtractionGeometries![selectedSubtractionIndex];
+        const scale = currentSubtraction.scale || [1, 1, 1];
+
+        const baseWidth = subWidth / scale[0];
+        const baseHeight = subHeight / scale[1];
+        const baseDepth = subDepth / scale[2];
+
+        console.log('🔧 Subtraction update (base geometry + scale):', {
+          userInput: { w: subWidth, h: subHeight, d: subDepth },
+          scale: { x: scale[0], y: scale[1], z: scale[2] },
+          baseSize: { w: baseWidth, h: baseHeight, d: baseDepth }
+        });
+
         const updatedSubtraction = {
           ...currentSubtraction,
-          geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
+          geometry: new THREE.BoxGeometry(baseWidth, baseHeight, baseDepth),
           relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
           relativeRotation: currentSubtraction.relativeRotation || [0, 0, 0] as [number, number, number],
-          scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
+          scale: scale
         };
 
         const allSubtractions = selectedShape.subtractionGeometries!.map((sub, idx) =>

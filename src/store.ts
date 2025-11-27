@@ -438,7 +438,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
-            const subtractedGeometry = shape2.geometry.clone();
+            const baseSubGeometry = convertReplicadToThreeGeometry(shape2.replicadShape);
 
             const relativeOffset = [
               shape2.position[0] - shape1.position[0],
@@ -459,7 +459,8 @@ export const useAppStore = create<AppState>((set, get) => ({
               relativeOffset,
               relativeRotation,
               shape2Scale: shape2.scale,
-              geometryVertices: subtractedGeometry.attributes.position.count
+              baseGeometryVertices: baseSubGeometry.attributes.position.count,
+              note: 'Using base replicad shape for sub geometry, scale will be applied separately'
             });
 
             set((state) => ({
@@ -473,7 +474,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     subtractionGeometries: [
                       ...existingSubtractions,
                       {
-                        geometry: subtractedGeometry,
+                        geometry: baseSubGeometry,
                         relativeOffset,
                         relativeRotation,
                         scale: shape2.scale
