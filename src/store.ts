@@ -471,7 +471,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
-            const subtractedGeometry = shape2.geometry.clone();
+            const subtractedGeometry = new THREE.BoxGeometry(
+              shape2Size[0],
+              shape2Size[1],
+              shape2Size[2]
+            );
 
             const relativeOffset = [
               shape2.position[0] - shape1.position[0],
@@ -485,19 +489,16 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
 
-            console.log('🔍 Capturing subtracted geometry (origin: bottom-left-back):', {
+            console.log('🔍 Capturing subtracted geometry with ACTUAL size:', {
               shape2Id: shape2.id,
+              shape2BaseParams: shape2.parameters,
+              shape2Scale: shape2.scale,
+              shape2ActualSize: shape2Size,
               shape1Position: shape1.position,
               shape2Position: shape2.position,
-              shape1Size,
-              shape2Size,
-              shape1Center,
-              shape2Center,
               relativeOffset,
               relativeRotation,
-              shape2Scale: shape2.scale,
-              geometryVertices: subtractedGeometry.attributes.position.count,
-              note: 'relativeOffset is position difference (origin-based), Scene.tsx will add size/2 for THREE.BoxGeometry centering'
+              note: 'Geometry created with actual scaled size, not base parameters'
             });
 
             set((state) => ({

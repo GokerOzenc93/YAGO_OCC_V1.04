@@ -279,23 +279,16 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       const subtraction = allSubtractions[i];
       const subSize = getOriginalSize(subtraction.geometry);
 
-      const subActualSize = [
-        subSize.x * (subtraction.scale?.[0] || 1),
-        subSize.y * (subtraction.scale?.[1] || 1),
-        subSize.z * (subtraction.scale?.[2] || 1)
-      ] as [number, number, number];
-
       console.log(`🔧 Subtraction ${i}:`, {
         geometrySize: { x: subSize.x, y: subSize.y, z: subSize.z },
-        scale: subtraction.scale,
-        actualSize: subActualSize,
-        relativeOffset: subtraction.relativeOffset
+        relativeOffset: subtraction.relativeOffset,
+        note: 'Geometry already contains actual size from initial boolean cut'
       });
 
       const subBox = await createReplicadBox({
-        width: subActualSize[0],
-        height: subActualSize[1],
-        depth: subActualSize[2]
+        width: subSize.x,
+        height: subSize.y,
+        depth: subSize.z
       });
 
       const baseCenterOffset = [
@@ -305,9 +298,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       ] as [number, number, number];
 
       const subCenterOffset = [
-        currentShape.position[0] + subtraction.relativeOffset[0] + subActualSize[0] / 2,
-        currentShape.position[1] + subtraction.relativeOffset[1] + subActualSize[1] / 2,
-        currentShape.position[2] + subtraction.relativeOffset[2] + subActualSize[2] / 2
+        currentShape.position[0] + subtraction.relativeOffset[0] + subSize.x / 2,
+        currentShape.position[1] + subtraction.relativeOffset[1] + subSize.y / 2,
+        currentShape.position[2] + subtraction.relativeOffset[2] + subSize.z / 2
       ] as [number, number, number];
 
       const absoluteRot = [
@@ -333,7 +326,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         [1, 1, 1],
         [1, 1, 1],
         baseActualSize,
-        subActualSize
+        [subSize.x, subSize.y, subSize.z] as [number, number, number]
       );
     }
 
@@ -508,16 +501,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           const subtraction = allSubtractions[i];
           const subSize = getOriginalSize(subtraction.geometry);
 
-          const subActualSize = [
-            subSize.x * (subtraction.scale?.[0] || 1),
-            subSize.y * (subtraction.scale?.[1] || 1),
-            subSize.z * (subtraction.scale?.[2] || 1)
-          ] as [number, number, number];
-
           const subBox = await createReplicadBox({
-            width: subActualSize[0],
-            height: subActualSize[1],
-            depth: subActualSize[2]
+            width: subSize.x,
+            height: subSize.y,
+            depth: subSize.z
           });
 
           const baseCenterOffset = [
@@ -527,9 +514,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           ] as [number, number, number];
 
           const subCenterOffset = [
-            selectedShape.position[0] + subtraction.relativeOffset[0] + subActualSize[0] / 2,
-            selectedShape.position[1] + subtraction.relativeOffset[1] + subActualSize[1] / 2,
-            selectedShape.position[2] + subtraction.relativeOffset[2] + subActualSize[2] / 2
+            selectedShape.position[0] + subtraction.relativeOffset[0] + subSize.x / 2,
+            selectedShape.position[1] + subtraction.relativeOffset[1] + subSize.y / 2,
+            selectedShape.position[2] + subtraction.relativeOffset[2] + subSize.z / 2
           ] as [number, number, number];
 
           const absoluteRot = [
@@ -548,7 +535,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             [1, 1, 1],
             [1, 1, 1],
             baseActualSize,
-            subActualSize
+            [subSize.x, subSize.y, subSize.z] as [number, number, number]
           );
         }
 
