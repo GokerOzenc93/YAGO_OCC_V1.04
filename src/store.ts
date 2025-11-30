@@ -473,14 +473,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             const relativeOffset = isCentered
               ? [
+                  shape2.position[0] - shape1.position[0] - size.x / 2,
+                  shape2.position[1] - shape1.position[1] - size.y / 2,
+                  shape2.position[2] - shape1.position[2] - size.z / 2
+                ] as [number, number, number]
+              : [
                   shape2.position[0] - shape1.position[0],
                   shape2.position[1] - shape1.position[1],
                   shape2.position[2] - shape1.position[2]
-                ] as [number, number, number]
-              : [
-                  shape2.position[0] - shape1.position[0] + size.x / 2,
-                  shape2.position[1] - shape1.position[1] + size.y / 2,
-                  shape2.position[2] - shape1.position[2] + size.z / 2
                 ] as [number, number, number];
 
             const relativeRotation = [
