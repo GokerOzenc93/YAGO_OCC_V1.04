@@ -227,14 +227,9 @@ const ShapeWithTransform: React.FC<{
   const isXray = viewMode === ViewMode.XRAY;
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
-  const isSubtractionRef = shape.isSubtractionReference;
-  const shouldShowAsReference = isReferenceBox || isSecondarySelected || isSubtractionRef;
+  const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
   if (shape.isolated === false) {
-    return null;
-  }
-
-  if (isSubtractionRef && !subtractionViewMode) {
     return null;
   }
 
@@ -266,12 +261,29 @@ const ShapeWithTransform: React.FC<{
 
           const edgesGeometry = new THREE.EdgesGeometry(subtraction.geometry, 30);
 
+          const box = new THREE.Box3().setFromBufferAttribute(
+            subtraction.geometry.attributes.position as THREE.BufferAttribute
+          );
+          const size = new THREE.Vector3();
+          const center = new THREE.Vector3();
+          box.getSize(size);
+          box.getCenter(center);
+
+          const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
+
+          const displayOffset = isCentered
+            ? [
+                subtraction.relativeOffset[0] + size.x / 2,
+                subtraction.relativeOffset[1] + size.y / 2,
+                subtraction.relativeOffset[2] + size.z / 2
+              ] as [number, number, number]
+            : subtraction.relativeOffset;
+
           return (
             <group
               key={`${shape.id}-subtraction-${index}`}
-              position={subtraction.relativeOffset}
+              position={displayOffset}
               rotation={subtraction.relativeRotation}
-              scale={subtraction.scale}
             >
               <mesh
                 geometry={subtraction.geometry}

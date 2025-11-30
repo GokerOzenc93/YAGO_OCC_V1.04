@@ -8,7 +8,6 @@ export interface SubtractedGeometry {
   relativeOffset: [number, number, number];
   relativeRotation: [number, number, number];
   scale: [number, number, number];
-  originalShapeId?: string;
 }
 
 export interface Shape {
@@ -26,7 +25,6 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
-  isSubtractionReference?: boolean;
   subtractionGeometries?: SubtractedGeometry[];
 }
 
@@ -250,6 +248,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectShape: (id) => {
     const currentMode = get().activeTool;
     if (id && currentMode === Tool.SELECT) {
+      console.log('🔄 Auto-switching to move mode on selection');
       set({ selectedShapeId: id, activeTool: Tool.MOVE });
     } else {
       set({ selectedShapeId: id });
@@ -271,6 +270,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         return s;
       })
     }));
+    console.log('✅ Created group:', groupId, { primaryId, secondaryId });
   },
 
   ungroupShapes: (groupId) => {
@@ -285,6 +285,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedShapeId: null,
       secondarySelectedShapeId: null
     }));
+    console.log('✅ Ungrouped:', groupId);
   },
 
   activeTool: Tool.SELECT,
@@ -391,6 +392,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (shapes.length < 2) return;
 
+    console.log('🔍 Checking for intersecting shapes...');
+
     for (let i = 0; i < shapes.length; i++) {
       for (let j = i + 1; j < shapes.length; j++) {
         const shape1 = shapes[i];
@@ -410,6 +413,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         box2.translate(new THREE.Vector3(...shape2.position));
 
         if (box1.intersectsBox(box2)) {
+          console.log('💥 Collision detected between:', shape1.id, 'and', shape2.id);
+
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
@@ -446,11 +451,15 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape1.rotation,
               shape2.rotation,
               shape1.scale,
-              shape2.scale
+              shape2.scale,
+              shape1Size,
+              shape2Size
             );
 
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
+
+            const subtractedGeometry = shape2.geometry.clone();
 
             const relativeOffset = [
               shape2.position[0] - shape1.position[0],
@@ -464,6 +473,21 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
 
+            console.log('🔍 Capturing subtracted geometry (origin: bottom-left-back):', {
+              shape2Id: shape2.id,
+              shape1Position: shape1.position,
+              shape2Position: shape2.position,
+              shape1Size,
+              shape2Size,
+              shape1Center,
+              shape2Center,
+              relativeOffset,
+              relativeRotation,
+              shape2Scale: shape2.scale,
+              geometryVertices: subtractedGeometry.attributes.position.count,
+              note: 'relativeOffset is position difference (origin-based), Scene.tsx will add size/2 for THREE.BoxGeometry centering'
+            });
+
             set((state) => ({
               shapes: state.shapes.map((s) => {
                 if (s.id === shape1.id) {
@@ -475,11 +499,10 @@ export const useAppStore = create<AppState>((set, get) => ({
                     subtractionGeometries: [
                       ...existingSubtractions,
                       {
-                        geometry: shape2.geometry,
+                        geometry: subtractedGeometry,
                         relativeOffset,
                         relativeRotation,
-                        scale: shape2.scale,
-                        originalShapeId: shape2.id
+                        scale: [1, 1, 1] as [number, number, number]
                       }
                     ],
                     parameters: {
@@ -488,19 +511,14 @@ export const useAppStore = create<AppState>((set, get) => ({
                     }
                   };
                 }
-                if (s.id === shape2.id) {
-                  return {
-                    ...s,
-                    color: '#22c55e',
-                    isSubtractionReference: true
-                  };
-                }
                 return s;
-              })
+              }).filter(s => s.id !== shape2.id)
             }));
+
+            console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
             return;
           } catch (error) {
-            console.error('Failed to perform boolean operation:', error);
+            console.error('❌ Failed to perform boolean operation:', error);
           }
         }
       }
