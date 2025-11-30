@@ -8,6 +8,7 @@ export interface SubtractedGeometry {
   relativeOffset: [number, number, number];
   relativeRotation: [number, number, number];
   scale: [number, number, number];
+  originalShapeId?: string;
 }
 
 export interface Shape {
@@ -25,6 +26,7 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
+  isSubtractionReference?: boolean;
   subtractionGeometries?: SubtractedGeometry[];
 }
 
@@ -450,29 +452,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
-            const subtractedGeometry = shape2.geometry.clone();
-
-            const box = new THREE.Box3().setFromBufferAttribute(
-              subtractedGeometry.attributes.position as THREE.BufferAttribute
-            );
-            const size = new THREE.Vector3();
-            const center = new THREE.Vector3();
-            box.getSize(size);
-            box.getCenter(center);
-
-            const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
-
-            const relativeOffset = isCentered
-              ? [
-                  shape2.position[0] - shape1.position[0] - size.x / 2,
-                  shape2.position[1] - shape1.position[1] - size.y / 2,
-                  shape2.position[2] - shape1.position[2] - size.z / 2
-                ] as [number, number, number]
-              : [
-                  shape2.position[0] - shape1.position[0],
-                  shape2.position[1] - shape1.position[1],
-                  shape2.position[2] - shape1.position[2]
-                ] as [number, number, number];
+            const relativeOffset = [
+              shape2.position[0] - shape1.position[0],
+              shape2.position[1] - shape1.position[1],
+              shape2.position[2] - shape1.position[2]
+            ] as [number, number, number];
 
             const relativeRotation = [
               shape2.rotation[0] - shape1.rotation[0],
@@ -491,10 +475,11 @@ export const useAppStore = create<AppState>((set, get) => ({
                     subtractionGeometries: [
                       ...existingSubtractions,
                       {
-                        geometry: subtractedGeometry,
+                        geometry: shape2.geometry,
                         relativeOffset,
                         relativeRotation,
-                        scale: [1, 1, 1] as [number, number, number]
+                        scale: shape2.scale,
+                        originalShapeId: shape2.id
                       }
                     ],
                     parameters: {
@@ -503,8 +488,15 @@ export const useAppStore = create<AppState>((set, get) => ({
                     }
                   };
                 }
+                if (s.id === shape2.id) {
+                  return {
+                    ...s,
+                    color: '#22c55e',
+                    isSubtractionReference: true
+                  };
+                }
                 return s;
-              }).filter(s => s.id !== shape2.id)
+              })
             }));
             return;
           } catch (error) {
