@@ -213,114 +213,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   };
 
-  const applySubtractionChanges = async (shapeOverride?: any) => {
-    const currentShape = shapeOverride || shapes.find(s => s.id === selectedShapeId);
-    if (!currentShape || selectedSubtractionIndex === null || !currentShape.subtractionGeometries) return;
-
-    console.log('🔧 Applying subtraction changes:', {
-      subIndex: selectedSubtractionIndex,
-      newSize: { w: subWidth, h: subHeight, d: subDepth },
-      newPos: { x: subPosX, y: subPosY, z: subPosZ }
-    });
-
-    const { getReplicadVertices } = await import('../services/vertexEditor');
-    const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-
-    const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
-    const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];
-
-    console.log('🔧 Updating subtraction (center-based geometry):', {
-      size: { w: subWidth, h: subHeight, d: subDepth },
-      relativeOffset: { x: subPosX, y: subPosY, z: subPosZ },
-      note: 'THREE.BoxGeometry is created at center, offset is relative to parent shape center'
-    });
-
-    const updatedSubtraction = {
-      ...currentSubtraction,
-      geometry: newSubGeometry,
-      relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
-      relativeRotation: currentSubtraction.relativeRotation || [0, 0, 0] as [number, number, number],
-      scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
-    };
-
-    const allSubtractions = currentShape.subtractionGeometries.map((sub, idx) =>
-      idx === selectedSubtractionIndex ? updatedSubtraction : sub
-    );
-
-    console.log(`🔄 Applying ${allSubtractions.length} subtraction(s)...`);
-
-    const baseShape = await createReplicadBox({
-      width: currentShape.parameters.width || 1,
-      height: currentShape.parameters.height || 1,
-      depth: currentShape.parameters.depth || 1
-    });
-
-    let resultShape = baseShape;
-
-    for (let i = 0; i < allSubtractions.length; i++) {
-      const subtraction = allSubtractions[i];
-      const subSize = getOriginalSize(subtraction.geometry);
-
-      const subBox = await createReplicadBox({
-        width: subSize.x,
-        height: subSize.y,
-        depth: subSize.z
-      });
-
-      const baseSize = [
-        currentShape.parameters.width || 1,
-        currentShape.parameters.height || 1,
-        currentShape.parameters.depth || 1
-      ] as [number, number, number];
-
-      const baseCenterOffset = [
-        currentShape.position[0] + baseSize[0] / 2,
-        currentShape.position[1] + baseSize[1] / 2,
-        currentShape.position[2] + baseSize[2] / 2
-      ] as [number, number, number];
-
-      const subCenterOffset = [
-        currentShape.position[0] + subtraction.relativeOffset[0] + subSize.x / 2,
-        currentShape.position[1] + subtraction.relativeOffset[1] + subSize.y / 2,
-        currentShape.position[2] + subtraction.relativeOffset[2] + subSize.z / 2
-      ] as [number, number, number];
-
-      const absoluteRot = [
-        currentShape.rotation[0] + subtraction.relativeRotation[0],
-        currentShape.rotation[1] + subtraction.relativeRotation[1],
-        currentShape.rotation[2] + subtraction.relativeRotation[2]
-      ] as [number, number, number];
-
-      resultShape = await performBooleanCut(
-        resultShape,
-        subBox,
-        baseCenterOffset,
-        subCenterOffset,
-        currentShape.rotation,
-        absoluteRot,
-        currentShape.scale,
-        subtraction.scale || [1, 1, 1] as [number, number, number],
-        baseSize,
-        [subSize.x, subSize.y, subSize.z] as [number, number, number]
-      );
-    }
-
-    const newGeometry = convertReplicadToThreeGeometry(resultShape);
-    const newBaseVertices = await getReplicadVertices(resultShape);
-
-    console.log('✅ Subtraction complete');
-
-    updateShape(currentShape.id, {
-      geometry: newGeometry,
-      replicadShape: resultShape,
-      subtractionGeometries: allSubtractions,
-      parameters: {
-        ...currentShape.parameters,
-        scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-      }
-    });
-  };
-
+  // Bu fonksiyon artık applyChanges içinde dinamik olarak yönetiliyor,
+  // ancak referans olarak burada bırakılabilir veya temizlenebilir.
   const getOriginalSize = (geometry: THREE.BufferGeometry) => {
     const box = new THREE.Box3().setFromBufferAttribute(
       geometry.attributes.position as THREE.BufferAttribute
@@ -427,7 +321,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         console.log('✓ Scaled geometry center:', { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) });
       }
 
-      const hasSubtractionChanges = selectedSubtractionIndex !== null && selectedShape.subtractionGeometries?.length > 0;
+      // Check if there are ANY subtractions, not just if one is currently selected for editing.
+      // This ensures we recalculate the boolean operations when base dimensions change.
+      const hasSubtractions = selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0;
 
       const baseUpdate = {
         parameters: {
@@ -444,18 +340,23 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         scale: selectedShape.scale
       };
 
-      if (hasSubtractionChanges) {
+      if (hasSubtractions) {
         console.log('🔄 Recalculating subtraction with updated dimensions...');
 
-        const updatedSubtraction = {
-          ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
-          geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
-          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number]
-        };
+        let allSubtractions = selectedShape.subtractionGeometries!;
 
-        const allSubtractions = selectedShape.subtractionGeometries!.map((sub, idx) =>
-          idx === selectedSubtractionIndex ? updatedSubtraction : sub
-        );
+        // If a specific subtraction is being edited, update it in the list
+        if (selectedSubtractionIndex !== null) {
+            const updatedSubtraction = {
+              ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
+              geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
+              relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number]
+            };
+
+            allSubtractions = selectedShape.subtractionGeometries!.map((sub, idx) =>
+              idx === selectedSubtractionIndex ? updatedSubtraction : sub
+            );
+        }
 
         let baseShape = await createReplicadBox({
           width,
