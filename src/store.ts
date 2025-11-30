@@ -431,24 +431,23 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.parameters?.depth || 0
             ] as [number, number, number];
 
-            console.log('🔍 Boolean Cut - Using scaled base dimensions:', {
-              shape1Id: shape1.id,
-              shape1Position: shape1.position,
-              shape1Size,
-              shape1Rotation: shape1.rotation,
-              shape1Scale: shape1.scale,
-              shape2Id: shape2.id,
-              shape2Position: shape2.position,
-              shape2Size,
-              shape2Rotation: shape2.rotation,
-              shape2Scale: shape2.scale
-            });
+            const shape1Center = [
+              shape1.position[0] + (shape1Size[0] / 2),
+              shape1.position[1] + (shape1Size[1] / 2),
+              shape1.position[2] + (shape1Size[2] / 2)
+            ];
+
+            const shape2Center = [
+              shape2.position[0] + (shape2Size[0] / 2),
+              shape2.position[1] + (shape2Size[1] / 2),
+              shape2.position[2] + (shape2Size[2] / 2)
+            ];
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
               shape2.replicadShape,
-              shape1.position,
-              shape2.position,
+              shape1Center as [number, number, number],
+              shape2Center as [number, number, number],
               shape1.rotation,
               shape2.rotation,
               shape1.scale,
