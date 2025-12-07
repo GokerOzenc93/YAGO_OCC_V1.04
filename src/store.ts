@@ -461,27 +461,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             const subtractedGeometry = shape2.geometry.clone();
 
-            const box = new THREE.Box3().setFromBufferAttribute(
-              subtractedGeometry.attributes.position as THREE.BufferAttribute
-            );
-            const size = new THREE.Vector3();
-            const center = new THREE.Vector3();
-            box.getSize(size);
-            box.getCenter(center);
-
-            const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
-
-            const relativeOffset = isCentered
-              ? [
-                  shape2.position[0] - shape1.position[0] - size.x / 2,
-                  shape2.position[1] - shape1.position[1] - size.y / 2,
-                  shape2.position[2] - shape1.position[2] - size.z / 2
-                ] as [number, number, number]
-              : [
-                  shape2.position[0] - shape1.position[0],
-                  shape2.position[1] - shape1.position[1],
-                  shape2.position[2] - shape1.position[2]
-                ] as [number, number, number];
+            const relativeOffset = [
+              shape2.position[0] - shape1.position[0],
+              shape2.position[1] - shape1.position[1],
+              shape2.position[2] - shape1.position[2]
+            ] as [number, number, number];
 
             const relativeRotation = [
               shape2.rotation[0] - shape1.rotation[0],
@@ -489,7 +473,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
 
-            console.log('🔍 Capturing subtracted geometry:', {
+            console.log('🔍 Capturing subtracted geometry (origin: bottom-left-back):', {
               shape2Id: shape2.id,
               shape1Position: shape1.position,
               shape2Position: shape2.position,
@@ -497,14 +481,11 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2Size,
               shape1Center,
               shape2Center,
-              geometrySize: { x: size.x, y: size.y, z: size.z },
-              geometryCenter: { x: center.x, y: center.y, z: center.z },
-              isCentered,
               relativeOffset,
               relativeRotation,
               shape2Scale: shape2.scale,
               geometryVertices: subtractedGeometry.attributes.position.count,
-              note: isCentered ? 'Geometry is centered, using direct position difference' : 'Geometry origin is at corner, adjusted offset for centering'
+              note: 'relativeOffset is position difference (origin-based), Scene.tsx will add size/2 for THREE.BoxGeometry centering'
             });
 
             set((state) => ({
