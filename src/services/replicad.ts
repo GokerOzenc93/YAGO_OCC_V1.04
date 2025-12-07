@@ -134,29 +134,6 @@ export const createSphereGeometry = async (
   return convertReplicadToThreeGeometry(shape);
 };
 
-const applyTransform = (shape: any, position?: [number, number, number], rotation?: [number, number, number], scale?: [number, number, number], reverse = false): any => {
-  let transformed = shape;
-  const [sx, sy, sz] = scale || [1, 1, 1];
-  const [rx, ry, rz] = rotation || [0, 0, 0];
-  const [px, py, pz] = position || [0, 0, 0];
-
-  if (!reverse) {
-    if (sx !== 1 || sy !== 1 || sz !== 1) transformed = transformed.scale(sx, sy, sz);
-    if (rx !== 0) transformed = transformed.rotate(rx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-    if (ry !== 0) transformed = transformed.rotate(ry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-    if (rz !== 0) transformed = transformed.rotate(rz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-    if (px !== 0 || py !== 0 || pz !== 0) transformed = transformed.translate(px, py, pz);
-  } else {
-    if (px !== 0 || py !== 0 || pz !== 0) transformed = transformed.translate(-px, -py, -pz);
-    if (rz !== 0) transformed = transformed.rotate(-rz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-    if (ry !== 0) transformed = transformed.rotate(-ry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-    if (rx !== 0) transformed = transformed.rotate(-rx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-    if (sx !== 1 || sy !== 1 || sz !== 1) transformed = transformed.scale(1/sx, 1/sy, 1/sz);
-  }
-
-  return transformed;
-};
-
 export const performBooleanCut = async (
   baseShape: any,
   cuttingShape: any,
@@ -170,10 +147,38 @@ export const performBooleanCut = async (
   await initReplicad();
 
   try {
-    const transformedBase = applyTransform(baseShape, basePosition, baseRotation, baseScale);
-    const transformedCutting = applyTransform(cuttingShape, cuttingPosition, cuttingRotation, cuttingScale);
-    const result = transformedBase.cut(transformedCutting);
-    return applyTransform(result, basePosition, baseRotation, baseScale, true);
+    let baseInWorld = baseShape;
+    let cuttingInWorld = cuttingShape;
+
+    const [bsx, bsy, bsz] = baseScale || [1, 1, 1];
+    const [brx, bry, brz] = baseRotation || [0, 0, 0];
+    const [bpx, bpy, bpz] = basePosition || [0, 0, 0];
+
+    const [csx, csy, csz] = cuttingScale || [1, 1, 1];
+    const [crx, cry, crz] = cuttingRotation || [0, 0, 0];
+    const [cpx, cpy, cpz] = cuttingPosition || [0, 0, 0];
+
+    if (bsx !== 1 || bsy !== 1 || bsz !== 1) baseInWorld = baseInWorld.scale(bsx, bsy, bsz);
+    if (brx !== 0) baseInWorld = baseInWorld.rotate(brx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+    if (bry !== 0) baseInWorld = baseInWorld.rotate(bry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+    if (brz !== 0) baseInWorld = baseInWorld.rotate(brz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+    if (bpx !== 0 || bpy !== 0 || bpz !== 0) baseInWorld = baseInWorld.translate(bpx, bpy, bpz);
+
+    if (csx !== 1 || csy !== 1 || csz !== 1) cuttingInWorld = cuttingInWorld.scale(csx, csy, csz);
+    if (crx !== 0) cuttingInWorld = cuttingInWorld.rotate(crx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+    if (cry !== 0) cuttingInWorld = cuttingInWorld.rotate(cry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+    if (crz !== 0) cuttingInWorld = cuttingInWorld.rotate(crz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+    if (cpx !== 0 || cpy !== 0 || cpz !== 0) cuttingInWorld = cuttingInWorld.translate(cpx, cpy, cpz);
+
+    let result = baseInWorld.cut(cuttingInWorld);
+
+    if (bpx !== 0 || bpy !== 0 || bpz !== 0) result = result.translate(-bpx, -bpy, -bpz);
+    if (brz !== 0) result = result.rotate(-brz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+    if (bry !== 0) result = result.rotate(-bry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+    if (brx !== 0) result = result.rotate(-brx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+    if (bsx !== 1 || bsy !== 1 || bsz !== 1) result = result.scale(1/bsx, 1/bsy, 1/bsz);
+
+    return result;
   } catch (error) {
     console.error('Boolean cut failed:', error);
     throw error;

@@ -424,16 +424,28 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.parameters?.depth || 0
             ] as [number, number, number];
 
+            const shape1LocalCenter = [
+              shape1Size[0] / 2,
+              shape1Size[1] / 2,
+              shape1Size[2] / 2
+            ];
+
+            const shape2LocalCenter = [
+              shape2Size[0] / 2,
+              shape2Size[1] / 2,
+              shape2Size[2] / 2
+            ];
+
             const shape1Center = [
-              shape1.position[0] + (shape1Size[0] / 2),
-              shape1.position[1] + (shape1Size[1] / 2),
-              shape1.position[2] + (shape1Size[2] / 2)
+              shape1.position[0] + shape1LocalCenter[0],
+              shape1.position[1] + shape1LocalCenter[1],
+              shape1.position[2] + shape1LocalCenter[2]
             ];
 
             const shape2Center = [
-              shape2.position[0] + (shape2Size[0] / 2),
-              shape2.position[1] + (shape2Size[1] / 2),
-              shape2.position[2] + (shape2Size[2] / 2)
+              shape2.position[0] + shape2LocalCenter[0],
+              shape2.position[1] + shape2LocalCenter[1],
+              shape2.position[2] + shape2LocalCenter[2]
             ];
 
             const resultShape = await performBooleanCut(
@@ -452,27 +464,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             const subtractedGeometry = shape2.geometry.clone();
 
-            const box = new THREE.Box3().setFromBufferAttribute(
-              subtractedGeometry.attributes.position as THREE.BufferAttribute
-            );
-            const size = new THREE.Vector3();
-            const center = new THREE.Vector3();
-            box.getSize(size);
-            box.getCenter(center);
-
-            const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
-
-            const relativeOffset = isCentered
-              ? [
-                  shape2.position[0] - shape1.position[0] - size.x / 2,
-                  shape2.position[1] - shape1.position[1] - size.y / 2,
-                  shape2.position[2] - shape1.position[2] - size.z / 2
-                ] as [number, number, number]
-              : [
-                  shape2.position[0] - shape1.position[0],
-                  shape2.position[1] - shape1.position[1],
-                  shape2.position[2] - shape1.position[2]
-                ] as [number, number, number];
+            const relativeOffset = [
+              shape2.position[0] - shape1.position[0],
+              shape2.position[1] - shape1.position[1],
+              shape2.position[2] - shape1.position[2]
+            ] as [number, number, number];
 
             const relativeRotation = [
               shape2.rotation[0] - shape1.rotation[0],
@@ -494,7 +490,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                         geometry: subtractedGeometry,
                         relativeOffset,
                         relativeRotation,
-                        scale: [1, 1, 1] as [number, number, number]
+                        scale: shape2.scale
                       }
                     ],
                     parameters: {

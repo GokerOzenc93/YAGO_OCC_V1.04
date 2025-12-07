@@ -27,16 +27,28 @@ export const performSubtractionOperations = async (
     const subSize = getGeometrySize(subtraction.geometry);
     const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
 
+    const baseLocalCenter: [number, number, number] = [
+      baseWidth / 2,
+      baseHeight / 2,
+      baseDepth / 2
+    ];
+
     const baseCenterOffset: [number, number, number] = [
-      basePosition[0] + baseWidth / 2,
-      basePosition[1] + baseHeight / 2,
-      basePosition[2] + baseDepth / 2
+      basePosition[0] + baseLocalCenter[0],
+      basePosition[1] + baseLocalCenter[1],
+      basePosition[2] + baseLocalCenter[2]
+    ];
+
+    const subLocalCenter: [number, number, number] = [
+      subSize.x / 2,
+      subSize.y / 2,
+      subSize.z / 2
     ];
 
     const subCenterOffset: [number, number, number] = [
-      basePosition[0] + subtraction.relativeOffset[0] + subSize.x / 2,
-      basePosition[1] + subtraction.relativeOffset[1] + subSize.y / 2,
-      basePosition[2] + subtraction.relativeOffset[2] + subSize.z / 2
+      basePosition[0] + subtraction.relativeOffset[0] + subLocalCenter[0],
+      basePosition[1] + subtraction.relativeOffset[1] + subLocalCenter[1],
+      basePosition[2] + subtraction.relativeOffset[2] + subLocalCenter[2]
     ];
 
     const absoluteRot: [number, number, number] = [
