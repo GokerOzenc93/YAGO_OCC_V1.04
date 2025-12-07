@@ -454,7 +454,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       throw new Error('Shapes missing replicadShape');
     }
 
-    const getBoundingBoxCenter = (shape: any) => {
+    const getBoundingBoxCenter = (shape: any, shapeParams: any) => {
       try {
         const bbox = shape.boundingBox();
         return [
@@ -464,9 +464,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         ];
       } catch {
         const size = [
-          primary.parameters?.width || 0,
-          primary.parameters?.height || 0,
-          primary.parameters?.depth || 0
+          shapeParams?.width || 0,
+          shapeParams?.height || 0,
+          shapeParams?.depth || 0
         ];
         return [size[0] / 2, size[1] / 2, size[2] / 2];
       }
@@ -494,8 +494,8 @@ export const useAppStore = create<AppState>((set, get) => ({
       return transformed;
     };
 
-    const primaryCenter = getBoundingBoxCenter(primary.replicadShape);
-    const secondaryCenter = getBoundingBoxCenter(secondary.replicadShape);
+    const primaryCenter = getBoundingBoxCenter(primary.replicadShape, primary.parameters);
+    const secondaryCenter = getBoundingBoxCenter(secondary.replicadShape, secondary.parameters);
 
     let primaryInWorld = transformToWorld(
       primary.replicadShape,
@@ -556,12 +556,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   recomputeBooleanOperations: async (shapeId: string) => {
-    const state = get();
-    const shape = state.shapes.find(s => s.id === shapeId);
+    const shape = get().shapes.find(s => s.id === shapeId);
 
     if (!shape || !shape.booleanHistory || shape.booleanHistory.length === 0) {
       return;
     }
+
+    console.log(`🔄 Recomputing boolean operations for ${shapeId}`);
+    console.log(`📐 Current parameters:`, shape.parameters);
 
     try {
       const { convertReplicadToThreeGeometry } = await import('./services/replicad');
@@ -569,16 +571,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { createReplicadShape } = await import('./services/replicad');
 
       let resultShape = await createReplicadShape(shape.type, shape.parameters);
+      console.log(`✅ Created fresh base shape with parameters`);
 
       for (const operation of shape.booleanHistory) {
-        const secondaryShape = state.shapes.find(s => s.id === operation.secondaryId);
+        const secondaryShape = get().shapes.find(s => s.id === operation.secondaryId);
         if (!secondaryShape || !secondaryShape.replicadShape) {
-          console.warn(`Cannot find secondary shape ${operation.secondaryId} for boolean operation`);
+          console.warn(`❌ Cannot find secondary shape ${operation.secondaryId} for boolean operation`);
           continue;
         }
 
-        const tempPrimary = { ...shape, replicadShape: resultShape };
+        console.log(`🔨 Applying ${operation.type} with secondary:`, secondaryShape.parameters);
+
+        const currentPrimary = get().shapes.find(s => s.id === shapeId);
+        if (!currentPrimary) continue;
+
+        const tempPrimary = { ...currentPrimary, replicadShape: resultShape };
         resultShape = await get().applyBooleanOperation(tempPrimary, secondaryShape, operation.type);
+        console.log(`✅ Boolean ${operation.type} completed`);
       }
 
       const newGeometry = convertReplicadToThreeGeometry(resultShape);

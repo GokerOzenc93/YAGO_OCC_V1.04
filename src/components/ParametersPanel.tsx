@@ -237,13 +237,27 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       });
 
       let scaledGeometry = selectedShape.geometry;
+      let newReplicadShape = selectedShape.replicadShape;
 
-      if (dimensionsChanged && selectedShape.geometry) {
-        scaledGeometry = selectedShape.geometry.clone();
-        scaledGeometry.scale(scaleX, scaleY, scaleZ);
-        scaledGeometry.computeVertexNormals();
-        scaledGeometry.computeBoundingBox();
-        scaledGeometry.computeBoundingSphere();
+      if (dimensionsChanged) {
+        if (selectedShape.type === 'box' && selectedShape.replicadShape) {
+          const { createReplicadShape, convertReplicadToThreeGeometry } = await import('../services/replicad');
+
+          newReplicadShape = await createReplicadShape(selectedShape.type, {
+            width,
+            height,
+            depth
+          });
+
+          scaledGeometry = convertReplicadToThreeGeometry(newReplicadShape);
+          newBaseVertices = await getReplicadVertices(newReplicadShape);
+        } else if (selectedShape.geometry) {
+          scaledGeometry = selectedShape.geometry.clone();
+          scaledGeometry.scale(scaleX, scaleY, scaleZ);
+          scaledGeometry.computeVertexNormals();
+          scaledGeometry.computeBoundingBox();
+          scaledGeometry.computeBoundingSphere();
+        }
       }
 
       updateShape(selectedShape.id, {
@@ -259,7 +273,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         position: selectedShape.position,
         rotation: selectedShape.rotation,
         scale: selectedShape.scale,
-        ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
+        ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry }),
+        ...(dimensionsChanged && newReplicadShape && { replicadShape: newReplicadShape })
       });
 
     } catch (error) {
