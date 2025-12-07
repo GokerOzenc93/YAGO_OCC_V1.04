@@ -3,6 +3,13 @@ import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
 import { VertexModification } from './services/vertexEditor';
 
+export interface BooleanOperation {
+  type: 'cut' | 'union' | 'intersect';
+  primaryId: string;
+  secondaryId: string;
+  timestamp: number;
+}
+
 export interface Shape {
   id: string;
   type: string;
@@ -18,6 +25,7 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
+  booleanHistory?: BooleanOperation[];
 }
 
 export enum CameraType {
@@ -81,6 +89,8 @@ interface AppState {
   selectSecondaryShape: (id: string | null) => void;
   createGroup: (primaryId: string, secondaryId: string) => Promise<void>;
   ungroupShapes: (groupId: string) => void;
+  applyBooleanOperation: (primary: Shape, secondary: Shape, operation: 'cut' | 'union' | 'intersect') => Promise<any>;
+  recomputeBooleanOperations: (shapeId: string) => Promise<void>;
 
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
@@ -123,17 +133,20 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
   shapes: [],
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
-  updateShape: (id, updates) =>
-    set((state) => {
-      const shape = state.shapes.find(s => s.id === id);
-      if (!shape) return state;
+  updateShape: (id, updates) => {
+    const shape = get().shapes.find(s => s.id === id);
+    if (!shape) return;
 
+    const hasParameterChanges = 'parameters' in updates || 'scale' in updates;
+    const hasTransformChanges = 'position' in updates || 'rotation' in updates || 'scale' in updates;
+
+    set((state) => {
       const updatedShapes = state.shapes.map((s) => {
         if (s.id === id) {
           return { ...s, ...updates };
         }
         if (shape.groupId && s.groupId === shape.groupId && s.id !== id) {
-          if ('position' in updates || 'rotation' in updates || 'scale' in updates) {
+          if (hasTransformChanges) {
             const positionDelta = updates.position ? [
               updates.position[0] - shape.position[0],
               updates.position[1] - shape.position[1],
@@ -174,7 +187,21 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
 
       return { shapes: updatedShapes };
-    }),
+    });
+
+    if (hasParameterChanges && shape.booleanHistory && shape.booleanHistory.length > 0) {
+      console.log(`🔄 Parameters changed, recomputing boolean operations for shape ${id}`);
+      get().recomputeBooleanOperations(id);
+    }
+
+    if (hasParameterChanges && shape.isReferenceBox && shape.groupId) {
+      const primaryShape = get().shapes.find(s => s.groupId === shape.groupId && !s.isReferenceBox);
+      if (primaryShape && primaryShape.booleanHistory && primaryShape.booleanHistory.length > 0) {
+        console.log(`🔄 Reference shape changed, recomputing boolean operations for primary shape ${primaryShape.id}`);
+        get().recomputeBooleanOperations(primaryShape.id);
+      }
+    }
+  },
   deleteShape: (id) =>
     set((state) => ({
       shapes: state.shapes.filter((s) => s.id !== id),
@@ -258,72 +285,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     const groupId = `group-${Date.now()}`;
 
     try {
+      const resultShape = await get().applyBooleanOperation(primaryShape, secondaryShape, 'cut');
+
+      if (!resultShape) {
+        throw new Error('Boolean operation failed');
+      }
+
       const { convertReplicadToThreeGeometry } = await import('./services/replicad');
       const { getReplicadVertices } = await import('./services/vertexEditor');
 
-      const primarySize = [
-        primaryShape.parameters?.width || 0,
-        primaryShape.parameters?.height || 0,
-        primaryShape.parameters?.depth || 0
-      ] as [number, number, number];
-
-      const secondarySize = [
-        secondaryShape.parameters?.width || 0,
-        secondaryShape.parameters?.height || 0,
-        secondaryShape.parameters?.depth || 0
-      ] as [number, number, number];
-
-      let primaryInWorld = primaryShape.replicadShape;
-      let secondaryInWorld = secondaryShape.replicadShape;
-
-      const [psx, psy, psz] = primaryShape.scale;
-      const [prx, pry, prz] = primaryShape.rotation;
-      const [ppx, ppy, ppz] = primaryShape.position;
-
-      const [ssx, ssy, ssz] = secondaryShape.scale;
-      const [srx, sry, srz] = secondaryShape.rotation;
-      const [spx, spy, spz] = secondaryShape.position;
-
-      const primaryLocalCenter = [primarySize[0] / 2, primarySize[1] / 2, primarySize[2] / 2];
-      const secondaryLocalCenter = [secondarySize[0] / 2, secondarySize[1] / 2, secondarySize[2] / 2];
-
-      primaryInWorld = primaryInWorld.translate(primaryLocalCenter[0], primaryLocalCenter[1], primaryLocalCenter[2]);
-      if (psx !== 1 || psy !== 1 || psz !== 1) primaryInWorld = primaryInWorld.scale(psx, psy, psz);
-      if (prx !== 0) primaryInWorld = primaryInWorld.rotate(prx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-      if (pry !== 0) primaryInWorld = primaryInWorld.rotate(pry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-      if (prz !== 0) primaryInWorld = primaryInWorld.rotate(prz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-      primaryInWorld = primaryInWorld.translate(
-        ppx - primaryLocalCenter[0] * psx,
-        ppy - primaryLocalCenter[1] * psy,
-        ppz - primaryLocalCenter[2] * psz
-      );
-
-      secondaryInWorld = secondaryInWorld.translate(secondaryLocalCenter[0], secondaryLocalCenter[1], secondaryLocalCenter[2]);
-      if (ssx !== 1 || ssy !== 1 || ssz !== 1) secondaryInWorld = secondaryInWorld.scale(ssx, ssy, ssz);
-      if (srx !== 0) secondaryInWorld = secondaryInWorld.rotate(srx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-      if (sry !== 0) secondaryInWorld = secondaryInWorld.rotate(sry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-      if (srz !== 0) secondaryInWorld = secondaryInWorld.rotate(srz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-      secondaryInWorld = secondaryInWorld.translate(
-        spx - secondaryLocalCenter[0] * ssx,
-        spy - secondaryLocalCenter[1] * ssy,
-        spz - secondaryLocalCenter[2] * ssz
-      );
-
-      let resultShape = primaryInWorld.cut(secondaryInWorld);
-
-      resultShape = resultShape.translate(
-        -(ppx - primaryLocalCenter[0] * psx),
-        -(ppy - primaryLocalCenter[1] * psy),
-        -(ppz - primaryLocalCenter[2] * psz)
-      );
-      if (prz !== 0) resultShape = resultShape.rotate(-prz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-      if (pry !== 0) resultShape = resultShape.rotate(-pry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-      if (prx !== 0) resultShape = resultShape.rotate(-prx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-      if (psx !== 1 || psy !== 1 || psz !== 1) resultShape = resultShape.scale(1/psx, 1/psy, 1/psz);
-      resultShape = resultShape.translate(-primaryLocalCenter[0], -primaryLocalCenter[1], -primaryLocalCenter[2]);
-
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
+
+      const booleanOp: BooleanOperation = {
+        type: 'cut',
+        primaryId,
+        secondaryId,
+        timestamp: Date.now()
+      };
 
       set((state) => ({
         shapes: state.shapes.map((s) => {
@@ -333,6 +312,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               groupId,
               geometry: newGeometry,
               replicadShape: resultShape,
+              booleanHistory: [booleanOp],
               parameters: {
                 ...s.parameters,
                 scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
@@ -368,7 +348,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       shapes: state.shapes.map((s) => {
         if (s.groupId === groupId) {
-          const { groupId: _, isReferenceBox: __, ...rest } = s;
+          const { groupId: _, isReferenceBox: __, booleanHistory: ___, ...rest } = s;
           return rest as Shape;
         }
         return s;
@@ -467,5 +447,163 @@ export const useAppStore = create<AppState>((set, get) => ({
           geometry: shape.geometry
         };
       })
-    }))
+    })),
+
+  applyBooleanOperation: async (primary: Shape, secondary: Shape, operation: 'cut' | 'union' | 'intersect') => {
+    if (!primary.replicadShape || !secondary.replicadShape) {
+      throw new Error('Shapes missing replicadShape');
+    }
+
+    const getBoundingBoxCenter = (shape: any) => {
+      try {
+        const bbox = shape.boundingBox();
+        return [
+          (bbox.max.x + bbox.min.x) / 2,
+          (bbox.max.y + bbox.min.y) / 2,
+          (bbox.max.z + bbox.min.z) / 2
+        ];
+      } catch {
+        const size = [
+          primary.parameters?.width || 0,
+          primary.parameters?.height || 0,
+          primary.parameters?.depth || 0
+        ];
+        return [size[0] / 2, size[1] / 2, size[2] / 2];
+      }
+    };
+
+    const transformToWorld = (shape: any, center: number[], position: number[], rotation: number[], scale: number[]) => {
+      let transformed = shape;
+
+      transformed = transformed.translate(center[0], center[1], center[2]);
+
+      if (scale[0] !== 1 || scale[1] !== 1 || scale[2] !== 1) {
+        transformed = transformed.scale(scale[0], scale[1], scale[2]);
+      }
+
+      if (rotation[0] !== 0) transformed = transformed.rotate(rotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      if (rotation[1] !== 0) transformed = transformed.rotate(rotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (rotation[2] !== 0) transformed = transformed.rotate(rotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+
+      transformed = transformed.translate(
+        position[0] - center[0] * scale[0],
+        position[1] - center[1] * scale[1],
+        position[2] - center[2] * scale[2]
+      );
+
+      return transformed;
+    };
+
+    const primaryCenter = getBoundingBoxCenter(primary.replicadShape);
+    const secondaryCenter = getBoundingBoxCenter(secondary.replicadShape);
+
+    let primaryInWorld = transformToWorld(
+      primary.replicadShape,
+      primaryCenter,
+      primary.position,
+      primary.rotation,
+      primary.scale
+    );
+
+    let secondaryInWorld = transformToWorld(
+      secondary.replicadShape,
+      secondaryCenter,
+      secondary.position,
+      secondary.rotation,
+      secondary.scale
+    );
+
+    let result;
+    switch (operation) {
+      case 'cut':
+        result = primaryInWorld.cut(secondaryInWorld);
+        break;
+      case 'union':
+        result = primaryInWorld.fuse(secondaryInWorld);
+        break;
+      case 'intersect':
+        result = primaryInWorld.intersect(secondaryInWorld);
+        break;
+      default:
+        throw new Error(`Unknown operation: ${operation}`);
+    }
+
+    const transformBackToLocal = (shape: any, center: number[], position: number[], rotation: number[], scale: number[]) => {
+      let transformed = shape;
+
+      transformed = transformed.translate(
+        -(position[0] - center[0] * scale[0]),
+        -(position[1] - center[1] * scale[1]),
+        -(position[2] - center[2] * scale[2])
+      );
+
+      if (rotation[2] !== 0) transformed = transformed.rotate(-rotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+      if (rotation[1] !== 0) transformed = transformed.rotate(-rotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (rotation[0] !== 0) transformed = transformed.rotate(-rotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+
+      if (scale[0] !== 1 || scale[1] !== 1 || scale[2] !== 1) {
+        transformed = transformed.scale(1 / scale[0], 1 / scale[1], 1 / scale[2]);
+      }
+
+      transformed = transformed.translate(-center[0], -center[1], -center[2]);
+
+      return transformed;
+    };
+
+    result = transformBackToLocal(result, primaryCenter, primary.position, primary.rotation, primary.scale);
+
+    return result;
+  },
+
+  recomputeBooleanOperations: async (shapeId: string) => {
+    const state = get();
+    const shape = state.shapes.find(s => s.id === shapeId);
+
+    if (!shape || !shape.booleanHistory || shape.booleanHistory.length === 0) {
+      return;
+    }
+
+    try {
+      const { convertReplicadToThreeGeometry } = await import('./services/replicad');
+      const { getReplicadVertices } = await import('./services/vertexEditor');
+      const { createReplicadShape } = await import('./services/replicad');
+
+      let resultShape = await createReplicadShape(shape.type, shape.parameters);
+
+      for (const operation of shape.booleanHistory) {
+        const secondaryShape = state.shapes.find(s => s.id === operation.secondaryId);
+        if (!secondaryShape || !secondaryShape.replicadShape) {
+          console.warn(`Cannot find secondary shape ${operation.secondaryId} for boolean operation`);
+          continue;
+        }
+
+        const tempPrimary = { ...shape, replicadShape: resultShape };
+        resultShape = await get().applyBooleanOperation(tempPrimary, secondaryShape, operation.type);
+      }
+
+      const newGeometry = convertReplicadToThreeGeometry(resultShape);
+      const newBaseVertices = await getReplicadVertices(resultShape);
+
+      set((state) => ({
+        shapes: state.shapes.map((s) => {
+          if (s.id === shapeId) {
+            return {
+              ...s,
+              geometry: newGeometry,
+              replicadShape: resultShape,
+              parameters: {
+                ...s.parameters,
+                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+              }
+            };
+          }
+          return s;
+        })
+      }));
+
+      console.log(`✅ Boolean operations recomputed for shape ${shapeId}`);
+    } catch (error) {
+      console.error('Failed to recompute boolean operations:', error);
+    }
+  }
 }));
