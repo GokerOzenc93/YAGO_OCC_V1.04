@@ -273,60 +273,54 @@ export const useAppStore = create<AppState>((set, get) => ({
         secondaryShape.parameters?.depth || 0
       ] as [number, number, number];
 
-      const primaryLocalCenter = [
-        primarySize[0] / 2,
-        primarySize[1] / 2,
-        primarySize[2] / 2
-      ];
-
-      const secondaryLocalCenter = [
-        secondarySize[0] / 2,
-        secondarySize[1] / 2,
-        secondarySize[2] / 2
-      ];
-
-      const primaryCenter = [
-        primaryShape.position[0] + primaryLocalCenter[0],
-        primaryShape.position[1] + primaryLocalCenter[1],
-        primaryShape.position[2] + primaryLocalCenter[2]
-      ];
-
-      const secondaryCenter = [
-        secondaryShape.position[0] + secondaryLocalCenter[0],
-        secondaryShape.position[1] + secondaryLocalCenter[1],
-        secondaryShape.position[2] + secondaryLocalCenter[2]
-      ];
-
       let primaryInWorld = primaryShape.replicadShape;
       let secondaryInWorld = secondaryShape.replicadShape;
 
       const [psx, psy, psz] = primaryShape.scale;
       const [prx, pry, prz] = primaryShape.rotation;
-      const [pcx, pcy, pcz] = primaryCenter;
+      const [ppx, ppy, ppz] = primaryShape.position;
 
       const [ssx, ssy, ssz] = secondaryShape.scale;
       const [srx, sry, srz] = secondaryShape.rotation;
-      const [scx, scy, scz] = secondaryCenter;
+      const [spx, spy, spz] = secondaryShape.position;
 
+      const primaryLocalCenter = [primarySize[0] / 2, primarySize[1] / 2, primarySize[2] / 2];
+      const secondaryLocalCenter = [secondarySize[0] / 2, secondarySize[1] / 2, secondarySize[2] / 2];
+
+      primaryInWorld = primaryInWorld.translate(primaryLocalCenter[0], primaryLocalCenter[1], primaryLocalCenter[2]);
       if (psx !== 1 || psy !== 1 || psz !== 1) primaryInWorld = primaryInWorld.scale(psx, psy, psz);
       if (prx !== 0) primaryInWorld = primaryInWorld.rotate(prx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
       if (pry !== 0) primaryInWorld = primaryInWorld.rotate(pry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
       if (prz !== 0) primaryInWorld = primaryInWorld.rotate(prz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-      if (pcx !== 0 || pcy !== 0 || pcz !== 0) primaryInWorld = primaryInWorld.translate(pcx, pcy, pcz);
+      primaryInWorld = primaryInWorld.translate(
+        ppx - primaryLocalCenter[0] * psx,
+        ppy - primaryLocalCenter[1] * psy,
+        ppz - primaryLocalCenter[2] * psz
+      );
 
+      secondaryInWorld = secondaryInWorld.translate(secondaryLocalCenter[0], secondaryLocalCenter[1], secondaryLocalCenter[2]);
       if (ssx !== 1 || ssy !== 1 || ssz !== 1) secondaryInWorld = secondaryInWorld.scale(ssx, ssy, ssz);
       if (srx !== 0) secondaryInWorld = secondaryInWorld.rotate(srx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
       if (sry !== 0) secondaryInWorld = secondaryInWorld.rotate(sry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
       if (srz !== 0) secondaryInWorld = secondaryInWorld.rotate(srz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-      if (scx !== 0 || scy !== 0 || scz !== 0) secondaryInWorld = secondaryInWorld.translate(scx, scy, scz);
+      secondaryInWorld = secondaryInWorld.translate(
+        spx - secondaryLocalCenter[0] * ssx,
+        spy - secondaryLocalCenter[1] * ssy,
+        spz - secondaryLocalCenter[2] * ssz
+      );
 
       let resultShape = primaryInWorld.cut(secondaryInWorld);
 
-      if (pcx !== 0 || pcy !== 0 || pcz !== 0) resultShape = resultShape.translate(-pcx, -pcy, -pcz);
+      resultShape = resultShape.translate(
+        -(ppx - primaryLocalCenter[0] * psx),
+        -(ppy - primaryLocalCenter[1] * psy),
+        -(ppz - primaryLocalCenter[2] * psz)
+      );
       if (prz !== 0) resultShape = resultShape.rotate(-prz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
       if (pry !== 0) resultShape = resultShape.rotate(-pry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
       if (prx !== 0) resultShape = resultShape.rotate(-prx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
       if (psx !== 1 || psy !== 1 || psz !== 1) resultShape = resultShape.scale(1/psx, 1/psy, 1/psz);
+      resultShape = resultShape.translate(-primaryLocalCenter[0], -primaryLocalCenter[1], -primaryLocalCenter[2]);
 
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
