@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as THREE from 'three';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, Minus } from 'lucide-react';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen } from 'lucide-react';
 import { ParametersPanel } from './ParametersPanel';
 
 interface ToolbarProps {
@@ -37,49 +37,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const [polylineMenuPosition, setPolylineMenuPosition] = useState({ x: 0, y: 0 });
   const [showParametersPanel, setShowParametersPanel] = useState(false);
-
-  const hasIntersectingShapes = React.useMemo(() => {
-    if (!selectedShapeId) return false;
-
-    const selectedShape = shapes.find(s => s.id === selectedShapeId);
-    if (!selectedShape || !selectedShape.geometry) return false;
-
-    try {
-      const selectedBox = new THREE.Box3().setFromBufferAttribute(
-        selectedShape.geometry.getAttribute('position')
-      );
-
-      const selectedMin = selectedBox.min.clone();
-      const selectedMax = selectedBox.max.clone();
-      selectedMin.add(new THREE.Vector3(...selectedShape.position));
-      selectedMax.add(new THREE.Vector3(...selectedShape.position));
-      selectedBox.set(selectedMin, selectedMax);
-
-      return shapes.some(s => {
-        if (s.id === selectedShapeId || !s.geometry) return false;
-
-        try {
-          const otherBox = new THREE.Box3().setFromBufferAttribute(
-            s.geometry.getAttribute('position')
-          );
-
-          const otherMin = otherBox.min.clone();
-          const otherMax = otherBox.max.clone();
-          otherMin.add(new THREE.Vector3(...s.position));
-          otherMax.add(new THREE.Vector3(...s.position));
-          otherBox.set(otherMin, otherMax);
-
-          return selectedBox.intersectsBox(otherBox);
-        } catch (e) {
-          console.warn('Error checking intersection for shape:', s.id, e);
-          return false;
-        }
-      });
-    } catch (e) {
-      console.warn('Error calculating intersections:', e);
-      return false;
-    }
-  }, [selectedShapeId, shapes]);
 
   const shouldDisableSnap = ['Select', 'Move', 'Rotate', 'Scale'].includes(activeTool);
 
@@ -434,145 +391,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     }
   };
 
-
-  const handleSubtract = async () => {
-    if (!selectedShapeId || !hasIntersectingShapes) {
-      console.log('⚠️ Cannot subtract: no selection or no intersecting shapes');
-      return;
-    }
-
-    console.log('🔪 Subtract button clicked');
-    console.log('🎯 Selected shape (to be subtracted/removed):', selectedShapeId);
-
-    try {
-      const selectedShape = shapes.find(s => s.id === selectedShapeId);
-      if (!selectedShape) {
-        console.error('❌ Selected shape not found');
-        return;
-      }
-
-      if (!selectedShape.geometry || !selectedShape.replicadShape) {
-        console.error('❌ Selected shape missing geometry or replicadShape');
-        return;
-      }
-
-      const selectedBox = new THREE.Box3().setFromBufferAttribute(
-        selectedShape.geometry.getAttribute('position')
-      );
-      const selectedMin = selectedBox.min.clone();
-      const selectedMax = selectedBox.max.clone();
-      selectedMin.add(new THREE.Vector3(...selectedShape.position));
-      selectedMax.add(new THREE.Vector3(...selectedShape.position));
-      selectedBox.set(selectedMin, selectedMax);
-
-      const intersectingShapes = shapes.filter(s => {
-        if (s.id === selectedShapeId) return false;
-        if (!s.geometry) return false;
-
-        const box = new THREE.Box3().setFromBufferAttribute(
-          s.geometry.getAttribute('position')
-        );
-        const min = box.min.clone();
-        const max = box.max.clone();
-        min.add(new THREE.Vector3(...s.position));
-        max.add(new THREE.Vector3(...s.position));
-        box.set(min, max);
-
-        return selectedBox.intersectsBox(box);
-      });
-
-      if (intersectingShapes.length === 0) {
-        console.log('⚠️ No intersecting shapes found');
-        return;
-      }
-
-      console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) that will keep the result`);
-
-      const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      const { getReplicadVertices } = await import('../services/vertexEditor');
-
-      for (const targetShape of intersectingShapes) {
-        if (!targetShape.replicadShape) {
-          console.warn('⚠️ Target shape missing replicadShape, skipping:', targetShape.id);
-          continue;
-        }
-
-        console.log(`🔪 Cutting ${selectedShapeId} FROM ${targetShape.id}`);
-        console.log(`📍 Target (base) position: [${targetShape.position}], rotation: [${targetShape.rotation}], scale: [${targetShape.scale}]`);
-        console.log(`📍 Selected (cutting) position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
-
-        const resultShape = await performBooleanCut(
-          targetShape.replicadShape,
-          selectedShape.replicadShape,
-          targetShape.position,
-          selectedShape.position,
-          targetShape.rotation,
-          selectedShape.rotation,
-          targetShape.scale,
-          selectedShape.scale
-        );
-
-        const newGeometry = convertReplicadToThreeGeometry(resultShape);
-        const newBaseVertices = await getReplicadVertices(resultShape);
-
-        const subtractedGeometry = selectedShape.geometry.clone();
-
-        const relativeOffset = [
-          selectedShape.position[0] - targetShape.position[0],
-          selectedShape.position[1] - targetShape.position[1],
-          selectedShape.position[2] - targetShape.position[2]
-        ] as [number, number, number];
-
-        const relativeRotation = [
-          selectedShape.rotation[0] - targetShape.rotation[0],
-          selectedShape.rotation[1] - targetShape.rotation[1],
-          selectedShape.rotation[2] - targetShape.rotation[2]
-        ] as [number, number, number];
-
-        const existingSubtractions = targetShape.subtractionGeometries || [];
-
-        console.log('🔍 Capturing subtracted geometry in Toolbar:', {
-          selectedShapeId: selectedShape.id,
-          targetPosition: targetShape.position,
-          selectedPosition: selectedShape.position,
-          relativeOffset,
-          relativeRotation,
-          selectedScale: selectedShape.scale,
-          geometryVertices: subtractedGeometry.attributes.position.count,
-          existingSubtractionsCount: existingSubtractions.length
-        });
-
-        updateShape(targetShape.id, {
-          geometry: newGeometry,
-          replicadShape: resultShape,
-          subtractionGeometries: [
-            ...existingSubtractions,
-            {
-              geometry: subtractedGeometry,
-              relativeOffset,
-              relativeRotation,
-              scale: [1, 1, 1] as [number, number, number]
-            }
-          ],
-          parameters: {
-            ...targetShape.parameters,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-          }
-        });
-
-        console.log(`✅ Updated ${targetShape.id} with cut result and subtracted geometry`);
-      }
-
-      deleteShape(selectedShapeId);
-      console.log(`🗑️ Deleted selected shape ${selectedShapeId}`);
-      console.log(`✅ All subtract operations completed`);
-
-    } catch (error) {
-      console.error('❌ Failed to perform subtract operation:', error);
-      alert(`Failed to subtract: ${(error as Error).message}`);
-    }
-  };
-
   return (
     <div className="flex flex-col font-inter">
       <div className="flex items-center h-12 px-4 bg-stone-50 border-b border-stone-200 shadow-sm">
@@ -912,26 +730,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             disabled={!selectedShapeId}
           >
             <Settings size={11} />
-          </button>
-          <button
-            onClick={handleSubtract}
-            className={`p-1.5 rounded transition-all ${
-              hasIntersectingShapes
-                ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
-                : selectedShapeId
-                ? 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
-                : 'text-stone-300 cursor-not-allowed'
-            }`}
-            title={
-              hasIntersectingShapes
-                ? "Subtract Intersecting Shapes"
-                : selectedShapeId
-                ? "No intersecting shapes"
-                : "Select a shape first"
-            }
-            disabled={!selectedShapeId}
-          >
-            <Minus size={11} />
           </button>
           <button
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"

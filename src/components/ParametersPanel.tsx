@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Check } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
-import { getGeometrySize, performSubtractionOperations } from '../services/subtractionHelpers';
 
 interface CustomParameter {
   id: string;
@@ -23,11 +22,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     shapes,
     updateShape,
     vertexEditMode,
-    setVertexEditMode,
-    subtractionViewMode,
-    setSubtractionViewMode,
-    selectedSubtractionIndex,
-    setSelectedSubtractionIndex
+    setVertexEditMode
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -40,13 +35,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [depth, setDepth] = useState(0);
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
-
-  const [subWidth, setSubWidth] = useState(0);
-  const [subHeight, setSubHeight] = useState(0);
-  const [subDepth, setSubDepth] = useState(0);
-  const [subPosX, setSubPosX] = useState(0);
-  const [subPosY, setSubPosY] = useState(0);
-  const [subPosZ, setSubPosZ] = useState(0);
 
   useEffect(() => {
     if (selectedShape && selectedShape.parameters) {
@@ -63,30 +51,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setVertexModifications([]);
     }
   }, [selectedShape, selectedShapeId, shapes]);
-
-  useEffect(() => {
-    if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
-      const subtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
-      if (subtraction) {
-        const box = new THREE.Box3().setFromBufferAttribute(
-          subtraction.geometry.attributes.position as THREE.BufferAttribute
-        );
-        const size = new THREE.Vector3();
-        const center = new THREE.Vector3();
-        box.getSize(size);
-        box.getCenter(center);
-
-        const round = (n: number) => Math.round(n * 100) / 100;
-
-        setSubWidth(round(size.x));
-        setSubHeight(round(size.y));
-        setSubDepth(round(size.z));
-        setSubPosX(round(subtraction.relativeOffset[0]));
-        setSubPosY(round(subtraction.relativeOffset[1]));
-        setSubPosZ(round(subtraction.relativeOffset[2]));
-      }
-    }
-  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -282,9 +246,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         scaledGeometry.computeBoundingSphere();
       }
 
-      const hasSubtractions = selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0;
-
-      const baseUpdate = {
+      updateShape(selectedShape.id, {
         parameters: {
           ...selectedShape.parameters,
           width,
@@ -296,38 +258,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         vertexModifications: updatedVertexMods,
         position: selectedShape.position,
         rotation: selectedShape.rotation,
-        scale: selectedShape.scale
-      };
-
-      if (hasSubtractions) {
-        let allSubtractions = selectedShape.subtractionGeometries!;
-
-        if (selectedSubtractionIndex !== null) {
-          allSubtractions = selectedShape.subtractionGeometries!.map((sub, idx) =>
-            idx === selectedSubtractionIndex
-              ? { ...sub, geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth), relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number] }
-              : sub
-          );
-        }
-
-        const result = await performSubtractionOperations(
-          width, height, depth, allSubtractions,
-          selectedShape.position, selectedShape.rotation, selectedShape.scale
-        );
-
-        updateShape(selectedShape.id, {
-          ...baseUpdate,
-          geometry: result.geometry,
-          replicadShape: result.replicadShape,
-          subtractionGeometries: allSubtractions,
-          parameters: { ...baseUpdate.parameters, scaledBaseVertices: result.baseVertices.map(v => [v.x, v.y, v.z]) }
-        });
-      } else {
-        updateShape(selectedShape.id, {
-          ...baseUpdate,
-          ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
-        });
-      }
+        scale: selectedShape.scale,
+        ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
+      });
 
     } catch (error) {
       console.error('Failed to update parameters:', error);
@@ -369,19 +302,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           >
             VERTEX
           </button>
-          {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.length > 0 && (
-            <button
-              onClick={() => setSubtractionViewMode(!subtractionViewMode)}
-              className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
-                subtractionViewMode
-                  ? 'bg-yellow-500 text-white'
-                  : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-              }`}
-              title={`Show ${selectedShape.subtractionGeometries.length} Subtraction Geometr${selectedShape.subtractionGeometries.length > 1 ? 'ies' : 'y'}`}
-            >
-              SUB ({selectedShape.subtractionGeometries.length})
-            </button>
-          )}
           <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
@@ -483,182 +403,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 />
               </div>
             </div>
-
-            {selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
-              <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
-                <div className="text-xs font-semibold text-yellow-700 mb-2">
-                  Subtraction #{selectedSubtractionIndex + 1} Parameters
-                </div>
-
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="W"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subWidth}
-                    step="0.01"
-                    onChange={(e) => setSubWidth(Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <input
-                    type="text"
-                    value={subWidth.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value="Width"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                </div>
-
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="H"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subHeight}
-                    step="0.01"
-                    onChange={(e) => setSubHeight(Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <input
-                    type="text"
-                    value={subHeight.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value="Height"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                </div>
-
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="D"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subDepth}
-                    step="0.01"
-                    onChange={(e) => setSubDepth(Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <input
-                    type="text"
-                    value={subDepth.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value="Depth"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                </div>
-
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="X"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subPosX}
-                    step="0.01"
-                    onChange={(e) => setSubPosX(Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <input
-                    type="text"
-                    value={subPosX.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value="Position X"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                </div>
-
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="Y"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subPosY}
-                    step="0.01"
-                    onChange={(e) => setSubPosY(Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <input
-                    type="text"
-                    value={subPosY.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value="Position Y"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                </div>
-
-                <div className="flex gap-1 items-center">
-                  <input
-                    type="text"
-                    value="Z"
-                    readOnly
-                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
-                  />
-                  <input
-                    type="number"
-                    value={subPosZ}
-                    step="0.01"
-                    onChange={(e) => setSubPosZ(Number(e.target.value))}
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <input
-                    type="text"
-                    value={subPosZ.toFixed(2)}
-                    readOnly
-                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                  <input
-                    type="text"
-                    value="Position Z"
-                    readOnly
-                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
-                  />
-                </div>
-              </div>
-            )}
 
             {customParameters.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">

@@ -3,13 +3,6 @@ import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
 import { VertexModification } from './services/vertexEditor';
 
-export interface SubtractedGeometry {
-  geometry: THREE.BufferGeometry;
-  relativeOffset: [number, number, number];
-  relativeRotation: [number, number, number];
-  scale: [number, number, number];
-}
-
 export interface Shape {
   id: string;
   type: string;
@@ -25,7 +18,6 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
-  subtractionGeometries?: SubtractedGeometry[];
 }
 
 export enum CameraType {
@@ -82,7 +74,6 @@ interface AppState {
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
   extrudeShape: (id: string, distance: number) => void;
-  checkAndPerformBooleanOperations: () => Promise<void>;
 
   selectedShapeId: string | null;
   selectShape: (id: string | null) => void;
@@ -127,13 +118,6 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
-
-  subtractionViewMode: boolean;
-  setSubtractionViewMode: (enabled: boolean) => void;
-  selectedSubtractionIndex: number | null;
-  setSelectedSubtractionIndex: (index: number | null) => void;
-  hoveredSubtractionIndex: number | null;
-  setHoveredSubtractionIndex: (index: number | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -374,140 +358,5 @@ export const useAppStore = create<AppState>((set, get) => ({
           geometry: shape.geometry
         };
       })
-    })),
-
-  subtractionViewMode: false,
-  setSubtractionViewMode: (enabled) => set({ subtractionViewMode: enabled }),
-  selectedSubtractionIndex: null,
-  setSelectedSubtractionIndex: (index) => set({ selectedSubtractionIndex: index }),
-  hoveredSubtractionIndex: null,
-  setHoveredSubtractionIndex: (index) => set({ hoveredSubtractionIndex: index }),
-
-  checkAndPerformBooleanOperations: async () => {
-    const state = get();
-    const shapes = state.shapes;
-
-    if (shapes.length < 2) return;
-
-    for (let i = 0; i < shapes.length; i++) {
-      for (let j = i + 1; j < shapes.length; j++) {
-        const shape1 = shapes[i];
-        const shape2 = shapes[j];
-
-        if (!shape1.geometry || !shape2.geometry) continue;
-        if (!shape1.replicadShape || !shape2.replicadShape) continue;
-
-        const box1 = new THREE.Box3().setFromBufferAttribute(
-          shape1.geometry.getAttribute('position')
-        );
-        const box2 = new THREE.Box3().setFromBufferAttribute(
-          shape2.geometry.getAttribute('position')
-        );
-
-        box1.translate(new THREE.Vector3(...shape1.position));
-        box2.translate(new THREE.Vector3(...shape2.position));
-
-        if (box1.intersectsBox(box2)) {
-          try {
-            const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
-            const { getReplicadVertices } = await import('./services/vertexEditor');
-
-            const shape1Size = [
-              shape1.parameters?.width || 0,
-              shape1.parameters?.height || 0,
-              shape1.parameters?.depth || 0
-            ] as [number, number, number];
-
-            const shape2Size = [
-              shape2.parameters?.width || 0,
-              shape2.parameters?.height || 0,
-              shape2.parameters?.depth || 0
-            ] as [number, number, number];
-
-            const shape1LocalCenter = [
-              shape1Size[0] / 2,
-              shape1Size[1] / 2,
-              shape1Size[2] / 2
-            ];
-
-            const shape2LocalCenter = [
-              shape2Size[0] / 2,
-              shape2Size[1] / 2,
-              shape2Size[2] / 2
-            ];
-
-            const shape1Center = [
-              shape1.position[0] + shape1LocalCenter[0],
-              shape1.position[1] + shape1LocalCenter[1],
-              shape1.position[2] + shape1LocalCenter[2]
-            ];
-
-            const shape2Center = [
-              shape2.position[0] + shape2LocalCenter[0],
-              shape2.position[1] + shape2LocalCenter[1],
-              shape2.position[2] + shape2LocalCenter[2]
-            ];
-
-            const resultShape = await performBooleanCut(
-              shape1.replicadShape,
-              shape2.replicadShape,
-              shape1Center as [number, number, number],
-              shape2Center as [number, number, number],
-              shape1.rotation,
-              shape2.rotation,
-              shape1.scale,
-              shape2.scale
-            );
-
-            const newGeometry = convertReplicadToThreeGeometry(resultShape);
-            const newBaseVertices = await getReplicadVertices(resultShape);
-
-            const subtractedGeometry = shape2.geometry.clone();
-
-            const relativeOffset = [
-              shape2.position[0] - shape1.position[0],
-              shape2.position[1] - shape1.position[1],
-              shape2.position[2] - shape1.position[2]
-            ] as [number, number, number];
-
-            const relativeRotation = [
-              shape2.rotation[0] - shape1.rotation[0],
-              shape2.rotation[1] - shape1.rotation[1],
-              shape2.rotation[2] - shape1.rotation[2]
-            ] as [number, number, number];
-
-            set((state) => ({
-              shapes: state.shapes.map((s) => {
-                if (s.id === shape1.id) {
-                  const existingSubtractions = s.subtractionGeometries || [];
-                  return {
-                    ...s,
-                    geometry: newGeometry,
-                    replicadShape: resultShape,
-                    subtractionGeometries: [
-                      ...existingSubtractions,
-                      {
-                        geometry: subtractedGeometry,
-                        relativeOffset,
-                        relativeRotation,
-                        scale: shape2.scale
-                      }
-                    ],
-                    parameters: {
-                      ...s.parameters,
-                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-                    }
-                  };
-                }
-                return s;
-              }).filter(s => s.id !== shape2.id)
-            }));
-            return;
-          } catch (error) {
-            console.error('Failed to perform boolean operation:', error);
-          }
-        }
-      }
-    }
-  }
+    }))
 }));
