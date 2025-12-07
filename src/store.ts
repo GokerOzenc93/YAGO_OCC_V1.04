@@ -3,11 +3,11 @@ import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
 import { VertexModification } from './services/vertexEditor';
 
-export interface BooleanOperation {
-  type: 'cut' | 'union' | 'intersect';
-  primaryId: string;
-  secondaryId: string;
-  timestamp: number;
+export interface SubtractedGeometry {
+  geometry: THREE.BufferGeometry;
+  relativeOffset: [number, number, number];
+  relativeRotation: [number, number, number];
+  scale: [number, number, number];
 }
 
 export interface Shape {
@@ -25,7 +25,7 @@ export interface Shape {
   vertexModifications?: VertexModification[];
   groupId?: string;
   isReferenceBox?: boolean;
-  booleanHistory?: BooleanOperation[];
+  subtractionGeometries?: SubtractedGeometry[];
 }
 
 export enum CameraType {
@@ -82,15 +82,14 @@ interface AppState {
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
   extrudeShape: (id: string, distance: number) => void;
+  checkAndPerformBooleanOperations: () => Promise<void>;
 
   selectedShapeId: string | null;
   selectShape: (id: string | null) => void;
   secondarySelectedShapeId: string | null;
   selectSecondaryShape: (id: string | null) => void;
-  createGroup: (primaryId: string, secondaryId: string) => Promise<void>;
+  createGroup: (primaryId: string, secondaryId: string) => void;
   ungroupShapes: (groupId: string) => void;
-  applyBooleanOperation: (primary: Shape, secondary: Shape, operation: 'cut' | 'union' | 'intersect') => Promise<any>;
-  recomputeBooleanOperations: (shapeId: string) => Promise<void>;
 
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
@@ -128,25 +127,29 @@ interface AppState {
   vertexDirection: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null;
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
+
+  subtractionViewMode: boolean;
+  setSubtractionViewMode: (enabled: boolean) => void;
+  selectedSubtractionIndex: number | null;
+  setSelectedSubtractionIndex: (index: number | null) => void;
+  hoveredSubtractionIndex: number | null;
+  setHoveredSubtractionIndex: (index: number | null) => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   shapes: [],
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
-  updateShape: (id, updates) => {
-    const shape = get().shapes.find(s => s.id === id);
-    if (!shape) return;
-
-    const hasParameterChanges = 'parameters' in updates || 'scale' in updates;
-    const hasTransformChanges = 'position' in updates || 'rotation' in updates || 'scale' in updates;
-
+  updateShape: (id, updates) =>
     set((state) => {
+      const shape = state.shapes.find(s => s.id === id);
+      if (!shape) return state;
+
       const updatedShapes = state.shapes.map((s) => {
         if (s.id === id) {
           return { ...s, ...updates };
         }
         if (shape.groupId && s.groupId === shape.groupId && s.id !== id) {
-          if (hasTransformChanges) {
+          if ('position' in updates || 'rotation' in updates || 'scale' in updates) {
             const positionDelta = updates.position ? [
               updates.position[0] - shape.position[0],
               updates.position[1] - shape.position[1],
@@ -187,21 +190,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       });
 
       return { shapes: updatedShapes };
-    });
-
-    if (hasParameterChanges && shape.booleanHistory && shape.booleanHistory.length > 0) {
-      console.log(`🔄 Parameters changed, recomputing boolean operations for shape ${id}`);
-      get().recomputeBooleanOperations(id);
-    }
-
-    if (hasParameterChanges && shape.isReferenceBox && shape.groupId) {
-      const primaryShape = get().shapes.find(s => s.groupId === shape.groupId && !s.isReferenceBox);
-      if (primaryShape && primaryShape.booleanHistory && primaryShape.booleanHistory.length > 0) {
-        console.log(`🔄 Reference shape changed, recomputing boolean operations for primary shape ${primaryShape.id}`);
-        get().recomputeBooleanOperations(primaryShape.id);
-      }
-    }
-  },
+    }),
   deleteShape: (id) =>
     set((state) => ({
       shapes: state.shapes.filter((s) => s.id !== id),
@@ -259,6 +248,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectShape: (id) => {
     const currentMode = get().activeTool;
     if (id && currentMode === Tool.SELECT) {
+      console.log('🔄 Auto-switching to move mode on selection');
       set({ selectedShapeId: id, activeTool: Tool.MOVE });
     } else {
       set({ selectedShapeId: id });
@@ -267,88 +257,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   secondarySelectedShapeId: null,
   selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
 
-  createGroup: async (primaryId, secondaryId) => {
-    const state = get();
-    const primaryShape = state.shapes.find(s => s.id === primaryId);
-    const secondaryShape = state.shapes.find(s => s.id === secondaryId);
-
-    if (!primaryShape || !secondaryShape) {
-      console.error('Cannot create group: shapes not found');
-      return;
-    }
-
-    if (!primaryShape.replicadShape || !secondaryShape.replicadShape) {
-      console.error('Cannot create group: shapes missing replicadShape');
-      return;
-    }
-
+  createGroup: (primaryId, secondaryId) => {
     const groupId = `group-${Date.now()}`;
-
-    try {
-      const resultShape = await get().applyBooleanOperation(primaryShape, secondaryShape, 'cut');
-
-      if (!resultShape) {
-        throw new Error('Boolean operation failed');
-      }
-
-      const { convertReplicadToThreeGeometry } = await import('./services/replicad');
-      const { getReplicadVertices } = await import('./services/vertexEditor');
-
-      const newGeometry = convertReplicadToThreeGeometry(resultShape);
-      const newBaseVertices = await getReplicadVertices(resultShape);
-
-      const booleanOp: BooleanOperation = {
-        type: 'cut',
-        primaryId,
-        secondaryId,
-        timestamp: Date.now()
-      };
-
-      set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === primaryId) {
-            return {
-              ...s,
-              groupId,
-              geometry: newGeometry,
-              replicadShape: resultShape,
-              booleanHistory: [booleanOp],
-              parameters: {
-                ...s.parameters,
-                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-              }
-            };
-          }
-          if (s.id === secondaryId) {
-            return { ...s, groupId, isReferenceBox: true };
-          }
-          return s;
-        })
-      }));
-
-      console.log('✅ Group created with boolean cut applied');
-    } catch (error) {
-      console.error('Failed to create group with cut:', error);
-      const groupId = `group-${Date.now()}`;
-      set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === primaryId) {
-            return { ...s, groupId };
-          }
-          if (s.id === secondaryId) {
-            return { ...s, groupId, isReferenceBox: true };
-          }
-          return s;
-        })
-      }));
-    }
+    set((state) => ({
+      shapes: state.shapes.map((s) => {
+        if (s.id === primaryId) {
+          return { ...s, groupId };
+        }
+        if (s.id === secondaryId) {
+          return { ...s, groupId, isReferenceBox: true };
+        }
+        return s;
+      })
+    }));
+    console.log('✅ Created group:', groupId, { primaryId, secondaryId });
   },
 
   ungroupShapes: (groupId) => {
     set((state) => ({
       shapes: state.shapes.map((s) => {
         if (s.groupId === groupId) {
-          const { groupId: _, isReferenceBox: __, booleanHistory: ___, ...rest } = s;
+          const { groupId: _, isReferenceBox: __, ...rest } = s;
           return rest as Shape;
         }
         return s;
@@ -356,6 +285,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedShapeId: null,
       secondarySelectedShapeId: null
     }));
+    console.log('✅ Ungrouped:', groupId);
   },
 
   activeTool: Tool.SELECT,
@@ -449,169 +379,168 @@ export const useAppStore = create<AppState>((set, get) => ({
       })
     })),
 
-  applyBooleanOperation: async (primary: Shape, secondary: Shape, operation: 'cut' | 'union' | 'intersect') => {
-    if (!primary.replicadShape || !secondary.replicadShape) {
-      throw new Error('Shapes missing replicadShape');
-    }
+  subtractionViewMode: false,
+  setSubtractionViewMode: (enabled) => set({ subtractionViewMode: enabled }),
+  selectedSubtractionIndex: null,
+  setSelectedSubtractionIndex: (index) => set({ selectedSubtractionIndex: index }),
+  hoveredSubtractionIndex: null,
+  setHoveredSubtractionIndex: (index) => set({ hoveredSubtractionIndex: index }),
 
-    const getBoundingBoxCenter = (shape: any, shapeParams: any) => {
-      try {
-        const bbox = shape.boundingBox();
-        return [
-          (bbox.max.x + bbox.min.x) / 2,
-          (bbox.max.y + bbox.min.y) / 2,
-          (bbox.max.z + bbox.min.z) / 2
-        ];
-      } catch {
-        const size = [
-          shapeParams?.width || 0,
-          shapeParams?.height || 0,
-          shapeParams?.depth || 0
-        ];
-        return [size[0] / 2, size[1] / 2, size[2] / 2];
-      }
-    };
+  checkAndPerformBooleanOperations: async () => {
+    const state = get();
+    const shapes = state.shapes;
 
-    const transformToWorld = (shape: any, center: number[], position: number[], rotation: number[], scale: number[]) => {
-      let transformed = shape;
+    if (shapes.length < 2) return;
 
-      transformed = transformed.translate(center[0], center[1], center[2]);
+    console.log('🔍 Checking for intersecting shapes...');
 
-      if (scale[0] !== 1 || scale[1] !== 1 || scale[2] !== 1) {
-        transformed = transformed.scale(scale[0], scale[1], scale[2]);
-      }
+    for (let i = 0; i < shapes.length; i++) {
+      for (let j = i + 1; j < shapes.length; j++) {
+        const shape1 = shapes[i];
+        const shape2 = shapes[j];
 
-      if (rotation[0] !== 0) transformed = transformed.rotate(rotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-      if (rotation[1] !== 0) transformed = transformed.rotate(rotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-      if (rotation[2] !== 0) transformed = transformed.rotate(rotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+        if (!shape1.geometry || !shape2.geometry) continue;
+        if (!shape1.replicadShape || !shape2.replicadShape) continue;
 
-      transformed = transformed.translate(
-        position[0] - center[0] * scale[0],
-        position[1] - center[1] * scale[1],
-        position[2] - center[2] * scale[2]
-      );
+        const box1 = new THREE.Box3().setFromBufferAttribute(
+          shape1.geometry.getAttribute('position')
+        );
+        const box2 = new THREE.Box3().setFromBufferAttribute(
+          shape2.geometry.getAttribute('position')
+        );
 
-      return transformed;
-    };
+        box1.translate(new THREE.Vector3(...shape1.position));
+        box2.translate(new THREE.Vector3(...shape2.position));
 
-    const primaryCenter = getBoundingBoxCenter(primary.replicadShape, primary.parameters);
-    const secondaryCenter = getBoundingBoxCenter(secondary.replicadShape, secondary.parameters);
+        if (box1.intersectsBox(box2)) {
+          console.log('💥 Collision detected between:', shape1.id, 'and', shape2.id);
 
-    let primaryInWorld = transformToWorld(
-      primary.replicadShape,
-      primaryCenter,
-      primary.position,
-      primary.rotation,
-      primary.scale
-    );
+          try {
+            const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
+            const { getReplicadVertices } = await import('./services/vertexEditor');
 
-    let secondaryInWorld = transformToWorld(
-      secondary.replicadShape,
-      secondaryCenter,
-      secondary.position,
-      secondary.rotation,
-      secondary.scale
-    );
+            const shape1Size = [
+              shape1.parameters?.width || 0,
+              shape1.parameters?.height || 0,
+              shape1.parameters?.depth || 0
+            ] as [number, number, number];
 
-    let result;
-    switch (operation) {
-      case 'cut':
-        result = primaryInWorld.cut(secondaryInWorld);
-        break;
-      case 'union':
-        result = primaryInWorld.fuse(secondaryInWorld);
-        break;
-      case 'intersect':
-        result = primaryInWorld.intersect(secondaryInWorld);
-        break;
-      default:
-        throw new Error(`Unknown operation: ${operation}`);
-    }
+            const shape2Size = [
+              shape2.parameters?.width || 0,
+              shape2.parameters?.height || 0,
+              shape2.parameters?.depth || 0
+            ] as [number, number, number];
 
-    const transformBackToLocal = (shape: any, center: number[], position: number[], rotation: number[], scale: number[]) => {
-      let transformed = shape;
+            const shape1Center = [
+              shape1.position[0] + (shape1Size[0] / 2),
+              shape1.position[1] + (shape1Size[1] / 2),
+              shape1.position[2] + (shape1Size[2] / 2)
+            ];
 
-      transformed = transformed.translate(
-        -(position[0] - center[0] * scale[0]),
-        -(position[1] - center[1] * scale[1]),
-        -(position[2] - center[2] * scale[2])
-      );
+            const shape2Center = [
+              shape2.position[0] + (shape2Size[0] / 2),
+              shape2.position[1] + (shape2Size[1] / 2),
+              shape2.position[2] + (shape2Size[2] / 2)
+            ];
 
-      if (rotation[2] !== 0) transformed = transformed.rotate(-rotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-      if (rotation[1] !== 0) transformed = transformed.rotate(-rotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-      if (rotation[0] !== 0) transformed = transformed.rotate(-rotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+            const resultShape = await performBooleanCut(
+              shape1.replicadShape,
+              shape2.replicadShape,
+              shape1Center as [number, number, number],
+              shape2Center as [number, number, number],
+              shape1.rotation,
+              shape2.rotation,
+              shape1.scale,
+              shape2.scale,
+              shape1Size,
+              shape2Size
+            );
 
-      if (scale[0] !== 1 || scale[1] !== 1 || scale[2] !== 1) {
-        transformed = transformed.scale(1 / scale[0], 1 / scale[1], 1 / scale[2]);
-      }
+            const newGeometry = convertReplicadToThreeGeometry(resultShape);
+            const newBaseVertices = await getReplicadVertices(resultShape);
 
-      transformed = transformed.translate(-center[0], -center[1], -center[2]);
+            const subtractedGeometry = shape2.geometry.clone();
 
-      return transformed;
-    };
+            const box = new THREE.Box3().setFromBufferAttribute(
+              subtractedGeometry.attributes.position as THREE.BufferAttribute
+            );
+            const size = new THREE.Vector3();
+            const center = new THREE.Vector3();
+            box.getSize(size);
+            box.getCenter(center);
 
-    result = transformBackToLocal(result, primaryCenter, primary.position, primary.rotation, primary.scale);
+            const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
 
-    return result;
-  },
+            const relativeOffset = isCentered
+              ? [
+                  shape2.position[0] - shape1.position[0] - size.x / 2,
+                  shape2.position[1] - shape1.position[1] - size.y / 2,
+                  shape2.position[2] - shape1.position[2] - size.z / 2
+                ] as [number, number, number]
+              : [
+                  shape2.position[0] - shape1.position[0],
+                  shape2.position[1] - shape1.position[1],
+                  shape2.position[2] - shape1.position[2]
+                ] as [number, number, number];
 
-  recomputeBooleanOperations: async (shapeId: string) => {
-    const shape = get().shapes.find(s => s.id === shapeId);
+            const relativeRotation = [
+              shape2.rotation[0] - shape1.rotation[0],
+              shape2.rotation[1] - shape1.rotation[1],
+              shape2.rotation[2] - shape1.rotation[2]
+            ] as [number, number, number];
 
-    if (!shape || !shape.booleanHistory || shape.booleanHistory.length === 0) {
-      return;
-    }
+            console.log('🔍 Capturing subtracted geometry:', {
+              shape2Id: shape2.id,
+              shape1Position: shape1.position,
+              shape2Position: shape2.position,
+              shape1Size,
+              shape2Size,
+              shape1Center,
+              shape2Center,
+              geometrySize: { x: size.x, y: size.y, z: size.z },
+              geometryCenter: { x: center.x, y: center.y, z: center.z },
+              isCentered,
+              relativeOffset,
+              relativeRotation,
+              shape2Scale: shape2.scale,
+              geometryVertices: subtractedGeometry.attributes.position.count,
+              note: isCentered ? 'Geometry is centered, using direct position difference' : 'Geometry origin is at corner, adjusted offset for centering'
+            });
 
-    console.log(`🔄 Recomputing boolean operations for ${shapeId}`);
-    console.log(`📐 Current parameters:`, shape.parameters);
+            set((state) => ({
+              shapes: state.shapes.map((s) => {
+                if (s.id === shape1.id) {
+                  const existingSubtractions = s.subtractionGeometries || [];
+                  return {
+                    ...s,
+                    geometry: newGeometry,
+                    replicadShape: resultShape,
+                    subtractionGeometries: [
+                      ...existingSubtractions,
+                      {
+                        geometry: subtractedGeometry,
+                        relativeOffset,
+                        relativeRotation,
+                        scale: [1, 1, 1] as [number, number, number]
+                      }
+                    ],
+                    parameters: {
+                      ...s.parameters,
+                      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+                    }
+                  };
+                }
+                return s;
+              }).filter(s => s.id !== shape2.id)
+            }));
 
-    try {
-      const { convertReplicadToThreeGeometry, createReplicadShape } = await import('./services/replicad');
-      const { getReplicadVertices } = await import('./services/vertexEditor');
-
-      let resultShape = await createReplicadShape(shape.type, shape.parameters);
-      console.log(`✅ Created fresh base shape with parameters`);
-
-      for (const operation of shape.booleanHistory) {
-        const secondaryShape = get().shapes.find(s => s.id === operation.secondaryId);
-        if (!secondaryShape || !secondaryShape.replicadShape) {
-          console.warn(`❌ Cannot find secondary shape ${operation.secondaryId} for boolean operation`);
-          continue;
-        }
-
-        console.log(`🔨 Applying ${operation.type} with secondary:`, secondaryShape.parameters);
-
-        const currentPrimary = get().shapes.find(s => s.id === shapeId);
-        if (!currentPrimary) continue;
-
-        const tempPrimary = { ...currentPrimary, replicadShape: resultShape };
-        resultShape = await get().applyBooleanOperation(tempPrimary, secondaryShape, operation.type);
-        console.log(`✅ Boolean ${operation.type} completed`);
-      }
-
-      const newGeometry = convertReplicadToThreeGeometry(resultShape);
-      const newBaseVertices = await getReplicadVertices(resultShape);
-
-      set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === shapeId) {
-            return {
-              ...s,
-              geometry: newGeometry,
-              replicadShape: resultShape,
-              parameters: {
-                ...s.parameters,
-                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-              }
-            };
+            console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
+            return;
+          } catch (error) {
+            console.error('❌ Failed to perform boolean operation:', error);
           }
-          return s;
-        })
-      }));
-
-      console.log(`✅ Boolean operations recomputed for shape ${shapeId}`);
-    } catch (error) {
-      console.error('Failed to recompute boolean operations:', error);
+        }
+      }
     }
   }
 }));

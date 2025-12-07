@@ -26,7 +26,12 @@ const ShapeWithTransform: React.FC<{
     updateShape,
     activeTool,
     viewMode,
-    createGroup
+    createGroup,
+    subtractionViewMode,
+    hoveredSubtractionIndex,
+    setHoveredSubtractionIndex,
+    selectedSubtractionIndex,
+    setSelectedSubtractionIndex
   } = useAppStore();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -250,6 +255,68 @@ const ShapeWithTransform: React.FC<{
           onContextMenu(e, shape.id);
         }}
       >
+        {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
+          const isHovered = hoveredSubtractionIndex === index && isSelected;
+          const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
+
+          const edgesGeometry = new THREE.EdgesGeometry(subtraction.geometry, 30);
+
+          const box = new THREE.Box3().setFromBufferAttribute(
+            subtraction.geometry.attributes.position as THREE.BufferAttribute
+          );
+          const size = new THREE.Vector3();
+          const center = new THREE.Vector3();
+          box.getSize(size);
+          box.getCenter(center);
+
+          const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
+
+          const displayOffset = isCentered
+            ? [
+                subtraction.relativeOffset[0] + size.x / 2,
+                subtraction.relativeOffset[1] + size.y / 2,
+                subtraction.relativeOffset[2] + size.z / 2
+              ] as [number, number, number]
+            : subtraction.relativeOffset;
+
+          return (
+            <group
+              key={`${shape.id}-subtraction-${index}`}
+              position={displayOffset}
+              rotation={subtraction.relativeRotation}
+            >
+              <mesh
+                geometry={subtraction.geometry}
+                onPointerOver={(e) => {
+                  e.stopPropagation();
+                  if (isSelected) {
+                    setHoveredSubtractionIndex(index);
+                  }
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation();
+                  setHoveredSubtractionIndex(null);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isSelected) {
+                    setSelectedSubtractionIndex(isSubtractionSelected ? null : index);
+                  }
+                }}
+              >
+                <meshStandardMaterial
+                  color={isSubtractionSelected ? 0x00ff00 : isHovered ? 0xff0000 : 0xffff00}
+                  transparent
+                  opacity={0.35}
+                  depthWrite={false}
+                />
+              </mesh>
+              <lineSegments geometry={edgesGeometry}>
+                <lineBasicMaterial color={0x00ff00} linewidth={2} />
+              </lineSegments>
+            </group>
+          );
+        })}
         {!isWireframe && !isXray && !shouldShowAsReference && (
           <mesh
             ref={meshRef}
@@ -380,7 +447,8 @@ const Scene: React.FC = () => {
     setSelectedVertexIndex,
     vertexDirection,
     setVertexDirection,
-    addVertexModification
+    addVertexModification,
+    subtractionViewMode
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });

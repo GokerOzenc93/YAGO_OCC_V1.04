@@ -22,7 +22,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     shapes,
     updateShape,
     vertexEditMode,
-    setVertexEditMode
+    setVertexEditMode,
+    subtractionViewMode,
+    setSubtractionViewMode,
+    selectedSubtractionIndex,
+    setSelectedSubtractionIndex
   } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
@@ -36,7 +40,24 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
+  const [subWidth, setSubWidth] = useState(0);
+  const [subHeight, setSubHeight] = useState(0);
+  const [subDepth, setSubDepth] = useState(0);
+  const [subPosX, setSubPosX] = useState(0);
+  const [subPosY, setSubPosY] = useState(0);
+  const [subPosZ, setSubPosZ] = useState(0);
+
   useEffect(() => {
+    console.log('Parameters Panel - Selected Shape:', {
+      selectedShapeId,
+      shapesCount: shapes.length,
+      selectedShape: selectedShape ? {
+        id: selectedShape.id,
+        type: selectedShape.type,
+        parameters: selectedShape.parameters
+      } : null
+    });
+
     if (selectedShape && selectedShape.parameters) {
       setWidth(selectedShape.parameters.width || 0);
       setHeight(selectedShape.parameters.height || 0);
@@ -51,6 +72,37 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setVertexModifications([]);
     }
   }, [selectedShape, selectedShapeId, shapes]);
+
+  useEffect(() => {
+    if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
+      const subtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
+      if (subtraction) {
+        const box = new THREE.Box3().setFromBufferAttribute(
+          subtraction.geometry.attributes.position as THREE.BufferAttribute
+        );
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        box.getSize(size);
+        box.getCenter(center);
+
+        const round = (n: number) => Math.round(n * 100) / 100;
+
+        console.log('🔄 Updating subtraction UI from geometry:', {
+          index: selectedSubtractionIndex,
+          size: { x: size.x, y: size.y, z: size.z },
+          center: { x: center.x, y: center.y, z: center.z },
+          offset: subtraction.relativeOffset
+        });
+
+        setSubWidth(round(size.x));
+        setSubHeight(round(size.y));
+        setSubDepth(round(size.z));
+        setSubPosX(round(subtraction.relativeOffset[0]));
+        setSubPosY(round(subtraction.relativeOffset[1]));
+        setSubPosZ(round(subtraction.relativeOffset[2]));
+      }
+    }
+  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -160,6 +212,124 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       });
     }
   };
+
+  const applySubtractionChanges = async (shapeOverride?: any) => {
+    const currentShape = shapeOverride || shapes.find(s => s.id === selectedShapeId);
+    if (!currentShape || selectedSubtractionIndex === null || !currentShape.subtractionGeometries) return;
+
+    console.log('🔧 Applying subtraction changes:', {
+      subIndex: selectedSubtractionIndex,
+      newSize: { w: subWidth, h: subHeight, d: subDepth },
+      newPos: { x: subPosX, y: subPosY, z: subPosZ }
+    });
+
+    const { getReplicadVertices } = await import('../services/vertexEditor');
+    const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+
+    const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
+    const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];
+
+    console.log('🔧 Updating subtraction (center-based geometry):', {
+      size: { w: subWidth, h: subHeight, d: subDepth },
+      relativeOffset: { x: subPosX, y: subPosY, z: subPosZ },
+      note: 'THREE.BoxGeometry is created at center, offset is relative to parent shape center'
+    });
+
+    const updatedSubtraction = {
+      ...currentSubtraction,
+      geometry: newSubGeometry,
+      relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
+      relativeRotation: currentSubtraction.relativeRotation || [0, 0, 0] as [number, number, number],
+      scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
+    };
+
+    const allSubtractions = currentShape.subtractionGeometries.map((sub, idx) =>
+      idx === selectedSubtractionIndex ? updatedSubtraction : sub
+    );
+
+    console.log(`🔄 Applying ${allSubtractions.length} subtraction(s)...`);
+
+    const baseShape = await createReplicadBox({
+      width: currentShape.parameters.width || 1,
+      height: currentShape.parameters.height || 1,
+      depth: currentShape.parameters.depth || 1
+    });
+
+    let resultShape = baseShape;
+
+    for (let i = 0; i < allSubtractions.length; i++) {
+      const subtraction = allSubtractions[i];
+      const subSize = getOriginalSize(subtraction.geometry);
+
+      const subBox = await createReplicadBox({
+        width: subSize.x,
+        height: subSize.y,
+        depth: subSize.z
+      });
+
+      const baseSize = [
+        currentShape.parameters.width || 1,
+        currentShape.parameters.height || 1,
+        currentShape.parameters.depth || 1
+      ] as [number, number, number];
+
+      const baseCenterOffset = [
+        currentShape.position[0] + baseSize[0] / 2,
+        currentShape.position[1] + baseSize[1] / 2,
+        currentShape.position[2] + baseSize[2] / 2
+      ] as [number, number, number];
+
+      const subCenterOffset = [
+        currentShape.position[0] + subtraction.relativeOffset[0] + subSize.x / 2,
+        currentShape.position[1] + subtraction.relativeOffset[1] + subSize.y / 2,
+        currentShape.position[2] + subtraction.relativeOffset[2] + subSize.z / 2
+      ] as [number, number, number];
+
+      const absoluteRot = [
+        currentShape.rotation[0] + subtraction.relativeRotation[0],
+        currentShape.rotation[1] + subtraction.relativeRotation[1],
+        currentShape.rotation[2] + subtraction.relativeRotation[2]
+      ] as [number, number, number];
+
+      resultShape = await performBooleanCut(
+        resultShape,
+        subBox,
+        baseCenterOffset,
+        subCenterOffset,
+        currentShape.rotation,
+        absoluteRot,
+        currentShape.scale,
+        subtraction.scale || [1, 1, 1] as [number, number, number],
+        baseSize,
+        [subSize.x, subSize.y, subSize.z] as [number, number, number]
+      );
+    }
+
+    const newGeometry = convertReplicadToThreeGeometry(resultShape);
+    const newBaseVertices = await getReplicadVertices(resultShape);
+
+    console.log('✅ Subtraction complete');
+
+    updateShape(currentShape.id, {
+      geometry: newGeometry,
+      replicadShape: resultShape,
+      subtractionGeometries: allSubtractions,
+      parameters: {
+        ...currentShape.parameters,
+        scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+      }
+    });
+  };
+
+  const getOriginalSize = (geometry: THREE.BufferGeometry) => {
+    const box = new THREE.Box3().setFromBufferAttribute(
+      geometry.attributes.position as THREE.BufferAttribute
+    );
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    return size;
+  };
+
   const deleteCustomParameter = (id: string) => {
     const updatedParams = customParameters.filter((param) => param.id !== id);
     setCustomParameters(updatedParams);
@@ -173,6 +343,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
   const applyChanges = async () => {
     if (!selectedShape) return;
+
+    console.log('📐 Applying parameter changes:', { width, height, depth });
 
     try {
       const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
@@ -237,30 +409,27 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       });
 
       let scaledGeometry = selectedShape.geometry;
-      let newReplicadShape = selectedShape.replicadShape;
 
-      if (dimensionsChanged) {
-        if (selectedShape.type === 'box' && selectedShape.replicadShape) {
-          const { createReplicadShape, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      if (dimensionsChanged && selectedShape.geometry) {
+        console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
+        console.log('📍 Geometry center should remain at origin (0,0,0)');
+        scaledGeometry = selectedShape.geometry.clone();
+        scaledGeometry.scale(scaleX, scaleY, scaleZ);
+        scaledGeometry.computeVertexNormals();
+        scaledGeometry.computeBoundingBox();
+        scaledGeometry.computeBoundingSphere();
 
-          newReplicadShape = await createReplicadShape(selectedShape.type, {
-            width,
-            height,
-            depth
-          });
-
-          scaledGeometry = convertReplicadToThreeGeometry(newReplicadShape);
-          newBaseVertices = await getReplicadVertices(newReplicadShape);
-        } else if (selectedShape.geometry) {
-          scaledGeometry = selectedShape.geometry.clone();
-          scaledGeometry.scale(scaleX, scaleY, scaleZ);
-          scaledGeometry.computeVertexNormals();
-          scaledGeometry.computeBoundingBox();
-          scaledGeometry.computeBoundingSphere();
-        }
+        const box = new THREE.Box3().setFromBufferAttribute(
+          scaledGeometry.getAttribute('position')
+        );
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        console.log('✓ Scaled geometry center:', { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) });
       }
 
-      updateShape(selectedShape.id, {
+      const hasSubtractionChanges = selectedSubtractionIndex !== null && selectedShape.subtractionGeometries?.length > 0;
+
+      const baseUpdate = {
         parameters: {
           ...selectedShape.parameters,
           width,
@@ -272,13 +441,87 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         vertexModifications: updatedVertexMods,
         position: selectedShape.position,
         rotation: selectedShape.rotation,
-        scale: selectedShape.scale,
-        ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry }),
-        ...(dimensionsChanged && newReplicadShape && { replicadShape: newReplicadShape })
-      });
+        scale: selectedShape.scale
+      };
 
+      if (hasSubtractionChanges) {
+        console.log('🔄 Recalculating subtraction with updated dimensions...');
+
+        const updatedSubtraction = {
+          ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
+          geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
+          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number]
+        };
+
+        const allSubtractions = selectedShape.subtractionGeometries!.map((sub, idx) =>
+          idx === selectedSubtractionIndex ? updatedSubtraction : sub
+        );
+
+        let baseShape = await createReplicadBox({
+          width,
+          height,
+          depth
+        });
+
+        let resultShape = baseShape;
+
+        for (let i = 0; i < allSubtractions.length; i++) {
+          const subtraction = allSubtractions[i];
+          const subSize = getOriginalSize(subtraction.geometry);
+
+          const subBox = await createReplicadBox({
+            width: subSize.x,
+            height: subSize.y,
+            depth: subSize.z
+          });
+
+          const absolutePos = [
+            selectedShape.position[0] + subtraction.relativeOffset[0],
+            selectedShape.position[1] + subtraction.relativeOffset[1],
+            selectedShape.position[2] + subtraction.relativeOffset[2]
+          ] as [number, number, number];
+
+          const absoluteRot = [
+            selectedShape.rotation[0] + (subtraction.relativeRotation?.[0] || 0),
+            selectedShape.rotation[1] + (subtraction.relativeRotation?.[1] || 0),
+            selectedShape.rotation[2] + (subtraction.relativeRotation?.[2] || 0)
+          ] as [number, number, number];
+
+          resultShape = await performBooleanCut(
+            resultShape,
+            subBox,
+            selectedShape.position,
+            absolutePos,
+            selectedShape.rotation,
+            absoluteRot,
+            selectedShape.scale,
+            subtraction.scale || [1, 1, 1] as [number, number, number]
+          );
+        }
+
+        const newGeometry = convertReplicadToThreeGeometry(resultShape);
+        const newBaseVertices = await getReplicadVertices(resultShape);
+
+        updateShape(selectedShape.id, {
+          ...baseUpdate,
+          geometry: newGeometry,
+          replicadShape: resultShape,
+          subtractionGeometries: allSubtractions,
+          parameters: {
+            ...baseUpdate.parameters,
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+          }
+        });
+      } else {
+        updateShape(selectedShape.id, {
+          ...baseUpdate,
+          ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
+        });
+      }
+
+      console.log('✅ Parameters applied');
     } catch (error) {
-      console.error('Failed to update parameters:', error);
+      console.error('❌ Failed to update parameters:', error);
       updateShape(selectedShape.id, {
         parameters: { ...selectedShape.parameters, width, height, depth, customParameters },
         vertexModifications: []
@@ -317,6 +560,28 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           >
             VERTEX
           </button>
+          {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.length > 0 && (
+            <button
+              onClick={() => {
+                const newMode = !subtractionViewMode;
+                console.log('🔘 SUB button clicked:', {
+                  oldMode: subtractionViewMode,
+                  newMode,
+                  selectedShape: selectedShape?.id,
+                  subtractionCount: selectedShape?.subtractionGeometries?.length || 0
+                });
+                setSubtractionViewMode(newMode);
+              }}
+              className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+                subtractionViewMode
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+              }`}
+              title={`Show ${selectedShape.subtractionGeometries.length} Subtraction Geometr${selectedShape.subtractionGeometries.length > 1 ? 'ies' : 'y'}`}
+            >
+              SUB ({selectedShape.subtractionGeometries.length})
+            </button>
+          )}
           <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
@@ -418,6 +683,182 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 />
               </div>
             </div>
+
+            {selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
+              <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
+                <div className="text-xs font-semibold text-yellow-700 mb-2">
+                  Subtraction #{selectedSubtractionIndex + 1} Parameters
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="W"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subWidth}
+                    step="0.01"
+                    onChange={(e) => setSubWidth(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subWidth.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Width"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="H"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subHeight}
+                    step="0.01"
+                    onChange={(e) => setSubHeight(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subHeight.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Height"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="D"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subDepth}
+                    step="0.01"
+                    onChange={(e) => setSubDepth(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subDepth.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Depth"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="X"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subPosX}
+                    step="0.01"
+                    onChange={(e) => setSubPosX(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subPosX.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Position X"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Y"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subPosY}
+                    step="0.01"
+                    onChange={(e) => setSubPosY(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subPosY.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Position Y"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="Z"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subPosZ}
+                    step="0.01"
+                    onChange={(e) => setSubPosZ(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subPosZ.toFixed(2)}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Position Z"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+              </div>
+            )}
 
             {customParameters.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-200">
