@@ -78,6 +78,19 @@ export const createReplicadSphere = async (params: ReplicadSphereParams): Promis
     .translate(radius, radius, radius);
 };
 
+export const createReplicadShape = async (type: string, params: any): Promise<any> => {
+  switch (type) {
+    case 'box':
+      return createReplicadBox(params);
+    case 'cylinder':
+      return createReplicadCylinder(params);
+    case 'sphere':
+      return createReplicadSphere(params);
+    default:
+      throw new Error(`Unsupported shape type: ${type}`);
+  }
+};
+
 export const convertReplicadToThreeGeometry = (shape: any): THREE.BufferGeometry => {
   try {
     const mesh = shape.mesh({ tolerance: 0.1, angularTolerance: 30 });

@@ -566,9 +566,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log(`📐 Current parameters:`, shape.parameters);
 
     try {
-      const { convertReplicadToThreeGeometry } = await import('./services/replicad');
+      const { convertReplicadToThreeGeometry, createReplicadShape } = await import('./services/replicad');
       const { getReplicadVertices } = await import('./services/vertexEditor');
-      const { createReplicadShape } = await import('./services/replicad');
 
       let resultShape = await createReplicadShape(shape.type, shape.parameters);
       console.log(`✅ Created fresh base shape with parameters`);
