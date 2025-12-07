@@ -192,18 +192,8 @@ export const performBooleanCut = async (
   await initReplicad();
 
   console.log('🔪 Performing boolean cut operation...');
-  console.log('Base shape (origin: bottom-left-back):', {
-    position: basePosition,
-    size: baseSize,
-    rotation: baseRotation,
-    scale: baseScale
-  });
-  console.log('Cutting shape (origin: bottom-left-back):', {
-    position: cuttingPosition,
-    size: cuttingSize,
-    rotation: cuttingRotation,
-    scale: cuttingScale
-  });
+  console.log('Base shape:', baseShape, 'Position:', basePosition, 'Size:', baseSize, 'Rotation:', baseRotation, 'Scale:', baseScale);
+  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Size:', cuttingSize, 'Rotation:', cuttingRotation, 'Scale:', cuttingScale);
 
   try {
     let transformedBase = baseShape;
@@ -243,27 +233,25 @@ export const performBooleanCut = async (
       transformedCutting = transformedCutting.translate(cuttingPosition[0], cuttingPosition[1], cuttingPosition[2]);
     }
 
-    console.log('🔪 Executing cut operation in absolute world space...');
     const result = transformedBase.cut(transformedCutting);
-    console.log('✅ Boolean cut completed in world space');
+    console.log('✅ Boolean cut completed:', result);
 
     if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
-      console.log('📍 Translating result back to origin by:', [-basePosition[0], -basePosition[1], -basePosition[2]]);
+      console.log('📍 Translating result back by:', [-basePosition[0], -basePosition[1], -basePosition[2]]);
       let finalResult = result.translate(-basePosition[0], -basePosition[1], -basePosition[2]);
 
       if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
-        console.log('🔄 Rotating result back to origin by:', [-baseRotation[0], -baseRotation[1], -baseRotation[2]]);
+        console.log('🔄 Rotating result back by:', [-baseRotation[0], -baseRotation[1], -baseRotation[2]]);
         if (baseRotation[2] !== 0) finalResult = finalResult.rotate(-baseRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
         if (baseRotation[1] !== 0) finalResult = finalResult.rotate(-baseRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
         if (baseRotation[0] !== 0) finalResult = finalResult.rotate(-baseRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
       }
 
       if (baseScale && (baseScale[0] !== 1 || baseScale[1] !== 1 || baseScale[2] !== 1)) {
-        console.log('📏 Scaling result back to origin by:', [1/baseScale[0], 1/baseScale[1], 1/baseScale[2]]);
+        console.log('📏 Scaling result back by:', [1/baseScale[0], 1/baseScale[1], 1/baseScale[2]]);
         finalResult = finalResult.scale(1/baseScale[0], 1/baseScale[1], 1/baseScale[2]);
       }
 
-      console.log('✅ Result transformed back to local origin space');
       return finalResult;
     }
 
