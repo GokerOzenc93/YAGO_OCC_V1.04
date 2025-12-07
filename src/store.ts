@@ -416,20 +416,40 @@ export const useAppStore = create<AppState>((set, get) => ({
           console.log('💥 Collision detected between:', shape1.id, 'and', shape2.id);
 
           try {
-            const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
+            const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
 
-            const shape1Size = [
-              shape1.parameters?.width || 0,
-              shape1.parameters?.height || 0,
-              shape1.parameters?.depth || 0
-            ] as [number, number, number];
+            const box1Local = new THREE.Box3().setFromBufferAttribute(
+              shape1.geometry.getAttribute('position')
+            );
+            const size1 = new THREE.Vector3();
+            box1Local.getSize(size1);
 
-            const shape2Size = [
-              shape2.parameters?.width || 0,
-              shape2.parameters?.height || 0,
-              shape2.parameters?.depth || 0
-            ] as [number, number, number];
+            const box2Local = new THREE.Box3().setFromBufferAttribute(
+              shape2.geometry.getAttribute('position')
+            );
+            const size2 = new THREE.Vector3();
+            box2Local.getSize(size2);
+
+            const shape1Size = [size1.x, size1.y, size1.z] as [number, number, number];
+            const shape2Size = [size2.x, size2.y, size2.z] as [number, number, number];
+
+            console.log('📏 Using actual geometry sizes:', {
+              shape1: { id: shape1.id, size: shape1Size },
+              shape2: { id: shape2.id, size: shape2Size }
+            });
+
+            const shape1Replicad = await createReplicadBox({
+              width: shape1Size[0],
+              height: shape1Size[1],
+              depth: shape1Size[2]
+            });
+
+            const shape2Replicad = await createReplicadBox({
+              width: shape2Size[0],
+              height: shape2Size[1],
+              depth: shape2Size[2]
+            });
 
             const shape1Center = [
               shape1.position[0] + (shape1Size[0] / 2),
@@ -444,8 +464,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             ];
 
             const resultShape = await performBooleanCut(
-              shape1.replicadShape,
-              shape2.replicadShape,
+              shape1Replicad,
+              shape2Replicad,
               shape1Center as [number, number, number],
               shape2Center as [number, number, number],
               shape1.rotation,
