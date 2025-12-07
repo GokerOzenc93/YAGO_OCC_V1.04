@@ -248,6 +248,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectShape: (id) => {
     const currentMode = get().activeTool;
     if (id && currentMode === Tool.SELECT) {
+      console.log('🔄 Auto-switching to move mode on selection');
       set({ selectedShapeId: id, activeTool: Tool.MOVE });
     } else {
       set({ selectedShapeId: id });
@@ -269,6 +270,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         return s;
       })
     }));
+    console.log('✅ Created group:', groupId, { primaryId, secondaryId });
   },
 
   ungroupShapes: (groupId) => {
@@ -283,6 +285,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedShapeId: null,
       secondarySelectedShapeId: null
     }));
+    console.log('✅ Ungrouped:', groupId);
   },
 
   activeTool: Tool.SELECT,
@@ -389,6 +392,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     if (shapes.length < 2) return;
 
+    console.log('🔍 Checking for intersecting shapes...');
+
     for (let i = 0; i < shapes.length; i++) {
       for (let j = i + 1; j < shapes.length; j++) {
         const shape1 = shapes[i];
@@ -408,6 +413,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         box2.translate(new THREE.Vector3(...shape2.position));
 
         if (box1.intersectsBox(box2)) {
+          console.log('💥 Collision detected between:', shape1.id, 'and', shape2.id);
+
           try {
             const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
@@ -424,27 +431,30 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.parameters?.depth || 0
             ] as [number, number, number];
 
-            const shape1Center = [
-              shape1.position[0] + (shape1Size[0] / 2),
-              shape1.position[1] + (shape1Size[1] / 2),
-              shape1.position[2] + (shape1Size[2] / 2)
-            ];
-
-            const shape2Center = [
-              shape2.position[0] + (shape2Size[0] / 2),
-              shape2.position[1] + (shape2Size[1] / 2),
-              shape2.position[2] + (shape2Size[2] / 2)
-            ];
+            console.log('🔍 Boolean Cut - Using scaled base dimensions:', {
+              shape1Id: shape1.id,
+              shape1Position: shape1.position,
+              shape1Size,
+              shape1Rotation: shape1.rotation,
+              shape1Scale: shape1.scale,
+              shape2Id: shape2.id,
+              shape2Position: shape2.position,
+              shape2Size,
+              shape2Rotation: shape2.rotation,
+              shape2Scale: shape2.scale
+            });
 
             const resultShape = await performBooleanCut(
               shape1.replicadShape,
               shape2.replicadShape,
-              shape1Center as [number, number, number],
-              shape2Center as [number, number, number],
+              shape1.position,
+              shape2.position,
               shape1.rotation,
               shape2.rotation,
               shape1.scale,
-              shape2.scale
+              shape2.scale,
+              shape1Size,
+              shape2Size
             );
 
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
@@ -452,33 +462,32 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             const subtractedGeometry = shape2.geometry.clone();
 
-            const box = new THREE.Box3().setFromBufferAttribute(
-              subtractedGeometry.attributes.position as THREE.BufferAttribute
-            );
-            const size = new THREE.Vector3();
-            const center = new THREE.Vector3();
-            box.getSize(size);
-            box.getCenter(center);
-
-            const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
-
-            const relativeOffset = isCentered
-              ? [
-                  shape2.position[0] - shape1.position[0] - size.x / 2,
-                  shape2.position[1] - shape1.position[1] - size.y / 2,
-                  shape2.position[2] - shape1.position[2] - size.z / 2
-                ] as [number, number, number]
-              : [
-                  shape2.position[0] - shape1.position[0],
-                  shape2.position[1] - shape1.position[1],
-                  shape2.position[2] - shape1.position[2]
-                ] as [number, number, number];
+            const relativeOffset = [
+              shape2.position[0] - shape1.position[0],
+              shape2.position[1] - shape1.position[1],
+              shape2.position[2] - shape1.position[2]
+            ] as [number, number, number];
 
             const relativeRotation = [
               shape2.rotation[0] - shape1.rotation[0],
               shape2.rotation[1] - shape1.rotation[1],
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
+
+            console.log('🔍 Capturing subtracted geometry (origin: bottom-left-back):', {
+              shape2Id: shape2.id,
+              shape1Position: shape1.position,
+              shape2Position: shape2.position,
+              shape1Size,
+              shape2Size,
+              shape1Center,
+              shape2Center,
+              relativeOffset,
+              relativeRotation,
+              shape2Scale: shape2.scale,
+              geometryVertices: subtractedGeometry.attributes.position.count,
+              note: 'relativeOffset is position difference (origin-based), Scene.tsx will add size/2 for THREE.BoxGeometry centering'
+            });
 
             set((state) => ({
               shapes: state.shapes.map((s) => {
@@ -506,9 +515,11 @@ export const useAppStore = create<AppState>((set, get) => ({
                 return s;
               }).filter(s => s.id !== shape2.id)
             }));
+
+            console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
             return;
           } catch (error) {
-            console.error('Failed to perform boolean operation:', error);
+            console.error('❌ Failed to perform boolean operation:', error);
           }
         }
       }
