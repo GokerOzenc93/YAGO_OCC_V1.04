@@ -542,21 +542,36 @@ export const useAppStore = create<AppState>((set, get) => ({
             const shape1Size = [size1.x, size1.y, size1.z] as [number, number, number];
             const shape2Size = [size2.x, size2.y, size2.z] as [number, number, number];
 
-            // Dünya merkezlerini hesapla (Pozisyon + Yerel Merkez)
+            // DÜZELTME: Merkez hesaplamasına Scale ve Rotation eklendi
+            // Eğer objeler döndürülmüşse veya köşeden scale edilmişse,
+            // sadece yerel merkezi pozisyona eklemek yanlış olur.
+            // Yerel merkezi de döndürüp scale etmemiz gerekir.
+
+            // Shape 1 için Merkez Hesabı
+            const center1Vec = center1Local.clone();
+            center1Vec.multiply(new THREE.Vector3(...shape1.scale)); // Scale uygula
+            center1Vec.applyEuler(new THREE.Euler(...shape1.rotation)); // Rotasyon uygula
             const shape1Center = [
-              shape1.position[0] + center1Local.x,
-              shape1.position[1] + center1Local.y,
-              shape1.position[2] + center1Local.z
+              shape1.position[0] + center1Vec.x,
+              shape1.position[1] + center1Vec.y,
+              shape1.position[2] + center1Vec.z
             ] as [number, number, number];
 
+            // Shape 2 için Merkez Hesabı
+            const center2Vec = center2Local.clone();
+            center2Vec.multiply(new THREE.Vector3(...shape2.scale)); // Scale uygula
+            center2Vec.applyEuler(new THREE.Euler(...shape2.rotation)); // Rotasyon uygula
             const shape2Center = [
-              shape2.position[0] + center2Local.x,
-              shape2.position[1] + center2Local.y,
-              shape2.position[2] + center2Local.z
+              shape2.position[0] + center2Vec.x,
+              shape2.position[1] + center2Vec.y,
+              shape2.position[2] + center2Vec.z
             ] as [number, number, number];
 
             // Debug log
-            console.log('📏 Using actual geometry data:', { /* ... log details ... */ });
+            console.log('📏 Using actual geometry data (Corrected Center):', {
+               shape1: { id: shape1.id, center: shape1Center },
+               shape2: { id: shape2.id, center: shape2Center }
+            });
 
             // --- 2. CAD Şekillerini Oluştur ---
             const shape1Replicad = await createReplicadBox({
