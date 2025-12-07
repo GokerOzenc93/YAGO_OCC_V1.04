@@ -79,7 +79,7 @@ interface AppState {
   selectShape: (id: string | null) => void;
   secondarySelectedShapeId: string | null;
   selectSecondaryShape: (id: string | null) => void;
-  createGroup: (primaryId: string, secondaryId: string) => void;
+  createGroup: (primaryId: string, secondaryId: string) => Promise<void>;
   ungroupShapes: (groupId: string) => void;
 
   activeTool: Tool;
@@ -240,19 +240,134 @@ export const useAppStore = create<AppState>((set, get) => ({
   secondarySelectedShapeId: null,
   selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
 
-  createGroup: (primaryId, secondaryId) => {
+  createGroup: async (primaryId, secondaryId) => {
+    const state = get();
+    const primaryShape = state.shapes.find(s => s.id === primaryId);
+    const secondaryShape = state.shapes.find(s => s.id === secondaryId);
+
+    if (!primaryShape || !secondaryShape) {
+      console.error('Cannot create group: shapes not found');
+      return;
+    }
+
+    if (!primaryShape.replicadShape || !secondaryShape.replicadShape) {
+      console.error('Cannot create group: shapes missing replicadShape');
+      return;
+    }
+
     const groupId = `group-${Date.now()}`;
-    set((state) => ({
-      shapes: state.shapes.map((s) => {
-        if (s.id === primaryId) {
-          return { ...s, groupId };
-        }
-        if (s.id === secondaryId) {
-          return { ...s, groupId, isReferenceBox: true };
-        }
-        return s;
-      })
-    }));
+
+    try {
+      const { convertReplicadToThreeGeometry } = await import('./services/replicad');
+      const { getReplicadVertices } = await import('./services/vertexEditor');
+
+      const primarySize = [
+        primaryShape.parameters?.width || 0,
+        primaryShape.parameters?.height || 0,
+        primaryShape.parameters?.depth || 0
+      ] as [number, number, number];
+
+      const secondarySize = [
+        secondaryShape.parameters?.width || 0,
+        secondaryShape.parameters?.height || 0,
+        secondaryShape.parameters?.depth || 0
+      ] as [number, number, number];
+
+      const primaryLocalCenter = [
+        primarySize[0] / 2,
+        primarySize[1] / 2,
+        primarySize[2] / 2
+      ];
+
+      const secondaryLocalCenter = [
+        secondarySize[0] / 2,
+        secondarySize[1] / 2,
+        secondarySize[2] / 2
+      ];
+
+      const primaryCenter = [
+        primaryShape.position[0] + primaryLocalCenter[0],
+        primaryShape.position[1] + primaryLocalCenter[1],
+        primaryShape.position[2] + primaryLocalCenter[2]
+      ];
+
+      const secondaryCenter = [
+        secondaryShape.position[0] + secondaryLocalCenter[0],
+        secondaryShape.position[1] + secondaryLocalCenter[1],
+        secondaryShape.position[2] + secondaryLocalCenter[2]
+      ];
+
+      let primaryInWorld = primaryShape.replicadShape;
+      let secondaryInWorld = secondaryShape.replicadShape;
+
+      const [psx, psy, psz] = primaryShape.scale;
+      const [prx, pry, prz] = primaryShape.rotation;
+      const [pcx, pcy, pcz] = primaryCenter;
+
+      const [ssx, ssy, ssz] = secondaryShape.scale;
+      const [srx, sry, srz] = secondaryShape.rotation;
+      const [scx, scy, scz] = secondaryCenter;
+
+      if (psx !== 1 || psy !== 1 || psz !== 1) primaryInWorld = primaryInWorld.scale(psx, psy, psz);
+      if (prx !== 0) primaryInWorld = primaryInWorld.rotate(prx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      if (pry !== 0) primaryInWorld = primaryInWorld.rotate(pry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (prz !== 0) primaryInWorld = primaryInWorld.rotate(prz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+      if (pcx !== 0 || pcy !== 0 || pcz !== 0) primaryInWorld = primaryInWorld.translate(pcx, pcy, pcz);
+
+      if (ssx !== 1 || ssy !== 1 || ssz !== 1) secondaryInWorld = secondaryInWorld.scale(ssx, ssy, ssz);
+      if (srx !== 0) secondaryInWorld = secondaryInWorld.rotate(srx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      if (sry !== 0) secondaryInWorld = secondaryInWorld.rotate(sry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (srz !== 0) secondaryInWorld = secondaryInWorld.rotate(srz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+      if (scx !== 0 || scy !== 0 || scz !== 0) secondaryInWorld = secondaryInWorld.translate(scx, scy, scz);
+
+      let resultShape = primaryInWorld.cut(secondaryInWorld);
+
+      if (pcx !== 0 || pcy !== 0 || pcz !== 0) resultShape = resultShape.translate(-pcx, -pcy, -pcz);
+      if (prz !== 0) resultShape = resultShape.rotate(-prz * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+      if (pry !== 0) resultShape = resultShape.rotate(-pry * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (prx !== 0) resultShape = resultShape.rotate(-prx * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      if (psx !== 1 || psy !== 1 || psz !== 1) resultShape = resultShape.scale(1/psx, 1/psy, 1/psz);
+
+      const newGeometry = convertReplicadToThreeGeometry(resultShape);
+      const newBaseVertices = await getReplicadVertices(resultShape);
+
+      set((state) => ({
+        shapes: state.shapes.map((s) => {
+          if (s.id === primaryId) {
+            return {
+              ...s,
+              groupId,
+              geometry: newGeometry,
+              replicadShape: resultShape,
+              parameters: {
+                ...s.parameters,
+                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+              }
+            };
+          }
+          if (s.id === secondaryId) {
+            return { ...s, groupId, isReferenceBox: true };
+          }
+          return s;
+        })
+      }));
+
+      console.log('✅ Group created with boolean cut applied');
+    } catch (error) {
+      console.error('Failed to create group with cut:', error);
+      const groupId = `group-${Date.now()}`;
+      set((state) => ({
+        shapes: state.shapes.map((s) => {
+          if (s.id === primaryId) {
+            return { ...s, groupId };
+          }
+          if (s.id === secondaryId) {
+            return { ...s, groupId, isReferenceBox: true };
+          }
+          return s;
+        })
+      }));
+    }
   },
 
   ungroupShapes: (groupId) => {
