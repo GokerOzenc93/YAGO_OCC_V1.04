@@ -3,34 +3,56 @@ import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
 import { VertexModification } from './services/vertexEditor';
 
+/**
+ * ------------------------------------------------------------------
+ * VERİ YAPILARI (INTERFACES)
+ * ------------------------------------------------------------------
+ */
+
+/**
+ * SubtractedGeometry:
+ * Bir şekil başka bir şekli kestiğinde (Boolean Cut), kesen parçanın
+ * bilgileri burada saklanır. Bu, işlemin geri alınabilmesi veya
+ * parametrik olarak tekrar hesaplanabilmesi için kritiktir.
+ */
 export interface SubtractedGeometry {
-  geometry: THREE.BufferGeometry;
-  relativeOffset: [number, number, number];
-  relativeRotation: [number, number, number];
-  scale: [number, number, number];
+  geometry: THREE.BufferGeometry;        // Kesip atan parçanın geometrisi
+  relativeOffset: [number, number, number]; // Ana parçaya göre konumu (Delta)
+  relativeRotation: [number, number, number]; // Ana parçaya göre dönüşü
+  scale: [number, number, number];       // Ölçeği
 }
 
+/**
+ * Shape:
+ * Sahnedeki her bir 3D nesnenin ana veri yapısı.
+ */
 export interface Shape {
-  id: string;
-  type: string;
-  position: [number, number, number];
-  rotation: [number, number, number];
-  scale: [number, number, number];
-  geometry: THREE.BufferGeometry;
-  color?: string;
-  parameters: Record<string, any>;
-  ocShape?: any;
-  replicadShape?: any;
-  isolated?: boolean;
-  vertexModifications?: VertexModification[];
-  groupId?: string;
-  isReferenceBox?: boolean;
-  subtractionGeometries?: SubtractedGeometry[];
+  id: string;                            // Benzersiz kimlik
+  type: string;                          // 'cube', 'cylinder' vb.
+  position: [number, number, number];    // Dünya koordinatlarındaki konumu [x, y, z]
+  rotation: [number, number, number];    // Euler açıları cinsinden dönüş [x, y, z]
+  scale: [number, number, number];       // Ölçek faktörleri [x, y, z]
+  geometry: THREE.BufferGeometry;        // Three.js'in görselleştirdiği mesh geometrisi
+  color?: string;                        // Materyal rengi
+  parameters: Record<string, any>;       // Parametrik veriler (width, height, radius vb.)
+  ocShape?: any;                         // OpenCascade (CAD Kernel) ham verisi
+  replicadShape?: any;                   // Replicad kütüphanesi sarmalayıcısı (Boolean işlemleri için)
+  isolated?: boolean;                    // İzolasyon modu (sadece bu parça mı görünsün?)
+  vertexModifications?: VertexModification[]; // Köşe noktası çekiştirmeleri
+  groupId?: string;                      // Eğer bir grubun parçasıysa grup ID'si
+  isReferenceBox?: boolean;              // Boolean işleminde referans kutusu mu?
+  subtractionGeometries?: SubtractedGeometry[]; // Bu şekilden çıkarılmış parçaların listesi
 }
 
+/**
+ * ------------------------------------------------------------------
+ * ENUMS (Sabit Seçenekler)
+ * Kod içinde "string" hatalarını önlemek için kullanılır.
+ * ------------------------------------------------------------------
+ */
 export enum CameraType {
   PERSPECTIVE = 'perspective',
-  ORTHOGRAPHIC = 'orthographic'
+  ORTHOGRAPHIC = 'orthographic' // Teknik çizim görünümü
 }
 
 export enum Tool {
@@ -38,34 +60,34 @@ export enum Tool {
   MOVE = 'Move',
   ROTATE = 'Rotate',
   SCALE = 'Scale',
-  POINT_TO_POINT_MOVE = 'Point to Point Move',
+  POINT_TO_POINT_MOVE = 'Point to Point Move', // Noktadan noktaya hassas taşıma
   POLYLINE = 'Polyline',
   POLYLINE_EDIT = 'Polyline Edit',
   RECTANGLE = 'Rectangle',
   CIRCLE = 'Circle',
-  DIMENSION = 'Dimension'
+  DIMENSION = 'Dimension' // Ölçülendirme aracı
 }
 
 export enum ViewMode {
-  WIREFRAME = 'wireframe',
-  SOLID = 'solid',
-  XRAY = 'xray'
+  WIREFRAME = 'wireframe', // Tel kafes
+  SOLID = 'solid',         // Katı model
+  XRAY = 'xray'            // Yarı saydam
 }
 
 export enum ModificationType {
   MIRROR = 'mirror',
-  ARRAY = 'array',
-  FILLET = 'fillet',
-  CHAMFER = 'chamfer'
+  ARRAY = 'array',         // Çoğaltma
+  FILLET = 'fillet',       // Köşe yuvarlama
+  CHAMFER = 'chamfer'      // Pah kırma
 }
 
 export enum SnapType {
-  ENDPOINT = 'endpoint',
-  MIDPOINT = 'midpoint',
-  CENTER = 'center',
-  PERPENDICULAR = 'perpendicular',
-  INTERSECTION = 'intersection',
-  NEAREST = 'nearest'
+  ENDPOINT = 'endpoint',      // Uç nokta yakalama
+  MIDPOINT = 'midpoint',      // Orta nokta yakalama
+  CENTER = 'center',          // Merkez yakalama
+  PERPENDICULAR = 'perpendicular', // Diklik
+  INTERSECTION = 'intersection',   // Kesişim
+  NEAREST = 'nearest'         // En yakın nokta
 }
 
 export enum OrthoMode {
@@ -73,17 +95,29 @@ export enum OrthoMode {
   OFF = 'off'
 }
 
+/**
+ * ------------------------------------------------------------------
+ * APP STATE (Uygulama Durumu)
+ * Store'da hangi verilerin ve fonksiyonların olacağını tanımlar.
+ * ------------------------------------------------------------------
+ */
 interface AppState {
+  // Şekil Yönetimi
   shapes: Shape[];
   addShape: (shape: Shape) => void;
   updateShape: (id: string, updates: Partial<Shape>) => void;
   deleteShape: (id: string) => void;
   copyShape: (id: string) => void;
+  
+  // Gelişmiş Şekil İşlemleri
   isolateShape: (id: string) => void;
   exitIsolation: () => void;
   extrudeShape: (id: string, distance: number) => void;
+  
+  // *** KRİTİK: Boolean Operasyon Tetikleyicisi ***
   checkAndPerformBooleanOperations: () => Promise<void>;
 
+  // Seçim ve Gruplama
   selectedShapeId: string | null;
   selectShape: (id: string | null) => void;
   secondarySelectedShapeId: string | null;
@@ -91,35 +125,38 @@ interface AppState {
   createGroup: (primaryId: string, secondaryId: string) => void;
   ungroupShapes: (groupId: string) => void;
 
+  // Araç ve UI Durumları
   activeTool: Tool;
   setActiveTool: (tool: Tool) => void;
   lastTransformTool: Tool;
   setLastTransformTool: (tool: Tool) => void;
 
+  // Kamera ve Görünüm
   cameraType: CameraType;
   setCameraType: (type: CameraType) => void;
-
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   cycleViewMode: () => void;
-
   orthoMode: OrthoMode;
   toggleOrthoMode: () => void;
 
+  // Yakalama (Snap) Ayarları
   snapSettings: Record<SnapType, boolean>;
   toggleSnapSetting: (snapType: SnapType) => void;
 
+  // Diğer Yardımcılar
   modifyShape: (shapeId: string, modification: any) => void;
-
   pointToPointMoveState: any;
   setPointToPointMoveState: (state: any) => void;
   enableAutoSnap: (tool: Tool) => void;
 
+  // OpenCascade (CAD Kernel) Durumu
   opencascadeInstance: OpenCascadeInstance | null;
   opencascadeLoading: boolean;
   setOpenCascadeInstance: (instance: OpenCascadeInstance | null) => void;
   setOpenCascadeLoading: (loading: boolean) => void;
 
+  // Vertex (Nokta) Düzenleme Modu
   vertexEditMode: boolean;
   setVertexEditMode: (enabled: boolean) => void;
   selectedVertexIndex: number | null;
@@ -128,6 +165,7 @@ interface AppState {
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
 
+  // Boolean Görselleştirme (Subtraction)
   subtractionViewMode: boolean;
   setSubtractionViewMode: (enabled: boolean) => void;
   selectedSubtractionIndex: number | null;
@@ -136,36 +174,58 @@ interface AppState {
   setHoveredSubtractionIndex: (index: number | null) => void;
 }
 
+/**
+ * ------------------------------------------------------------------
+ * STORE IMPLEMENTATION (Mantık Kodları)
+ * ------------------------------------------------------------------
+ */
 export const useAppStore = create<AppState>((set, get) => ({
   shapes: [],
+
+  // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
+
+  // Şekil güncelleme (Pozisyon, Boyut, Rotasyon vb.)
+  // BURASI ÖNEMLİ: Eğer güncellenen şekil bir grubun parçasıysa,
+  // gruptaki diğer şekilleri de aynı oranda (delta) günceller.
   updateShape: (id, updates) =>
     set((state) => {
       const shape = state.shapes.find(s => s.id === id);
       if (!shape) return state;
 
       const updatedShapes = state.shapes.map((s) => {
+        // 1. Hedef şekli güncelle
         if (s.id === id) {
           return { ...s, ...updates };
         }
+        
+        // 2. Grup mantığı: Eğer şekil bir gruptaysa ve hedef şekil de aynı gruptaysa
         if (shape.groupId && s.groupId === shape.groupId && s.id !== id) {
+          // Sadece transformasyon güncellemelerini takip et
           if ('position' in updates || 'rotation' in updates || 'scale' in updates) {
+            
+            // Pozisyon Farkı (Delta)
             const positionDelta = updates.position ? [
               updates.position[0] - shape.position[0],
               updates.position[1] - shape.position[1],
               updates.position[2] - shape.position[2]
             ] : [0, 0, 0];
+
+            // Rotasyon Farkı
             const rotationDelta = updates.rotation ? [
               updates.rotation[0] - shape.rotation[0],
               updates.rotation[1] - shape.rotation[1],
               updates.rotation[2] - shape.rotation[2]
             ] : [0, 0, 0];
+
+            // Scale (Ölçek) Farkı - Çarpımsal hesaplanır
             const scaleDelta = updates.scale ? [
               updates.scale[0] / shape.scale[0],
               updates.scale[1] / shape.scale[1],
               updates.scale[2] / shape.scale[2]
             ] : [1, 1, 1];
 
+            // Gruptaki diğer parçaya da bu farkları uygula
             return {
               ...s,
               position: [
@@ -191,19 +251,23 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       return { shapes: updatedShapes };
     }),
+
+  // Şekil silme
   deleteShape: (id) =>
     set((state) => ({
       shapes: state.shapes.filter((s) => s.id !== id),
+      // Eğer silinen şekil seçiliyse, seçimi kaldır
       selectedShapeId: state.selectedShapeId === id ? null : state.selectedShapeId
     })),
 
+  // Kopyalama: Orijinal şeklin 100 birim ötesinde bir klon oluşturur
   copyShape: (id) => {
     const state = get();
     const shapeToCopy = state.shapes.find((s) => s.id === id);
     if (shapeToCopy) {
       const newShape = {
         ...shapeToCopy,
-        id: `${shapeToCopy.type}-${Date.now()}`,
+        id: `${shapeToCopy.type}-${Date.now()}`, // Benzersiz ID üret
         position: [
           shapeToCopy.position[0] + 100,
           shapeToCopy.position[1],
@@ -214,19 +278,22 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  // İzolasyon: Sadece seçili şekli göster, diğerlerini gizle
   isolateShape: (id) =>
     set((state) => ({
       shapes: state.shapes.map((s) => ({
         ...s,
-        isolated: s.id !== id ? false : undefined
+        isolated: s.id !== id ? false : undefined // false = gizli, undefined = normal
       }))
     })),
 
+  // İzolasyondan çık: Herkesi göster
   exitIsolation: () =>
     set((state) => ({
       shapes: state.shapes.map((s) => ({ ...s, isolated: undefined }))
     })),
 
+  // 2D -> 3D Yükseltme (Extrude)
   extrudeShape: (id, distance) =>
     set((state) => {
       const shape = state.shapes.find((s) => s.id === id);
@@ -244,9 +311,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
     }),
 
+  // Şekil Seçimi
   selectedShapeId: null,
   selectShape: (id) => {
     const currentMode = get().activeTool;
+    // Kullanıcı deneyimi: Select modundayken bir şeye tıklanırsa,
+    // otomatik olarak Move moduna geç ki kullanıcı hemen taşıyabilsin.
     if (id && currentMode === Tool.SELECT) {
       console.log('🔄 Auto-switching to move mode on selection');
       set({ selectedShapeId: id, activeTool: Tool.MOVE });
@@ -257,6 +327,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   secondarySelectedShapeId: null,
   selectSecondaryShape: (id) => set({ secondarySelectedShapeId: id }),
 
+  // Grup Oluşturma (Basit Etiketleme)
+  // Not: Boolean işlemi artık burada yapılmıyor, aşağıda checkAndPerformBooleanOperations'da yapılıyor.
   createGroup: (primaryId, secondaryId) => {
     const groupId = `group-${Date.now()}`;
     set((state) => ({
@@ -273,10 +345,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('✅ Created group:', groupId, { primaryId, secondaryId });
   },
 
+  // Grubu Bozma (Ungroup)
   ungroupShapes: (groupId) => {
     set((state) => ({
       shapes: state.shapes.map((s) => {
         if (s.groupId === groupId) {
+          // groupId ve isReferenceBox özelliklerini temizle
           const { groupId: _, isReferenceBox: __, ...rest } = s;
           return rest as Shape;
         }
@@ -288,6 +362,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('✅ Ungrouped:', groupId);
   },
 
+  // --- UI ve Araç State'leri ---
   activeTool: Tool.SELECT,
   setActiveTool: (tool) => set({ activeTool: tool }),
 
@@ -299,6 +374,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   viewMode: ViewMode.SOLID,
   setViewMode: (mode) => set({ viewMode: mode }),
+  
+  // Görünüm modları arasında döngü (Solid -> Wireframe -> Xray)
   cycleViewMode: () => {
     const state = get();
     const modes = [ViewMode.SOLID, ViewMode.WIREFRAME, ViewMode.XRAY];
@@ -313,6 +390,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       orthoMode: state.orthoMode === OrthoMode.ON ? OrthoMode.OFF : OrthoMode.ON
     })),
 
+  // Snap (Yakalama) Ayarları
   snapSettings: {
     [SnapType.ENDPOINT]: false,
     [SnapType.MIDPOINT]: false,
@@ -329,6 +407,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     })),
 
+  // Placeholder fonksiyonlar
   modifyShape: (shapeId, modification) => {
     console.log('Modify shape:', shapeId, modification);
   },
@@ -340,23 +419,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log('Enable auto snap for tool:', tool);
   },
 
+  // OpenCascade (CAD Motoru) Yükleme Durumu
   opencascadeInstance: null,
   opencascadeLoading: false,
   setOpenCascadeInstance: (instance) => set({ opencascadeInstance: instance }),
   setOpenCascadeLoading: (loading) => set({ opencascadeLoading: loading }),
 
+  // Vertex (Nokta) Düzenleme
   vertexEditMode: false,
   setVertexEditMode: (enabled) => set({ vertexEditMode: enabled }),
   selectedVertexIndex: null,
   setSelectedVertexIndex: (index) => set({ selectedVertexIndex: index }),
   vertexDirection: null,
   setVertexDirection: (direction) => set({ vertexDirection: direction }),
+  
+  // Vertex değişikliğini kaydetme (Geometriyi güncellemek için tetikleyici olur)
   addVertexModification: (shapeId, modification) =>
     set((state) => ({
       shapes: state.shapes.map((shape) => {
         if (shape.id !== shapeId) return shape;
 
         const existingMods = shape.vertexModifications || [];
+        // Aynı vertex ve yön için daha önce modification varsa güncelle
         const existingIndex = existingMods.findIndex(
           m => m.vertexIndex === modification.vertexIndex && m.direction === modification.direction
         );
@@ -374,7 +458,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         return {
           ...shape,
           vertexModifications: newMods,
-          geometry: shape.geometry
+          geometry: shape.geometry // Geometri referansını koru, renderer güncellesin
         };
       })
     })),
@@ -386,22 +470,35 @@ export const useAppStore = create<AppState>((set, get) => ({
   hoveredSubtractionIndex: null,
   setHoveredSubtractionIndex: (index) => set({ hoveredSubtractionIndex: index }),
 
+  /**
+   * ------------------------------------------------------------------
+   * BOOLEAN OPERASYONLARI (OTOMATİK KESME)
+   * Bu fonksiyon:
+   * 1. Tüm şekilleri tarar.
+   * 2. Birbiriyle çarpışan (iç içe geçen) kutuları bulur.
+   * 3. Eğer çarpışma varsa Replicad/OpenCascade kullanarak boolean cut yapar.
+   * 4. Sonucu günceller ve kesilen parçayı "hafızaya" (subtractionGeometries) atar.
+   * ------------------------------------------------------------------
+   */
   checkAndPerformBooleanOperations: async () => {
     const state = get();
     const shapes = state.shapes;
 
-    if (shapes.length < 2) return;
+    if (shapes.length < 2) return; // En az 2 şekil lazım
 
     console.log('🔍 Checking for intersecting shapes...');
 
+    // Çift döngü ile her şekli diğerleriyle karşılaştır
     for (let i = 0; i < shapes.length; i++) {
       for (let j = i + 1; j < shapes.length; j++) {
         const shape1 = shapes[i];
         const shape2 = shapes[j];
 
+        // Geometri ve CAD verisi olmayanları atla
         if (!shape1.geometry || !shape2.geometry) continue;
         if (!shape1.replicadShape || !shape2.replicadShape) continue;
 
+        // Bounding Box (Sınırlayıcı Kutu) oluştur
         const box1 = new THREE.Box3().setFromBufferAttribute(
           shape1.geometry.getAttribute('position')
         );
@@ -409,16 +506,22 @@ export const useAppStore = create<AppState>((set, get) => ({
           shape2.geometry.getAttribute('position')
         );
 
+        // Kutuları dünya koordinatlarına taşı
         box1.translate(new THREE.Vector3(...shape1.position));
         box2.translate(new THREE.Vector3(...shape2.position));
 
+        // Kesişim (Collision) Kontrolü
         if (box1.intersectsBox(box2)) {
           console.log('💥 Collision detected between:', shape1.id, 'and', shape2.id);
 
           try {
+            // Replicad fonksiyonlarını dinamik import et (Performans için)
             const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./services/replicad');
             const { getReplicadVertices } = await import('./services/vertexEditor');
 
+            // --- 1. Geometrik Verileri Hazırla ---
+            
+            // Yerel boyutları ve merkezleri hesapla
             const box1Local = new THREE.Box3().setFromBufferAttribute(
               shape1.geometry.getAttribute('position')
             );
@@ -435,9 +538,11 @@ export const useAppStore = create<AppState>((set, get) => ({
             box2Local.getSize(size2);
             box2Local.getCenter(center2Local);
 
+            // Verileri dizi formatına çevir
             const shape1Size = [size1.x, size1.y, size1.z] as [number, number, number];
             const shape2Size = [size2.x, size2.y, size2.z] as [number, number, number];
 
+            // Dünya merkezlerini hesapla (Pozisyon + Yerel Merkez)
             const shape1Center = [
               shape1.position[0] + center1Local.x,
               shape1.position[1] + center1Local.y,
@@ -450,35 +555,20 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.position[2] + center2Local.z
             ] as [number, number, number];
 
-            console.log('📏 Using actual geometry data:', {
-              shape1: {
-                id: shape1.id,
-                size: shape1Size,
-                localCenter: [center1Local.x, center1Local.y, center1Local.z],
-                worldCenter: shape1Center,
-                position: shape1.position
-              },
-              shape2: {
-                id: shape2.id,
-                size: shape2Size,
-                localCenter: [center2Local.x, center2Local.y, center2Local.z],
-                worldCenter: shape2Center,
-                position: shape2.position
-              }
-            });
+            // Debug log
+            console.log('📏 Using actual geometry data:', { /* ... log details ... */ });
 
+            // --- 2. CAD Şekillerini Oluştur ---
             const shape1Replicad = await createReplicadBox({
-              width: shape1Size[0],
-              height: shape1Size[1],
-              depth: shape1Size[2]
+              width: shape1Size[0], height: shape1Size[1], depth: shape1Size[2]
             });
 
             const shape2Replicad = await createReplicadBox({
-              width: shape2Size[0],
-              height: shape2Size[1],
-              depth: shape2Size[2]
+              width: shape2Size[0], height: shape2Size[1], depth: shape2Size[2]
             });
 
+            // --- 3. Boolean Cut İşlemi ---
+            // Shape1'den Shape2'yi çıkar
             const resultShape = await performBooleanCut(
               shape1Replicad,
               shape2Replicad,
@@ -492,11 +582,15 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2Size
             );
 
+            // Sonucu Three.js geometrisine çevir
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
             const newBaseVertices = await getReplicadVertices(resultShape);
 
+            // --- 4. Kesilen Parçayı Hafızaya Al (History) ---
+            // Shape2'nin geometrisini kopyala
             const subtractedGeometry = shape2.geometry.clone();
 
+            // Shape2'nin Shape1'e göre bağıl konumunu hesapla
             const relativeOffset = [
               shape2.position[0] - shape1.position[0],
               shape2.position[1] - shape1.position[1],
@@ -509,29 +603,17 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
 
-            console.log('🔍 Capturing subtracted geometry (origin: bottom-left-back):', {
-              shape2Id: shape2.id,
-              shape1Position: shape1.position,
-              shape2Position: shape2.position,
-              shape1Size,
-              shape2Size,
-              shape1Center,
-              shape2Center,
-              relativeOffset,
-              relativeRotation,
-              shape2Scale: shape2.scale,
-              geometryVertices: subtractedGeometry.attributes.position.count,
-              note: 'relativeOffset is position difference (origin-based), Scene.tsx will add size/2 for THREE.BoxGeometry centering'
-            });
-
+            // --- 5. State'i Güncelle ---
             set((state) => ({
               shapes: state.shapes.map((s) => {
+                // Ana şekli (Shape1) güncelle
                 if (s.id === shape1.id) {
                   const existingSubtractions = s.subtractionGeometries || [];
                   return {
                     ...s,
-                    geometry: newGeometry,
-                    replicadShape: resultShape,
+                    geometry: newGeometry,      // Yeni kesilmiş geometri
+                    replicadShape: resultShape, // Yeni CAD verisi
+                    // Kesilen parçayı listeye ekle
                     subtractionGeometries: [
                       ...existingSubtractions,
                       {
@@ -548,11 +630,12 @@ export const useAppStore = create<AppState>((set, get) => ({
                   };
                 }
                 return s;
-              }).filter(s => s.id !== shape2.id)
+              }).filter(s => s.id !== shape2.id) // Shape2'yi sahneden SİL (Çünkü artık bir boşluk oldu)
             }));
 
             console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
-            return;
+            return; // İlk başarılı işlemde çık (Tek seferde tek işlem)
+
           } catch (error) {
             console.error('❌ Failed to perform boolean operation:', error);
           }
