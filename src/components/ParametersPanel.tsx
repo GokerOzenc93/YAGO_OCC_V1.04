@@ -48,6 +48,28 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [subPosZ, setSubPosZ] = useState(0);
 
   useEffect(() => {
+    if (!selectedShape || selectedSubtractionIndex === null || !selectedShape.subtractionGeometries) return;
+    if (subWidth === 0 && subHeight === 0 && subDepth === 0) return;
+
+    const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
+    const currentSubtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
+
+    const updatedSubtraction = {
+      ...currentSubtraction,
+      geometry: newSubGeometry,
+      relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number]
+    };
+
+    const updatedSubtractions = selectedShape.subtractionGeometries.map((sub, idx) =>
+      idx === selectedSubtractionIndex ? updatedSubtraction : sub
+    );
+
+    updateShape(selectedShape.id, {
+      subtractionGeometries: updatedSubtractions
+    });
+  }, [subWidth, subHeight, subDepth, subPosX, subPosY, subPosZ, selectedShape?.id, selectedSubtractionIndex]);
+
+  useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
       selectedShapeId,
       shapesCount: shapes.length,
