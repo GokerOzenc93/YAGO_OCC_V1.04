@@ -259,8 +259,6 @@ const ShapeWithTransform: React.FC<{
           const isHovered = hoveredSubtractionIndex === index && isSelected;
           const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
 
-          const edgesGeometry = new THREE.EdgesGeometry(subtraction.geometry, 30);
-
           const box = new THREE.Box3().setFromBufferAttribute(
             subtraction.geometry.attributes.position as THREE.BufferAttribute
           );
@@ -310,9 +308,6 @@ const ShapeWithTransform: React.FC<{
                   depthWrite={false}
                 />
               </mesh>
-              <lineSegments geometry={edgesGeometry}>
-                <lineBasicMaterial color={0x00ff00} linewidth={2} />
-              </lineSegments>
             </group>
           );
         })}
