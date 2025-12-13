@@ -535,10 +535,31 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           }
         });
       } else {
-        updateShape(selectedShape.id, {
-          ...baseUpdate,
-          ...(dimensionsChanged && scaledGeometry && { geometry: scaledGeometry })
-        });
+        if (dimensionsChanged && scaledGeometry) {
+          console.log('🔄 Dimensions changed, recreating replicad shape with new dimensions...');
+
+          const newReplicadShape = await createReplicadBox({
+            width,
+            height,
+            depth
+          });
+
+          const newBaseVertices = await getReplicadVertices(newReplicadShape);
+
+          updateShape(selectedShape.id, {
+            ...baseUpdate,
+            geometry: scaledGeometry,
+            replicadShape: newReplicadShape,
+            parameters: {
+              ...baseUpdate.parameters,
+              scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+            }
+          });
+
+          console.log('✓ Replicad shape recreated with dimensions:', { width, height, depth });
+        } else {
+          updateShape(selectedShape.id, baseUpdate);
+        }
       }
 
       console.log('✅ Parameters applied');
