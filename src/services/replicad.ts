@@ -196,63 +196,7 @@ export const performBooleanCut = async (
   console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Size:', cuttingSize, 'Rotation:', cuttingRotation, 'Scale:', cuttingScale);
 
   try {
-    let transformedBase = baseShape;
     let transformedCutting = cuttingShape;
-
-    let finalCuttingPosition = cuttingPosition ? [...cuttingPosition] as [number, number, number] : [0, 0, 0] as [number, number, number];
-
-    if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
-      const rotX = baseRotation[0];
-      const rotY = baseRotation[1];
-      const rotZ = baseRotation[2];
-
-      const cosX = Math.cos(rotX), sinX = Math.sin(rotX);
-      const cosY = Math.cos(rotY), sinY = Math.sin(rotY);
-      const cosZ = Math.cos(rotZ), sinZ = Math.sin(rotZ);
-
-      let [x, y, z] = finalCuttingPosition;
-
-      if (rotX !== 0) {
-        const newY = y * cosX - z * sinX;
-        const newZ = y * sinX + z * cosX;
-        y = newY;
-        z = newZ;
-      }
-
-      if (rotY !== 0) {
-        const newX = x * cosY + z * sinY;
-        const newZ = -x * sinY + z * cosY;
-        x = newX;
-        z = newZ;
-      }
-
-      if (rotZ !== 0) {
-        const newX = x * cosZ - y * sinZ;
-        const newY = x * sinZ + y * cosZ;
-        x = newX;
-        y = newY;
-      }
-
-      finalCuttingPosition = [x, y, z];
-      console.log('🔄 Transformed cutting position by base rotation:', finalCuttingPosition);
-    }
-
-    if (baseScale && (baseScale[0] !== 1 || baseScale[1] !== 1 || baseScale[2] !== 1)) {
-      console.log('📏 Scaling base shape by:', baseScale);
-      transformedBase = transformedBase.scale(baseScale[0], baseScale[1], baseScale[2]);
-    }
-
-    if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
-      console.log('🔄 Rotating base shape by:', baseRotation);
-      if (baseRotation[0] !== 0) transformedBase = transformedBase.rotate(baseRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-      if (baseRotation[1] !== 0) transformedBase = transformedBase.rotate(baseRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-      if (baseRotation[2] !== 0) transformedBase = transformedBase.rotate(baseRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-    }
-
-    if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
-      console.log('📍 Translating base shape by:', basePosition);
-      transformedBase = transformedBase.translate(basePosition[0], basePosition[1], basePosition[2]);
-    }
 
     if (cuttingScale && (cuttingScale[0] !== 1 || cuttingScale[1] !== 1 || cuttingScale[2] !== 1)) {
       console.log('📏 Scaling cutting shape by:', cuttingScale);
@@ -266,32 +210,13 @@ export const performBooleanCut = async (
       if (cuttingRotation[2] !== 0) transformedCutting = transformedCutting.rotate(cuttingRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
     }
 
-    if (finalCuttingPosition[0] !== 0 || finalCuttingPosition[1] !== 0 || finalCuttingPosition[2] !== 0) {
-      console.log('📍 Translating cutting shape by:', finalCuttingPosition);
-      transformedCutting = transformedCutting.translate(finalCuttingPosition[0], finalCuttingPosition[1], finalCuttingPosition[2]);
+    if (cuttingPosition && (cuttingPosition[0] !== 0 || cuttingPosition[1] !== 0 || cuttingPosition[2] !== 0)) {
+      console.log('📍 Translating cutting shape by:', cuttingPosition);
+      transformedCutting = transformedCutting.translate(cuttingPosition[0], cuttingPosition[1], cuttingPosition[2]);
     }
 
-    const result = transformedBase.cut(transformedCutting);
+    const result = baseShape.cut(transformedCutting);
     console.log('✅ Boolean cut completed:', result);
-
-    if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
-      console.log('📍 Translating result back by:', [-basePosition[0], -basePosition[1], -basePosition[2]]);
-      let finalResult = result.translate(-basePosition[0], -basePosition[1], -basePosition[2]);
-
-      if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
-        console.log('🔄 Rotating result back by:', [-baseRotation[0], -baseRotation[1], -baseRotation[2]]);
-        if (baseRotation[2] !== 0) finalResult = finalResult.rotate(-baseRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-        if (baseRotation[1] !== 0) finalResult = finalResult.rotate(-baseRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-        if (baseRotation[0] !== 0) finalResult = finalResult.rotate(-baseRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-      }
-
-      if (baseScale && (baseScale[0] !== 1 || baseScale[1] !== 1 || baseScale[2] !== 1)) {
-        console.log('📏 Scaling result back by:', [1/baseScale[0], 1/baseScale[1], 1/baseScale[2]]);
-        finalResult = finalResult.scale(1/baseScale[0], 1/baseScale[1], 1/baseScale[2]);
-      }
-
-      return finalResult;
-    }
 
     return result;
   } catch (error) {

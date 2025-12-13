@@ -313,41 +313,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         depth: subSize.z
       });
 
-      const baseSize = [
-        currentShape.parameters.width || 1,
-        currentShape.parameters.height || 1,
-        currentShape.parameters.depth || 1
-      ] as [number, number, number];
-
-      const baseCenterOffset = [
-        currentShape.position[0] + baseSize[0] / 2,
-        currentShape.position[1] + baseSize[1] / 2,
-        currentShape.position[2] + baseSize[2] / 2
-      ] as [number, number, number];
-
-      const subCenterOffset = [
-        currentShape.position[0] + subtraction.relativeOffset[0] + subSize.x / 2,
-        currentShape.position[1] + subtraction.relativeOffset[1] + subSize.y / 2,
-        currentShape.position[2] + subtraction.relativeOffset[2] + subSize.z / 2
-      ] as [number, number, number];
-
-      const absoluteRot = [
-        subtraction.relativeRotation[0],
-        subtraction.relativeRotation[1],
-        subtraction.relativeRotation[2]
-      ] as [number, number, number];
-
       resultShape = await performBooleanCut(
         resultShape,
         subBox,
-        baseCenterOffset,
-        subCenterOffset,
-        currentShape.rotation,
-        absoluteRot,
-        currentShape.scale,
-        subtraction.scale || [1, 1, 1] as [number, number, number],
-        baseSize,
-        [subSize.x, subSize.y, subSize.z] as [number, number, number]
+        undefined,
+        subtraction.relativeOffset,
+        undefined,
+        subtraction.relativeRotation || [0, 0, 0],
+        undefined,
+        subtraction.scale || [1, 1, 1] as [number, number, number]
       );
     }
 
@@ -481,72 +455,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         rotZ * (Math.PI / 180)
       ];
 
-      const oldRotation = selectedShape.rotation;
-      const rotationChanged =
-        oldRotation[0] !== newRotation[0] ||
-        oldRotation[1] !== newRotation[1] ||
-        oldRotation[2] !== newRotation[2];
-
-      let updatedSubtractions = selectedShape.subtractionGeometries;
-
-      if (rotationChanged && selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0) {
-        console.log('🔄 Rotation changed, transforming subtraction geometries...');
-        console.log('Old rotation:', oldRotation.map(r => r * (180 / Math.PI)));
-        console.log('New rotation:', newRotation.map(r => r * (180 / Math.PI)));
-
-        const deltaRotX = newRotation[0] - oldRotation[0];
-        const deltaRotY = newRotation[1] - oldRotation[1];
-        const deltaRotZ = newRotation[2] - oldRotation[2];
-
-        updatedSubtractions = selectedShape.subtractionGeometries.map((sub, idx) => {
-          if (idx === selectedSubtractionIndex) {
-            return sub;
-          }
-
-          const oldOffset = sub.relativeOffset;
-          let [x, y, z] = oldOffset;
-
-          const cosX = Math.cos(-deltaRotX), sinX = Math.sin(-deltaRotX);
-          const cosY = Math.cos(-deltaRotY), sinY = Math.sin(-deltaRotY);
-          const cosZ = Math.cos(-deltaRotZ), sinZ = Math.sin(-deltaRotZ);
-
-          if (deltaRotX !== 0) {
-            const newY = y * cosX - z * sinX;
-            const newZ = y * sinX + z * cosX;
-            y = newY;
-            z = newZ;
-          }
-
-          if (deltaRotY !== 0) {
-            const newX = x * cosY + z * sinY;
-            const newZ = -x * sinY + z * cosY;
-            x = newX;
-            z = newZ;
-          }
-
-          if (deltaRotZ !== 0) {
-            const newX = x * cosZ - y * sinZ;
-            const newY = x * sinZ + y * cosZ;
-            x = newX;
-            y = newY;
-          }
-
-          const newRelativeRotation: [number, number, number] = [
-            (sub.relativeRotation?.[0] || 0) - deltaRotX,
-            (sub.relativeRotation?.[1] || 0) - deltaRotY,
-            (sub.relativeRotation?.[2] || 0) - deltaRotZ
-          ];
-
-          console.log(`Subtraction ${idx}: offset transformed from [${oldOffset.join(', ')}] to [${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}]`);
-
-          return {
-            ...sub,
-            relativeOffset: [x, y, z] as [number, number, number],
-            relativeRotation: newRelativeRotation
-          };
-        });
-      }
-
       const baseUpdate = {
         parameters: {
           ...selectedShape.parameters,
@@ -559,70 +467,24 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         vertexModifications: updatedVertexMods,
         position: selectedShape.position,
         rotation: newRotation,
-        scale: selectedShape.scale,
-        ...(updatedSubtractions && { subtractionGeometries: updatedSubtractions })
+        scale: selectedShape.scale
       };
 
       if (hasSubtractionChanges) {
         console.log('🔄 Recalculating subtraction with updated dimensions...');
 
-        let updatedSubtractionOffset: [number, number, number] = [subPosX, subPosY, subPosZ];
-        let updatedSubtractionRotation: [number, number, number] = [
-          subRotX * (Math.PI / 180),
-          subRotY * (Math.PI / 180),
-          subRotZ * (Math.PI / 180)
-        ];
-
-        if (rotationChanged) {
-          const deltaRotX = newRotation[0] - oldRotation[0];
-          const deltaRotY = newRotation[1] - oldRotation[1];
-          const deltaRotZ = newRotation[2] - oldRotation[2];
-
-          let [x, y, z] = updatedSubtractionOffset;
-
-          const cosX = Math.cos(-deltaRotX), sinX = Math.sin(-deltaRotX);
-          const cosY = Math.cos(-deltaRotY), sinY = Math.sin(-deltaRotY);
-          const cosZ = Math.cos(-deltaRotZ), sinZ = Math.sin(-deltaRotZ);
-
-          if (deltaRotX !== 0) {
-            const newY = y * cosX - z * sinX;
-            const newZ = y * sinX + z * cosX;
-            y = newY;
-            z = newZ;
-          }
-
-          if (deltaRotY !== 0) {
-            const newX = x * cosY + z * sinY;
-            const newZ = -x * sinY + z * cosY;
-            x = newX;
-            z = newZ;
-          }
-
-          if (deltaRotZ !== 0) {
-            const newX = x * cosZ - y * sinZ;
-            const newY = x * sinZ + y * cosZ;
-            x = newX;
-            y = newY;
-          }
-
-          updatedSubtractionOffset = [x, y, z];
-          updatedSubtractionRotation = [
-            updatedSubtractionRotation[0] - deltaRotX,
-            updatedSubtractionRotation[1] - deltaRotY,
-            updatedSubtractionRotation[2] - deltaRotZ
-          ];
-
-          console.log(`Selected subtraction: offset transformed to [${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)}]`);
-        }
-
         const updatedSubtraction = {
           ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
           geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
-          relativeOffset: updatedSubtractionOffset,
-          relativeRotation: updatedSubtractionRotation
+          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
+          relativeRotation: [
+            subRotX * (Math.PI / 180),
+            subRotY * (Math.PI / 180),
+            subRotZ * (Math.PI / 180)
+          ] as [number, number, number]
         };
 
-        const allSubtractions = (updatedSubtractions || selectedShape.subtractionGeometries!).map((sub, idx) =>
+        const allSubtractions = selectedShape.subtractionGeometries!.map((sub, idx) =>
           idx === selectedSubtractionIndex ? updatedSubtraction : sub
         );
 
@@ -644,26 +506,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             depth: subSize.z
           });
 
-          const absolutePos = [
-            selectedShape.position[0] + subtraction.relativeOffset[0],
-            selectedShape.position[1] + subtraction.relativeOffset[1],
-            selectedShape.position[2] + subtraction.relativeOffset[2]
-          ] as [number, number, number];
-
-          const absoluteRot = [
-            (subtraction.relativeRotation?.[0] || 0),
-            (subtraction.relativeRotation?.[1] || 0),
-            (subtraction.relativeRotation?.[2] || 0)
-          ] as [number, number, number];
-
           resultShape = await performBooleanCut(
             resultShape,
             subBox,
-            selectedShape.position,
-            absolutePos,
-            newRotation,
-            absoluteRot,
-            selectedShape.scale,
+            undefined,
+            subtraction.relativeOffset,
+            undefined,
+            subtraction.relativeRotation || [0, 0, 0],
+            undefined,
             subtraction.scale || [1, 1, 1] as [number, number, number]
           );
         }
