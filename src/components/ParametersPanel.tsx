@@ -37,6 +37,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
   const [depth, setDepth] = useState(0);
+  const [rotX, setRotX] = useState(0);
+  const [rotY, setRotY] = useState(0);
+  const [rotZ, setRotZ] = useState(0);
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
@@ -92,12 +95,18 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setWidth(selectedShape.parameters.width || 0);
       setHeight(selectedShape.parameters.height || 0);
       setDepth(selectedShape.parameters.depth || 0);
+      setRotX((selectedShape.rotation?.[0] || 0) * (180 / Math.PI));
+      setRotY((selectedShape.rotation?.[1] || 0) * (180 / Math.PI));
+      setRotZ((selectedShape.rotation?.[2] || 0) * (180 / Math.PI));
       setCustomParameters(selectedShape.parameters.customParameters || []);
       setVertexModifications(selectedShape.vertexModifications || []);
     } else {
       setWidth(0);
       setHeight(0);
       setDepth(0);
+      setRotX(0);
+      setRotY(0);
+      setRotZ(0);
       setCustomParameters([]);
       setVertexModifications([]);
     }
@@ -477,7 +486,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         },
         vertexModifications: updatedVertexMods,
         position: selectedShape.position,
-        rotation: selectedShape.rotation,
+        rotation: [
+          rotX * (Math.PI / 180),
+          rotY * (Math.PI / 180),
+          rotZ * (Math.PI / 180)
+        ] as [number, number, number],
         scale: selectedShape.scale
       };
 
@@ -741,6 +754,90 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 <input
                   type="text"
                   value="Depth"
+                  readOnly
+                  className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                />
+              </div>
+
+              <div className="flex gap-1 items-center">
+                <input
+                  type="text"
+                  value="RX"
+                  readOnly
+                  className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                />
+                <input
+                  type="number"
+                  value={rotX}
+                  step="1"
+                  onChange={(e) => setRotX(Number(e.target.value))}
+                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <input
+                  type="text"
+                  value={rotX.toFixed(1) + '°'}
+                  readOnly
+                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                />
+                <input
+                  type="text"
+                  value="Rotation X"
+                  readOnly
+                  className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                />
+              </div>
+
+              <div className="flex gap-1 items-center">
+                <input
+                  type="text"
+                  value="RY"
+                  readOnly
+                  className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                />
+                <input
+                  type="number"
+                  value={rotY}
+                  step="1"
+                  onChange={(e) => setRotY(Number(e.target.value))}
+                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <input
+                  type="text"
+                  value={rotY.toFixed(1) + '°'}
+                  readOnly
+                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                />
+                <input
+                  type="text"
+                  value="Rotation Y"
+                  readOnly
+                  className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                />
+              </div>
+
+              <div className="flex gap-1 items-center">
+                <input
+                  type="text"
+                  value="RZ"
+                  readOnly
+                  className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                />
+                <input
+                  type="number"
+                  value={rotZ}
+                  step="1"
+                  onChange={(e) => setRotZ(Number(e.target.value))}
+                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+                <input
+                  type="text"
+                  value={rotZ.toFixed(1) + '°'}
+                  readOnly
+                  className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                />
+                <input
+                  type="text"
+                  value="Rotation Z"
                   readOnly
                   className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                 />
