@@ -46,6 +46,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [subPosX, setSubPosX] = useState(0);
   const [subPosY, setSubPosY] = useState(0);
   const [subPosZ, setSubPosZ] = useState(0);
+  const [subRotX, setSubRotX] = useState(0);
+  const [subRotY, setSubRotY] = useState(0);
+  const [subRotZ, setSubRotZ] = useState(0);
 
   useEffect(() => {
     if (!selectedShape || selectedSubtractionIndex === null || !selectedShape.subtractionGeometries) return;
@@ -57,7 +60,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const updatedSubtraction = {
       ...currentSubtraction,
       geometry: newSubGeometry,
-      relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number]
+      relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
+      relativeRotation: [
+        subRotX * (Math.PI / 180),
+        subRotY * (Math.PI / 180),
+        subRotZ * (Math.PI / 180)
+      ] as [number, number, number]
     };
 
     const updatedSubtractions = selectedShape.subtractionGeometries.map((sub, idx) =>
@@ -67,7 +75,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     updateShape(selectedShape.id, {
       subtractionGeometries: updatedSubtractions
     });
-  }, [subWidth, subHeight, subDepth, subPosX, subPosY, subPosZ, selectedShape?.id, selectedSubtractionIndex]);
+  }, [subWidth, subHeight, subDepth, subPosX, subPosY, subPosZ, subRotX, subRotY, subRotZ, selectedShape?.id, selectedSubtractionIndex]);
 
   useEffect(() => {
     console.log('Parameters Panel - Selected Shape:', {
@@ -122,6 +130,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         setSubPosX(round(subtraction.relativeOffset[0]));
         setSubPosY(round(subtraction.relativeOffset[1]));
         setSubPosZ(round(subtraction.relativeOffset[2]));
+        setSubRotX(round((subtraction.relativeRotation?.[0] || 0) * (180 / Math.PI)));
+        setSubRotY(round((subtraction.relativeRotation?.[1] || 0) * (180 / Math.PI)));
+        setSubRotZ(round((subtraction.relativeRotation?.[2] || 0) * (180 / Math.PI)));
       }
     }
   }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length]);
@@ -261,7 +272,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       ...currentSubtraction,
       geometry: newSubGeometry,
       relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
-      relativeRotation: currentSubtraction.relativeRotation || [0, 0, 0] as [number, number, number],
+      relativeRotation: [
+        subRotX * (Math.PI / 180),
+        subRotY * (Math.PI / 180),
+        subRotZ * (Math.PI / 180)
+      ] as [number, number, number],
       scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
     };
 
@@ -472,7 +487,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         const updatedSubtraction = {
           ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
           geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
-          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number]
+          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
+          relativeRotation: [
+            subRotX * (Math.PI / 180),
+            subRotY * (Math.PI / 180),
+            subRotZ * (Math.PI / 180)
+          ] as [number, number, number]
         };
 
         const allSubtractions = selectedShape.subtractionGeometries!.map((sub, idx) =>
@@ -896,6 +916,90 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   <input
                     type="text"
                     value="Position Z"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="RX"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subRotX}
+                    step="1"
+                    onChange={(e) => setSubRotX(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subRotX.toFixed(1) + '°'}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Rotation X"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="RY"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subRotY}
+                    step="1"
+                    onChange={(e) => setSubRotY(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subRotY.toFixed(1) + '°'}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Rotation Y"
+                    readOnly
+                    className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                </div>
+
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="RZ"
+                    readOnly
+                    className="w-10 px-2 py-1 text-xs font-medium border border-stone-300 rounded bg-stone-50 text-stone-700 text-center"
+                  />
+                  <input
+                    type="number"
+                    value={subRotZ}
+                    step="1"
+                    onChange={(e) => setSubRotZ(Number(e.target.value))}
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={subRotZ.toFixed(1) + '°'}
+                    readOnly
+                    className="w-16 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
+                  />
+                  <input
+                    type="text"
+                    value="Rotation Z"
                     readOnly
                     className="flex-1 px-2 py-1 text-xs border border-stone-300 rounded bg-stone-50 text-stone-600"
                   />
