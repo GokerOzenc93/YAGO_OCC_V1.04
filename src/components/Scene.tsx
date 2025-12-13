@@ -271,13 +271,11 @@ const ShapeWithTransform: React.FC<{
 
           const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
 
-          const displayOffset = isCentered
-            ? [
-                subtraction.relativeOffset[0] + size.x / 2,
-                subtraction.relativeOffset[1] + size.y / 2,
-                subtraction.relativeOffset[2] + size.z / 2
-              ] as [number, number, number]
-            : subtraction.relativeOffset;
+          const displayOffset = subtraction.relativeOffset;
+
+          const meshOffset: [number, number, number] = isCentered
+            ? [size.x / 2, size.y / 2, size.z / 2]
+            : [0, 0, 0];
 
           return (
             <group
@@ -287,6 +285,7 @@ const ShapeWithTransform: React.FC<{
             >
               <mesh
                 geometry={subtraction.geometry}
+                position={meshOffset}
                 onPointerOver={(e) => {
                   e.stopPropagation();
                   if (isSelected) {
