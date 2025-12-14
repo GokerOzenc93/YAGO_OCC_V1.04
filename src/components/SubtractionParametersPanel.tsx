@@ -43,13 +43,13 @@ export const SubtractionParametersPanel: React.FC<SubtractionParametersPanelProp
   onSubRotZChange
 }) => {
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
         Subtraction Parameters
       </div>
 
-      <div className="space-y-1">
-        <div className="text-xs text-gray-500">Dimensions</div>
+      <div className="space-y-0.5">
+        <div className="text-[11px] text-gray-500">Dimensions</div>
         <ParameterRow
           label="W"
           value={subWidth}
@@ -73,8 +73,8 @@ export const SubtractionParametersPanel: React.FC<SubtractionParametersPanelProp
         />
       </div>
 
-      <div className="space-y-1">
-        <div className="text-xs text-gray-500">Position</div>
+      <div className="space-y-0.5">
+        <div className="text-[11px] text-gray-500">Position</div>
         <ParameterRow
           label="X"
           value={subPosX}
@@ -98,8 +98,8 @@ export const SubtractionParametersPanel: React.FC<SubtractionParametersPanelProp
         />
       </div>
 
-      <div className="space-y-1">
-        <div className="text-xs text-gray-500">Rotation (degrees)</div>
+      <div className="space-y-0.5">
+        <div className="text-[11px] text-gray-500">Rotation (degrees)</div>
         <ParameterRow
           label="RX"
           value={subRotX}
