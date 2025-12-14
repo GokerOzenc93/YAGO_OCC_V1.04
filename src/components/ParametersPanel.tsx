@@ -498,7 +498,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             )}
 
-            {vertexModifications.length > 0 && (
+            {vertexEditMode && vertexModifications.length > 0 && (
               <div className="space-y-1 pt-2 border-t border-stone-300">
                 <div className="text-xs font-semibold text-stone-600 mb-1">Vertex Modifications</div>
                 {vertexModifications.map((mod, idx) => {
