@@ -196,7 +196,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           subRotY * (Math.PI / 180),
           subRotZ * (Math.PI / 180)
         ] as [number, number, number],
-        parameters: subParams ? {
+        parameters: {
           width: subParams.width.expression,
           height: subParams.height.expression,
           depth: subParams.depth.expression,
@@ -206,7 +206,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           rotX: subParams.rotX.expression,
           rotY: subParams.rotY.expression,
           rotZ: subParams.rotZ.expression
-        } : undefined
+        }
       };
 
       const allSubtractions = selectedShape.subtractionGeometries!.map((sub: any, idx: number) =>
@@ -355,7 +355,18 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       subRotY * (Math.PI / 180),
       subRotZ * (Math.PI / 180)
     ] as [number, number, number],
-    scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number]
+    scale: currentSubtraction.scale || [1, 1, 1] as [number, number, number],
+    parameters: {
+      width: String(subWidth),
+      height: String(subHeight),
+      depth: String(subDepth),
+      posX: String(subPosX),
+      posY: String(subPosY),
+      posZ: String(subPosZ),
+      rotX: String(subRotX),
+      rotY: String(subRotY),
+      rotZ: String(subRotZ)
+    }
   };
 
   const allSubtractions = currentShape.subtractionGeometries.map((sub: any, idx: number) =>

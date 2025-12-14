@@ -103,74 +103,44 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           ...customParameters.reduce((acc, param) => ({ ...acc, [param.name]: param.result }), {})
         };
 
-        if (subtraction.parameters) {
-          setSubParams({
-            width: {
-              expression: subtraction.parameters.width,
-              result: evaluateExpression(subtraction.parameters.width, evalContext)
-            },
-            height: {
-              expression: subtraction.parameters.height,
-              result: evaluateExpression(subtraction.parameters.height, evalContext)
-            },
-            depth: {
-              expression: subtraction.parameters.depth,
-              result: evaluateExpression(subtraction.parameters.depth, evalContext)
-            },
-            posX: {
-              expression: subtraction.parameters.posX,
-              result: evaluateExpression(subtraction.parameters.posX, evalContext)
-            },
-            posY: {
-              expression: subtraction.parameters.posY,
-              result: evaluateExpression(subtraction.parameters.posY, evalContext)
-            },
-            posZ: {
-              expression: subtraction.parameters.posZ,
-              result: evaluateExpression(subtraction.parameters.posZ, evalContext)
-            },
-            rotX: {
-              expression: subtraction.parameters.rotX,
-              result: evaluateExpression(subtraction.parameters.rotX, evalContext)
-            },
-            rotY: {
-              expression: subtraction.parameters.rotY,
-              result: evaluateExpression(subtraction.parameters.rotY, evalContext)
-            },
-            rotZ: {
-              expression: subtraction.parameters.rotZ,
-              result: evaluateExpression(subtraction.parameters.rotZ, evalContext)
-            }
-          });
-        } else {
-          const box = new THREE.Box3().setFromBufferAttribute(
-            subtraction.geometry.attributes.position as THREE.BufferAttribute
-          );
-          const size = new THREE.Vector3();
-          box.getSize(size);
-
-          const w = round(size.x);
-          const h = round(size.y);
-          const d = round(size.z);
-          const px = round(subtraction.relativeOffset[0]);
-          const py = round(subtraction.relativeOffset[1]);
-          const pz = round(subtraction.relativeOffset[2]);
-          const rx = round((subtraction.relativeRotation?.[0] || 0) * (180 / Math.PI));
-          const ry = round((subtraction.relativeRotation?.[1] || 0) * (180 / Math.PI));
-          const rz = round((subtraction.relativeRotation?.[2] || 0) * (180 / Math.PI));
-
-          setSubParams({
-            width: { expression: String(w), result: w },
-            height: { expression: String(h), result: h },
-            depth: { expression: String(d), result: d },
-            posX: { expression: String(px), result: px },
-            posY: { expression: String(py), result: py },
-            posZ: { expression: String(pz), result: pz },
-            rotX: { expression: String(rx), result: rx },
-            rotY: { expression: String(ry), result: ry },
-            rotZ: { expression: String(rz), result: rz }
-          });
-        }
+        setSubParams({
+          width: {
+            expression: subtraction.parameters.width,
+            result: evaluateExpression(subtraction.parameters.width, evalContext)
+          },
+          height: {
+            expression: subtraction.parameters.height,
+            result: evaluateExpression(subtraction.parameters.height, evalContext)
+          },
+          depth: {
+            expression: subtraction.parameters.depth,
+            result: evaluateExpression(subtraction.parameters.depth, evalContext)
+          },
+          posX: {
+            expression: subtraction.parameters.posX,
+            result: evaluateExpression(subtraction.parameters.posX, evalContext)
+          },
+          posY: {
+            expression: subtraction.parameters.posY,
+            result: evaluateExpression(subtraction.parameters.posY, evalContext)
+          },
+          posZ: {
+            expression: subtraction.parameters.posZ,
+            result: evaluateExpression(subtraction.parameters.posZ, evalContext)
+          },
+          rotX: {
+            expression: subtraction.parameters.rotX,
+            result: evaluateExpression(subtraction.parameters.rotX, evalContext)
+          },
+          rotY: {
+            expression: subtraction.parameters.rotY,
+            result: evaluateExpression(subtraction.parameters.rotY, evalContext)
+          },
+          rotZ: {
+            expression: subtraction.parameters.rotZ,
+            result: evaluateExpression(subtraction.parameters.rotZ, evalContext)
+          }
+        });
       }
     }
   }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length, width, height, depth, customParameters]);

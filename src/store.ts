@@ -32,7 +32,7 @@ export interface SubtractedGeometry {
   relativeOffset: [number, number, number]; // Ana parçaya göre konumu (Delta)
   relativeRotation: [number, number, number]; // Ana parçaya göre dönüşü
   scale: [number, number, number];       // Ölçeği
-  parameters?: SubtractionParameters;    // Parametrik ifadeler
+  parameters: SubtractionParameters;     // Parametrik ifadeler
 }
 
 /**
@@ -671,7 +671,18 @@ export const useAppStore = create<AppState>((set, get) => ({
                         geometry: subtractedGeometry,
                         relativeOffset,
                         relativeRotation,
-                        scale: [1, 1, 1] as [number, number, number]
+                        scale: [1, 1, 1] as [number, number, number],
+                        parameters: {
+                          width: String(shape2Size[0]),
+                          height: String(shape2Size[1]),
+                          depth: String(shape2Size[2]),
+                          posX: String(relativeOffset[0]),
+                          posY: String(relativeOffset[1]),
+                          posZ: String(relativeOffset[2]),
+                          rotX: String(relativeRotation[0] * (180 / Math.PI)),
+                          rotY: String(relativeRotation[1] * (180 / Math.PI)),
+                          rotZ: String(relativeRotation[2] * (180 / Math.PI))
+                        }
                       }
                     ],
                     parameters: {
@@ -727,12 +738,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         depth: size.z
       });
 
-      const baseCenter = [
-        shape.position[0] + center.x,
-        shape.position[1] + center.y,
-        shape.position[2] + center.z
-      ] as [number, number, number];
-
       for (let i = 0; i < newSubtractionGeometries.length; i++) {
         const subtraction = newSubtractionGeometries[i];
         if (!subtraction) continue;
@@ -741,23 +746,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           subtraction.geometry.getAttribute('position')
         );
         const subSize = new THREE.Vector3();
-        const subCenter = new THREE.Vector3();
         subBox.getSize(subSize);
-        subBox.getCenter(subCenter);
-
-        const isSubCentered = Math.abs(subCenter.x) < 0.01 &&
-                             Math.abs(subCenter.y) < 0.01 &&
-                             Math.abs(subCenter.z) < 0.01;
-
-        const offsetAdjustmentX = isSubCentered ? subSize.x / 2 : 0;
-        const offsetAdjustmentY = isSubCentered ? subSize.y / 2 : 0;
-        const offsetAdjustmentZ = isSubCentered ? subSize.z / 2 : 0;
-
-        const subWorldCenter = [
-          shape.position[0] + subtraction.relativeOffset[0] + offsetAdjustmentX,
-          shape.position[1] + subtraction.relativeOffset[1] + offsetAdjustmentY,
-          shape.position[2] + subtraction.relativeOffset[2] + offsetAdjustmentZ
-        ] as [number, number, number];
 
         const subShape = await createReplicadBox({
           width: subSize.x,
@@ -768,14 +757,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         baseShape = await performBooleanCut(
           baseShape,
           subShape,
-          baseCenter,
-          subWorldCenter,
-          shape.rotation,
+          undefined,
+          subtraction.relativeOffset,
+          undefined,
           subtraction.relativeRotation || [0, 0, 0],
-          [1, 1, 1],
-          [1, 1, 1],
-          [size.x, size.y, size.z],
-          [subSize.x, subSize.y, subSize.z]
+          undefined,
+          subtraction.scale || [1, 1, 1]
         );
       }
 
