@@ -475,7 +475,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 <div className="flex items-center justify-between text-xs font-semibold text-yellow-700">
                   <span>Subtraction #{selectedSubtractionIndex + 1}</span>
                   <button
-                    onClick={() => setSelectedSubtractionIndex(null)}
+                    onClick={() => {
+                      setSelectedSubtractionIndex(null);
+                      setSubtractionViewMode(false);
+                      setVertexEditMode(false);
+                    }}
                     className="p-0.5 hover:bg-yellow-200 rounded transition-colors"
                     title="Close subtraction parameters"
                   >
