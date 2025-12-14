@@ -329,7 +329,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         </div>
       </div>
 
-      <div className="p-3">
+      <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
         {selectedShape ? (
           <div className="space-y-2">
             <div className="space-y-2">
