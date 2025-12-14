@@ -377,34 +377,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               />
             </div>
 
-            {selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
-              <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
-                <SubtractionParametersPanel
-                  subWidth={subWidth}
-                  subHeight={subHeight}
-                  subDepth={subDepth}
-                  subPosX={subPosX}
-                  subPosY={subPosY}
-                  subPosZ={subPosZ}
-                  subRotX={subRotX}
-                  subRotY={subRotY}
-                  subRotZ={subRotZ}
-                  onSubWidthChange={setSubWidth}
-                  onSubHeightChange={setSubHeight}
-                  onSubDepthChange={setSubDepth}
-                  onSubPosXChange={setSubPosX}
-                  onSubPosYChange={setSubPosY}
-                  onSubPosZChange={setSubPosZ}
-                  onSubRotXChange={setSubRotX}
-                  onSubRotYChange={setSubRotY}
-                  onSubRotZChange={setSubRotZ}
-                />
-              </div>
-            )}
-
             {customParameters.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-stone-300">
-                <div className="text-xs font-semibold text-stone-600">Custom Parameters</div>
+              <div className="space-y-2">
                 {customParameters.map((param) => (
                   <div key={param.id} className="space-y-1">
                     <div className="flex gap-1 items-center">
@@ -444,6 +418,34 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
+              <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
+                <div className="text-xs font-semibold text-yellow-700">
+                  Subtraction #{selectedSubtractionIndex + 1}
+                </div>
+                <SubtractionParametersPanel
+                  subWidth={subWidth}
+                  subHeight={subHeight}
+                  subDepth={subDepth}
+                  subPosX={subPosX}
+                  subPosY={subPosY}
+                  subPosZ={subPosZ}
+                  subRotX={subRotX}
+                  subRotY={subRotY}
+                  subRotZ={subRotZ}
+                  onSubWidthChange={setSubWidth}
+                  onSubHeightChange={setSubHeight}
+                  onSubDepthChange={setSubDepth}
+                  onSubPosXChange={setSubPosX}
+                  onSubPosYChange={setSubPosY}
+                  onSubPosZChange={setSubPosZ}
+                  onSubRotXChange={setSubRotX}
+                  onSubRotYChange={setSubRotY}
+                  onSubRotZChange={setSubRotZ}
+                />
               </div>
             )}
 
