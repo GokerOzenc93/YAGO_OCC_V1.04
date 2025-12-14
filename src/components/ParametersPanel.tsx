@@ -37,6 +37,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
+  const handleClose = () => {
+    setSubtractionViewMode(false);
+    setVertexEditMode(false);
+    setSelectedSubtractionIndex(null);
+    onClose();
+  };
+
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
 
   const [width, setWidth] = useState(0);
@@ -372,7 +379,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             <Plus size={14} className="text-stone-600" />
           </button>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
           >
             <X size={14} className="text-stone-600" />
