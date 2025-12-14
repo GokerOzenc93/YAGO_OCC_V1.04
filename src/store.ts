@@ -185,6 +185,7 @@ interface AppState {
   setSelectedSubtractionIndex: (index: number | null) => void;
   hoveredSubtractionIndex: number | null;
   setHoveredSubtractionIndex: (index: number | null) => void;
+  deleteSubtraction: (shapeId: string, subtractionIndex: number) => Promise<void>;
 }
 
 /**
@@ -691,6 +692,118 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }
       }
+    }
+  },
+
+  deleteSubtraction: async (shapeId: string, subtractionIndex: number) => {
+    const state = get();
+    const shape = state.shapes.find(s => s.id === shapeId);
+
+    if (!shape || !shape.subtractionGeometries) {
+      console.warn('Shape or subtractionGeometries not found');
+      return;
+    }
+
+    console.log(`🗑️ Deleting subtraction #${subtractionIndex} from shape ${shapeId}`);
+
+    const newSubtractionGeometries = [...shape.subtractionGeometries];
+    newSubtractionGeometries[subtractionIndex] = null as any;
+
+    try {
+      const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./services/replicad');
+      const { getReplicadVertices } = await import('./services/vertexEditor');
+
+      const box = new THREE.Box3().setFromBufferAttribute(
+        shape.geometry.getAttribute('position')
+      );
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      box.getSize(size);
+      box.getCenter(center);
+
+      let baseShape = await createReplicadBox({
+        width: size.x,
+        height: size.y,
+        depth: size.z
+      });
+
+      const baseCenter = [
+        shape.position[0] + center.x,
+        shape.position[1] + center.y,
+        shape.position[2] + center.z
+      ] as [number, number, number];
+
+      for (let i = 0; i < newSubtractionGeometries.length; i++) {
+        const subtraction = newSubtractionGeometries[i];
+        if (!subtraction) continue;
+
+        const subBox = new THREE.Box3().setFromBufferAttribute(
+          subtraction.geometry.getAttribute('position')
+        );
+        const subSize = new THREE.Vector3();
+        const subCenter = new THREE.Vector3();
+        subBox.getSize(subSize);
+        subBox.getCenter(subCenter);
+
+        const isSubCentered = Math.abs(subCenter.x) < 0.01 &&
+                             Math.abs(subCenter.y) < 0.01 &&
+                             Math.abs(subCenter.z) < 0.01;
+
+        const offsetAdjustmentX = isSubCentered ? subSize.x / 2 : 0;
+        const offsetAdjustmentY = isSubCentered ? subSize.y / 2 : 0;
+        const offsetAdjustmentZ = isSubCentered ? subSize.z / 2 : 0;
+
+        const subWorldCenter = [
+          shape.position[0] + subtraction.relativeOffset[0] + offsetAdjustmentX,
+          shape.position[1] + subtraction.relativeOffset[1] + offsetAdjustmentY,
+          shape.position[2] + subtraction.relativeOffset[2] + offsetAdjustmentZ
+        ] as [number, number, number];
+
+        const subShape = await createReplicadBox({
+          width: subSize.x,
+          height: subSize.y,
+          depth: subSize.z
+        });
+
+        baseShape = await performBooleanCut(
+          baseShape,
+          subShape,
+          baseCenter,
+          subWorldCenter,
+          shape.rotation,
+          subtraction.relativeRotation || [0, 0, 0],
+          [1, 1, 1],
+          [1, 1, 1],
+          [size.x, size.y, size.z],
+          [subSize.x, subSize.y, subSize.z]
+        );
+      }
+
+      const newGeometry = convertReplicadToThreeGeometry(baseShape);
+      const newBaseVertices = await getReplicadVertices(baseShape);
+
+      set((state) => ({
+        shapes: state.shapes.map((s) => {
+          if (s.id === shapeId) {
+            return {
+              ...s,
+              geometry: newGeometry,
+              replicadShape: baseShape,
+              subtractionGeometries: newSubtractionGeometries,
+              parameters: {
+                ...s.parameters,
+                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+              }
+            };
+          }
+          return s;
+        }),
+        selectedSubtractionIndex: null
+      }));
+
+      console.log('✅ Subtraction deleted and shape updated');
+    } catch (error) {
+      console.error('❌ Failed to delete subtraction:', error);
     }
   }
 }));

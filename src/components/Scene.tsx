@@ -256,6 +256,8 @@ const ShapeWithTransform: React.FC<{
         }}
       >
         {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
+          if (!subtraction) return null;
+
           const isHovered = hoveredSubtractionIndex === index && isSelected;
           const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, GripVertical, Plus, Check } from 'lucide-react';
+import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
 import { ParameterRow } from './ParameterRow';
@@ -30,7 +30,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     subtractionViewMode,
     setSubtractionViewMode,
     selectedSubtractionIndex,
-    setSelectedSubtractionIndex
+    setSelectedSubtractionIndex,
+    deleteSubtraction
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -92,7 +93,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   useEffect(() => {
     if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
       const subtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
-      if (subtraction) {
+      if (subtraction && subtraction !== null) {
         const round = (n: number) => Math.round(n * 100) / 100;
 
         const evalContext = {
@@ -398,7 +399,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           >
             VERTEX
           </button>
-          {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.length > 0 && (
+          {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.filter(s => s !== null).length > 0 && (
             <button
               onClick={() => setSubtractionViewMode(!subtractionViewMode)}
               className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
@@ -406,9 +407,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   ? 'bg-yellow-500 text-white'
                   : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
               }`}
-              title={`Show ${selectedShape.subtractionGeometries.length} Subtraction Geometr${selectedShape.subtractionGeometries.length > 1 ? 'ies' : 'y'}`}
+              title={`Show ${selectedShape.subtractionGeometries.filter(s => s !== null).length} Subtraction Geometr${selectedShape.subtractionGeometries.filter(s => s !== null).length > 1 ? 'ies' : 'y'}`}
             >
-              SUB ({selectedShape.subtractionGeometries.length})
+              SUB ({selectedShape.subtractionGeometries.filter(s => s !== null).length})
             </button>
           )}
           <button
@@ -517,19 +518,32 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             )}
 
-            {subtractionViewMode && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
+            {subtractionViewMode && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && selectedShape.subtractionGeometries[selectedSubtractionIndex] && (
               <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
                 <div className="flex items-center justify-between text-xs font-semibold text-yellow-700">
                   <span>Subtraction #{selectedSubtractionIndex + 1}</span>
-                  <button
-                    onClick={() => {
-                      setSelectedSubtractionIndex(null);
-                    }}
-                    className="p-0.5 hover:bg-yellow-200 rounded transition-colors"
-                    title="Close subtraction parameters"
-                  >
-                    <X size={14} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={async () => {
+                        if (selectedShape && selectedSubtractionIndex !== null) {
+                          await deleteSubtraction(selectedShape.id, selectedSubtractionIndex);
+                        }
+                      }}
+                      className="p-0.5 hover:bg-red-200 rounded transition-colors text-red-600"
+                      title="Delete subtraction"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setSelectedSubtractionIndex(null);
+                      }}
+                      className="p-0.5 hover:bg-yellow-200 rounded transition-colors"
+                      title="Close subtraction parameters"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
                 </div>
                 <SubtractionParametersPanel
                   subParams={subParams}

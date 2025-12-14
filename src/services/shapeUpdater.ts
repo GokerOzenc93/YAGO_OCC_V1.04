@@ -223,6 +223,8 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
       for (let i = 0; i < allSubtractions.length; i++) {
         const subtraction = allSubtractions[i];
+        if (!subtraction) continue;
+
         const subSize = getOriginalSize(subtraction.geometry);
 
         const subBox = await createReplicadBox({
