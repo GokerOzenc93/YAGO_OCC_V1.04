@@ -55,42 +55,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
 
-  const [subWidth, setSubWidth] = useState(0);
-  const [subHeight, setSubHeight] = useState(0);
-  const [subDepth, setSubDepth] = useState(0);
-  const [subPosX, setSubPosX] = useState(0);
-  const [subPosY, setSubPosY] = useState(0);
-  const [subPosZ, setSubPosZ] = useState(0);
-  const [subRotX, setSubRotX] = useState(0);
-  const [subRotY, setSubRotY] = useState(0);
-  const [subRotZ, setSubRotZ] = useState(0);
-
-  useEffect(() => {
-    if (!selectedShape || selectedSubtractionIndex === null || !selectedShape.subtractionGeometries) return;
-    if (subWidth === 0 && subHeight === 0 && subDepth === 0) return;
-
-    const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
-    const currentSubtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
-
-    const updatedSubtraction = {
-      ...currentSubtraction,
-      geometry: newSubGeometry,
-      relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
-      relativeRotation: [
-        subRotX * (Math.PI / 180),
-        subRotY * (Math.PI / 180),
-        subRotZ * (Math.PI / 180)
-      ] as [number, number, number]
-    };
-
-    const updatedSubtractions = selectedShape.subtractionGeometries.map((sub, idx) =>
-      idx === selectedSubtractionIndex ? updatedSubtraction : sub
-    );
-
-    updateShape(selectedShape.id, {
-      subtractionGeometries: updatedSubtractions
-    });
-  }, [subWidth, subHeight, subDepth, subPosX, subPosY, subPosZ, subRotX, subRotY, subRotZ, selectedShape?.id, selectedSubtractionIndex]);
+  const [subParams, setSubParams] = useState({
+    width: { expression: '0', result: 0 },
+    height: { expression: '0', result: 0 },
+    depth: { expression: '0', result: 0 },
+    posX: { expression: '0', result: 0 },
+    posY: { expression: '0', result: 0 },
+    posZ: { expression: '0', result: 0 },
+    rotX: { expression: '0', result: 0 },
+    rotY: { expression: '0', result: 0 },
+    rotZ: { expression: '0', result: 0 }
+  });
 
   useEffect(() => {
     if (selectedShape && selectedShape.parameters) {
@@ -118,26 +93,79 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
       const subtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
       if (subtraction) {
-        const box = new THREE.Box3().setFromBufferAttribute(
-          subtraction.geometry.attributes.position as THREE.BufferAttribute
-        );
-        const size = new THREE.Vector3();
-        box.getSize(size);
-
         const round = (n: number) => Math.round(n * 100) / 100;
 
-        setSubWidth(round(size.x));
-        setSubHeight(round(size.y));
-        setSubDepth(round(size.z));
-        setSubPosX(round(subtraction.relativeOffset[0]));
-        setSubPosY(round(subtraction.relativeOffset[1]));
-        setSubPosZ(round(subtraction.relativeOffset[2]));
-        setSubRotX(round((subtraction.relativeRotation?.[0] || 0) * (180 / Math.PI)));
-        setSubRotY(round((subtraction.relativeRotation?.[1] || 0) * (180 / Math.PI)));
-        setSubRotZ(round((subtraction.relativeRotation?.[2] || 0) * (180 / Math.PI)));
+        if (subtraction.parameters) {
+          setSubParams({
+            width: {
+              expression: subtraction.parameters.width,
+              result: evaluateExpression(subtraction.parameters.width, { W: width, H: height, D: depth })
+            },
+            height: {
+              expression: subtraction.parameters.height,
+              result: evaluateExpression(subtraction.parameters.height, { W: width, H: height, D: depth })
+            },
+            depth: {
+              expression: subtraction.parameters.depth,
+              result: evaluateExpression(subtraction.parameters.depth, { W: width, H: height, D: depth })
+            },
+            posX: {
+              expression: subtraction.parameters.posX,
+              result: evaluateExpression(subtraction.parameters.posX, { W: width, H: height, D: depth })
+            },
+            posY: {
+              expression: subtraction.parameters.posY,
+              result: evaluateExpression(subtraction.parameters.posY, { W: width, H: height, D: depth })
+            },
+            posZ: {
+              expression: subtraction.parameters.posZ,
+              result: evaluateExpression(subtraction.parameters.posZ, { W: width, H: height, D: depth })
+            },
+            rotX: {
+              expression: subtraction.parameters.rotX,
+              result: evaluateExpression(subtraction.parameters.rotX, { W: width, H: height, D: depth })
+            },
+            rotY: {
+              expression: subtraction.parameters.rotY,
+              result: evaluateExpression(subtraction.parameters.rotY, { W: width, H: height, D: depth })
+            },
+            rotZ: {
+              expression: subtraction.parameters.rotZ,
+              result: evaluateExpression(subtraction.parameters.rotZ, { W: width, H: height, D: depth })
+            }
+          });
+        } else {
+          const box = new THREE.Box3().setFromBufferAttribute(
+            subtraction.geometry.attributes.position as THREE.BufferAttribute
+          );
+          const size = new THREE.Vector3();
+          box.getSize(size);
+
+          const w = round(size.x);
+          const h = round(size.y);
+          const d = round(size.z);
+          const px = round(subtraction.relativeOffset[0]);
+          const py = round(subtraction.relativeOffset[1]);
+          const pz = round(subtraction.relativeOffset[2]);
+          const rx = round((subtraction.relativeRotation?.[0] || 0) * (180 / Math.PI));
+          const ry = round((subtraction.relativeRotation?.[1] || 0) * (180 / Math.PI));
+          const rz = round((subtraction.relativeRotation?.[2] || 0) * (180 / Math.PI));
+
+          setSubParams({
+            width: { expression: String(w), result: w },
+            height: { expression: String(h), result: h },
+            depth: { expression: String(d), result: d },
+            posX: { expression: String(px), result: px },
+            posY: { expression: String(py), result: py },
+            posZ: { expression: String(pz), result: pz },
+            rotX: { expression: String(rx), result: rx },
+            rotY: { expression: String(ry), result: ry },
+            rotZ: { expression: String(rz), result: rz }
+          });
+        }
       }
     }
-  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length]);
+  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length, width, height, depth]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -178,6 +206,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     if (dimension === 'depth') setDepth(value);
   };
 
+  const handleSubParamChange = (param: string, expression: string) => {
+    const evalContext = {
+      W: width,
+      H: height,
+      D: depth,
+      ...customParameters.reduce((acc, p) => ({ ...acc, [p.name]: p.result }), {})
+    };
+
+    const result = evaluateExpression(expression, evalContext);
+
+    setSubParams(prev => ({
+      ...prev,
+      [param]: { expression, result }
+    }));
+  };
+
   const addCustomParameter = () => {
     const newParam: CustomParameter = {
       id: `param-${Date.now()}`,
@@ -213,12 +257,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       return updated;
     });
     setCustomParameters(updatedParams);
-
-    if (selectedShape) {
-      updateShape(selectedShape.id, {
-        parameters: { ...selectedShape.parameters, customParameters: updatedParams }
-      });
-    }
   };
 
   const deleteCustomParameter = (id: string) => {
@@ -275,12 +313,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     });
 
     setVertexModifications(updatedMods);
-
-    if (selectedShape) {
-      updateShape(selectedShape.id, {
-        vertexModifications: updatedMods
-      });
-    }
   };
 
   const handleApplyChanges = async () => {
@@ -295,15 +327,16 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       customParameters,
       vertexModifications,
       selectedSubtractionIndex,
-      subWidth,
-      subHeight,
-      subDepth,
-      subPosX,
-      subPosY,
-      subPosZ,
-      subRotX,
-      subRotY,
-      subRotZ,
+      subWidth: subParams.width.result,
+      subHeight: subParams.height.result,
+      subDepth: subParams.depth.result,
+      subPosX: subParams.posX.result,
+      subPosY: subParams.posY.result,
+      subPosZ: subParams.posZ.result,
+      subRotX: subParams.rotX.result,
+      subRotY: subParams.rotY.result,
+      subRotZ: subParams.rotZ.result,
+      subParams,
       updateShape
     });
   };
@@ -484,8 +517,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   <button
                     onClick={() => {
                       setSelectedSubtractionIndex(null);
-                      setSubtractionViewMode(false);
-                      setVertexEditMode(false);
                     }}
                     className="p-0.5 hover:bg-yellow-200 rounded transition-colors"
                     title="Close subtraction parameters"
@@ -494,24 +525,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   </button>
                 </div>
                 <SubtractionParametersPanel
-                  subWidth={subWidth}
-                  subHeight={subHeight}
-                  subDepth={subDepth}
-                  subPosX={subPosX}
-                  subPosY={subPosY}
-                  subPosZ={subPosZ}
-                  subRotX={subRotX}
-                  subRotY={subRotY}
-                  subRotZ={subRotZ}
-                  onSubWidthChange={setSubWidth}
-                  onSubHeightChange={setSubHeight}
-                  onSubDepthChange={setSubDepth}
-                  onSubPosXChange={setSubPosX}
-                  onSubPosYChange={setSubPosY}
-                  onSubPosZChange={setSubPosZ}
-                  onSubRotXChange={setSubRotX}
-                  onSubRotYChange={setSubRotY}
-                  onSubRotZChange={setSubRotZ}
+                  subParams={subParams}
+                  onSubParamChange={handleSubParamChange}
                 />
               </div>
             )}

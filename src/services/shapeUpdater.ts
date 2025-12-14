@@ -30,6 +30,17 @@ interface ApplyShapeChangesParams {
   subRotX: number;
   subRotY: number;
   subRotZ: number;
+  subParams?: {
+    width: { expression: string; result: number };
+    height: { expression: string; result: number };
+    depth: { expression: string; result: number };
+    posX: { expression: string; result: number };
+    posY: { expression: string; result: number };
+    posZ: { expression: string; result: number };
+    rotX: { expression: string; result: number };
+    rotY: { expression: string; result: number };
+    rotZ: { expression: string; result: number };
+  };
   updateShape: (id: string, updates: any) => void;
 }
 
@@ -54,6 +65,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     subRotX,
     subRotY,
     subRotZ,
+    subParams,
     updateShape
   } = params;
 
@@ -183,7 +195,18 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           subRotX * (Math.PI / 180),
           subRotY * (Math.PI / 180),
           subRotZ * (Math.PI / 180)
-        ] as [number, number, number]
+        ] as [number, number, number],
+        parameters: subParams ? {
+          width: subParams.width.expression,
+          height: subParams.height.expression,
+          depth: subParams.depth.expression,
+          posX: subParams.posX.expression,
+          posY: subParams.posY.expression,
+          posZ: subParams.posZ.expression,
+          rotX: subParams.rotX.expression,
+          rotY: subParams.rotY.expression,
+          rotZ: subParams.rotZ.expression
+        } : undefined
       };
 
       const allSubtractions = selectedShape.subtractionGeometries!.map((sub: any, idx: number) =>

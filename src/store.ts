@@ -9,6 +9,18 @@ import { VertexModification } from './services/vertexEditor';
  * ------------------------------------------------------------------
  */
 
+export interface SubtractionParameters {
+  width: string;
+  height: string;
+  depth: string;
+  posX: string;
+  posY: string;
+  posZ: string;
+  rotX: string;
+  rotY: string;
+  rotZ: string;
+}
+
 /**
  * SubtractedGeometry:
  * Bir şekil başka bir şekli kestiğinde (Boolean Cut), kesen parçanın
@@ -20,6 +32,7 @@ export interface SubtractedGeometry {
   relativeOffset: [number, number, number]; // Ana parçaya göre konumu (Delta)
   relativeRotation: [number, number, number]; // Ana parçaya göre dönüşü
   scale: [number, number, number];       // Ölçeği
+  parameters?: SubtractionParameters;    // Parametrik ifadeler
 }
 
 /**
