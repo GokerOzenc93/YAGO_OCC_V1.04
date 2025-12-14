@@ -95,43 +95,50 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       if (subtraction) {
         const round = (n: number) => Math.round(n * 100) / 100;
 
+        const evalContext = {
+          W: width,
+          H: height,
+          D: depth,
+          ...customParameters.reduce((acc, param) => ({ ...acc, [param.name]: param.result }), {})
+        };
+
         if (subtraction.parameters) {
           setSubParams({
             width: {
               expression: subtraction.parameters.width,
-              result: evaluateExpression(subtraction.parameters.width, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.width, evalContext)
             },
             height: {
               expression: subtraction.parameters.height,
-              result: evaluateExpression(subtraction.parameters.height, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.height, evalContext)
             },
             depth: {
               expression: subtraction.parameters.depth,
-              result: evaluateExpression(subtraction.parameters.depth, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.depth, evalContext)
             },
             posX: {
               expression: subtraction.parameters.posX,
-              result: evaluateExpression(subtraction.parameters.posX, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.posX, evalContext)
             },
             posY: {
               expression: subtraction.parameters.posY,
-              result: evaluateExpression(subtraction.parameters.posY, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.posY, evalContext)
             },
             posZ: {
               expression: subtraction.parameters.posZ,
-              result: evaluateExpression(subtraction.parameters.posZ, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.posZ, evalContext)
             },
             rotX: {
               expression: subtraction.parameters.rotX,
-              result: evaluateExpression(subtraction.parameters.rotX, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.rotX, evalContext)
             },
             rotY: {
               expression: subtraction.parameters.rotY,
-              result: evaluateExpression(subtraction.parameters.rotY, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.rotY, evalContext)
             },
             rotZ: {
               expression: subtraction.parameters.rotZ,
-              result: evaluateExpression(subtraction.parameters.rotZ, { W: width, H: height, D: depth })
+              result: evaluateExpression(subtraction.parameters.rotZ, evalContext)
             }
           });
         } else {
@@ -165,7 +172,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         }
       }
     }
-  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length, width, height, depth]);
+  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length, width, height, depth, customParameters]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
