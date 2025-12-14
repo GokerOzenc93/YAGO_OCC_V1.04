@@ -33,21 +33,21 @@ export const ParameterRow: React.FC<ParameterRowProps> = ({
         step={step}
         onChange={onChange && !readOnly ? (e) => onChange(parseFloat(e.target.value) || 0) : undefined}
         readOnly={readOnly}
-        className={`w-16 px-1 py-0.5 text-xs font-mono border rounded text-right ${
-          readOnly ? 'bg-gray-700 text-gray-400' : 'bg-gray-800 text-white'
-        } border-gray-600`}
+        className={`w-16 px-1 py-0.5 text-xs font-mono border rounded text-left [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+          readOnly ? 'bg-white text-gray-400' : 'bg-white text-gray-800'
+        } border-gray-300`}
       />
       <input
         type="text"
         value={display ?? value.toFixed(2)}
         readOnly
-        className="w-16 px-1 py-0.5 text-xs font-mono bg-gray-700 text-gray-400 border border-gray-600 rounded text-right"
+        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
       />
       <input
         type="text"
         value={description}
         readOnly
-        className="flex-1 px-2 py-0.5 text-xs bg-gray-700 text-gray-300 border border-gray-600 rounded"
+        className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
       />
     </div>
   );
