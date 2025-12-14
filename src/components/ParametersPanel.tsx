@@ -472,8 +472,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
             {subtractionViewMode && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
               <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
-                <div className="text-xs font-semibold text-yellow-700">
-                  Subtraction #{selectedSubtractionIndex + 1}
+                <div className="flex items-center justify-between text-xs font-semibold text-yellow-700">
+                  <span>Subtraction #{selectedSubtractionIndex + 1}</span>
+                  <button
+                    onClick={() => setSelectedSubtractionIndex(null)}
+                    className="p-0.5 hover:bg-yellow-200 rounded transition-colors"
+                    title="Close subtraction parameters"
+                  >
+                    <X size={14} />
+                  </button>
                 </div>
                 <SubtractionParametersPanel
                   subWidth={subWidth}
