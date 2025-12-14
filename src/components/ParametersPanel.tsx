@@ -412,26 +412,26 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         type="text"
                         value={param.name}
                         onChange={(e) => updateCustomParameter(param.id, 'name', e.target.value)}
-                        className="w-10 px-1 py-0.5 text-xs font-mono bg-gray-800 text-white border border-gray-600 rounded text-center"
+                        className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
                       />
                       <input
                         type="text"
                         value={param.expression}
                         onChange={(e) => updateCustomParameter(param.id, 'expression', e.target.value)}
-                        className="w-16 px-1 py-0.5 text-xs font-mono bg-gray-800 text-white border border-gray-600 rounded"
+                        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
                         placeholder="expr"
                       />
                       <input
                         type="text"
                         value={param.result.toFixed(2)}
                         readOnly
-                        className="w-16 px-1 py-0.5 text-xs font-mono bg-gray-700 text-gray-400 border border-gray-600 rounded text-right"
+                        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
                       />
                       <input
                         type="text"
                         value={param.description}
                         onChange={(e) => updateCustomParameter(param.id, 'description', e.target.value)}
-                        className="flex-1 px-2 py-0.5 text-xs bg-gray-800 text-white border border-gray-600 rounded"
+                        className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
                         placeholder="Description"
                       />
                       <button
@@ -456,25 +456,25 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       type="text"
                       value={`V${mod.vertexIndex}`}
                       readOnly
-                      className="w-10 px-1 py-0.5 text-xs font-mono bg-gray-700 text-white border border-gray-600 rounded text-center"
+                      className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
                     />
                     <input
                       type="text"
                       value={mod.direction}
                       readOnly
-                      className="w-10 px-1 py-0.5 text-xs font-mono bg-gray-700 text-gray-400 border border-gray-600 rounded text-center"
+                      className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-center"
                     />
                     <input
                       type="text"
                       value={mod.expression}
                       readOnly
-                      className="w-20 px-1 py-0.5 text-xs font-mono bg-gray-700 text-gray-400 border border-gray-600 rounded"
+                      className="w-20 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded"
                     />
                     <input
                       type="text"
                       value={mod.description}
                       readOnly
-                      className="flex-1 px-2 py-0.5 text-xs bg-gray-700 text-gray-300 border border-gray-600 rounded"
+                      className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
                     />
                   </div>
                 ))}

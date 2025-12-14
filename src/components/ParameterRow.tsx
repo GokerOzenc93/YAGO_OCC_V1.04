@@ -25,7 +25,7 @@ export const ParameterRow: React.FC<ParameterRowProps> = ({
         type="text"
         value={label}
         readOnly
-        className="w-10 px-1 py-0.5 text-xs font-mono bg-gray-700 text-white border border-gray-600 rounded text-center"
+        className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
       />
       <input
         type="number"
