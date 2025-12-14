@@ -302,7 +302,7 @@ const ShapeWithTransform: React.FC<{
                 }}
               >
                 <meshStandardMaterial
-                  color={isSubtractionSelected ? 0x00ff00 : isHovered ? 0xff0000 : 0xffff00}
+                  color={isHovered ? 0xff0000 : isSubtractionSelected ? 0x00ff00 : 0xffff00}
                   transparent
                   opacity={0.35}
                   depthWrite={false}

@@ -470,7 +470,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             )}
 
-            {selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
+            {subtractionViewMode && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
               <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
                 <div className="text-xs font-semibold text-yellow-700">
                   Subtraction #{selectedSubtractionIndex + 1}
