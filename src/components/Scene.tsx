@@ -189,10 +189,20 @@ const ShapeWithTransform: React.FC<{
       const onChange = () => {
         if (groupRef.current) {
           isUpdatingRef.current = true;
+          const newRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
+
+          const updatedParameters = { ...shape.parameters };
+          if (activeTool === Tool.ROTATE) {
+            updatedParameters.rx = newRotation[0] * (180 / Math.PI);
+            updatedParameters.ry = newRotation[1] * (180 / Math.PI);
+            updatedParameters.rz = newRotation[2] * (180 / Math.PI);
+          }
+
           updateShape(shape.id, {
             position: groupRef.current.position.toArray() as [number, number, number],
-            rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
-            scale: groupRef.current.scale.toArray() as [number, number, number]
+            rotation: newRotation,
+            scale: groupRef.current.scale.toArray() as [number, number, number],
+            parameters: updatedParameters
           });
           setTimeout(() => {
             isUpdatingRef.current = false;
