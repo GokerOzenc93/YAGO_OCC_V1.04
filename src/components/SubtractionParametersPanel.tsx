@@ -44,84 +44,69 @@ export const SubtractionParametersPanel: React.FC<SubtractionParametersPanelProp
 }) => {
   return (
     <div className="space-y-2">
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-        Subtraction Parameters
-      </div>
-
-      <div className="space-y-1">
-        <div className="text-xs text-gray-500">Dimensions</div>
-        <ParameterRow
-          label="W"
-          value={subWidth}
-          onChange={onSubWidthChange}
-          description="Subtraction Width"
-          step={0.1}
-        />
-        <ParameterRow
-          label="H"
-          value={subHeight}
-          onChange={onSubHeightChange}
-          description="Subtraction Height"
-          step={0.1}
-        />
-        <ParameterRow
-          label="D"
-          value={subDepth}
-          onChange={onSubDepthChange}
-          description="Subtraction Depth"
-          step={0.1}
-        />
-      </div>
-
-      <div className="space-y-1">
-        <div className="text-xs text-gray-500">Position</div>
-        <ParameterRow
-          label="X"
-          value={subPosX}
-          onChange={onSubPosXChange}
-          description="Subtraction Position X"
-          step={0.1}
-        />
-        <ParameterRow
-          label="Y"
-          value={subPosY}
-          onChange={onSubPosYChange}
-          description="Subtraction Position Y"
-          step={0.1}
-        />
-        <ParameterRow
-          label="Z"
-          value={subPosZ}
-          onChange={onSubPosZChange}
-          description="Subtraction Position Z"
-          step={0.1}
-        />
-      </div>
-
-      <div className="space-y-1">
-        <div className="text-xs text-gray-500">Rotation (degrees)</div>
-        <ParameterRow
-          label="RX"
-          value={subRotX}
-          onChange={onSubRotXChange}
-          description="Subtraction Rotation X"
-          step={1}
-        />
-        <ParameterRow
-          label="RY"
-          value={subRotY}
-          onChange={onSubRotYChange}
-          description="Subtraction Rotation Y"
-          step={1}
-        />
-        <ParameterRow
-          label="RZ"
-          value={subRotZ}
-          onChange={onSubRotZChange}
-          description="Subtraction Rotation Z"
-          step={1}
-        />
-      </div>
+      <ParameterRow
+        label="W"
+        value={subWidth}
+        onChange={onSubWidthChange}
+        description="Subtraction Width"
+        step={0.1}
+      />
+      <ParameterRow
+        label="H"
+        value={subHeight}
+        onChange={onSubHeightChange}
+        description="Subtraction Height"
+        step={0.1}
+      />
+      <ParameterRow
+        label="D"
+        value={subDepth}
+        onChange={onSubDepthChange}
+        description="Subtraction Depth"
+        step={0.1}
+      />
+      <ParameterRow
+        label="X"
+        value={subPosX}
+        onChange={onSubPosXChange}
+        description="Subtraction Position X"
+        step={0.1}
+      />
+      <ParameterRow
+        label="Y"
+        value={subPosY}
+        onChange={onSubPosYChange}
+        description="Subtraction Position Y"
+        step={0.1}
+      />
+      <ParameterRow
+        label="Z"
+        value={subPosZ}
+        onChange={onSubPosZChange}
+        description="Subtraction Position Z"
+        step={0.1}
+      />
+      <ParameterRow
+        label="RX"
+        value={subRotX}
+        onChange={onSubRotXChange}
+        description="Subtraction Rotation X"
+        step={1}
+      />
+      <ParameterRow
+        label="RY"
+        value={subRotY}
+        onChange={onSubRotYChange}
+        description="Subtraction Rotation Y"
+        step={1}
+      />
+      <ParameterRow
+        label="RZ"
+        value={subRotZ}
+        onChange={onSubRotZChange}
+        description="Subtraction Rotation Z"
+        step={1}
+      />
     </div>
   );
 };

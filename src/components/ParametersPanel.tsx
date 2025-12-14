@@ -379,9 +379,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
             {selectedSubtractionIndex !== null && selectedShape.subtractionGeometries && (
               <div className="space-y-2 pt-2 border-t-2 border-yellow-400">
-                <div className="text-xs font-semibold text-yellow-700 mb-2">
-                  Subtraction #{selectedSubtractionIndex + 1} Parameters
-                </div>
                 <SubtractionParametersPanel
                   subWidth={subWidth}
                   subHeight={subHeight}
@@ -402,13 +399,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   onSubRotYChange={setSubRotY}
                   onSubRotZChange={setSubRotZ}
                 />
-                <button
-                  onClick={() => handleApplySubtractionChanges()}
-                  className="w-full mt-2 px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded hover:bg-orange-600 transition-colors flex items-center justify-center gap-1"
-                >
-                  <Check size={12} />
-                  Apply Subtraction Changes
-                </button>
               </div>
             )}
 
