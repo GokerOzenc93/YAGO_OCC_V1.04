@@ -192,29 +192,11 @@ export const performBooleanCut = async (
   await initReplicad();
 
   console.log('🔪 Performing boolean cut operation...');
-  console.log('Base shape:', baseShape, 'Position:', basePosition, 'Size:', baseSize, 'Rotation:', baseRotation, 'Scale:', baseScale);
-  console.log('Cutting shape:', cuttingShape, 'Position:', cuttingPosition, 'Size:', cuttingSize, 'Rotation:', cuttingRotation, 'Scale:', cuttingScale);
+  console.log('Base shape (stays in local space):', baseShape);
+  console.log('Cutting shape transforms:', { position: cuttingPosition, rotation: cuttingRotation, scale: cuttingScale });
 
   try {
-    let transformedBase = baseShape;
     let transformedCutting = cuttingShape;
-
-    if (baseScale && (baseScale[0] !== 1 || baseScale[1] !== 1 || baseScale[2] !== 1)) {
-      console.log('📏 Scaling base shape by:', baseScale);
-      transformedBase = transformedBase.scale(baseScale[0], baseScale[1], baseScale[2]);
-    }
-
-    if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
-      console.log('🔄 Rotating base shape by:', baseRotation);
-      if (baseRotation[0] !== 0) transformedBase = transformedBase.rotate(baseRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
-      if (baseRotation[1] !== 0) transformedBase = transformedBase.rotate(baseRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
-      if (baseRotation[2] !== 0) transformedBase = transformedBase.rotate(baseRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
-    }
-
-    if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
-      console.log('📍 Translating base shape to world position:', basePosition);
-      transformedBase = transformedBase.translate(basePosition[0], basePosition[1], basePosition[2]);
-    }
 
     if (cuttingScale && (cuttingScale[0] !== 1 || cuttingScale[1] !== 1 || cuttingScale[2] !== 1)) {
       console.log('📏 Scaling cutting shape by:', cuttingScale);
@@ -228,27 +210,12 @@ export const performBooleanCut = async (
       if (cuttingRotation[2] !== 0) transformedCutting = transformedCutting.rotate(cuttingRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
     }
 
-    const actualCuttingPosition = cuttingPosition || [0, 0, 0];
-    const actualBasePosition = basePosition || [0, 0, 0];
-
-    const finalCuttingPosition = [
-      actualCuttingPosition[0] + actualBasePosition[0],
-      actualCuttingPosition[1] + actualBasePosition[1],
-      actualCuttingPosition[2] + actualBasePosition[2]
-    ] as [number, number, number];
-
-    if (finalCuttingPosition[0] !== 0 || finalCuttingPosition[1] !== 0 || finalCuttingPosition[2] !== 0) {
-      console.log('📍 Translating cutting shape to world position:', finalCuttingPosition);
-      transformedCutting = transformedCutting.translate(finalCuttingPosition[0], finalCuttingPosition[1], finalCuttingPosition[2]);
+    if (cuttingPosition && (cuttingPosition[0] !== 0 || cuttingPosition[1] !== 0 || cuttingPosition[2] !== 0)) {
+      console.log('📍 Translating cutting shape by relative offset:', cuttingPosition);
+      transformedCutting = transformedCutting.translate(cuttingPosition[0], cuttingPosition[1], cuttingPosition[2]);
     }
 
-    let result = transformedBase.cut(transformedCutting);
-
-    if (basePosition && (basePosition[0] !== 0 || basePosition[1] !== 0 || basePosition[2] !== 0)) {
-      console.log('📍 Translating result back to local space:', [-basePosition[0], -basePosition[1], -basePosition[2]]);
-      result = result.translate(-basePosition[0], -basePosition[1], -basePosition[2]);
-    }
-
+    const result = baseShape.cut(transformedCutting);
     console.log('✅ Boolean cut completed:', result);
 
     return result;

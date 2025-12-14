@@ -501,22 +501,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         console.log(`📍 Target (base) position: [${targetShape.position}], rotation: [${targetShape.rotation}], scale: [${targetShape.scale}]`);
         console.log(`📍 Selected (cutting) position: [${selectedShape.position}], rotation: [${selectedShape.rotation}], scale: [${selectedShape.scale}]`);
 
-        const resultShape = await performBooleanCut(
-          targetShape.replicadShape,
-          selectedShape.replicadShape,
-          targetShape.position,
-          selectedShape.position,
-          targetShape.rotation,
-          selectedShape.rotation,
-          targetShape.scale,
-          selectedShape.scale
-        );
-
-        const newGeometry = convertReplicadToThreeGeometry(resultShape);
-        const newBaseVertices = await getReplicadVertices(resultShape);
-
-        const subtractedGeometry = selectedShape.geometry.clone();
-
         const relativeOffset = [
           selectedShape.position[0] - targetShape.position[0],
           selectedShape.position[1] - targetShape.position[1],
@@ -528,6 +512,24 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           selectedShape.rotation[1] - targetShape.rotation[1],
           selectedShape.rotation[2] - targetShape.rotation[2]
         ] as [number, number, number];
+
+        console.log('📍 Relative offset:', relativeOffset, 'Relative rotation:', relativeRotation);
+
+        const resultShape = await performBooleanCut(
+          targetShape.replicadShape,
+          selectedShape.replicadShape,
+          undefined,
+          relativeOffset,
+          undefined,
+          relativeRotation,
+          undefined,
+          selectedShape.scale
+        );
+
+        const newGeometry = convertReplicadToThreeGeometry(resultShape);
+        const newBaseVertices = await getReplicadVertices(resultShape);
+
+        const subtractedGeometry = selectedShape.geometry.clone();
 
         const existingSubtractions = targetShape.subtractionGeometries || [];
 

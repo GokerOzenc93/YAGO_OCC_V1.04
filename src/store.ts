@@ -757,11 +757,11 @@ export const useAppStore = create<AppState>((set, get) => ({
         baseShape = await performBooleanCut(
           baseShape,
           subShape,
-          shape.position,
+          undefined,
           subtraction.relativeOffset,
-          shape.rotation,
+          undefined,
           subtraction.relativeRotation || [0, 0, 0],
-          shape.scale,
+          undefined,
           subtraction.scale || [1, 1, 1]
         );
       }

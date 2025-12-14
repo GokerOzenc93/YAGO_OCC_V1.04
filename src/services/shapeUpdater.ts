@@ -236,11 +236,11 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         resultShape = await performBooleanCut(
           resultShape,
           subBox,
-          selectedShape.position,
+          undefined,
           subtraction.relativeOffset,
-          selectedShape.rotation,
+          undefined,
           subtraction.relativeRotation || [0, 0, 0],
-          selectedShape.scale,
+          undefined,
           subtraction.scale || [1, 1, 1] as [number, number, number]
         );
       }
@@ -396,11 +396,11 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     resultShape = await performBooleanCut(
       resultShape,
       subBox,
-      currentShape.position,
+      undefined,
       subtraction.relativeOffset,
-      currentShape.rotation,
+      undefined,
       subtraction.relativeRotation || [0, 0, 0],
-      currentShape.scale,
+      undefined,
       subtraction.scale || [1, 1, 1] as [number, number, number]
     );
   }
