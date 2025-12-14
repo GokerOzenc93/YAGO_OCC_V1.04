@@ -225,6 +225,57 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   };
 
+  const updateVertexModification = (index: number, field: string, value: any) => {
+    const evalContext = {
+      W: width,
+      H: height,
+      D: depth,
+      ...customParameters.reduce((acc, param) => {
+        acc[param.name] = param.result;
+        return acc;
+      }, {} as Record<string, number>)
+    };
+
+    const updatedMods = vertexModifications.map((mod, idx) => {
+      if (idx !== index) return mod;
+
+      const updated = { ...mod, [field]: value };
+
+      if (field === 'expression') {
+        const result = evaluateExpression(value, evalContext);
+
+        const directionMultiplier = mod.direction.includes('-') ? -1 : 1;
+        const axis = mod.direction[0];
+
+        let newOffset: [number, number, number] = [0, 0, 0];
+        if (axis === 'x') {
+          newOffset = [result * directionMultiplier, 0, 0];
+        } else if (axis === 'y') {
+          newOffset = [0, result * directionMultiplier, 0];
+        } else if (axis === 'z') {
+          newOffset = [0, 0, result * directionMultiplier];
+        }
+
+        updated.offset = newOffset;
+        updated.newPosition = [
+          mod.originalPosition[0] + newOffset[0],
+          mod.originalPosition[1] + newOffset[1],
+          mod.originalPosition[2] + newOffset[2]
+        ];
+      }
+
+      return updated;
+    });
+
+    setVertexModifications(updatedMods);
+
+    if (selectedShape) {
+      updateShape(selectedShape.id, {
+        vertexModifications: updatedMods
+      });
+    }
+  };
+
   const handleApplyChanges = async () => {
     await applyShapeChanges({
       selectedShape,
@@ -452,34 +503,59 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             {vertexModifications.length > 0 && (
               <div className="space-y-2 pt-2 border-t border-stone-300">
                 <div className="text-xs font-semibold text-stone-600">Vertex Modifications</div>
-                {vertexModifications.map((mod, idx) => (
-                  <div key={idx} className="flex gap-1 items-center">
-                    <input
-                      type="text"
-                      value={`V${mod.vertexIndex}`}
-                      readOnly
-                      className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
-                    />
-                    <input
-                      type="text"
-                      value={mod.direction}
-                      readOnly
-                      className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-center"
-                    />
-                    <input
-                      type="text"
-                      value={mod.expression}
-                      readOnly
-                      className="w-20 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded"
-                    />
-                    <input
-                      type="text"
-                      value={mod.description}
-                      readOnly
-                      className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
-                    />
-                  </div>
-                ))}
+                {vertexModifications.map((mod, idx) => {
+                  const context = {
+                    W: width,
+                    H: height,
+                    D: depth,
+                    ...customParameters.reduce((acc, param) => {
+                      acc[param.name] = param.result;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  };
+                  const result = evaluateExpression(mod.expression, context);
+
+                  return (
+                    <div key={idx}>
+                      <div className="flex gap-1 items-center">
+                        <input
+                          type="text"
+                          value={`V${mod.vertexIndex}`}
+                          readOnly
+                          className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
+                        />
+                        <input
+                          type="text"
+                          value={mod.direction}
+                          readOnly
+                          className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-center"
+                        />
+                        <input
+                          type="text"
+                          value={result.toFixed(2)}
+                          readOnly
+                          className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
+                        />
+                        <input
+                          type="text"
+                          value={mod.description || ''}
+                          readOnly
+                          className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
+                        />
+                      </div>
+                      <div className="flex gap-1 items-center mt-1">
+                        <div className="w-10"></div>
+                        <input
+                          type="text"
+                          value={mod.expression}
+                          onChange={(e) => updateVertexModification(idx, 'expression', e.target.value)}
+                          className="flex-1 px-2 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
+                          placeholder="Expression"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
