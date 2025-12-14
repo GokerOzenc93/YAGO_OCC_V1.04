@@ -32,7 +32,7 @@ export interface SubtractedGeometry {
   relativeOffset: [number, number, number]; // Ana parçaya göre konumu (Delta)
   relativeRotation: [number, number, number]; // Ana parçaya göre dönüşü
   scale: [number, number, number];       // Ölçeği
-  parameters: SubtractionParameters;     // Parametrik ifadeler
+  parameters?: SubtractionParameters;    // Parametrik ifadeler
 }
 
 /**
