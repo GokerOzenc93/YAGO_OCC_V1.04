@@ -429,53 +429,44 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             </div>
 
             {customParameters.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex gap-1 items-center mb-1">
-                  <div className="w-10 px-1 text-[10px] font-semibold text-stone-500 text-center">Name</div>
-                  <div className="w-16 px-1 text-[10px] font-semibold text-stone-500">Expression</div>
-                  <div className="w-16 px-1 text-[10px] font-semibold text-stone-500">Result</div>
-                  <div className="flex-1 px-2 text-[10px] font-semibold text-stone-500">Description</div>
-                  <div className="w-5"></div>
-                </div>
-                <div className="space-y-1">
-                  {customParameters.map((param) => (
-                    <div key={param.id} className="flex gap-1 items-center">
-                      <input
-                        type="text"
-                        value={param.name}
-                        onChange={(e) => updateCustomParameter(param.id, 'name', e.target.value)}
-                        className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
-                      />
-                      <input
-                        type="text"
-                        value={param.expression}
-                        onChange={(e) => updateCustomParameter(param.id, 'expression', e.target.value)}
-                        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
-                        placeholder="expr"
-                      />
-                      <input
-                        type="text"
-                        value={param.result.toFixed(2)}
-                        readOnly
-                        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
-                      />
-                      <input
-                        type="text"
-                        value={param.description}
-                        onChange={(e) => updateCustomParameter(param.id, 'description', e.target.value)}
-                        className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
-                        placeholder="Description"
-                      />
-                      <button
-                        onClick={() => deleteCustomParameter(param.id)}
-                        className="p-0.5 hover:bg-red-100 rounded transition-colors"
-                        title="Delete"
-                      >
-                        <X size={12} className="text-red-600" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              <div className="space-y-1">
+                {customParameters.map((param) => (
+                  <div key={param.id} className="flex gap-1 items-center">
+                    <input
+                      type="text"
+                      value={param.name}
+                      onChange={(e) => updateCustomParameter(param.id, 'name', e.target.value)}
+                      className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
+                    />
+                    <input
+                      type="text"
+                      value={param.expression}
+                      onChange={(e) => updateCustomParameter(param.id, 'expression', e.target.value)}
+                      className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
+                      placeholder="expr"
+                    />
+                    <input
+                      type="text"
+                      value={param.result.toFixed(2)}
+                      readOnly
+                      className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
+                    />
+                    <input
+                      type="text"
+                      value={param.description}
+                      onChange={(e) => updateCustomParameter(param.id, 'description', e.target.value)}
+                      className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
+                      placeholder="Description"
+                    />
+                    <button
+                      onClick={() => deleteCustomParameter(param.id)}
+                      className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                      title="Delete"
+                    >
+                      <X size={12} className="text-red-600" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -508,59 +499,51 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             )}
 
             {vertexModifications.length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-stone-300">
+              <div className="space-y-1 pt-2 border-t border-stone-300">
                 <div className="text-xs font-semibold text-stone-600 mb-1">Vertex Modifications</div>
-                <div className="flex gap-1 items-center mb-1">
-                  <div className="w-10 px-1 text-[10px] font-semibold text-stone-500 text-center">V#</div>
-                  <div className="w-16 px-1 text-[10px] font-semibold text-stone-500">Expression</div>
-                  <div className="w-16 px-1 text-[10px] font-semibold text-stone-500">Result</div>
-                  <div className="flex-1 px-2 text-[10px] font-semibold text-stone-500">Description</div>
-                </div>
-                <div className="space-y-1">
-                  {vertexModifications.map((mod, idx) => {
-                    const context = {
-                      W: width,
-                      H: height,
-                      D: depth,
-                      ...customParameters.reduce((acc, param) => {
-                        acc[param.name] = param.result;
-                        return acc;
-                      }, {} as Record<string, number>)
-                    };
-                    const result = evaluateExpression(mod.expression, context);
+                {vertexModifications.map((mod, idx) => {
+                  const context = {
+                    W: width,
+                    H: height,
+                    D: depth,
+                    ...customParameters.reduce((acc, param) => {
+                      acc[param.name] = param.result;
+                      return acc;
+                    }, {} as Record<string, number>)
+                  };
+                  const result = evaluateExpression(mod.expression, context);
 
-                    return (
-                      <div key={idx} className="flex gap-1 items-center">
-                        <input
-                          type="text"
-                          value={`V${mod.vertexIndex}`}
-                          readOnly
-                          className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
-                        />
-                        <input
-                          type="text"
-                          value={mod.expression}
-                          onChange={(e) => updateVertexModification(idx, 'expression', e.target.value)}
-                          className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
-                          placeholder="expr"
-                        />
-                        <input
-                          type="text"
-                          value={result.toFixed(2)}
-                          readOnly
-                          className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
-                        />
-                        <input
-                          type="text"
-                          value={mod.description || ''}
-                          onChange={(e) => updateVertexModification(idx, 'description', e.target.value)}
-                          className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
-                          placeholder="Description"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+                  return (
+                    <div key={idx} className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value={`V${mod.vertexIndex}`}
+                        readOnly
+                        className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
+                      />
+                      <input
+                        type="text"
+                        value={mod.expression}
+                        onChange={(e) => updateVertexModification(idx, 'expression', e.target.value)}
+                        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
+                        placeholder="expr"
+                      />
+                      <input
+                        type="text"
+                        value={result.toFixed(2)}
+                        readOnly
+                        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
+                      />
+                      <input
+                        type="text"
+                        value={mod.description || ''}
+                        onChange={(e) => updateVertexModification(idx, 'description', e.target.value)}
+                        className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
+                        placeholder="Description"
+                      />
+                    </div>
+                  );
+                })}
               </div>
             )}
 
