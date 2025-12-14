@@ -225,13 +225,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     }
   };
 
-  const handleClose = () => {
-    setVertexEditMode(false);
-    setSubtractionViewMode(false);
-    setSelectedSubtractionIndex(null);
-    onClose();
-  };
-
   const handleApplyChanges = async () => {
     await applyShapeChanges({
       selectedShape,
@@ -284,7 +277,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: '420px',
+        width: '410px',
       }}
     >
       <div
@@ -328,7 +321,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             <Plus size={14} className="text-stone-600" />
           </button>
           <button
-            onClick={handleClose}
+            onClick={onClose}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
           >
             <X size={14} className="text-stone-600" />
