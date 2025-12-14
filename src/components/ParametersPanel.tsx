@@ -516,43 +516,27 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   const result = evaluateExpression(mod.expression, context);
 
                   return (
-                    <div key={idx}>
-                      <div className="flex gap-1 items-center">
-                        <input
-                          type="text"
-                          value={`V${mod.vertexIndex}`}
-                          readOnly
-                          className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
-                        />
-                        <input
-                          type="text"
-                          value={mod.direction}
-                          readOnly
-                          className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-center"
-                        />
-                        <input
-                          type="text"
-                          value={result.toFixed(2)}
-                          readOnly
-                          className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
-                        />
-                        <input
-                          type="text"
-                          value={mod.description || ''}
-                          readOnly
-                          className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
-                        />
-                      </div>
-                      <div className="flex gap-1 items-center mt-1">
-                        <div className="w-10"></div>
-                        <input
-                          type="text"
-                          value={mod.expression}
-                          onChange={(e) => updateVertexModification(idx, 'expression', e.target.value)}
-                          className="flex-1 px-2 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
-                          placeholder="Expression"
-                        />
-                      </div>
+                    <div key={idx} className="flex gap-1 items-center">
+                      <input
+                        type="text"
+                        value={mod.expression}
+                        onChange={(e) => updateVertexModification(idx, 'expression', e.target.value)}
+                        className="flex-1 px-2 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
+                        placeholder="Expression"
+                      />
+                      <input
+                        type="text"
+                        value={result.toFixed(2)}
+                        readOnly
+                        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-center"
+                      />
+                      <input
+                        type="text"
+                        value={mod.description || ''}
+                        onChange={(e) => updateVertexModification(idx, 'description', e.target.value)}
+                        className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
+                        placeholder="Description"
+                      />
                     </div>
                   );
                 })}
