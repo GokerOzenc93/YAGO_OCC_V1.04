@@ -29,14 +29,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     extrudeShape,
     shapes,
     updateShape,
-    deleteShape
+    deleteShape,
+    showParametersPanel,
+    setShowParametersPanel
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
   const [showPolylineMenu, setShowPolylineMenu] = useState(false);
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const [polylineMenuPosition, setPolylineMenuPosition] = useState({ x: 0, y: 0 });
-  const [showParametersPanel, setShowParametersPanel] = useState(false);
 
   const hasIntersectingShapes = React.useMemo(() => {
     if (!selectedShapeId) return false;
@@ -198,12 +199,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   }, [showPolylineMenu, showSnapMenu]);
 
 
+  const selectedShape = shapes.find(s => s.id === selectedShapeId);
+  const isBoxSelected = selectedShape?.type === 'box';
+
   const transformTools = [
     { id: Tool.SELECT, icon: <MousePointer2 size={11} />, label: 'Select', shortcut: 'V' },
     { id: Tool.MOVE, icon: <Move size={11} />, label: 'Move', shortcut: 'M' },
     { id: Tool.POINT_TO_POINT_MOVE, icon: <Navigation size={11} />, label: 'Point to Point', shortcut: 'P2P' },
     { id: Tool.ROTATE, icon: <RotateCcw size={11} />, label: 'Rotate', shortcut: 'Ro' },
-    { id: Tool.SCALE, icon: <Maximize size={11} />, label: 'Scale', shortcut: 'S' },
+    { id: Tool.SCALE, icon: <Maximize size={11} />, label: 'Scale', shortcut: 'S', disabledForBox: true },
   ];
 
   const measurementTools = [
@@ -755,29 +759,36 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         <div className="w-px h-7 bg-stone-300"></div>
 
         <div className="flex items-center gap-0.5 bg-white rounded-lg p-1 shadow-sm border border-stone-200">
-          {transformTools.map((tool) => (
-            <button
-              key={tool.id}
-              className={`p-1.5 rounded transition-all ${
-                activeTool === tool.id
-                  ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                  : (tool.id === Tool.SELECT || selectedShapeId)
-                  ? 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
-                  : 'opacity-50 cursor-not-allowed text-stone-400'
-              }`}
-              onClick={() => {
-                if (tool.id === Tool.SELECT) {
-                  setActiveTool(tool.id);
-                } else if (selectedShapeId) {
-                  handleTransformToolSelect(tool.id);
+          {transformTools.map((tool) => {
+            const isDisabled = (tool.id !== Tool.SELECT && !selectedShapeId) || (tool.disabledForBox && isBoxSelected);
+            return (
+              <button
+                key={tool.id}
+                className={`p-1.5 rounded transition-all ${
+                  activeTool === tool.id
+                    ? 'bg-orange-100 text-orange-700 border border-orange-300'
+                    : isDisabled
+                    ? 'opacity-50 cursor-not-allowed text-stone-400'
+                    : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
+                }`}
+                onClick={() => {
+                  if (tool.id === Tool.SELECT) {
+                    setActiveTool(tool.id);
+                  } else if (!isDisabled) {
+                    handleTransformToolSelect(tool.id);
+                  }
+                }}
+                disabled={isDisabled}
+                title={
+                  isBoxSelected && tool.disabledForBox
+                    ? `${tool.label} is disabled for boxes`
+                    : `${tool.label} (${tool.shortcut})`
                 }
-              }}
-              disabled={tool.id !== Tool.SELECT && !selectedShapeId}
-              title={`${tool.label} (${tool.shortcut})`}
-            >
-              {tool.icon}
-            </button>
-          ))}
+              >
+                {tool.icon}
+              </button>
+            );
+          })}
         </div>
 
         <div className="w-px h-7 bg-stone-300"></div>

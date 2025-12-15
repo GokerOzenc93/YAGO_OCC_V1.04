@@ -250,6 +250,12 @@ const ShapeWithTransform: React.FC<{
             selectSecondaryShape(null);
           }
         }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          selectShape(shape.id);
+          const { setShowParametersPanel } = useAppStore.getState();
+          setShowParametersPanel(true);
+        }}
         onContextMenu={(e) => {
           e.stopPropagation();
           onContextMenu(e, shape.id);

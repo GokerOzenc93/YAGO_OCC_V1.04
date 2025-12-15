@@ -31,7 +31,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setSubtractionViewMode,
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
-    deleteSubtraction
+    deleteSubtraction,
+    setShowParametersPanel
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -42,6 +43,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setSubtractionViewMode(false);
     setVertexEditMode(false);
     setSelectedSubtractionIndex(null);
+    setShowParametersPanel(false);
     onClose();
   };
 

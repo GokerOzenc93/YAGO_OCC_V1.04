@@ -186,6 +186,10 @@ interface AppState {
   hoveredSubtractionIndex: number | null;
   setHoveredSubtractionIndex: (index: number | null) => void;
   deleteSubtraction: (shapeId: string, subtractionIndex: number) => Promise<void>;
+
+  // Parametre Paneli
+  showParametersPanel: boolean;
+  setShowParametersPanel: (show: boolean) => void;
 }
 
 /**
@@ -195,6 +199,9 @@ interface AppState {
  */
 export const useAppStore = create<AppState>((set, get) => ({
   shapes: [],
+
+  showParametersPanel: false,
+  setShowParametersPanel: (show) => set({ showParametersPanel: show }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
