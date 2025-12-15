@@ -81,6 +81,19 @@ const Terminal: React.FC = () => {
       return;
     }
 
+    if ((window as any).pendingRadiusEdit) {
+      const radiusValue = parseFloat(trimmedCommand);
+      if (!isNaN(radiusValue) && radiusValue > 0) {
+        if ((window as any).handleRadiusValue) {
+          (window as any).handleRadiusValue(radiusValue);
+          setCommandInput('');
+          return;
+        }
+      }
+      console.log('Geçersiz radius değeri. Pozitif bir sayı girin.');
+      return;
+    }
+
     if ((window as any).pendingExtrudeShape) {
       if (trimmedCommand === '' || trimmedCommand.toLowerCase() === 'enter') {
         if ((window as any).handleConvertTo2D) {

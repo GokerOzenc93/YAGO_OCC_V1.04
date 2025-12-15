@@ -178,6 +178,12 @@ interface AppState {
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
 
+  // Radius (Fillet) Düzenleme Modu
+  radiusEditMode: boolean;
+  setRadiusEditMode: (enabled: boolean) => void;
+  selectedEdgeIndex: number | null;
+  setSelectedEdgeIndex: (index: number | null) => void;
+
   // Boolean Görselleştirme (Subtraction)
   subtractionViewMode: boolean;
   setSubtractionViewMode: (enabled: boolean) => void;
@@ -453,6 +459,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedVertexIndex: (index) => set({ selectedVertexIndex: index }),
   vertexDirection: null,
   setVertexDirection: (direction) => set({ vertexDirection: direction }),
+
+  // Radius (Fillet) Düzenleme
+  radiusEditMode: false,
+  setRadiusEditMode: (enabled) => set({ radiusEditMode: enabled }),
+  selectedEdgeIndex: null,
+  setSelectedEdgeIndex: (index) => set({ selectedEdgeIndex: index }),
   
   // Vertex değişikliğini kaydetme (Geometriyi güncellemek için tetikleyici olur)
   addVertexModification: (shapeId, modification) =>
