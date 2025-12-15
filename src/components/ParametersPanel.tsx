@@ -59,6 +59,43 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     step?: number;
     readOnly?: boolean;
   }) => {
+    const [inputValue, setInputValue] = useState(value.toString());
+    const [isFocused, setIsFocused] = useState(false);
+
+    useEffect(() => {
+      if (!isFocused) {
+        setInputValue(value.toString());
+      }
+    }, [value, isFocused]);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const newValue = e.target.value;
+      setInputValue(newValue);
+
+      if (onChange && !readOnly) {
+        if (newValue === '' || newValue === '-' || newValue === '+' || newValue === '.') {
+          return;
+        }
+        const parsed = parseFloat(newValue);
+        if (!isNaN(parsed)) {
+          onChange(parsed);
+        }
+      }
+    };
+
+    const handleBlur = () => {
+      setIsFocused(false);
+      if (onChange && !readOnly) {
+        const parsed = parseFloat(inputValue);
+        if (isNaN(parsed)) {
+          setInputValue(value.toString());
+        } else {
+          onChange(parsed);
+          setInputValue(parsed.toString());
+        }
+      }
+    };
+
     return (
       <div className="flex gap-1 items-center">
         <input
@@ -68,12 +105,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
         />
         <input
-          type="number"
-          value={value}
-          step={step}
-          onChange={onChange && !readOnly ? (e) => onChange(parseFloat(e.target.value) || 0) : undefined}
+          type="text"
+          value={inputValue}
+          onChange={handleChange}
+          onFocus={() => setIsFocused(true)}
+          onBlur={handleBlur}
           readOnly={readOnly}
-          className={`w-16 px-1 py-0.5 text-xs font-mono border rounded text-left [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+          className={`w-16 px-1 py-0.5 text-xs font-mono border rounded text-left ${
             readOnly ? 'bg-white text-gray-400' : 'bg-white text-gray-800'
           } border-gray-300`}
         />
