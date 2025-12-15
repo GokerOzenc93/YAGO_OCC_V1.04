@@ -129,7 +129,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
     deleteSubtraction,
-    setShowParametersPanel
+    setShowParametersPanel,
+    chamferEditMode,
+    setChamferEditMode
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -558,8 +560,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             </button>
           )}
           <button
-            className="p-1 bg-stone-200 text-slate-700 hover:bg-stone-300 rounded transition-colors"
-            title="Chamfer"
+            onClick={() => setChamferEditMode(!chamferEditMode)}
+            className={`p-1 rounded transition-colors ${
+              chamferEditMode
+                ? 'bg-blue-600 text-white'
+                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+            }`}
+            title="Chamfer Edge"
           >
             <Triangle size={14} />
           </button>

@@ -260,3 +260,33 @@ export const performBooleanIntersection = async (
     throw error;
   }
 };
+
+export const applyChamferToShape = async (
+  shape: any,
+  edgeIndex: number,
+  chamferRadius: number
+): Promise<any> => {
+  await initReplicad();
+
+  console.log('🔨 Applying chamfer to edge...', { edgeIndex, chamferRadius });
+
+  try {
+    const edges = shape.edges;
+    console.log(`📏 Shape has ${edges.length} edges total`);
+
+    if (edgeIndex >= edges.length) {
+      throw new Error(`Edge index ${edgeIndex} is out of bounds (max: ${edges.length - 1})`);
+    }
+
+    const result = shape.chamfer(chamferRadius, (edge: any) => {
+      const currentEdgeIndex = edges.findIndex((e: any) => e === edge);
+      return currentEdgeIndex === edgeIndex;
+    });
+
+    console.log('✅ Chamfer applied successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to apply chamfer:', error);
+    throw error;
+  }
+};

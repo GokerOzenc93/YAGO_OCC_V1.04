@@ -6,6 +6,7 @@ import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
+import { EdgeEditor } from './EdgeEditor';
 import * as THREE from 'three';
 
 const SubtractionMesh: React.FC<{
@@ -485,7 +486,12 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    subtractionViewMode
+    subtractionViewMode,
+    chamferEditMode,
+    setChamferEditMode,
+    selectedEdgeIndex,
+    setSelectedEdgeIndex,
+    updateShape
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -498,6 +504,8 @@ const Scene: React.FC = () => {
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
+        setChamferEditMode(false);
+        setSelectedEdgeIndex(null);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -609,6 +617,55 @@ const Scene: React.FC = () => {
       delete (window as any).pendingVertexEdit;
     };
   }, [selectedShapeId, selectedVertexIndex, vertexDirection, shapes, addVertexModification, setSelectedVertexIndex]);
+
+  useEffect(() => {
+    (window as any).handleChamferValue = async (chamferRadius: number) => {
+      if (selectedShapeId && selectedEdgeIndex !== null) {
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (shape && shape.replicadShape) {
+          console.log('🔨 Applying chamfer:', { edgeIndex: selectedEdgeIndex, radius: chamferRadius });
+
+          try {
+            const { applyChamferToShape, convertReplicadToThreeGeometry } = await import('../services/replicad');
+            const { getReplicadVertices } = await import('../services/vertexEditor');
+
+            const chamferedShape = await applyChamferToShape(
+              shape.replicadShape,
+              selectedEdgeIndex,
+              chamferRadius
+            );
+
+            const newGeometry = convertReplicadToThreeGeometry(chamferedShape);
+            const newBaseVertices = await getReplicadVertices(chamferedShape);
+
+            updateShape(selectedShapeId, {
+              geometry: newGeometry,
+              replicadShape: chamferedShape,
+              parameters: {
+                ...shape.parameters,
+                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+              }
+            });
+
+            console.log('✅ Chamfer applied successfully');
+            setSelectedEdgeIndex(null);
+          } catch (error) {
+            console.error('❌ Failed to apply chamfer:', error);
+            alert('Failed to apply chamfer. Please try again.');
+          }
+        }
+
+        (window as any).pendingChamferEdit = false;
+      }
+    };
+
+    (window as any).pendingChamferEdit = selectedEdgeIndex !== null;
+
+    return () => {
+      delete (window as any).handleChamferValue;
+      delete (window as any).pendingChamferEdit;
+    };
+  }, [selectedShapeId, selectedEdgeIndex, shapes, updateShape, setSelectedEdgeIndex]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     if (vertexEditMode) {
@@ -790,6 +847,13 @@ const Scene: React.FC = () => {
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
+              />
+            )}
+            {isSelected && chamferEditMode && (
+              <EdgeEditor
+                shape={shape}
+                isActive={true}
+                onEdgeSelect={(index) => setSelectedEdgeIndex(index)}
               />
             )}
           </React.Fragment>
