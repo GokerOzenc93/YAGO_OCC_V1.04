@@ -192,10 +192,19 @@ export const performBooleanCut = async (
   await initReplicad();
 
   console.log('🔪 Performing boolean cut operation...');
-  console.log('Base shape (stays in local space):', baseShape);
+  console.log('Base shape transforms:', { rotation: baseRotation });
   console.log('Cutting shape transforms:', { position: cuttingPosition, rotation: cuttingRotation, scale: cuttingScale });
 
   try {
+    let transformedBase = baseShape;
+
+    if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
+      console.log('🔄 Rotating base shape by:', baseRotation);
+      if (baseRotation[0] !== 0) transformedBase = transformedBase.rotate(baseRotation[0] * (180 / Math.PI), [0, 0, 0], [1, 0, 0]);
+      if (baseRotation[1] !== 0) transformedBase = transformedBase.rotate(baseRotation[1] * (180 / Math.PI), [0, 0, 0], [0, 1, 0]);
+      if (baseRotation[2] !== 0) transformedBase = transformedBase.rotate(baseRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
+    }
+
     let transformedCutting = cuttingShape;
 
     if (cuttingScale && (cuttingScale[0] !== 1 || cuttingScale[1] !== 1 || cuttingScale[2] !== 1)) {
@@ -215,7 +224,7 @@ export const performBooleanCut = async (
       transformedCutting = transformedCutting.translate(cuttingPosition[0], cuttingPosition[1], cuttingPosition[2]);
     }
 
-    const result = baseShape.cut(transformedCutting);
+    const result = transformedBase.cut(transformedCutting);
     console.log('✅ Boolean cut completed:', result);
 
     return result;
