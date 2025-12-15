@@ -520,7 +520,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           selectedShape.replicadShape,
           undefined,
           relativeOffset,
-          targetShape.rotation || [0, 0, 0],
+          undefined,
           relativeRotation,
           undefined,
           selectedShape.scale

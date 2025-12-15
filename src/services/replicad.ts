@@ -192,43 +192,10 @@ export const performBooleanCut = async (
   await initReplicad();
 
   console.log('🔪 Performing boolean cut operation...');
-  console.log('Base shape transforms:', { rotation: baseRotation });
+  console.log('Base shape (stays in local space):', baseShape);
   console.log('Cutting shape transforms:', { position: cuttingPosition, rotation: cuttingRotation, scale: cuttingScale });
 
   try {
-    let transformedPosition = cuttingPosition || [0, 0, 0];
-
-    if (baseRotation && (baseRotation[0] !== 0 || baseRotation[1] !== 0 || baseRotation[2] !== 0)) {
-      const [rx, ry, rz] = baseRotation;
-      const [px, py, pz] = transformedPosition;
-
-      const cosX = Math.cos(-rx);
-      const sinX = Math.sin(-rx);
-      const cosY = Math.cos(-ry);
-      const sinY = Math.sin(-ry);
-      const cosZ = Math.cos(-rz);
-      const sinZ = Math.sin(-rz);
-
-      let x = px, y = py, z = pz;
-
-      const tempY = y * cosX - z * sinX;
-      const tempZ = y * sinX + z * cosX;
-      y = tempY;
-      z = tempZ;
-
-      const tempX = x * cosY + z * sinY;
-      z = -x * sinY + z * cosY;
-      x = tempX;
-
-      const newX = x * cosZ - y * sinZ;
-      const newY = x * sinZ + y * cosZ;
-      x = newX;
-      y = newY;
-
-      transformedPosition = [x, y, z];
-      console.log('📍 Transformed position with inverse base rotation:', transformedPosition);
-    }
-
     let transformedCutting = cuttingShape;
 
     if (cuttingScale && (cuttingScale[0] !== 1 || cuttingScale[1] !== 1 || cuttingScale[2] !== 1)) {
@@ -243,9 +210,9 @@ export const performBooleanCut = async (
       if (cuttingRotation[2] !== 0) transformedCutting = transformedCutting.rotate(cuttingRotation[2] * (180 / Math.PI), [0, 0, 0], [0, 0, 1]);
     }
 
-    if (transformedPosition[0] !== 0 || transformedPosition[1] !== 0 || transformedPosition[2] !== 0) {
-      console.log('📍 Translating cutting shape by transformed offset:', transformedPosition);
-      transformedCutting = transformedCutting.translate(transformedPosition[0], transformedPosition[1], transformedPosition[2]);
+    if (cuttingPosition && (cuttingPosition[0] !== 0 || cuttingPosition[1] !== 0 || cuttingPosition[2] !== 0)) {
+      console.log('📍 Translating cutting shape by relative offset:', cuttingPosition);
+      transformedCutting = transformedCutting.translate(cuttingPosition[0], cuttingPosition[1], cuttingPosition[2]);
     }
 
     const result = baseShape.cut(transformedCutting);

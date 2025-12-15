@@ -238,7 +238,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           subBox,
           undefined,
           subtraction.relativeOffset,
-          selectedShape.rotation || [0, 0, 0],
+          undefined,
           subtraction.relativeRotation || [0, 0, 0],
           undefined,
           subtraction.scale || [1, 1, 1] as [number, number, number]
@@ -398,7 +398,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       subBox,
       undefined,
       subtraction.relativeOffset,
-      currentShape.rotation || [0, 0, 0],
+      undefined,
       subtraction.relativeRotation || [0, 0, 0],
       undefined,
       subtraction.scale || [1, 1, 1] as [number, number, number]
