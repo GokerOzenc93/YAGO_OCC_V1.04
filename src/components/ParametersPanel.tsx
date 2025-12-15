@@ -88,7 +88,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setCustomParameters([]);
       setVertexModifications([]);
     }
-  }, [selectedShape, selectedShapeId, shapes, selectedShape?.parameters?.width, selectedShape?.parameters?.height, selectedShape?.parameters?.depth, selectedShape?.rotation]);
+  }, [selectedShape, selectedShapeId, shapes]);
 
   useEffect(() => {
     if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {

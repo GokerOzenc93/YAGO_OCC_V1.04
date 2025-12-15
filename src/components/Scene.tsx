@@ -37,8 +37,6 @@ const ShapeWithTransform: React.FC<{
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const isUpdatingRef = useRef(false);
-  const initialScaleRef = useRef<[number, number, number] | null>(null);
-  const initialParametersRef = useRef<{ width: number; height: number; depth: number } | null>(null);
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
@@ -186,102 +184,16 @@ const ShapeWithTransform: React.FC<{
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = !event.value;
         }
-
-        if (activeTool === Tool.SCALE) {
-          if (event.value && shape.parameters) {
-            initialScaleRef.current = shape.scale || [1, 1, 1];
-            initialParametersRef.current = {
-              width: shape.parameters.width || 1,
-              height: shape.parameters.height || 1,
-              depth: shape.parameters.depth || 1
-            };
-          } else if (!event.value && initialScaleRef.current && initialParametersRef.current && groupRef.current) {
-            const finalScale = groupRef.current.scale.toArray() as [number, number, number];
-            const scaleDelta = [
-              finalScale[0] / initialScaleRef.current[0],
-              finalScale[1] / initialScaleRef.current[1],
-              finalScale[2] / initialScaleRef.current[2]
-            ];
-
-            const scaledMainGeometry = shape.geometry.clone();
-            scaledMainGeometry.scale(scaleDelta[0], scaleDelta[1], scaleDelta[2]);
-            scaledMainGeometry.computeVertexNormals();
-            scaledMainGeometry.computeBoundingBox();
-            scaledMainGeometry.computeBoundingSphere();
-
-            const updatedSubtractions = shape.subtractionGeometries?.map(sub => {
-              if (!sub) return sub;
-
-              const scaledGeometry = sub.geometry.clone();
-              scaledGeometry.scale(scaleDelta[0], scaleDelta[1], scaleDelta[2]);
-
-              return {
-                ...sub,
-                geometry: scaledGeometry,
-                relativeOffset: [
-                  sub.relativeOffset[0] * scaleDelta[0],
-                  sub.relativeOffset[1] * scaleDelta[1],
-                  sub.relativeOffset[2] * scaleDelta[2]
-                ] as [number, number, number],
-                parameters: sub.parameters ? {
-                  width: String(parseFloat(sub.parameters.width) * scaleDelta[0]),
-                  height: String(parseFloat(sub.parameters.height) * scaleDelta[1]),
-                  depth: String(parseFloat(sub.parameters.depth) * scaleDelta[2]),
-                  posX: String(parseFloat(sub.parameters.posX) * scaleDelta[0]),
-                  posY: String(parseFloat(sub.parameters.posY) * scaleDelta[1]),
-                  posZ: String(parseFloat(sub.parameters.posZ) * scaleDelta[2]),
-                  rotX: sub.parameters.rotX,
-                  rotY: sub.parameters.rotY,
-                  rotZ: sub.parameters.rotZ
-                } : undefined
-              };
-            });
-
-            updateShape(shape.id, {
-              scale: [1, 1, 1] as [number, number, number],
-              geometry: scaledMainGeometry,
-              parameters: {
-                ...shape.parameters,
-                width: initialParametersRef.current.width * scaleDelta[0],
-                height: initialParametersRef.current.height * scaleDelta[1],
-                depth: initialParametersRef.current.depth * scaleDelta[2]
-              },
-              subtractionGeometries: updatedSubtractions
-            });
-
-            initialScaleRef.current = null;
-            initialParametersRef.current = null;
-          }
-        }
       };
 
       const onChange = () => {
         if (groupRef.current) {
           isUpdatingRef.current = true;
-          const newScale = groupRef.current.scale.toArray() as [number, number, number];
-
-          const updates: any = {
+          updateShape(shape.id, {
             position: groupRef.current.position.toArray() as [number, number, number],
             rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
-            scale: newScale
-          };
-
-          if (activeTool === Tool.SCALE && initialScaleRef.current && initialParametersRef.current) {
-            const scaleDelta = [
-              newScale[0] / initialScaleRef.current[0],
-              newScale[1] / initialScaleRef.current[1],
-              newScale[2] / initialScaleRef.current[2]
-            ];
-
-            updates.parameters = {
-              ...shape.parameters,
-              width: initialParametersRef.current.width * scaleDelta[0],
-              height: initialParametersRef.current.height * scaleDelta[1],
-              depth: initialParametersRef.current.depth * scaleDelta[2]
-            };
-          }
-
-          updateShape(shape.id, updates);
+            scale: groupRef.current.scale.toArray() as [number, number, number]
+          });
           setTimeout(() => {
             isUpdatingRef.current = false;
           }, 0);
@@ -296,7 +208,7 @@ const ShapeWithTransform: React.FC<{
         controls.removeEventListener('change', onChange);
       };
     }
-  }, [isSelected, shape.id, updateShape, orbitControlsRef, activeTool, shape.parameters, shape.scale]);
+  }, [isSelected, shape.id, updateShape, orbitControlsRef]);
 
   const getTransformMode = () => {
     switch (activeTool) {
