@@ -621,12 +621,11 @@ const Scene: React.FC = () => {
 
   useEffect(() => {
     (window as any).handleChamferValue = async (chamferRadius: number) => {
-      if (selectedShapeId && selectedEdgeIndex !== null && selectedEdgeMidpoint) {
+      if (selectedShapeId && selectedEdgeIndex !== null) {
         const shape = shapes.find(s => s.id === selectedShapeId);
         if (shape && shape.replicadShape) {
           console.log('🔨 Applying chamfer:', {
             edgeIndex: selectedEdgeIndex,
-            midpoint: selectedEdgeMidpoint,
             radius: chamferRadius
           });
 
@@ -636,7 +635,7 @@ const Scene: React.FC = () => {
 
             const chamferedShape = await applyChamferToShape(
               shape.replicadShape,
-              { x: selectedEdgeMidpoint.x, y: selectedEdgeMidpoint.y, z: selectedEdgeMidpoint.z },
+              selectedEdgeIndex,
               chamferRadius
             );
 
@@ -670,7 +669,7 @@ const Scene: React.FC = () => {
       delete (window as any).handleChamferValue;
       delete (window as any).pendingChamferEdit;
     };
-  }, [selectedShapeId, selectedEdgeIndex, selectedEdgeMidpoint, shapes, updateShape, setSelectedEdgeIndex]);
+  }, [selectedShapeId, selectedEdgeIndex, shapes, updateShape, setSelectedEdgeIndex]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     if (vertexEditMode) {

@@ -263,68 +263,28 @@ export const performBooleanIntersection = async (
 
 export const applyChamferToShape = async (
   shape: any,
-  selectedMidpoint: { x: number; y: number; z: number },
+  selectedEdgeIndex: number,
   chamferRadius: number
 ): Promise<any> => {
   await initReplicad();
 
-  console.log('🔨 Applying chamfer to edge...', { selectedMidpoint, chamferRadius });
+  console.log('🔨 Applying chamfer to edge...', { selectedEdgeIndex, chamferRadius });
 
   try {
-    const edges = shape.edges;
-    console.log(`📏 Shape has ${edges.length} edges total`);
-
-    const edgeMidpoints = edges.map((edge: any, index: number) => {
-      try {
-        const midpointData = edge.pointOnCurve(0.5);
-        const midpoint = { x: midpointData[0], y: midpointData[1], z: midpointData[2] };
-        const distance = Math.sqrt(
-          Math.pow(midpoint.x - selectedMidpoint.x, 2) +
-          Math.pow(midpoint.y - selectedMidpoint.y, 2) +
-          Math.pow(midpoint.z - selectedMidpoint.z, 2)
-        );
-        console.log(`Edge ${index}: midpoint=${JSON.stringify(midpoint)}, distance=${distance.toFixed(4)}`);
-        return { edge, index, midpoint, distance };
-      } catch (err) {
-        console.warn(`Failed to get midpoint for edge ${index}:`, err);
-        return { edge, index, midpoint: { x: 0, y: 0, z: 0 }, distance: Infinity };
-      }
-    });
-
-    const closest = edgeMidpoints.reduce((min, current) =>
-      current.distance < min.distance ? current : min
-    );
-
-    console.log(`✅ Closest edge: ${closest.index} with distance ${closest.distance.toFixed(4)}`);
-    console.log(`   Closest midpoint: ${JSON.stringify(closest.midpoint)}`);
-    console.log(`   Selected midpoint: ${JSON.stringify(selectedMidpoint)}`);
-
+    let currentEdgeIndex = 0;
     const result = shape.chamfer((edge: any) => {
-      try {
-        const edgeMidpoint = edge.pointOnCurve(0.5);
-        const distance = Math.sqrt(
-          Math.pow(edgeMidpoint[0] - selectedMidpoint.x, 2) +
-          Math.pow(edgeMidpoint[1] - selectedMidpoint.y, 2) +
-          Math.pow(edgeMidpoint[2] - selectedMidpoint.z, 2)
-        );
-        console.log(`🔍 Callback edge: [${edgeMidpoint[0].toFixed(2)}, ${edgeMidpoint[1].toFixed(2)}, ${edgeMidpoint[2].toFixed(2)}], distance=${distance.toFixed(4)}`);
-        const threshold = 10.0;
-        if (distance < threshold) {
-          console.log(`🎯 Chamfering edge at [${edgeMidpoint[0].toFixed(2)}, ${edgeMidpoint[1].toFixed(2)}, ${edgeMidpoint[2].toFixed(2)}], distance=${distance.toFixed(4)}`);
-          return chamferRadius;
-        }
-        return 0;
-      } catch (err) {
-        console.log('⚠️ Error in callback:', err);
-        return 0;
+      const thisIndex = currentEdgeIndex++;
+      if (thisIndex === selectedEdgeIndex) {
+        console.log(`🎯 Chamfering edge at index ${thisIndex}`);
+        return chamferRadius;
       }
+      return 0;
     });
 
     console.log('✅ Chamfer applied successfully');
     return result;
   } catch (error) {
     console.error('❌ Failed to apply chamfer:', error);
-    console.error('Error details:', error);
     throw error;
   }
 };
