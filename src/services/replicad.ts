@@ -283,11 +283,11 @@ export const applyChamferToShape = async (
           Math.pow(midpoint.y - selectedMidpoint.y, 2) +
           Math.pow(midpoint.z - selectedMidpoint.z, 2)
         );
-        console.log(`Edge ${index}: midpoint=${JSON.stringify(midpoint)}, distance=${distance.toFixed(2)}`);
-        return { index, midpoint, distance };
+        console.log(`Edge ${index}: midpoint=${JSON.stringify(midpoint)}, distance=${distance.toFixed(4)}`);
+        return { edge, index, midpoint, distance };
       } catch (err) {
         console.warn(`Failed to get midpoint for edge ${index}:`, err);
-        return { index, midpoint: { x: 0, y: 0, z: 0 }, distance: Infinity };
+        return { edge, index, midpoint: { x: 0, y: 0, z: 0 }, distance: Infinity };
       }
     });
 
@@ -295,14 +295,27 @@ export const applyChamferToShape = async (
       current.distance < min.distance ? current : min
     );
 
-    console.log(`✅ Closest edge: ${closest.index} with distance ${closest.distance.toFixed(2)}`);
+    console.log(`✅ Closest edge: ${closest.index} with distance ${closest.distance.toFixed(4)}`);
+    console.log(`   Closest midpoint: ${JSON.stringify(closest.midpoint)}`);
+    console.log(`   Selected midpoint: ${JSON.stringify(selectedMidpoint)}`);
 
-    let counter = 0;
     const result = shape.chamfer((edge: any) => {
-      const currentIndex = counter;
-      counter++;
-      const isMatch = currentIndex === closest.index;
-      return isMatch ? chamferRadius : 0;
+      try {
+        const edgeMidpoint = edge.pointOnCurve(0.5);
+        const distance = Math.sqrt(
+          Math.pow(edgeMidpoint[0] - selectedMidpoint.x, 2) +
+          Math.pow(edgeMidpoint[1] - selectedMidpoint.y, 2) +
+          Math.pow(edgeMidpoint[2] - selectedMidpoint.z, 2)
+        );
+        const threshold = 0.1;
+        if (distance < threshold) {
+          console.log(`🎯 Chamfering edge at [${edgeMidpoint[0].toFixed(2)}, ${edgeMidpoint[1].toFixed(2)}, ${edgeMidpoint[2].toFixed(2)}]`);
+          return chamferRadius;
+        }
+        return 0;
+      } catch (err) {
+        return 0;
+      }
     });
 
     console.log('✅ Chamfer applied successfully');
