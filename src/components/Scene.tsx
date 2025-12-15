@@ -187,16 +187,71 @@ const ShapeWithTransform: React.FC<{
           orbitControlsRef.current.enabled = !event.value;
         }
 
-        if (activeTool === Tool.SCALE && event.value && shape.parameters) {
-          initialScaleRef.current = shape.scale || [1, 1, 1];
-          initialParametersRef.current = {
-            width: shape.parameters.width || 1,
-            height: shape.parameters.height || 1,
-            depth: shape.parameters.depth || 1
-          };
-        } else if (!event.value) {
-          initialScaleRef.current = null;
-          initialParametersRef.current = null;
+        if (activeTool === Tool.SCALE) {
+          if (event.value && shape.parameters) {
+            initialScaleRef.current = shape.scale || [1, 1, 1];
+            initialParametersRef.current = {
+              width: shape.parameters.width || 1,
+              height: shape.parameters.height || 1,
+              depth: shape.parameters.depth || 1
+            };
+          } else if (!event.value && initialScaleRef.current && initialParametersRef.current && groupRef.current) {
+            const finalScale = groupRef.current.scale.toArray() as [number, number, number];
+            const scaleDelta = [
+              finalScale[0] / initialScaleRef.current[0],
+              finalScale[1] / initialScaleRef.current[1],
+              finalScale[2] / initialScaleRef.current[2]
+            ];
+
+            const scaledMainGeometry = shape.geometry.clone();
+            scaledMainGeometry.scale(scaleDelta[0], scaleDelta[1], scaleDelta[2]);
+            scaledMainGeometry.computeVertexNormals();
+            scaledMainGeometry.computeBoundingBox();
+            scaledMainGeometry.computeBoundingSphere();
+
+            const updatedSubtractions = shape.subtractionGeometries?.map(sub => {
+              if (!sub) return sub;
+
+              const scaledGeometry = sub.geometry.clone();
+              scaledGeometry.scale(scaleDelta[0], scaleDelta[1], scaleDelta[2]);
+
+              return {
+                ...sub,
+                geometry: scaledGeometry,
+                relativeOffset: [
+                  sub.relativeOffset[0] * scaleDelta[0],
+                  sub.relativeOffset[1] * scaleDelta[1],
+                  sub.relativeOffset[2] * scaleDelta[2]
+                ] as [number, number, number],
+                parameters: sub.parameters ? {
+                  width: String(parseFloat(sub.parameters.width) * scaleDelta[0]),
+                  height: String(parseFloat(sub.parameters.height) * scaleDelta[1]),
+                  depth: String(parseFloat(sub.parameters.depth) * scaleDelta[2]),
+                  posX: String(parseFloat(sub.parameters.posX) * scaleDelta[0]),
+                  posY: String(parseFloat(sub.parameters.posY) * scaleDelta[1]),
+                  posZ: String(parseFloat(sub.parameters.posZ) * scaleDelta[2]),
+                  rotX: sub.parameters.rotX,
+                  rotY: sub.parameters.rotY,
+                  rotZ: sub.parameters.rotZ
+                } : undefined
+              };
+            });
+
+            updateShape(shape.id, {
+              scale: [1, 1, 1] as [number, number, number],
+              geometry: scaledMainGeometry,
+              parameters: {
+                ...shape.parameters,
+                width: initialParametersRef.current.width * scaleDelta[0],
+                height: initialParametersRef.current.height * scaleDelta[1],
+                depth: initialParametersRef.current.depth * scaleDelta[2]
+              },
+              subtractionGeometries: updatedSubtractions
+            });
+
+            initialScaleRef.current = null;
+            initialParametersRef.current = null;
+          }
         }
       };
 
@@ -304,12 +359,7 @@ const ShapeWithTransform: React.FC<{
 
           const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
 
-          const shapeScale = shape.scale || [1, 1, 1];
-          const displayOffset: [number, number, number] = [
-            subtraction.relativeOffset[0] * shapeScale[0],
-            subtraction.relativeOffset[1] * shapeScale[1],
-            subtraction.relativeOffset[2] * shapeScale[2]
-          ];
+          const displayOffset = subtraction.relativeOffset;
 
           const meshOffset: [number, number, number] = isCentered
             ? [size.x / 2, size.y / 2, size.z / 2]
