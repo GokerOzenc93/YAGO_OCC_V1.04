@@ -67,33 +67,34 @@ export async function applyFilletToShape(
     console.log(`🔨 Applying fillet with radius ${radius} to shape...`);
 
     if (edgeStart && edgeEnd) {
-      const tolerance = 1;
+      const tolerance = 2;
 
-      const filletedShape = replicadShape.fillet(radius, (edge: any) => {
+      const edgeFilter = (edge: any) => {
         try {
-          const edgeInfo = edge.info;
-          if (!edgeInfo) return false;
+          const start = edge.startPoint;
+          const end = edge.endPoint;
 
-          const start = new THREE.Vector3(
-            edgeInfo.start[0],
-            edgeInfo.start[1],
-            edgeInfo.start[2]
-          );
-          const end = new THREE.Vector3(
-            edgeInfo.end[0],
-            edgeInfo.end[1],
-            edgeInfo.end[2]
-          );
+          if (!start || !end) return false;
 
-          const startMatch = start.distanceTo(edgeStart) < tolerance;
-          const endMatch = end.distanceTo(edgeEnd) < tolerance;
-          const reverseMatch = start.distanceTo(edgeEnd) < tolerance && end.distanceTo(edgeStart) < tolerance;
+          const edgeStartVec = new THREE.Vector3(start[0], start[1], start[2]);
+          const edgeEndVec = new THREE.Vector3(end[0], end[1], end[2]);
 
-          return startMatch && endMatch || reverseMatch;
+          const startMatch = edgeStartVec.distanceTo(edgeStart) < tolerance && edgeEndVec.distanceTo(edgeEnd) < tolerance;
+          const reverseMatch = edgeStartVec.distanceTo(edgeEnd) < tolerance && edgeEndVec.distanceTo(edgeStart) < tolerance;
+
+          return startMatch || reverseMatch;
         } catch (e) {
           return false;
         }
-      });
+      };
+
+      const config = {
+        filter: {
+          shouldKeep: edgeFilter
+        }
+      };
+
+      const filletedShape = replicadShape.fillet(radius, config);
 
       console.log('✅ Fillet applied to selected edge');
       return filletedShape;
