@@ -189,11 +189,35 @@ const ShapeWithTransform: React.FC<{
       const onChange = () => {
         if (groupRef.current) {
           isUpdatingRef.current = true;
-          updateShape(shape.id, {
+          const newScale = groupRef.current.scale.toArray() as [number, number, number];
+
+          const updates: any = {
             position: groupRef.current.position.toArray() as [number, number, number],
             rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
-            scale: groupRef.current.scale.toArray() as [number, number, number]
-          });
+            scale: newScale
+          };
+
+          if (activeTool === Tool.SCALE && shape.parameters && (shape.parameters.width || shape.parameters.height || shape.parameters.depth)) {
+            const currentWidth = shape.parameters.width || 1;
+            const currentHeight = shape.parameters.height || 1;
+            const currentDepth = shape.parameters.depth || 1;
+            const currentScale = shape.scale || [1, 1, 1];
+
+            const scaleDelta = [
+              newScale[0] / currentScale[0],
+              newScale[1] / currentScale[1],
+              newScale[2] / currentScale[2]
+            ];
+
+            updates.parameters = {
+              ...shape.parameters,
+              width: currentWidth * scaleDelta[0],
+              height: currentHeight * scaleDelta[1],
+              depth: currentDepth * scaleDelta[2]
+            };
+          }
+
+          updateShape(shape.id, updates);
           setTimeout(() => {
             isUpdatingRef.current = false;
           }, 0);
@@ -271,7 +295,12 @@ const ShapeWithTransform: React.FC<{
 
           const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
 
-          const displayOffset = subtraction.relativeOffset;
+          const shapeScale = shape.scale || [1, 1, 1];
+          const displayOffset: [number, number, number] = [
+            subtraction.relativeOffset[0] * shapeScale[0],
+            subtraction.relativeOffset[1] * shapeScale[1],
+            subtraction.relativeOffset[2] * shapeScale[2]
+          ];
 
           const meshOffset: [number, number, number] = isCentered
             ? [size.x / 2, size.y / 2, size.z / 2]

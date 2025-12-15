@@ -88,7 +88,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setCustomParameters([]);
       setVertexModifications([]);
     }
-  }, [selectedShape, selectedShapeId, shapes]);
+  }, [selectedShape, selectedShapeId, shapes, selectedShape?.parameters?.width, selectedShape?.parameters?.height, selectedShape?.parameters?.depth, selectedShape?.rotation]);
 
   useEffect(() => {
     if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
@@ -149,12 +149,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           const size = new THREE.Vector3();
           box.getSize(size);
 
-          const w = round(size.x);
-          const h = round(size.y);
-          const d = round(size.z);
-          const px = round(subtraction.relativeOffset[0]);
-          const py = round(subtraction.relativeOffset[1]);
-          const pz = round(subtraction.relativeOffset[2]);
+          const shapeScale = selectedShape.scale || [1, 1, 1];
+
+          const w = round(size.x * shapeScale[0]);
+          const h = round(size.y * shapeScale[1]);
+          const d = round(size.z * shapeScale[2]);
+          const px = round(subtraction.relativeOffset[0] * shapeScale[0]);
+          const py = round(subtraction.relativeOffset[1] * shapeScale[1]);
+          const pz = round(subtraction.relativeOffset[2] * shapeScale[2]);
           const rx = round((subtraction.relativeRotation?.[0] || 0) * (180 / Math.PI));
           const ry = round((subtraction.relativeRotation?.[1] || 0) * (180 / Math.PI));
           const rz = round((subtraction.relativeRotation?.[2] || 0) * (180 / Math.PI));
@@ -173,7 +175,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         }
       }
     }
-  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length, width, height, depth, customParameters]);
+  }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length, width, height, depth, customParameters, selectedShape?.scale]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);

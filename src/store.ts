@@ -552,9 +552,17 @@ export const useAppStore = create<AppState>((set, get) => ({
             box2Local.getSize(size2);
             box2Local.getCenter(center2Local);
 
-            // Verileri dizi formatına çevir
-            const shape1Size = [size1.x, size1.y, size1.z] as [number, number, number];
-            const shape2Size = [size2.x, size2.y, size2.z] as [number, number, number];
+            // Verileri dizi formatına çevir ve scale'i uygula
+            const shape1Size = [
+              size1.x * shape1.scale[0],
+              size1.y * shape1.scale[1],
+              size1.z * shape1.scale[2]
+            ] as [number, number, number];
+            const shape2Size = [
+              size2.x * shape2.scale[0],
+              size2.y * shape2.scale[1],
+              size2.z * shape2.scale[2]
+            ] as [number, number, number];
 
             // DÜZELTME: Merkez hesaplamasına Scale ve Rotation eklendi
             // Eğer objeler döndürülmüşse veya köşeden scale edilmişse,
