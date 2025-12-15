@@ -275,19 +275,20 @@ export const applyChamferToShape = async (
     console.log(`📏 Shape has ${edges.length} edges total`);
 
     const edgeMidpoints = edges.map((edge: any, index: number) => {
-      const curve = edge.curve();
-      const u_min = edge.firstParameter;
-      const u_max = edge.lastParameter;
-      const u_mid = (u_min + u_max) / 2;
-      const point = curve.value(u_mid);
-      const midpoint = { x: point[0], y: point[1], z: point[2] };
-      const distance = Math.sqrt(
-        Math.pow(midpoint.x - selectedMidpoint.x, 2) +
-        Math.pow(midpoint.y - selectedMidpoint.y, 2) +
-        Math.pow(midpoint.z - selectedMidpoint.z, 2)
-      );
-      console.log(`Edge ${index}: midpoint=${JSON.stringify(midpoint)}, distance=${distance.toFixed(2)}`);
-      return { index, midpoint, distance };
+      try {
+        const midpointData = edge.pointOnCurve(0.5);
+        const midpoint = { x: midpointData[0], y: midpointData[1], z: midpointData[2] };
+        const distance = Math.sqrt(
+          Math.pow(midpoint.x - selectedMidpoint.x, 2) +
+          Math.pow(midpoint.y - selectedMidpoint.y, 2) +
+          Math.pow(midpoint.z - selectedMidpoint.z, 2)
+        );
+        console.log(`Edge ${index}: midpoint=${JSON.stringify(midpoint)}, distance=${distance.toFixed(2)}`);
+        return { index, midpoint, distance };
+      } catch (err) {
+        console.warn(`Failed to get midpoint for edge ${index}:`, err);
+        return { index, midpoint: { x: 0, y: 0, z: 0 }, distance: Infinity };
+      }
     });
 
     const closest = edgeMidpoints.reduce((min, current) =>
