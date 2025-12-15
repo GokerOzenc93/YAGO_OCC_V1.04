@@ -183,6 +183,8 @@ interface AppState {
   setRadiusEditMode: (enabled: boolean) => void;
   selectedEdgeIndex: number | null;
   setSelectedEdgeIndex: (index: number | null) => void;
+  selectedEdgeInfo: { start: [number, number, number]; end: [number, number, number] } | null;
+  setSelectedEdgeInfo: (info: { start: [number, number, number]; end: [number, number, number] } | null) => void;
 
   // Boolean Görselleştirme (Subtraction)
   subtractionViewMode: boolean;
@@ -465,6 +467,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   setRadiusEditMode: (enabled) => set({ radiusEditMode: enabled }),
   selectedEdgeIndex: null,
   setSelectedEdgeIndex: (index) => set({ selectedEdgeIndex: index }),
+  selectedEdgeInfo: null,
+  setSelectedEdgeInfo: (info) => set({ selectedEdgeInfo: info }),
   
   // Vertex değişikliğini kaydetme (Geometriyi güncellemek için tetikleyici olur)
   addVertexModification: (shapeId, modification) =>

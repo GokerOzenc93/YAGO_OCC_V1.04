@@ -59,15 +59,49 @@ export function findClosestEdge(
 
 export async function applyFilletToShape(
   replicadShape: any,
-  radius: number
+  radius: number,
+  edgeStart?: THREE.Vector3,
+  edgeEnd?: THREE.Vector3
 ): Promise<any> {
   try {
     console.log(`🔨 Applying fillet with radius ${radius} to shape...`);
 
-    const filletedShape = replicadShape.fillet(radius);
+    if (edgeStart && edgeEnd) {
+      const tolerance = 1;
 
-    console.log('✅ Fillet applied successfully');
-    return filletedShape;
+      const filletedShape = replicadShape.fillet(radius, (edge: any) => {
+        try {
+          const edgeInfo = edge.info;
+          if (!edgeInfo) return false;
+
+          const start = new THREE.Vector3(
+            edgeInfo.start[0],
+            edgeInfo.start[1],
+            edgeInfo.start[2]
+          );
+          const end = new THREE.Vector3(
+            edgeInfo.end[0],
+            edgeInfo.end[1],
+            edgeInfo.end[2]
+          );
+
+          const startMatch = start.distanceTo(edgeStart) < tolerance;
+          const endMatch = end.distanceTo(edgeEnd) < tolerance;
+          const reverseMatch = start.distanceTo(edgeEnd) < tolerance && end.distanceTo(edgeStart) < tolerance;
+
+          return startMatch && endMatch || reverseMatch;
+        } catch (e) {
+          return false;
+        }
+      });
+
+      console.log('✅ Fillet applied to selected edge');
+      return filletedShape;
+    } else {
+      const filletedShape = replicadShape.fillet(radius);
+      console.log('✅ Fillet applied to all edges');
+      return filletedShape;
+    }
   } catch (error) {
     console.error('❌ Failed to apply fillet:', error);
     throw error;

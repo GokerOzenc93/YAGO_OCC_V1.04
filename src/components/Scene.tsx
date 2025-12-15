@@ -490,6 +490,8 @@ const Scene: React.FC = () => {
     setRadiusEditMode,
     selectedEdgeIndex,
     setSelectedEdgeIndex,
+    selectedEdgeInfo,
+    setSelectedEdgeInfo,
     updateShape,
     subtractionViewMode
   } = useAppStore();
@@ -619,16 +621,33 @@ const Scene: React.FC = () => {
 
   useEffect(() => {
     (window as any).handleRadiusValue = async (radiusValue: number) => {
-      if (selectedShapeId && selectedEdgeIndex !== null) {
+      if (selectedShapeId && selectedEdgeIndex !== null && selectedEdgeInfo) {
         const shape = shapes.find(s => s.id === selectedShapeId);
         if (shape && shape.replicadShape) {
-          console.log('🔨 Applying fillet with radius:', radiusValue);
+          console.log('🔨 Applying fillet with radius:', radiusValue, 'to edge:', selectedEdgeInfo);
 
           try {
             const { applyFilletToShape } = await import('../services/edgeFilletEditor');
             const { convertReplicadToThreeGeometry } = await import('../services/replicad');
+            const THREE = await import('three');
 
-            const filletedShape = await applyFilletToShape(shape.replicadShape, radiusValue);
+            const edgeStart = new THREE.Vector3(
+              selectedEdgeInfo.start[0],
+              selectedEdgeInfo.start[1],
+              selectedEdgeInfo.start[2]
+            );
+            const edgeEnd = new THREE.Vector3(
+              selectedEdgeInfo.end[0],
+              selectedEdgeInfo.end[1],
+              selectedEdgeInfo.end[2]
+            );
+
+            const filletedShape = await applyFilletToShape(
+              shape.replicadShape,
+              radiusValue,
+              edgeStart,
+              edgeEnd
+            );
             const newGeometry = convertReplicadToThreeGeometry(filletedShape);
 
             updateShape(selectedShapeId, {
@@ -636,13 +655,14 @@ const Scene: React.FC = () => {
               replicadShape: filletedShape
             });
 
-            console.log('✅ Fillet applied successfully');
+            console.log('✅ Fillet applied successfully to selected edge');
           } catch (error) {
             console.error('❌ Failed to apply fillet:', error);
           }
 
           (window as any).pendingRadiusEdit = false;
           setSelectedEdgeIndex(null);
+          setSelectedEdgeInfo(null);
         }
       }
     };
@@ -653,7 +673,7 @@ const Scene: React.FC = () => {
       delete (window as any).handleRadiusValue;
       delete (window as any).pendingRadiusEdit;
     };
-  }, [selectedShapeId, selectedEdgeIndex, shapes, updateShape, setSelectedEdgeIndex]);
+  }, [selectedShapeId, selectedEdgeIndex, selectedEdgeInfo, shapes, updateShape, setSelectedEdgeIndex, setSelectedEdgeInfo]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     if (vertexEditMode || radiusEditMode) {
@@ -841,7 +861,10 @@ const Scene: React.FC = () => {
               <EdgeFilletEditor
                 shape={shape}
                 isActive={true}
-                onEdgeSelect={(index) => setSelectedEdgeIndex(index)}
+                onEdgeSelect={(index, start, end) => {
+                  setSelectedEdgeIndex(index);
+                  setSelectedEdgeInfo({ start, end });
+                }}
               />
             )}
           </React.Fragment>

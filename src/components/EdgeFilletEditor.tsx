@@ -6,7 +6,7 @@ import { extractEdgesFromGeometry } from '../services/edgeFilletEditor';
 interface EdgeFilletEditorProps {
   shape: any;
   isActive: boolean;
-  onEdgeSelect: (index: number) => void;
+  onEdgeSelect: (index: number, start: [number, number, number], end: [number, number, number]) => void;
 }
 
 export const EdgeFilletEditor: React.FC<EdgeFilletEditorProps> = ({
@@ -73,7 +73,11 @@ export const EdgeFilletEditor: React.FC<EdgeFilletEditorProps> = ({
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                onEdgeSelect(index);
+                onEdgeSelect(
+                  index,
+                  [edge.start.x, edge.start.y, edge.start.z],
+                  [edge.end.x, edge.end.y, edge.end.z]
+                );
               }}
             >
               <sphereGeometry args={[5, 8, 8]} />
