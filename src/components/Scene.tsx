@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls } from '@react-three/drei';
 import { useAppStore, CameraType, Tool, ViewMode } from '../store';
@@ -8,12 +8,84 @@ import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
 import * as THREE from 'three';
 
+const SubtractionMesh: React.FC<{
+  subtraction: any;
+  index: number;
+  isHovered: boolean;
+  isSubtractionSelected: boolean;
+  isSelected: boolean;
+  setHoveredSubtractionIndex: (index: number | null) => void;
+  setSelectedSubtractionIndex: (index: number | null) => void;
+}> = React.memo(({
+  subtraction,
+  index,
+  isHovered,
+  isSubtractionSelected,
+  isSelected,
+  setHoveredSubtractionIndex,
+  setSelectedSubtractionIndex
+}) => {
+  const geometryInfo = useMemo(() => {
+    const box = new THREE.Box3().setFromBufferAttribute(
+      subtraction.geometry.attributes.position as THREE.BufferAttribute
+    );
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+
+    const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
+    const meshOffset: [number, number, number] = isCentered
+      ? [size.x / 2, size.y / 2, size.z / 2]
+      : [0, 0, 0];
+
+    return { meshOffset };
+  }, [subtraction.geometry]);
+
+  return (
+    <group
+      position={subtraction.relativeOffset}
+      rotation={subtraction.relativeRotation}
+    >
+      <mesh
+        geometry={subtraction.geometry}
+        position={geometryInfo.meshOffset}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          if (isSelected) {
+            setHoveredSubtractionIndex(index);
+          }
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          setHoveredSubtractionIndex(null);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isSelected) {
+            setSelectedSubtractionIndex(isSubtractionSelected ? null : index);
+          }
+        }}
+      >
+        <meshStandardMaterial
+          color={(isHovered || isSubtractionSelected) ? 0xff0000 : 0xffff00}
+          transparent
+          opacity={0.35}
+          depthWrite={false}
+        />
+      </mesh>
+    </group>
+  );
+});
+
+SubtractionMesh.displayName = 'SubtractionMesh';
+
 const ShapeWithTransform: React.FC<{
   shape: any;
   isSelected: boolean;
   orbitControlsRef: any;
   onContextMenu: (e: any, shapeId: string) => void;
-}> = ({
+}> = React.memo(({
   shape,
   isSelected,
   orbitControlsRef,
@@ -267,56 +339,17 @@ const ShapeWithTransform: React.FC<{
           const isHovered = hoveredSubtractionIndex === index && isSelected;
           const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
 
-          const box = new THREE.Box3().setFromBufferAttribute(
-            subtraction.geometry.attributes.position as THREE.BufferAttribute
-          );
-          const size = new THREE.Vector3();
-          const center = new THREE.Vector3();
-          box.getSize(size);
-          box.getCenter(center);
-
-          const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
-
-          const displayOffset = subtraction.relativeOffset;
-
-          const meshOffset: [number, number, number] = isCentered
-            ? [size.x / 2, size.y / 2, size.z / 2]
-            : [0, 0, 0];
-
           return (
-            <group
+            <SubtractionMesh
               key={`${shape.id}-subtraction-${index}`}
-              position={displayOffset}
-              rotation={subtraction.relativeRotation}
-            >
-              <mesh
-                geometry={subtraction.geometry}
-                position={meshOffset}
-                onPointerOver={(e) => {
-                  e.stopPropagation();
-                  if (isSelected) {
-                    setHoveredSubtractionIndex(index);
-                  }
-                }}
-                onPointerOut={(e) => {
-                  e.stopPropagation();
-                  setHoveredSubtractionIndex(null);
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isSelected) {
-                    setSelectedSubtractionIndex(isSubtractionSelected ? null : index);
-                  }
-                }}
-              >
-                <meshStandardMaterial
-                  color={(isHovered || isSubtractionSelected) ? 0xff0000 : 0xffff00}
-                  transparent
-                  opacity={0.35}
-                  depthWrite={false}
-                />
-              </mesh>
-            </group>
+              subtraction={subtraction}
+              index={index}
+              isHovered={isHovered}
+              isSubtractionSelected={isSubtractionSelected}
+              isSelected={isSelected}
+              setHoveredSubtractionIndex={setHoveredSubtractionIndex}
+              setSelectedSubtractionIndex={setSelectedSubtractionIndex}
+            />
           );
         })}
         {!isWireframe && !isXray && !shouldShowAsReference && (
@@ -428,7 +461,9 @@ const ShapeWithTransform: React.FC<{
       )}
     </>
   );
-};
+});
+
+ShapeWithTransform.displayName = 'ShapeWithTransform';
 
 const Scene: React.FC = () => {
   const controlsRef = useRef<any>(null);
@@ -671,7 +706,8 @@ const Scene: React.FC = () => {
         gl={{
           antialias: true,
           alpha: false,
-          preserveDrawingBuffer: true
+          preserveDrawingBuffer: true,
+          powerPreference: 'high-performance'
         }}
         dpr={[1, 2]}
         onContextMenu={(e) => e.preventDefault()}
@@ -714,7 +750,9 @@ const Scene: React.FC = () => {
         makeDefault
         target={[0, 0, 0]}
         enableDamping
-        dampingFactor={0.05}
+        dampingFactor={0.1}
+        maxDistance={25000}
+        minDistance={50}
       />
 
       <group position={[-2500, -0.001, -2500]}>
