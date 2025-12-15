@@ -282,16 +282,18 @@ export const applyChamferToShape = async (
 
     const result = shape.chamfer((edge: any) => {
       try {
-        const curve = edge.curve();
-        const uMin = curve.firstParameter;
-        const uMax = curve.lastParameter;
-        const uMid = (uMin + uMax) / 2;
-        const pointAtMid = curve.value(uMid);
+        const midpointData = edge.pointOnCurve(0.5);
+
+        if (!midpointData || midpointData.length < 3) {
+          console.warn(`  ⚠️ Edge ${edgeIndex}: Invalid midpoint data`);
+          edgeIndex++;
+          return 0;
+        }
 
         const edgeMidpoint = {
-          x: pointAtMid.x,
-          y: pointAtMid.y,
-          z: pointAtMid.z
+          x: midpointData[0],
+          y: midpointData[1],
+          z: midpointData[2]
         };
 
         const distance = Math.sqrt(
