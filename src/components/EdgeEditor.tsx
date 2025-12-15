@@ -16,6 +16,19 @@ interface EdgeEditorProps {
   onEdgeSelect: (index: number, midpoint: THREE.Vector3) => void;
 }
 
+function localToWorld(localPoint: THREE.Vector3, position: any, rotation: any, scale: any): THREE.Vector3 {
+  const worldPoint = localPoint.clone();
+
+  worldPoint.multiply(new THREE.Vector3(scale.x, scale.y, scale.z));
+
+  const euler = new THREE.Euler(rotation.x, rotation.y, rotation.z);
+  worldPoint.applyEuler(euler);
+
+  worldPoint.add(new THREE.Vector3(position.x, position.y, position.z));
+
+  return worldPoint;
+}
+
 function getEdgesFromGeometry(geometry: THREE.BufferGeometry): Edge[] {
   const edges: Edge[] = [];
   const edgesGeometry = new THREE.EdgesGeometry(geometry, 1);
@@ -88,7 +101,18 @@ export function EdgeEditor({ shape, isActive, onEdgeSelect }: EdgeEditorProps) {
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                onEdgeSelect(edge.index, edge.midpoint);
+                const worldMidpoint = localToWorld(
+                  edge.midpoint,
+                  shape.position,
+                  shape.rotation,
+                  shape.scale
+                );
+                console.log('🎯 Edge selected:', {
+                  index: edge.index,
+                  localMidpoint: `[${edge.midpoint.x.toFixed(3)}, ${edge.midpoint.y.toFixed(3)}, ${edge.midpoint.z.toFixed(3)}]`,
+                  worldMidpoint: `[${worldMidpoint.x.toFixed(3)}, ${worldMidpoint.y.toFixed(3)}, ${worldMidpoint.z.toFixed(3)}]`
+                });
+                onEdgeSelect(edge.index, worldMidpoint);
               }}
             />
             {isHighlighted && (

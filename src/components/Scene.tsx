@@ -634,9 +634,26 @@ const Scene: React.FC = () => {
             const { applyChamferToShape, convertReplicadToThreeGeometry } = await import('../services/replicad');
             const { getReplicadVertices } = await import('../services/vertexEditor');
 
+            const localMidpoint = new THREE.Vector3(
+              selectedEdgeMidpoint.x,
+              selectedEdgeMidpoint.y,
+              selectedEdgeMidpoint.z
+            );
+            localMidpoint.sub(new THREE.Vector3(shape.position.x, shape.position.y, shape.position.z));
+            localMidpoint.applyEuler(new THREE.Euler(-shape.rotation.x, -shape.rotation.y, -shape.rotation.z));
+            localMidpoint.divide(new THREE.Vector3(shape.scale.x, shape.scale.y, shape.scale.z));
+
+            console.log('🔄 Transform:', {
+              worldMidpoint: `[${selectedEdgeMidpoint.x.toFixed(3)}, ${selectedEdgeMidpoint.y.toFixed(3)}, ${selectedEdgeMidpoint.z.toFixed(3)}]`,
+              localMidpoint: `[${localMidpoint.x.toFixed(3)}, ${localMidpoint.y.toFixed(3)}, ${localMidpoint.z.toFixed(3)}]`,
+              position: shape.position,
+              rotation: shape.rotation,
+              scale: shape.scale
+            });
+
             const chamferedShape = await applyChamferToShape(
               shape.replicadShape,
-              { x: selectedEdgeMidpoint.x, y: selectedEdgeMidpoint.y, z: selectedEdgeMidpoint.z },
+              { x: localMidpoint.x, y: localMidpoint.y, z: localMidpoint.z },
               chamferRadius
             );
 

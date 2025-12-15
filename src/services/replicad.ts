@@ -268,19 +268,30 @@ export const applyChamferToShape = async (
 ): Promise<any> => {
   await initReplicad();
 
-  console.log('🔨 Applying chamfer to edge...', { selectedMidpoint, chamferRadius });
+  console.log('🔨 Applying chamfer...', {
+    selectedMidpoint: `[${selectedMidpoint.x.toFixed(3)}, ${selectedMidpoint.y.toFixed(3)}, ${selectedMidpoint.z.toFixed(3)}]`,
+    chamferRadius
+  });
 
   try {
-    const threshold = 1.0;
+    const threshold = 2.0;
     let matchedCount = 0;
+    let edgeIndex = 0;
+
+    console.log('📊 Scanning all Replicad edges:');
 
     const result = shape.chamfer((edge: any) => {
       try {
-        const midpointData = edge.pointOnCurve(0.5);
+        const curve = edge.curve();
+        const uMin = curve.firstParameter;
+        const uMax = curve.lastParameter;
+        const uMid = (uMin + uMax) / 2;
+        const pointAtMid = curve.value(uMid);
+
         const edgeMidpoint = {
-          x: midpointData[0],
-          y: midpointData[1],
-          z: midpointData[2]
+          x: pointAtMid.x,
+          y: pointAtMid.y,
+          z: pointAtMid.z
         };
 
         const distance = Math.sqrt(
@@ -289,20 +300,25 @@ export const applyChamferToShape = async (
           Math.pow(edgeMidpoint.z - selectedMidpoint.z, 2)
         );
 
+        console.log(`  Edge ${edgeIndex}: [${edgeMidpoint.x.toFixed(3)}, ${edgeMidpoint.y.toFixed(3)}, ${edgeMidpoint.z.toFixed(3)}] → dist: ${distance.toFixed(4)}`);
+        edgeIndex++;
+
         if (distance < threshold) {
-          console.log(`🎯 Match! Edge midpoint: [${edgeMidpoint.x.toFixed(2)}, ${edgeMidpoint.y.toFixed(2)}, ${edgeMidpoint.z.toFixed(2)}], distance: ${distance.toFixed(4)}`);
+          console.log(`  🎯 MATCH! Applying chamfer to this edge`);
           matchedCount++;
           return chamferRadius;
         }
 
         return 0;
       } catch (err) {
+        console.warn(`  ⚠️ Edge ${edgeIndex} error:`, err);
+        edgeIndex++;
         return 0;
       }
     });
 
     if (matchedCount === 0) {
-      throw new Error('No edge matched the selected midpoint');
+      throw new Error(`No edge matched the selected midpoint (checked ${edgeIndex} edges, threshold: ${threshold})`);
     }
 
     console.log(`✅ Chamfer applied to ${matchedCount} edge(s)`);
