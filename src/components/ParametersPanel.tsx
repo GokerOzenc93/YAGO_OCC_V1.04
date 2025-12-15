@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
@@ -23,6 +23,100 @@ interface SubtractionParam {
   result: number;
 }
 
+interface ParameterRowProps {
+  label: string;
+  value: number;
+  onChange?: (value: number) => void;
+  display?: string;
+  description: string;
+  step?: number;
+  readOnly?: boolean;
+}
+
+const ParameterRow: React.FC<ParameterRowProps> = ({
+  label,
+  value,
+  onChange,
+  display,
+  description,
+  step = 1,
+  readOnly = false
+}) => {
+  const [inputValue, setInputValue] = useState(value.toString());
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (!isFocused) {
+      setInputValue(value.toString());
+    }
+  }, [value, isFocused]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setInputValue(newValue);
+
+    if (onChange && !readOnly) {
+      if (newValue === '' || newValue === '-' || newValue === '+' || newValue === '.') {
+        return;
+      }
+      const parsed = parseFloat(newValue);
+      if (!isNaN(parsed)) {
+        onChange(parsed);
+      }
+    }
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+    if (onChange && !readOnly) {
+      const parsed = parseFloat(inputValue);
+      if (isNaN(parsed)) {
+        setInputValue(value.toString());
+      } else {
+        onChange(parsed);
+        setInputValue(parsed.toString());
+      }
+    }
+  };
+
+  return (
+    <div className="flex gap-1 items-center">
+      <input
+        type="text"
+        value={label}
+        readOnly
+        tabIndex={-1}
+        className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
+      />
+      <input
+        type="text"
+        value={inputValue}
+        onChange={handleChange}
+        onFocus={() => setIsFocused(true)}
+        onBlur={handleBlur}
+        readOnly={readOnly}
+        className={`w-16 px-1 py-0.5 text-xs font-mono border rounded text-left ${
+          readOnly ? 'bg-white text-gray-400' : 'bg-white text-gray-800'
+        } border-gray-300`}
+      />
+      <input
+        type="text"
+        value={display ?? value.toFixed(2)}
+        readOnly
+        tabIndex={-1}
+        className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
+      />
+      <input
+        type="text"
+        value={description}
+        readOnly
+        tabIndex={-1}
+        className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
+      />
+    </div>
+  );
+};
+
 export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const {
     selectedShapeId,
@@ -42,95 +136,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
-  const ParameterRow = ({
-    label,
-    value,
-    onChange,
-    display,
-    description,
-    step = 1,
-    readOnly = false
-  }: {
-    label: string;
-    value: number;
-    onChange?: (value: number) => void;
-    display?: string;
-    description: string;
-    step?: number;
-    readOnly?: boolean;
-  }) => {
-    const [inputValue, setInputValue] = useState(value.toString());
-    const [isFocused, setIsFocused] = useState(false);
-
-    useEffect(() => {
-      if (!isFocused) {
-        setInputValue(value.toString());
-      }
-    }, [value, isFocused]);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const newValue = e.target.value;
-      setInputValue(newValue);
-
-      if (onChange && !readOnly) {
-        if (newValue === '' || newValue === '-' || newValue === '+' || newValue === '.') {
-          return;
-        }
-        const parsed = parseFloat(newValue);
-        if (!isNaN(parsed)) {
-          onChange(parsed);
-        }
-      }
-    };
-
-    const handleBlur = () => {
-      setIsFocused(false);
-      if (onChange && !readOnly) {
-        const parsed = parseFloat(inputValue);
-        if (isNaN(parsed)) {
-          setInputValue(value.toString());
-        } else {
-          onChange(parsed);
-          setInputValue(parsed.toString());
-        }
-      }
-    };
-
-    return (
-      <div className="flex gap-1 items-center">
-        <input
-          type="text"
-          value={label}
-          readOnly
-          className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
-        />
-        <input
-          type="text"
-          value={inputValue}
-          onChange={handleChange}
-          onFocus={() => setIsFocused(true)}
-          onBlur={handleBlur}
-          readOnly={readOnly}
-          className={`w-16 px-1 py-0.5 text-xs font-mono border rounded text-left ${
-            readOnly ? 'bg-white text-gray-400' : 'bg-white text-gray-800'
-          } border-gray-300`}
-        />
-        <input
-          type="text"
-          value={display ?? value.toFixed(2)}
-          readOnly
-          className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
-        />
-        <input
-          type="text"
-          value={description}
-          readOnly
-          className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
-        />
-      </div>
-    );
-  };
-
   const renderSubtractionParamRow = (
     label: string,
     param: SubtractionParam,
@@ -144,6 +149,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           type="text"
           value={label}
           readOnly
+          tabIndex={-1}
           className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
         />
         <input
@@ -157,12 +163,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           type="text"
           value={param.result.toFixed(2)}
           readOnly
+          tabIndex={-1}
           className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
         />
         <input
           type="text"
           value={description}
           readOnly
+          tabIndex={-1}
           className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
         />
       </div>
@@ -629,6 +637,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       type="text"
                       value={param.result.toFixed(2)}
                       readOnly
+                      tabIndex={-1}
                       className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
                     />
                     <input
@@ -712,6 +721,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         type="text"
                         value={`V${mod.vertexIndex}`}
                         readOnly
+                        tabIndex={-1}
                         className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
                       />
                       <input
@@ -725,6 +735,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         type="text"
                         value={result.toFixed(2)}
                         readOnly
+                        tabIndex={-1}
                         className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
                       />
                       <input
