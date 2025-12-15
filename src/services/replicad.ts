@@ -307,13 +307,15 @@ export const applyChamferToShape = async (
           Math.pow(edgeMidpoint[1] - selectedMidpoint.y, 2) +
           Math.pow(edgeMidpoint[2] - selectedMidpoint.z, 2)
         );
-        const threshold = 0.1;
+        console.log(`🔍 Callback edge: [${edgeMidpoint[0].toFixed(2)}, ${edgeMidpoint[1].toFixed(2)}, ${edgeMidpoint[2].toFixed(2)}], distance=${distance.toFixed(4)}`);
+        const threshold = 10.0;
         if (distance < threshold) {
-          console.log(`🎯 Chamfering edge at [${edgeMidpoint[0].toFixed(2)}, ${edgeMidpoint[1].toFixed(2)}, ${edgeMidpoint[2].toFixed(2)}]`);
+          console.log(`🎯 Chamfering edge at [${edgeMidpoint[0].toFixed(2)}, ${edgeMidpoint[1].toFixed(2)}, ${edgeMidpoint[2].toFixed(2)}], distance=${distance.toFixed(4)}`);
           return chamferRadius;
         }
         return 0;
       } catch (err) {
+        console.log('⚠️ Error in callback:', err);
         return 0;
       }
     });
