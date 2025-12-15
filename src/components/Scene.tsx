@@ -37,6 +37,8 @@ const ShapeWithTransform: React.FC<{
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const isUpdatingRef = useRef(false);
+  const initialScaleRef = useRef<[number, number, number] | null>(null);
+  const initialParametersRef = useRef<{ width: number; height: number; depth: number } | null>(null);
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
@@ -184,6 +186,18 @@ const ShapeWithTransform: React.FC<{
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = !event.value;
         }
+
+        if (activeTool === Tool.SCALE && event.value && shape.parameters) {
+          initialScaleRef.current = shape.scale || [1, 1, 1];
+          initialParametersRef.current = {
+            width: shape.parameters.width || 1,
+            height: shape.parameters.height || 1,
+            depth: shape.parameters.depth || 1
+          };
+        } else if (!event.value) {
+          initialScaleRef.current = null;
+          initialParametersRef.current = null;
+        }
       };
 
       const onChange = () => {
@@ -197,23 +211,18 @@ const ShapeWithTransform: React.FC<{
             scale: newScale
           };
 
-          if (activeTool === Tool.SCALE && shape.parameters && (shape.parameters.width || shape.parameters.height || shape.parameters.depth)) {
-            const currentWidth = shape.parameters.width || 1;
-            const currentHeight = shape.parameters.height || 1;
-            const currentDepth = shape.parameters.depth || 1;
-            const currentScale = shape.scale || [1, 1, 1];
-
+          if (activeTool === Tool.SCALE && initialScaleRef.current && initialParametersRef.current) {
             const scaleDelta = [
-              newScale[0] / currentScale[0],
-              newScale[1] / currentScale[1],
-              newScale[2] / currentScale[2]
+              newScale[0] / initialScaleRef.current[0],
+              newScale[1] / initialScaleRef.current[1],
+              newScale[2] / initialScaleRef.current[2]
             ];
 
             updates.parameters = {
               ...shape.parameters,
-              width: currentWidth * scaleDelta[0],
-              height: currentHeight * scaleDelta[1],
-              depth: currentDepth * scaleDelta[2]
+              width: initialParametersRef.current.width * scaleDelta[0],
+              height: initialParametersRef.current.height * scaleDelta[1],
+              depth: initialParametersRef.current.depth * scaleDelta[2]
             };
           }
 
@@ -232,7 +241,7 @@ const ShapeWithTransform: React.FC<{
         controls.removeEventListener('change', onChange);
       };
     }
-  }, [isSelected, shape.id, updateShape, orbitControlsRef]);
+  }, [isSelected, shape.id, updateShape, orbitControlsRef, activeTool, shape.parameters, shape.scale]);
 
   const getTransformMode = () => {
     switch (activeTool) {
