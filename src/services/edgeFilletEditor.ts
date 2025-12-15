@@ -67,7 +67,7 @@ export async function applyFilletToShape(
     console.log(`🔨 Applying fillet with radius ${radius} to shape...`);
 
     if (edgeStart && edgeEnd) {
-      const tolerance = 2;
+      const tolerance = 5;
 
       const edgeFilter = (edge: any) => {
         try {
@@ -82,19 +82,24 @@ export async function applyFilletToShape(
           const startMatch = edgeStartVec.distanceTo(edgeStart) < tolerance && edgeEndVec.distanceTo(edgeEnd) < tolerance;
           const reverseMatch = edgeStartVec.distanceTo(edgeEnd) < tolerance && edgeEndVec.distanceTo(edgeStart) < tolerance;
 
-          return startMatch || reverseMatch;
+          const match = startMatch || reverseMatch;
+
+          if (match) {
+            console.log('✅ Edge matched!', {
+              edgeStart: [start[0].toFixed(1), start[1].toFixed(1), start[2].toFixed(1)],
+              edgeEnd: [end[0].toFixed(1), end[1].toFixed(1), end[2].toFixed(1)],
+              targetStart: [edgeStart.x.toFixed(1), edgeStart.y.toFixed(1), edgeStart.z.toFixed(1)],
+              targetEnd: [edgeEnd.x.toFixed(1), edgeEnd.y.toFixed(1), edgeEnd.z.toFixed(1)]
+            });
+          }
+
+          return match;
         } catch (e) {
           return false;
         }
       };
 
-      const config = {
-        filter: {
-          shouldKeep: edgeFilter
-        }
-      };
-
-      const filletedShape = replicadShape.fillet(radius, config);
+      const filletedShape = replicadShape.fillet(radius, edgeFilter);
 
       console.log('✅ Fillet applied to selected edge');
       return filletedShape;
