@@ -263,25 +263,49 @@ export const performBooleanIntersection = async (
 
 export const applyChamferToShape = async (
   shape: any,
-  selectedEdgeIndex: number,
+  selectedMidpoint: { x: number; y: number; z: number },
   chamferRadius: number
 ): Promise<any> => {
   await initReplicad();
 
-  console.log('🔨 Applying chamfer to edge...', { selectedEdgeIndex, chamferRadius });
+  console.log('🔨 Applying chamfer to edge...', { selectedMidpoint, chamferRadius });
 
   try {
-    let currentEdgeIndex = 0;
+    const threshold = 1.0;
+    let matchedCount = 0;
+
     const result = shape.chamfer((edge: any) => {
-      const thisIndex = currentEdgeIndex++;
-      if (thisIndex === selectedEdgeIndex) {
-        console.log(`🎯 Chamfering edge at index ${thisIndex}`);
-        return chamferRadius;
+      try {
+        const midpointData = edge.pointOnCurve(0.5);
+        const edgeMidpoint = {
+          x: midpointData[0],
+          y: midpointData[1],
+          z: midpointData[2]
+        };
+
+        const distance = Math.sqrt(
+          Math.pow(edgeMidpoint.x - selectedMidpoint.x, 2) +
+          Math.pow(edgeMidpoint.y - selectedMidpoint.y, 2) +
+          Math.pow(edgeMidpoint.z - selectedMidpoint.z, 2)
+        );
+
+        if (distance < threshold) {
+          console.log(`🎯 Match! Edge midpoint: [${edgeMidpoint.x.toFixed(2)}, ${edgeMidpoint.y.toFixed(2)}, ${edgeMidpoint.z.toFixed(2)}], distance: ${distance.toFixed(4)}`);
+          matchedCount++;
+          return chamferRadius;
+        }
+
+        return 0;
+      } catch (err) {
+        return 0;
       }
-      return 0;
     });
 
-    console.log('✅ Chamfer applied successfully');
+    if (matchedCount === 0) {
+      throw new Error('No edge matched the selected midpoint');
+    }
+
+    console.log(`✅ Chamfer applied to ${matchedCount} edge(s)`);
     return result;
   } catch (error) {
     console.error('❌ Failed to apply chamfer:', error);
