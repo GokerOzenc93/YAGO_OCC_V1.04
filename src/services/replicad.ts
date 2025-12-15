@@ -278,15 +278,17 @@ export const applyChamferToShape = async (
       throw new Error(`Edge index ${edgeIndex} is out of bounds (max: ${edges.length - 1})`);
     }
 
-    const result = shape.chamfer(chamferRadius, (edge: any) => {
-      const currentEdgeIndex = edges.findIndex((e: any) => e === edge);
-      return currentEdgeIndex === edgeIndex;
+    const result = shape.chamfer((edge: any) => {
+      const idx = edges.indexOf(edge);
+      console.log(`Checking edge ${idx}, target: ${edgeIndex}`);
+      return idx === edgeIndex ? chamferRadius : 0;
     });
 
     console.log('✅ Chamfer applied successfully');
     return result;
   } catch (error) {
     console.error('❌ Failed to apply chamfer:', error);
+    console.error('Error details:', error);
     throw error;
   }
 };
