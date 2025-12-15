@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
-import { ParameterRow } from './ParameterRow';
-import { SubtractionParametersPanel } from './SubtractionParametersPanel';
 import { evaluateExpression } from '../utils/expression';
 import { applyShapeChanges, applySubtractionChanges } from '../services/shapeUpdater';
 
@@ -18,6 +16,11 @@ interface CustomParameter {
 interface ParametersPanelProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface SubtractionParam {
+  expression: string;
+  result: number;
 }
 
 export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
@@ -38,6 +41,95 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+
+  const ParameterRow = ({
+    label,
+    value,
+    onChange,
+    display,
+    description,
+    step = 1,
+    readOnly = false
+  }: {
+    label: string;
+    value: number;
+    onChange?: (value: number) => void;
+    display?: string;
+    description: string;
+    step?: number;
+    readOnly?: boolean;
+  }) => {
+    return (
+      <div className="flex gap-1 items-center">
+        <input
+          type="text"
+          value={label}
+          readOnly
+          className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
+        />
+        <input
+          type="number"
+          value={value}
+          step={step}
+          onChange={onChange && !readOnly ? (e) => onChange(parseFloat(e.target.value) || 0) : undefined}
+          readOnly={readOnly}
+          className={`w-16 px-1 py-0.5 text-xs font-mono border rounded text-left [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+            readOnly ? 'bg-white text-gray-400' : 'bg-white text-gray-800'
+          } border-gray-300`}
+        />
+        <input
+          type="text"
+          value={display ?? value.toFixed(2)}
+          readOnly
+          className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
+        />
+        <input
+          type="text"
+          value={description}
+          readOnly
+          className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
+        />
+      </div>
+    );
+  };
+
+  const renderSubtractionParamRow = (
+    label: string,
+    param: SubtractionParam,
+    paramKey: string,
+    description: string,
+    onSubParamChange: (param: string, expression: string) => void
+  ) => {
+    return (
+      <div key={paramKey} className="flex gap-1 items-center">
+        <input
+          type="text"
+          value={label}
+          readOnly
+          className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
+        />
+        <input
+          type="text"
+          value={param.expression}
+          onChange={(e) => onSubParamChange(paramKey, e.target.value)}
+          className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded"
+          placeholder="expr"
+        />
+        <input
+          type="text"
+          value={param.result.toFixed(2)}
+          readOnly
+          className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
+        />
+        <input
+          type="text"
+          value={description}
+          readOnly
+          className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
+        />
+      </div>
+    );
+  };
 
   const handleClose = () => {
     setSubtractionViewMode(false);
@@ -547,10 +639,17 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     </button>
                   </div>
                 </div>
-                <SubtractionParametersPanel
-                  subParams={subParams}
-                  onSubParamChange={handleSubParamChange}
-                />
+                <div className="space-y-2">
+                  {renderSubtractionParamRow('W', subParams.width, 'width', 'Subtraction Width', handleSubParamChange)}
+                  {renderSubtractionParamRow('H', subParams.height, 'height', 'Subtraction Height', handleSubParamChange)}
+                  {renderSubtractionParamRow('D', subParams.depth, 'depth', 'Subtraction Depth', handleSubParamChange)}
+                  {renderSubtractionParamRow('X', subParams.posX, 'posX', 'Subtraction Position X', handleSubParamChange)}
+                  {renderSubtractionParamRow('Y', subParams.posY, 'posY', 'Subtraction Position Y', handleSubParamChange)}
+                  {renderSubtractionParamRow('Z', subParams.posZ, 'posZ', 'Subtraction Position Z', handleSubParamChange)}
+                  {renderSubtractionParamRow('RX', subParams.rotX, 'rotX', 'Subtraction Rotation X', handleSubParamChange)}
+                  {renderSubtractionParamRow('RY', subParams.rotY, 'rotY', 'Subtraction Rotation Y', handleSubParamChange)}
+                  {renderSubtractionParamRow('RZ', subParams.rotZ, 'rotZ', 'Subtraction Rotation Z', handleSubParamChange)}
+                </div>
               </div>
             )}
 
