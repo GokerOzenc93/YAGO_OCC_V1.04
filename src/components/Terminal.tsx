@@ -81,19 +81,6 @@ const Terminal: React.FC = () => {
       return;
     }
 
-    if ((window as any).pendingChamferEdit) {
-      const chamferValue = parseFloat(trimmedCommand);
-      if (!isNaN(chamferValue) && chamferValue > 0) {
-        if ((window as any).handleChamferValue) {
-          (window as any).handleChamferValue(chamferValue);
-          setCommandInput('');
-          return;
-        }
-      }
-      console.log('Geçersiz chamfer değeri. Pozitif bir sayı girin.');
-      return;
-    }
-
     if ((window as any).pendingExtrudeShape) {
       if (trimmedCommand === '' || trimmedCommand.toLowerCase() === 'enter') {
         if ((window as any).handleConvertTo2D) {

@@ -178,15 +178,6 @@ interface AppState {
   setVertexDirection: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
   addVertexModification: (shapeId: string, modification: VertexModification) => void;
 
-  // Chamfer (Pah Kırma) Düzenleme Modu
-  chamferEditMode: boolean;
-  setChamferEditMode: (enabled: boolean) => void;
-  selectedEdgeIndex: number | null;
-  selectedEdgeMidpoint: THREE.Vector3 | null;
-  setSelectedEdgeIndex: (index: number | null, midpoint?: THREE.Vector3) => void;
-  hoveredEdgeIndex: number | null;
-  setHoveredEdgeIndex: (index: number | null) => void;
-
   // Boolean Görselleştirme (Subtraction)
   subtractionViewMode: boolean;
   setSubtractionViewMode: (enabled: boolean) => void;
@@ -462,7 +453,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedVertexIndex: (index) => set({ selectedVertexIndex: index }),
   vertexDirection: null,
   setVertexDirection: (direction) => set({ vertexDirection: direction }),
-
+  
   // Vertex değişikliğini kaydetme (Geometriyi güncellemek için tetikleyici olur)
   addVertexModification: (shapeId, modification) =>
     set((state) => ({
@@ -492,15 +483,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         };
       })
     })),
-
-  // Chamfer (Pah Kırma) Düzenleme
-  chamferEditMode: false,
-  setChamferEditMode: (enabled) => set({ chamferEditMode: enabled }),
-  selectedEdgeIndex: null,
-  selectedEdgeMidpoint: null,
-  setSelectedEdgeIndex: (index, midpoint) => set({ selectedEdgeIndex: index, selectedEdgeMidpoint: midpoint || null }),
-  hoveredEdgeIndex: null,
-  setHoveredEdgeIndex: (index) => set({ hoveredEdgeIndex: index }),
 
   subtractionViewMode: false,
   setSubtractionViewMode: (enabled) => set({ subtractionViewMode: enabled }),

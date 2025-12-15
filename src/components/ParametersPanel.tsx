@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, GripVertical, Plus, Check, Trash2, CircleDot, Minus, Triangle, CircleDashed } from 'lucide-react';
+import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
 import { evaluateExpression } from '../utils/expression';
@@ -129,9 +129,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
     deleteSubtraction,
-    setShowParametersPanel,
-    chamferEditMode,
-    setChamferEditMode
+    setShowParametersPanel
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -532,50 +530,28 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         <div className="flex items-center gap-1">
           <button
             onClick={() => setVertexEditMode(!vertexEditMode)}
-            className={`p-1 rounded transition-colors ${
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
               vertexEditMode
                 ? 'bg-orange-600 text-white'
                 : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
             }`}
             title="Edit Vertices"
           >
-            <CircleDot size={14} />
+            VERTEX
           </button>
           {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.filter(s => s !== null).length > 0 && (
             <button
               onClick={() => setSubtractionViewMode(!subtractionViewMode)}
-              className={`p-1 rounded transition-colors relative ${
+              className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
                 subtractionViewMode
                   ? 'bg-yellow-500 text-white'
                   : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
               }`}
               title={`Show ${selectedShape.subtractionGeometries.filter(s => s !== null).length} Subtraction Geometr${selectedShape.subtractionGeometries.filter(s => s !== null).length > 1 ? 'ies' : 'y'}`}
             >
-              <Minus size={14} />
-              {selectedShape.subtractionGeometries.filter(s => s !== null).length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[8px] rounded-full w-3 h-3 flex items-center justify-center">
-                  {selectedShape.subtractionGeometries.filter(s => s !== null).length}
-                </span>
-              )}
+              SUB ({selectedShape.subtractionGeometries.filter(s => s !== null).length})
             </button>
           )}
-          <button
-            onClick={() => setChamferEditMode(!chamferEditMode)}
-            className={`p-1 rounded transition-colors ${
-              chamferEditMode
-                ? 'bg-blue-600 text-white'
-                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-            }`}
-            title="Chamfer Edge"
-          >
-            <Triangle size={14} />
-          </button>
-          <button
-            className="p-1 bg-stone-200 text-slate-700 hover:bg-stone-300 rounded transition-colors"
-            title="Radius"
-          >
-            <CircleDashed size={14} />
-          </button>
           <button
             onClick={addCustomParameter}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
