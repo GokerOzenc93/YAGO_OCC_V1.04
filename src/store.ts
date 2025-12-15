@@ -182,7 +182,8 @@ interface AppState {
   chamferEditMode: boolean;
   setChamferEditMode: (enabled: boolean) => void;
   selectedEdgeIndex: number | null;
-  setSelectedEdgeIndex: (index: number | null) => void;
+  selectedEdgeMidpoint: THREE.Vector3 | null;
+  setSelectedEdgeIndex: (index: number | null, midpoint?: THREE.Vector3) => void;
   hoveredEdgeIndex: number | null;
   setHoveredEdgeIndex: (index: number | null) => void;
 
@@ -496,7 +497,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   chamferEditMode: false,
   setChamferEditMode: (enabled) => set({ chamferEditMode: enabled }),
   selectedEdgeIndex: null,
-  setSelectedEdgeIndex: (index) => set({ selectedEdgeIndex: index }),
+  selectedEdgeMidpoint: null,
+  setSelectedEdgeIndex: (index, midpoint) => set({ selectedEdgeIndex: index, selectedEdgeMidpoint: midpoint || null }),
   hoveredEdgeIndex: null,
   setHoveredEdgeIndex: (index) => set({ hoveredEdgeIndex: index }),
 

@@ -263,27 +263,44 @@ export const performBooleanIntersection = async (
 
 export const applyChamferToShape = async (
   shape: any,
-  edgeIndex: number,
+  selectedMidpoint: { x: number; y: number; z: number },
   chamferRadius: number
 ): Promise<any> => {
   await initReplicad();
 
-  console.log('🔨 Applying chamfer to edge...', { edgeIndex, chamferRadius });
+  console.log('🔨 Applying chamfer to edge...', { selectedMidpoint, chamferRadius });
 
   try {
     const edges = shape.edges;
     console.log(`📏 Shape has ${edges.length} edges total`);
 
-    if (edgeIndex >= edges.length) {
-      throw new Error(`Edge index ${edgeIndex} is out of bounds (max: ${edges.length - 1})`);
-    }
+    const edgeMidpoints = edges.map((edge: any, index: number) => {
+      const curve = edge.curve();
+      const u_min = edge.firstParameter;
+      const u_max = edge.lastParameter;
+      const u_mid = (u_min + u_max) / 2;
+      const point = curve.value(u_mid);
+      const midpoint = { x: point[0], y: point[1], z: point[2] };
+      const distance = Math.sqrt(
+        Math.pow(midpoint.x - selectedMidpoint.x, 2) +
+        Math.pow(midpoint.y - selectedMidpoint.y, 2) +
+        Math.pow(midpoint.z - selectedMidpoint.z, 2)
+      );
+      console.log(`Edge ${index}: midpoint=${JSON.stringify(midpoint)}, distance=${distance.toFixed(2)}`);
+      return { index, midpoint, distance };
+    });
+
+    const closest = edgeMidpoints.reduce((min, current) =>
+      current.distance < min.distance ? current : min
+    );
+
+    console.log(`✅ Closest edge: ${closest.index} with distance ${closest.distance.toFixed(2)}`);
 
     let counter = 0;
     const result = shape.chamfer((edge: any) => {
       const currentIndex = counter;
       counter++;
-      const isMatch = currentIndex === edgeIndex;
-      console.log(`Edge ${currentIndex}: target=${edgeIndex}, match=${isMatch}, returning radius=${isMatch ? chamferRadius : 0}`);
+      const isMatch = currentIndex === closest.index;
       return isMatch ? chamferRadius : 0;
     });
 

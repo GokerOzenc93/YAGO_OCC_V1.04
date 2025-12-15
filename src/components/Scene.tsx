@@ -490,6 +490,7 @@ const Scene: React.FC = () => {
     chamferEditMode,
     setChamferEditMode,
     selectedEdgeIndex,
+    selectedEdgeMidpoint,
     setSelectedEdgeIndex,
     updateShape
   } = useAppStore();
@@ -620,10 +621,14 @@ const Scene: React.FC = () => {
 
   useEffect(() => {
     (window as any).handleChamferValue = async (chamferRadius: number) => {
-      if (selectedShapeId && selectedEdgeIndex !== null) {
+      if (selectedShapeId && selectedEdgeIndex !== null && selectedEdgeMidpoint) {
         const shape = shapes.find(s => s.id === selectedShapeId);
         if (shape && shape.replicadShape) {
-          console.log('🔨 Applying chamfer:', { edgeIndex: selectedEdgeIndex, radius: chamferRadius });
+          console.log('🔨 Applying chamfer:', {
+            edgeIndex: selectedEdgeIndex,
+            midpoint: selectedEdgeMidpoint,
+            radius: chamferRadius
+          });
 
           try {
             const { applyChamferToShape, convertReplicadToThreeGeometry } = await import('../services/replicad');
@@ -631,7 +636,7 @@ const Scene: React.FC = () => {
 
             const chamferedShape = await applyChamferToShape(
               shape.replicadShape,
-              selectedEdgeIndex,
+              { x: selectedEdgeMidpoint.x, y: selectedEdgeMidpoint.y, z: selectedEdgeMidpoint.z },
               chamferRadius
             );
 
@@ -665,7 +670,7 @@ const Scene: React.FC = () => {
       delete (window as any).handleChamferValue;
       delete (window as any).pendingChamferEdit;
     };
-  }, [selectedShapeId, selectedEdgeIndex, shapes, updateShape, setSelectedEdgeIndex]);
+  }, [selectedShapeId, selectedEdgeIndex, selectedEdgeMidpoint, shapes, updateShape, setSelectedEdgeIndex]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     if (vertexEditMode) {
@@ -853,7 +858,7 @@ const Scene: React.FC = () => {
               <EdgeEditor
                 shape={shape}
                 isActive={true}
-                onEdgeSelect={(index) => setSelectedEdgeIndex(index)}
+                onEdgeSelect={(index, midpoint) => setSelectedEdgeIndex(index, midpoint)}
               />
             )}
           </React.Fragment>

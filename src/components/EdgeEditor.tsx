@@ -13,7 +13,7 @@ interface Edge {
 interface EdgeEditorProps {
   shape: any;
   isActive: boolean;
-  onEdgeSelect: (index: number) => void;
+  onEdgeSelect: (index: number, midpoint: THREE.Vector3) => void;
 }
 
 function getEdgesFromGeometry(geometry: THREE.BufferGeometry): Edge[] {
@@ -88,7 +88,7 @@ export function EdgeEditor({ shape, isActive, onEdgeSelect }: EdgeEditorProps) {
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                onEdgeSelect(edge.index);
+                onEdgeSelect(edge.index, edge.midpoint);
               }}
             />
             {isHighlighted && (
