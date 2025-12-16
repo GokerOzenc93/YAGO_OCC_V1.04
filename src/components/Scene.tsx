@@ -651,10 +651,10 @@ const Scene: React.FC = () => {
 
           let replicadShape = shape.replicadShape;
 
-          const filletedShape = replicadShape.fillet(radius, (edge: any) => {
+          const filletedShape = replicadShape.fillet((edge: any) => {
             try {
-              const edgeCenter = edge.center ? edge.center : null;
-              if (!edgeCenter) return false;
+              const edgeCenter = edge.center;
+              if (!edgeCenter) return null;
 
               const distanceToMidPoint = Math.sqrt(
                 Math.pow(edgeCenter[0] - midPoint.x, 2) +
@@ -663,9 +663,12 @@ const Scene: React.FC = () => {
               );
 
               const threshold = Math.max(shape.parameters.width, shape.parameters.height, shape.parameters.depth) * 0.3;
-              return distanceToMidPoint < threshold;
+              if (distanceToMidPoint < threshold) {
+                return radius;
+              }
+              return null;
             } catch (e) {
-              return false;
+              return null;
             }
           });
 
