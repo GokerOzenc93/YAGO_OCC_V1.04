@@ -276,29 +276,29 @@ export const applyFillet = async (
       throw new Error('Shape has no edges');
     }
 
+    console.log(`Total edges available: ${edges.length}`);
+
     if (edgeIndex < 0 || edgeIndex >= edges.length) {
       throw new Error(`Invalid edge index: ${edgeIndex}`);
     }
 
-    console.log(`Total edges available: ${edges.length}`);
-
     const edgeToFillet = edges[edgeIndex];
+    console.log('Selected edge for fillet:', edgeIndex);
 
-    console.log(`Applying fillet with radius ${radius} to edge ${edgeIndex}`);
-
+    let currentIndex = 0;
     const result = shape.fillet(radius, (edge: any) => {
-      const isSameEdge = edge.hashCode === edgeToFillet.hashCode;
-      if (isSameEdge) {
-        console.log(`✓ Edge ${edgeIndex} matched for fillet`);
-      }
-      return isSameEdge;
+      const isMatch = currentIndex === edgeIndex;
+      console.log(`Edge ${currentIndex}: ${isMatch ? '✓ MATCH' : 'skip'}`);
+      currentIndex++;
+      return isMatch;
     });
 
     console.log('✅ Fillet applied successfully');
     return result;
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ Fillet operation failed:', error);
-    console.error('Error details:', error);
+    console.error('Error message:', error?.message);
+    console.error('Error stack:', error?.stack);
     throw error;
   }
 };
