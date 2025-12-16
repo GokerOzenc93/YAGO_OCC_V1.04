@@ -190,6 +190,14 @@ interface AppState {
   // Parametre Paneli
   showParametersPanel: boolean;
   setShowParametersPanel: (show: boolean) => void;
+
+  // Face (Yüzey) Düzenleme Modu
+  faceEditMode: boolean;
+  setFaceEditMode: (enabled: boolean) => void;
+  selectedFaceIndex: number | null;
+  setSelectedFaceIndex: (index: number | null) => void;
+  hoveredFaceIndex: number | null;
+  setHoveredFaceIndex: (index: number | null) => void;
 }
 
 /**
@@ -202,6 +210,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   showParametersPanel: false,
   setShowParametersPanel: (show) => set({ showParametersPanel: show }),
+
+  // Face (Yüzey) Düzenleme
+  faceEditMode: false,
+  setFaceEditMode: (enabled) => set({ faceEditMode: enabled }),
+  selectedFaceIndex: null,
+  setSelectedFaceIndex: (index) => set({ selectedFaceIndex: index }),
+  hoveredFaceIndex: null,
+  setHoveredFaceIndex: (index) => set({ hoveredFaceIndex: index }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

@@ -1,0 +1,182 @@
+import * as THREE from 'three';
+
+export interface FaceData {
+  faceIndex: number;
+  normal: THREE.Vector3;
+  center: THREE.Vector3;
+  vertices: THREE.Vector3[];
+  area: number;
+}
+
+export interface CoplanarFaceGroup {
+  normal: THREE.Vector3;
+  faceIndices: number[];
+  center: THREE.Vector3;
+  totalArea: number;
+}
+
+export function extractFacesFromGeometry(geometry: THREE.BufferGeometry): FaceData[] {
+  const faces: FaceData[] = [];
+  const positionAttribute = geometry.getAttribute('position');
+  const indexAttribute = geometry.getIndex();
+
+  if (!positionAttribute) {
+    console.warn('No position attribute found in geometry');
+    return faces;
+  }
+
+  const positions = positionAttribute.array as Float32Array;
+  const indices = indexAttribute ? (indexAttribute.array as Uint16Array | Uint32Array) : null;
+
+  const vertexCount = indices ? indices.length : positions.length / 3;
+  const faceCount = Math.floor(vertexCount / 3);
+
+  for (let i = 0; i < faceCount; i++) {
+    const i0 = indices ? indices[i * 3] : i * 3;
+    const i1 = indices ? indices[i * 3 + 1] : i * 3 + 1;
+    const i2 = indices ? indices[i * 3 + 2] : i * 3 + 2;
+
+    const v0 = new THREE.Vector3(
+      positions[i0 * 3],
+      positions[i0 * 3 + 1],
+      positions[i0 * 3 + 2]
+    );
+    const v1 = new THREE.Vector3(
+      positions[i1 * 3],
+      positions[i1 * 3 + 1],
+      positions[i1 * 3 + 2]
+    );
+    const v2 = new THREE.Vector3(
+      positions[i2 * 3],
+      positions[i2 * 3 + 1],
+      positions[i2 * 3 + 2]
+    );
+
+    const edge1 = new THREE.Vector3().subVectors(v1, v0);
+    const edge2 = new THREE.Vector3().subVectors(v2, v0);
+    const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+
+    const center = new THREE.Vector3()
+      .add(v0)
+      .add(v1)
+      .add(v2)
+      .divideScalar(3);
+
+    const area = edge1.cross(edge2).length() / 2;
+
+    faces.push({
+      faceIndex: i,
+      normal,
+      center,
+      vertices: [v0, v1, v2],
+      area
+    });
+  }
+
+  return faces;
+}
+
+export function groupCoplanarFaces(
+  faces: FaceData[],
+  normalThreshold: number = 0.999,
+  distanceThreshold: number = 0.1
+): CoplanarFaceGroup[] {
+  const groups: CoplanarFaceGroup[] = [];
+  const processed = new Set<number>();
+
+  for (let i = 0; i < faces.length; i++) {
+    if (processed.has(i)) continue;
+
+    const face = faces[i];
+    const group: CoplanarFaceGroup = {
+      normal: face.normal.clone(),
+      faceIndices: [i],
+      center: face.center.clone(),
+      totalArea: face.area
+    };
+
+    processed.add(i);
+
+    for (let j = i + 1; j < faces.length; j++) {
+      if (processed.has(j)) continue;
+
+      const otherFace = faces[j];
+      const normalDot = face.normal.dot(otherFace.normal);
+
+      if (normalDot > normalThreshold) {
+        const distance = Math.abs(
+          otherFace.center.clone().sub(face.center).dot(face.normal)
+        );
+
+        if (distance < distanceThreshold) {
+          group.faceIndices.push(j);
+          group.totalArea += otherFace.area;
+          processed.add(j);
+        }
+      }
+    }
+
+    const avgCenter = new THREE.Vector3();
+    group.faceIndices.forEach(idx => {
+      avgCenter.add(faces[idx].center);
+    });
+    avgCenter.divideScalar(group.faceIndices.length);
+    group.center = avgCenter;
+
+    groups.push(group);
+  }
+
+  return groups;
+}
+
+export function findClosestFaceToRay(
+  raycaster: THREE.Raycaster,
+  mesh: THREE.Mesh,
+  worldMatrix: THREE.Matrix4
+): number | null {
+  const intersects = raycaster.intersectObject(mesh, false);
+
+  if (intersects.length === 0) {
+    return null;
+  }
+
+  const closest = intersects[0];
+  return closest.faceIndex !== undefined ? closest.faceIndex : null;
+}
+
+export function createFaceHighlightGeometry(
+  faces: FaceData[],
+  faceIndices: number[]
+): THREE.BufferGeometry {
+  const positions: number[] = [];
+
+  faceIndices.forEach(faceIndex => {
+    const face = faces[faceIndex];
+    if (face) {
+      face.vertices.forEach(vertex => {
+        positions.push(vertex.x, vertex.y, vertex.z);
+      });
+    }
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.computeVertexNormals();
+
+  return geometry;
+}
+
+export function getFaceWorldPosition(
+  face: FaceData,
+  worldMatrix: THREE.Matrix4
+): THREE.Vector3 {
+  return face.center.clone().applyMatrix4(worldMatrix);
+}
+
+export function getFaceWorldNormal(
+  face: FaceData,
+  worldMatrix: THREE.Matrix4
+): THREE.Vector3 {
+  const normalMatrix = new THREE.Matrix3().getNormalMatrix(worldMatrix);
+  return face.normal.clone().applyMatrix3(normalMatrix).normalize();
+}
