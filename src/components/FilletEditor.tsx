@@ -22,26 +22,28 @@ const FaceHighlight: React.FC<{
 }> = ({ face, color, opacity, onClick, onPointerOver, onPointerOut }) => {
   const geometry = useMemo(() => {
     const geom = new THREE.BufferGeometry();
-    const positions = new Float32Array(9);
+    const vertexCount = face.vertices.length;
+    const positions = new Float32Array(vertexCount * 3);
 
-    positions[0] = face.vertices[0].x;
-    positions[1] = face.vertices[0].y;
-    positions[2] = face.vertices[0].z;
-    positions[3] = face.vertices[1].x;
-    positions[4] = face.vertices[1].y;
-    positions[5] = face.vertices[1].z;
-    positions[6] = face.vertices[2].x;
-    positions[7] = face.vertices[2].y;
-    positions[8] = face.vertices[2].z;
+    for (let i = 0; i < vertexCount; i++) {
+      positions[i * 3] = face.vertices[i].x;
+      positions[i * 3 + 1] = face.vertices[i].y;
+      positions[i * 3 + 2] = face.vertices[i].z;
+    }
 
     geom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geom.computeVertexNormals();
     return geom;
   }, [face]);
 
+  const offsetPosition = useMemo(() => {
+    return face.normal.clone().multiplyScalar(0.5);
+  }, [face.normal]);
+
   return (
     <mesh
       geometry={geometry}
+      position={offsetPosition}
       onClick={onClick}
       onPointerOver={(e) => {
         e.stopPropagation();
@@ -51,6 +53,7 @@ const FaceHighlight: React.FC<{
         e.stopPropagation();
         onPointerOut();
       }}
+      renderOrder={999}
     >
       <meshBasicMaterial
         color={color}
@@ -58,6 +61,7 @@ const FaceHighlight: React.FC<{
         opacity={opacity}
         side={THREE.DoubleSide}
         depthWrite={false}
+        depthTest={true}
       />
     </mesh>
   );
@@ -96,13 +100,31 @@ export const FilletEditor: React.FC<FilletEditorProps> = ({
     console.log(`✓ Face ${index} selected`);
   };
 
+  const invisibleGeometries = useMemo(() => {
+    return faces.map(face => {
+      const geometry = new THREE.BufferGeometry();
+      const vertexCount = face.vertices.length;
+      const positions = new Float32Array(vertexCount * 3);
+
+      for (let i = 0; i < vertexCount; i++) {
+        positions[i * 3] = face.vertices[i].x;
+        positions[i * 3 + 1] = face.vertices[i].y;
+        positions[i * 3 + 2] = face.vertices[i].z;
+      }
+
+      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geometry.computeVertexNormals();
+      return geometry;
+    });
+  }, [faces]);
+
   return (
     <group
       position={[shape.position[0], shape.position[1], shape.position[2]]}
       rotation={[shape.rotation[0], shape.rotation[1], shape.rotation[2]]}
       scale={[shape.scale[0], shape.scale[1], shape.scale[2]]}
     >
-      {faces.map((face) => {
+      {faces.map((face, idx) => {
         const isSelected = face.faceIndex === selectedFace1Index || face.faceIndex === selectedFace2Index;
         const isHovered = face.faceIndex === hoveredFaceIndex;
 
@@ -112,51 +134,34 @@ export const FilletEditor: React.FC<FilletEditorProps> = ({
               <FaceHighlight
                 face={face}
                 color="#ef4444"
-                opacity={isSelected ? 0.6 : 0.4}
+                opacity={isSelected ? 0.5 : 0.3}
                 onClick={(e) => handleFaceClick(face.faceIndex, e)}
                 onPointerOver={() => onFaceHover(face.faceIndex)}
                 onPointerOut={() => onFaceHover(null)}
               />
             )}
-            {!isSelected && !isHovered && (
-              <mesh
-                geometry={(() => {
-                  const geometry = new THREE.BufferGeometry();
-                  const positions = new Float32Array(9);
-                  positions[0] = face.vertices[0].x;
-                  positions[1] = face.vertices[0].y;
-                  positions[2] = face.vertices[0].z;
-                  positions[3] = face.vertices[1].x;
-                  positions[4] = face.vertices[1].y;
-                  positions[5] = face.vertices[1].z;
-                  positions[6] = face.vertices[2].x;
-                  positions[7] = face.vertices[2].y;
-                  positions[8] = face.vertices[2].z;
-                  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-                  geometry.computeVertexNormals();
-                  return geometry;
-                })()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleFaceClick(face.faceIndex, e);
-                }}
-                onPointerOver={(e) => {
-                  e.stopPropagation();
-                  onFaceHover(face.faceIndex);
-                }}
-                onPointerOut={(e) => {
-                  e.stopPropagation();
-                  onFaceHover(null);
-                }}
-              >
-                <meshBasicMaterial
-                  transparent
-                  opacity={0}
-                  side={THREE.DoubleSide}
-                  depthWrite={false}
-                />
-              </mesh>
-            )}
+            <mesh
+              geometry={invisibleGeometries[idx]}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleFaceClick(face.faceIndex, e);
+              }}
+              onPointerOver={(e) => {
+                e.stopPropagation();
+                onFaceHover(face.faceIndex);
+              }}
+              onPointerOut={(e) => {
+                e.stopPropagation();
+                onFaceHover(null);
+              }}
+              visible={false}
+            >
+              <meshBasicMaterial
+                transparent
+                opacity={0}
+                side={THREE.DoubleSide}
+              />
+            </mesh>
           </React.Fragment>
         );
       })}
