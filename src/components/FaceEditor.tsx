@@ -21,7 +21,10 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     hoveredFaceIndex,
     setHoveredFaceIndex,
     selectedFaceIndex,
-    setSelectedFaceIndex
+    setSelectedFaceIndex,
+    filletMode,
+    selectedFilletFaces,
+    addFilletFace
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
@@ -78,8 +81,17 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     const handleClick = (event: MouseEvent) => {
       if (event.button === 2) {
         if (hoveredGroupIndex !== null) {
-          setSelectedFaceIndex(hoveredGroupIndex);
-          console.log('✅ Face group selected:', hoveredGroupIndex);
+          if (filletMode && selectedFilletFaces.length < 2) {
+            addFilletFace(hoveredGroupIndex);
+            console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, hoveredGroupIndex);
+
+            if (selectedFilletFaces.length === 1) {
+              console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
+            }
+          } else {
+            setSelectedFaceIndex(hoveredGroupIndex);
+            console.log('✅ Face group selected:', hoveredGroupIndex);
+          }
         }
       }
     };
@@ -92,6 +104,16 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       gl.domElement.removeEventListener('mousedown', handleClick);
     };
   }, [isActive, faces, faceGroups, hoveredGroupIndex, camera, raycaster, gl, setHoveredFaceIndex, setSelectedFaceIndex]);
+
+  const selectedFilletGeometries = useMemo(() => {
+    if (!filletMode || selectedFilletFaces.length === 0) return [];
+
+    return selectedFilletFaces.map(faceGroupIndex => {
+      const group = faceGroups[faceGroupIndex];
+      if (!group) return null;
+      return createFaceHighlightGeometry(faces, group.faceIndices);
+    }).filter(g => g !== null);
+  }, [filletMode, selectedFilletFaces, faceGroups, faces]);
 
   const highlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
@@ -113,7 +135,25 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         scale={shape.scale}
       />
 
-      {highlightGeometry && (
+      {selectedFilletGeometries.map((geom, idx) => (
+        <mesh
+          key={`selected-${idx}`}
+          geometry={geom}
+          position={shape.position}
+          rotation={shape.rotation}
+          scale={shape.scale}
+        >
+          <meshBasicMaterial
+            color={0xff0000}
+            transparent
+            opacity={0.6}
+            side={THREE.DoubleSide}
+            depthTest={false}
+          />
+        </mesh>
+      ))}
+
+      {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && (
         <mesh
           ref={highlightMeshRef}
           geometry={highlightGeometry}

@@ -198,6 +198,14 @@ interface AppState {
   setSelectedFaceIndex: (index: number | null) => void;
   hoveredFaceIndex: number | null;
   setHoveredFaceIndex: (index: number | null) => void;
+
+  // Fillet Modu
+  filletMode: boolean;
+  setFilletMode: (enabled: boolean) => void;
+  selectedFilletFaces: number[];
+  setSelectedFilletFaces: (faces: number[]) => void;
+  addFilletFace: (faceIndex: number) => void;
+  clearFilletFaces: () => void;
 }
 
 /**
@@ -218,6 +226,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedFaceIndex: (index) => set({ selectedFaceIndex: index }),
   hoveredFaceIndex: null,
   setHoveredFaceIndex: (index) => set({ hoveredFaceIndex: index }),
+
+  // Fillet Modu
+  filletMode: false,
+  setFilletMode: (enabled) => set({ filletMode: enabled, selectedFilletFaces: enabled ? [] : [] }),
+  selectedFilletFaces: [],
+  setSelectedFilletFaces: (faces) => set({ selectedFilletFaces: faces }),
+  addFilletFace: (faceIndex) => set((state) => {
+    if (state.selectedFilletFaces.includes(faceIndex)) return state;
+    const newFaces = [...state.selectedFilletFaces, faceIndex];
+    console.log(`✅ Added face ${faceIndex} to fillet selection. Total: ${newFaces.length}/2`);
+    return { selectedFilletFaces: newFaces };
+  }),
+  clearFilletFaces: () => set({ selectedFilletFaces: [] }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

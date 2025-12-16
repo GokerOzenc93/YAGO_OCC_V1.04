@@ -488,7 +488,10 @@ const Scene: React.FC = () => {
     addVertexModification,
     subtractionViewMode,
     faceEditMode,
-    setFaceEditMode
+    setFaceEditMode,
+    filletMode,
+    selectedFilletFaces,
+    clearFilletFaces
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -502,6 +505,7 @@ const Scene: React.FC = () => {
         exitIsolation();
         setVertexEditMode(false);
         setFaceEditMode(false);
+        clearFilletFaces();
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -522,7 +526,7 @@ const Scene: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode, setFaceEditMode]);
+  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode, setFaceEditMode, clearFilletFaces]);
 
   useEffect(() => {
     (window as any).handleVertexOffset = async (newValue: number) => {
@@ -613,6 +617,40 @@ const Scene: React.FC = () => {
       delete (window as any).pendingVertexEdit;
     };
   }, [selectedShapeId, selectedVertexIndex, vertexDirection, shapes, addVertexModification, setSelectedVertexIndex]);
+
+  useEffect(() => {
+    (window as any).handleFilletRadius = async (radius: number) => {
+      if (selectedShapeId && filletMode && selectedFilletFaces.length === 2) {
+        console.log(`🔵 Applying fillet with radius ${radius} to faces:`, selectedFilletFaces);
+
+        const shape = shapes.find(s => s.id === selectedShapeId);
+        if (!shape || !shape.replicadShape) {
+          console.error('❌ Shape or replicadShape not found');
+          return;
+        }
+
+        try {
+          console.log('🔧 Fillet operation would be applied here');
+          console.log('Selected face groups:', selectedFilletFaces);
+          console.log('Radius:', radius);
+
+          clearFilletFaces();
+          console.log('✅ Fillet faces cleared. Select 2 new faces for another fillet operation.');
+        } catch (error) {
+          console.error('❌ Failed to apply fillet:', error);
+        }
+      }
+
+      (window as any).pendingFilletOperation = false;
+    };
+
+    (window as any).pendingFilletOperation = filletMode && selectedFilletFaces.length === 2;
+
+    return () => {
+      delete (window as any).handleFilletRadius;
+      delete (window as any).pendingFilletOperation;
+    };
+  }, [selectedShapeId, filletMode, selectedFilletFaces, shapes, clearFilletFaces]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     if (vertexEditMode || faceEditMode) {

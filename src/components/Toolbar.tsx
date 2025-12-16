@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
 import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid2x2 as Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, CreditCard as Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, CreditCard as Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, Minus } from 'lucide-react';
 import { ParametersPanel } from './ParametersPanel';
-import { Scan } from 'lucide-react';
 
 interface ToolbarProps {
   onOpenCatalog: () => void;
@@ -32,9 +31,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     updateShape,
     deleteShape,
     showParametersPanel,
-    setShowParametersPanel,
-    faceEditMode,
-    setFaceEditMode
+    setShowParametersPanel
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -928,27 +925,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             disabled={!selectedShapeId}
           >
             <Settings size={11} />
-          </button>
-          <button
-            onClick={() => {
-              if (selectedShapeId) {
-                setFaceEditMode(!faceEditMode);
-                console.log(`🔄 Face edit mode: ${!faceEditMode ? 'ON' : 'OFF'}`);
-              } else {
-                console.log('⚠️ No shape selected - cannot activate face edit mode');
-              }
-            }}
-            className={`p-1.5 rounded transition-all ${
-              faceEditMode
-                ? 'bg-orange-100 text-orange-700 border border-orange-300'
-                : selectedShapeId
-                ? 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
-                : 'text-stone-300 cursor-not-allowed'
-            }`}
-            title={selectedShapeId ? "Face Selection" : "Select a shape first"}
-            disabled={!selectedShapeId}
-          >
-            <Scan size={11} />
           </button>
           <button
             onClick={handleSubtract}

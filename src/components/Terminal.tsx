@@ -68,6 +68,20 @@ const Terminal: React.FC = () => {
     const trimmedCommand = command.trim();
     if (!trimmedCommand) return;
 
+    if ((window as any).pendingFilletOperation) {
+      const radiusValue = parseFloat(trimmedCommand);
+      if (!isNaN(radiusValue) && radiusValue > 0) {
+        if ((window as any).handleFilletRadius) {
+          (window as any).handleFilletRadius(radiusValue);
+          setCommandInput('');
+          return;
+        }
+      }
+      console.log('⚠️ Invalid fillet radius. Enter a positive number.');
+      setCommandInput('');
+      return;
+    }
+
     if ((window as any).pendingVertexEdit) {
       const offsetValue = parseFloat(trimmedCommand);
       if (!isNaN(offsetValue)) {
