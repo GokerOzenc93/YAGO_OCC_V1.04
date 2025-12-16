@@ -475,6 +475,7 @@ const Scene: React.FC = () => {
     selectedShapeId,
     secondarySelectedShapeId,
     selectShape,
+    updateShape,
     deleteShape,
     copyShape,
     isolateShape,
