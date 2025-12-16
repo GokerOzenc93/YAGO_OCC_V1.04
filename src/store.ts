@@ -190,16 +190,6 @@ interface AppState {
   // Parametre Paneli
   showParametersPanel: boolean;
   setShowParametersPanel: (show: boolean) => void;
-
-  // Fillet Modu
-  filletEditMode: boolean;
-  setFilletEditMode: (enabled: boolean) => void;
-  selectedFace1Index: number | null;
-  setSelectedFace1Index: (index: number | null) => void;
-  selectedFace2Index: number | null;
-  setSelectedFace2Index: (index: number | null) => void;
-  hoveredFaceIndex: number | null;
-  setHoveredFaceIndex: (index: number | null) => void;
 }
 
 /**
@@ -722,16 +712,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
   },
-
-  // Fillet Modu
-  filletEditMode: false,
-  setFilletEditMode: (enabled) => set({ filletEditMode: enabled }),
-  selectedFace1Index: null,
-  setSelectedFace1Index: (index) => set({ selectedFace1Index: index }),
-  selectedFace2Index: null,
-  setSelectedFace2Index: (index) => set({ selectedFace2Index: index }),
-  hoveredFaceIndex: null,
-  setHoveredFaceIndex: (index) => set({ hoveredFaceIndex: index }),
 
   deleteSubtraction: async (shapeId: string, subtractionIndex: number) => {
     const state = get();

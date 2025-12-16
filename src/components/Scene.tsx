@@ -6,7 +6,6 @@ import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
-import { FilletEditor } from './FilletEditor';
 import * as THREE from 'three';
 
 const SubtractionMesh: React.FC<{
@@ -486,15 +485,7 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    subtractionViewMode,
-    filletEditMode,
-    setFilletEditMode,
-    selectedFace1Index,
-    setSelectedFace1Index,
-    selectedFace2Index,
-    setSelectedFace2Index,
-    hoveredFaceIndex,
-    setHoveredFaceIndex
+    subtractionViewMode
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -507,9 +498,6 @@ const Scene: React.FC = () => {
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
-        setFilletEditMode(false);
-        setSelectedFace1Index(null);
-        setSelectedFace2Index(null);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -530,7 +518,7 @@ const Scene: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode, setFilletEditMode, setSelectedFace1Index, setSelectedFace2Index]);
+  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
 
   useEffect(() => {
     (window as any).handleVertexOffset = async (newValue: number) => {
@@ -622,63 +610,8 @@ const Scene: React.FC = () => {
     };
   }, [selectedShapeId, selectedVertexIndex, vertexDirection, shapes, addVertexModification, setSelectedVertexIndex]);
 
-  useEffect(() => {
-    (window as any).handleFilletRadius = async (radius: number) => {
-      if (selectedShapeId && selectedFace1Index !== null && selectedFace2Index !== null) {
-        const shape = shapes.find(s => s.id === selectedShapeId);
-        if (!shape || !shape.replicadShape) {
-          console.error('❌ Shape or replicad shape not found');
-          return;
-        }
-
-        console.log('🔨 Applying fillet with radius:', radius);
-
-        try {
-          const { globalFaceSelectionManager } = await import('../services/faceSelection');
-          const { applyFilletToEdge } = await import('../services/filletEditor');
-          const { convertReplicadToThreeGeometry } = await import('../services/replicad');
-
-          globalFaceSelectionManager.loadFromGeometry(shape.geometry);
-
-          const commonEdge = globalFaceSelectionManager.findCommonEdge(selectedFace1Index, selectedFace2Index);
-          if (!commonEdge) {
-            console.error('❌ No common edge found between selected faces');
-            return;
-          }
-
-          console.log('✅ Found common edge:', commonEdge);
-
-          const filletedShape = await applyFilletToEdge(shape.replicadShape, commonEdge, radius);
-          const newGeometry = convertReplicadToThreeGeometry(filletedShape);
-
-          const { updateShape } = useAppStore.getState();
-          updateShape(selectedShapeId, {
-            geometry: newGeometry,
-            replicadShape: filletedShape
-          });
-
-          console.log('✅ Fillet applied successfully');
-          setSelectedFace1Index(null);
-          setSelectedFace2Index(null);
-          setFilletEditMode(false);
-        } catch (error) {
-          console.error('❌ Failed to apply fillet:', error);
-        }
-      }
-
-      (window as any).pendingFilletEdit = false;
-    };
-
-    (window as any).pendingFilletEdit = filletEditMode && selectedFace1Index !== null && selectedFace2Index !== null;
-
-    return () => {
-      delete (window as any).handleFilletRadius;
-      delete (window as any).pendingFilletEdit;
-    };
-  }, [selectedShapeId, selectedFace1Index, selectedFace2Index, filletEditMode, shapes, setSelectedFace1Index, setSelectedFace2Index, setFilletEditMode]);
-
   const handleContextMenu = (e: any, shapeId: string) => {
-    if (vertexEditMode || filletEditMode) {
+    if (vertexEditMode) {
       return;
     }
     e.nativeEvent.preventDefault();
@@ -857,30 +790,6 @@ const Scene: React.FC = () => {
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
-              />
-            )}
-            {isSelected && filletEditMode && (
-              <FilletEditor
-                shape={shape}
-                isActive={true}
-                selectedFace1Index={selectedFace1Index}
-                selectedFace2Index={selectedFace2Index}
-                hoveredFaceIndex={hoveredFaceIndex}
-                onFaceSelect={(index) => {
-                  if (selectedFace1Index === null) {
-                    setSelectedFace1Index(index);
-                    console.log('✓ First face selected:', index);
-                  } else if (selectedFace2Index === null && index !== selectedFace1Index) {
-                    setSelectedFace2Index(index);
-                    console.log('✓ Second face selected:', index);
-                    console.log('✓ Ready for fillet - Enter radius in terminal');
-                  } else {
-                    setSelectedFace1Index(index);
-                    setSelectedFace2Index(null);
-                    console.log('✓ Face selection reset, first face:', index);
-                  }
-                }}
-                onFaceHover={setHoveredFaceIndex}
               />
             )}
           </React.Fragment>

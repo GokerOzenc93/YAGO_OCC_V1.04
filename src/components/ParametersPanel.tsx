@@ -124,8 +124,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     updateShape,
     vertexEditMode,
     setVertexEditMode,
-    filletEditMode,
-    setFilletEditMode,
     subtractionViewMode,
     setSubtractionViewMode,
     selectedSubtractionIndex,
@@ -182,7 +180,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const handleClose = () => {
     setSubtractionViewMode(false);
     setVertexEditMode(false);
-    setFilletEditMode(false);
     setSelectedSubtractionIndex(null);
     setShowParametersPanel(false);
     onClose();
@@ -541,17 +538,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             title="Edit Vertices"
           >
             VERTEX
-          </button>
-          <button
-            onClick={() => setFilletEditMode(!filletEditMode)}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
-              filletEditMode
-                ? 'bg-blue-600 text-white'
-                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-            }`}
-            title="Fillet Edges"
-          >
-            FILLET
           </button>
           {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.filter(s => s !== null).length > 0 && (
             <button
