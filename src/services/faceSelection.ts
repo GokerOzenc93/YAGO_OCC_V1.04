@@ -156,24 +156,42 @@ export class FaceSelectionManager {
     if (!face || !this.geometry) return null;
 
     const positionAttribute = this.geometry.getAttribute('position');
+    const normalAttribute = this.geometry.getAttribute('normal');
+
     const vertexCount = face.triangleIndices.length * 3;
     const positions = new Float32Array(vertexCount * 3);
+    const normals = new Float32Array(vertexCount * 3);
 
     let writeIndex = 0;
     for (const triangleIndex of face.triangleIndices) {
       const baseIndex = triangleIndex * 3;
 
       for (let i = 0; i < 3; i++) {
-        positions[writeIndex * 3] = positionAttribute.getX(baseIndex + i);
-        positions[writeIndex * 3 + 1] = positionAttribute.getY(baseIndex + i);
-        positions[writeIndex * 3 + 2] = positionAttribute.getZ(baseIndex + i);
+        const vertexIndex = baseIndex + i;
+
+        positions[writeIndex * 3] = positionAttribute.getX(vertexIndex);
+        positions[writeIndex * 3 + 1] = positionAttribute.getY(vertexIndex);
+        positions[writeIndex * 3 + 2] = positionAttribute.getZ(vertexIndex);
+
+        if (normalAttribute) {
+          normals[writeIndex * 3] = normalAttribute.getX(vertexIndex);
+          normals[writeIndex * 3 + 1] = normalAttribute.getY(vertexIndex);
+          normals[writeIndex * 3 + 2] = normalAttribute.getZ(vertexIndex);
+        }
+
         writeIndex++;
       }
     }
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.computeVertexNormals();
+
+    if (normalAttribute) {
+      geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+    } else {
+      geometry.computeVertexNormals();
+    }
+
     return geometry;
   }
 }

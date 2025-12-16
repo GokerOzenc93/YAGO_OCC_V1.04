@@ -28,7 +28,7 @@ const FaceHighlight: React.FC<{
 
   const offsetPosition = useMemo(() => {
     if (!face) return [0, 0, 0] as [number, number, number];
-    return face.normal.clone().multiplyScalar(0.5).toArray() as [number, number, number];
+    return face.normal.clone().multiplyScalar(0.05).toArray() as [number, number, number];
   }, [face]);
 
   if (!geometry || !face) return null;
@@ -54,7 +54,10 @@ const FaceHighlight: React.FC<{
         opacity={opacity}
         side={THREE.DoubleSide}
         depthWrite={false}
-        depthTest={true}
+        depthTest={false}
+        polygonOffset={true}
+        polygonOffsetFactor={-1}
+        polygonOffsetUnits={-1}
       />
     </mesh>
   );
