@@ -634,27 +634,21 @@ const Scene: React.FC = () => {
         console.log('🔨 Applying fillet with radius:', radius);
 
         try {
-          const { getFacesFromGeometry, findCommonEdge, applyFilletToEdge } = await import('../services/filletEditor');
+          const { globalFaceSelectionManager } = await import('../services/faceSelection');
+          const { applyFilletToEdge } = await import('../services/filletEditor');
           const { convertReplicadToThreeGeometry } = await import('../services/replicad');
 
-          const faces = getFacesFromGeometry(shape.geometry);
-          const face1 = faces[selectedFace1Index];
-          const face2 = faces[selectedFace2Index];
+          globalFaceSelectionManager.loadFromGeometry(shape.geometry);
 
-          if (!face1 || !face2) {
-            console.error('❌ Selected faces not found');
-            return;
-          }
-
-          const commonEdge = findCommonEdge(face1, face2);
+          const commonEdge = globalFaceSelectionManager.findCommonEdge(selectedFace1Index, selectedFace2Index);
           if (!commonEdge) {
             console.error('❌ No common edge found between selected faces');
             return;
           }
 
-          console.log('✅ Found common edge:', commonEdge.edge);
+          console.log('✅ Found common edge:', commonEdge);
 
-          const filletedShape = await applyFilletToEdge(shape.replicadShape, commonEdge.edge, radius);
+          const filletedShape = await applyFilletToEdge(shape.replicadShape, commonEdge, radius);
           const newGeometry = convertReplicadToThreeGeometry(filletedShape);
 
           const { updateShape } = useAppStore.getState();
