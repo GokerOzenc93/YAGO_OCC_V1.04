@@ -260,3 +260,45 @@ export const performBooleanIntersection = async (
     throw error;
   }
 };
+
+export const applyFillet = async (
+  shape: any,
+  edgeIndex: number,
+  radius: number
+): Promise<any> => {
+  await initReplicad();
+
+  console.log('🔄 Applying fillet to edge...', { edgeIndex, radius });
+
+  try {
+    const edges = shape.edges;
+    if (!edges || edges.length === 0) {
+      throw new Error('Shape has no edges');
+    }
+
+    if (edgeIndex < 0 || edgeIndex >= edges.length) {
+      throw new Error(`Invalid edge index: ${edgeIndex}`);
+    }
+
+    console.log(`Total edges available: ${edges.length}`);
+
+    const edgeToFillet = edges[edgeIndex];
+
+    console.log(`Applying fillet with radius ${radius} to edge ${edgeIndex}`);
+
+    const result = shape.fillet(radius, (edge: any) => {
+      const isSameEdge = edge.hashCode === edgeToFillet.hashCode;
+      if (isSameEdge) {
+        console.log(`✓ Edge ${edgeIndex} matched for fillet`);
+      }
+      return isSameEdge;
+    });
+
+    console.log('✅ Fillet applied successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Fillet operation failed:', error);
+    console.error('Error details:', error);
+    throw error;
+  }
+};

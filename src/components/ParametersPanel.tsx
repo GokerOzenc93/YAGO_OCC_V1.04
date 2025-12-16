@@ -129,7 +129,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
     deleteSubtraction,
-    setShowParametersPanel
+    setShowParametersPanel,
+    filletMode,
+    setFilletMode
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -180,6 +182,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const handleClose = () => {
     setSubtractionViewMode(false);
     setVertexEditMode(false);
+    setFilletMode(false);
     setSelectedSubtractionIndex(null);
     setShowParametersPanel(false);
     onClose();
@@ -529,7 +532,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setVertexEditMode(!vertexEditMode)}
+            onClick={() => {
+              setVertexEditMode(!vertexEditMode);
+              if (!vertexEditMode) {
+                setFilletMode(false);
+              }
+            }}
             className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
               vertexEditMode
                 ? 'bg-orange-600 text-white'
@@ -538,6 +546,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             title="Edit Vertices"
           >
             VERTEX
+          </button>
+          <button
+            onClick={() => {
+              setFilletMode(!filletMode);
+              if (!filletMode) {
+                setVertexEditMode(false);
+              }
+            }}
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+              filletMode
+                ? 'bg-purple-600 text-white'
+                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+            }`}
+            title="Fillet Edges"
+          >
+            FILLET
           </button>
           {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.filter(s => s !== null).length > 0 && (
             <button
