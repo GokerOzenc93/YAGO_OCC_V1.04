@@ -190,15 +190,6 @@ interface AppState {
   // Parametre Paneli
   showParametersPanel: boolean;
   setShowParametersPanel: (show: boolean) => void;
-
-  // Fillet İşlemleri
-  filletMode: boolean;
-  setFilletMode: (enabled: boolean) => void;
-  selectedEdgeIndex: number | null;
-  setSelectedEdgeIndex: (index: number | null) => void;
-  filletRadius: number;
-  setFilletRadius: (radius: number) => void;
-  applyFillet: (shapeId: string, edgeIndex: number, radius: number) => Promise<void>;
 }
 
 /**
@@ -211,65 +202,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   showParametersPanel: false,
   setShowParametersPanel: (show) => set({ showParametersPanel: show }),
-
-  filletMode: false,
-  setFilletMode: (enabled) => set({ filletMode: enabled }),
-  selectedEdgeIndex: null,
-  setSelectedEdgeIndex: (index) => set({ selectedEdgeIndex: index }),
-  filletRadius: 10,
-  setFilletRadius: (radius) => set({ filletRadius: radius }),
-
-  applyFillet: async (shapeId: string, edgeIndex: number, radius: number) => {
-    const state = get();
-    const shape = state.shapes.find(s => s.id === shapeId);
-
-    if (!shape || !shape.replicadShape) {
-      console.error('❌ Shape or replicad shape not found');
-      return;
-    }
-
-    try {
-      console.log('🔨 Applying fillet to shape:', { shapeId, edgeIndex, radius });
-
-      const { applyFilletToShape, convertReplicadToThreeGeometry } = await import('./services/fillet');
-      const { getReplicadVertices } = await import('./services/vertexEditor');
-
-      const filletedShape = await applyFilletToShape(shape.replicadShape, [edgeIndex], radius);
-
-      const newGeometry = convertReplicadToThreeGeometry(filletedShape);
-      const newBaseVertices = await getReplicadVertices(filletedShape);
-
-      const filletOperations = shape.parameters?.filletOperations || [];
-      filletOperations.push({
-        edgeIndex,
-        radius,
-        description: `Fillet R${radius} on Edge ${edgeIndex}`
-      });
-
-      set((state) => ({
-        shapes: state.shapes.map((s) => {
-          if (s.id === shapeId) {
-            return {
-              ...s,
-              geometry: newGeometry,
-              replicadShape: filletedShape,
-              parameters: {
-                ...s.parameters,
-                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
-                filletOperations
-              }
-            };
-          }
-          return s;
-        })
-      }));
-
-      console.log('✅ Fillet applied successfully');
-    } catch (error) {
-      console.error('❌ Failed to apply fillet:', error);
-      alert('Failed to apply fillet. Please try again.');
-    }
-  },
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
