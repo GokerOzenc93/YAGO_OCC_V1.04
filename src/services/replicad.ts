@@ -285,12 +285,32 @@ export const applyFillet = async (
     const edgeToFillet = edges[edgeIndex];
     console.log('Selected edge for fillet:', edgeIndex);
 
-    let currentIndex = 0;
-    const result = shape.fillet(radius, (edge: any) => {
-      const isMatch = currentIndex === edgeIndex;
-      console.log(`Edge ${currentIndex}: ${isMatch ? '✓ MATCH' : 'skip'}`);
-      currentIndex++;
-      return isMatch;
+    const edgeCenter = edgeToFillet.center;
+    console.log('Edge center:', edgeCenter);
+
+    const result = shape.fillet(radius, {
+      filter: {
+        shouldKeep: (edge: any) => {
+          try {
+            const center = edge.center;
+            if (!center || !edgeCenter) return false;
+
+            const distance = Math.sqrt(
+              Math.pow(center.x - edgeCenter.x, 2) +
+              Math.pow(center.y - edgeCenter.y, 2) +
+              Math.pow(center.z - edgeCenter.z, 2)
+            );
+
+            const isMatch = distance < 0.01;
+            if (isMatch) {
+              console.log('✓ Edge matched by center position');
+            }
+            return isMatch;
+          } catch (err) {
+            return false;
+          }
+        }
+      }
     });
 
     console.log('✅ Fillet applied successfully');
