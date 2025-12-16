@@ -646,31 +646,34 @@ const Scene: React.FC = () => {
           let replicadShape = shape.replicadShape;
 
           let edgeCount = 0;
+          let foundEdgeCount = 0;
           const filletedShape = replicadShape.fillet((edge: any) => {
             edgeCount++;
             try {
-              if (edgeCount === 1) {
-                console.log('🔍 Edge properties:', Object.keys(edge));
-                console.log('🔍 Edge center:', edge.center);
-                console.log('🔍 Edge startPoint:', edge.startPoint);
-                console.log('🔍 Edge endPoint:', edge.endPoint);
-              }
+              const start = edge.startPoint;
+              const end = edge.endPoint;
 
-              const edgeCenter = edge.center;
-              if (!edgeCenter) return null;
+              if (!start || !end) return null;
 
-              const centerVec = new THREE.Vector3(edgeCenter[0], edgeCenter[1], edgeCenter[2]);
+              const centerVec = new THREE.Vector3(
+                (start.x + end.x) / 2,
+                (start.y + end.y) / 2,
+                (start.z + end.z) / 2
+              );
 
               const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
               const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
 
               const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
-              const tolerance = maxDimension * 0.1;
+              const tolerance = maxDimension * 0.15;
 
-              console.log(`Edge ${edgeCount}: distToFace1=${distToFace1.toFixed(3)}, distToFace2=${distToFace2.toFixed(3)}, tolerance=${tolerance.toFixed(3)}`);
+              if (edgeCount <= 3 || (distToFace1 < tolerance && distToFace2 < tolerance)) {
+                console.log(`Edge ${edgeCount}: center=(${centerVec.x.toFixed(2)}, ${centerVec.y.toFixed(2)}, ${centerVec.z.toFixed(2)}), distToFace1=${distToFace1.toFixed(3)}, distToFace2=${distToFace2.toFixed(3)}, tolerance=${tolerance.toFixed(3)}`);
+              }
 
               if (distToFace1 < tolerance && distToFace2 < tolerance) {
-                console.log('✅ Found shared edge - applying fillet radius:', radius);
+                foundEdgeCount++;
+                console.log('✅ Found shared edge #' + foundEdgeCount + ' - applying fillet radius:', radius);
                 return radius;
               }
 
@@ -682,6 +685,7 @@ const Scene: React.FC = () => {
           });
 
           console.log('🔢 Total edges checked:', edgeCount);
+          console.log('🔢 Edges selected for fillet:', foundEdgeCount);
 
           const newGeometry = convertReplicadToThreeGeometry(filletedShape);
           const newBaseVertices = await getReplicadVertices(filletedShape);
