@@ -53,7 +53,12 @@ export const FilletEditor: React.FC<FilletEditorProps> = ({
       const sphereSize = isSelected ? 8 : isHovered ? 6 : 4;
 
       return (
-        <group key={`edge-${index}`} position={shape.position}>
+        <group
+          key={`edge-${index}`}
+          position={shape.position}
+          rotation={shape.rotation}
+          scale={shape.scale}
+        >
           <line>
             <bufferGeometry>
               <bufferAttribute
@@ -79,14 +84,20 @@ export const FilletEditor: React.FC<FilletEditorProps> = ({
               e.stopPropagation();
               setHoveredEdgeIndex(null);
             }}
+            renderOrder={999}
           >
             <sphereGeometry args={[sphereSize, 16, 16]} />
-            <meshBasicMaterial color={color} transparent opacity={0.8} />
+            <meshBasicMaterial
+              color={color}
+              transparent
+              opacity={0.8}
+              depthTest={false}
+            />
           </mesh>
         </group>
       );
     });
-  }, [edges, selectedEdgeIndex, hoveredEdgeIndex, isActive, shape.position]);
+  }, [edges, selectedEdgeIndex, hoveredEdgeIndex, isActive, shape.position, shape.rotation, shape.scale]);
 
   if (!isActive || edges.length === 0) return null;
 
