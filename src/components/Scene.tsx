@@ -638,36 +638,42 @@ const Scene: React.FC = () => {
           console.log('📐 Face 1 - Normal:', selectedFilletFaceData[0].normal, 'Center:', selectedFilletFaceData[0].center);
           console.log('📐 Face 2 - Normal:', selectedFilletFaceData[1].normal, 'Center:', selectedFilletFaceData[1].center);
 
-          const face1Normal = new THREE.Vector3(...selectedFilletFaceData[0].normal);
-          const face2Normal = new THREE.Vector3(...selectedFilletFaceData[1].normal);
           const face1Center = new THREE.Vector3(...selectedFilletFaceData[0].center);
           const face2Center = new THREE.Vector3(...selectedFilletFaceData[1].center);
-
-          const edgeDirection = new THREE.Vector3().crossVectors(face1Normal, face2Normal).normalize();
-          const midPoint = new THREE.Vector3().addVectors(face1Center, face2Center).multiplyScalar(0.5);
-
-          console.log('🎯 Estimated edge direction:', [edgeDirection.x.toFixed(2), edgeDirection.y.toFixed(2), edgeDirection.z.toFixed(2)]);
-          console.log('🎯 Estimated edge position:', [midPoint.x.toFixed(2), midPoint.y.toFixed(2), midPoint.z.toFixed(2)]);
+          const face1Normal = new THREE.Vector3(...selectedFilletFaceData[0].normal);
+          const face2Normal = new THREE.Vector3(...selectedFilletFaceData[1].normal);
 
           let replicadShape = shape.replicadShape;
 
           const filletedShape = replicadShape.fillet((edge: any) => {
             try {
-              const edgeCenter = edge.center;
-              if (!edgeCenter) return null;
+              const edgeStart = edge.startPoint;
+              const edgeEnd = edge.endPoint;
 
-              const distanceToMidPoint = Math.sqrt(
-                Math.pow(edgeCenter[0] - midPoint.x, 2) +
-                Math.pow(edgeCenter[1] - midPoint.y, 2) +
-                Math.pow(edgeCenter[2] - midPoint.z, 2)
-              );
+              if (!edgeStart || !edgeEnd) return null;
 
-              const threshold = Math.max(shape.parameters.width, shape.parameters.height, shape.parameters.depth) * 0.3;
-              if (distanceToMidPoint < threshold) {
+              const start = new THREE.Vector3(edgeStart[0], edgeStart[1], edgeStart[2]);
+              const end = new THREE.Vector3(edgeEnd[0], edgeEnd[1], edgeEnd[2]);
+
+              const distanceStartToFace1 = Math.abs(start.clone().sub(face1Center).dot(face1Normal));
+              const distanceEndToFace1 = Math.abs(end.clone().sub(face1Center).dot(face1Normal));
+              const distanceStartToFace2 = Math.abs(start.clone().sub(face2Center).dot(face2Normal));
+              const distanceEndToFace2 = Math.abs(end.clone().sub(face2Center).dot(face2Normal));
+
+              const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
+              const tolerance = maxDimension * 0.05;
+
+              const isOnFace1 = (distanceStartToFace1 < tolerance && distanceEndToFace1 < tolerance);
+              const isOnFace2 = (distanceStartToFace2 < tolerance && distanceEndToFace2 < tolerance);
+
+              if (isOnFace1 && isOnFace2) {
+                console.log('✅ Found shared edge - applying fillet');
                 return radius;
               }
+
               return null;
             } catch (e) {
+              console.error('❌ Error checking edge:', e);
               return null;
             }
           });
