@@ -271,27 +271,33 @@ export const applyFillet = async (
   console.log('🔄 Applying fillet to edge...', { edgeIndex, radius });
 
   try {
-    const edges = shape.edges;
+    const edges = shape.edges();
+
     if (!edges || edges.length === 0) {
-      throw new Error('Shape has no edges');
+      throw new Error('No edges found on solid');
     }
 
     console.log(`Total edges available: ${edges.length}`);
 
     if (edgeIndex < 0 || edgeIndex >= edges.length) {
-      throw new Error(`Invalid edge index: ${edgeIndex}`);
+      throw new Error(`Edge index ${edgeIndex} is invalid (max: ${edges.length - 1})`);
     }
 
-    const targetEdge = edges[edgeIndex];
-    console.log('✅ Selected edge for fillet:', edgeIndex);
+    const edge = edges[edgeIndex];
 
-    const result = shape.fillet((edge: any) => {
-      if (edge === targetEdge) {
-        console.log('✓ Edge matched by reference, applying radius:', radius);
-        return radius;
-      }
-      return 0;
+    if (!edge) {
+      throw new Error(`Edge at index ${edgeIndex} is undefined`);
+    }
+
+    console.log('🔍 Debug info:', {
+      totalEdges: edges.length,
+      edgeIndex,
+      edgeObject: edge,
+      edgeType: typeof edge,
+      hasEdge: !!edge
     });
+
+    const result = shape.fillet(radius, edge);
 
     console.log('✅ Fillet applied successfully');
     return result;

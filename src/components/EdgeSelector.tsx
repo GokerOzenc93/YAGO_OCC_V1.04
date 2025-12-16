@@ -30,7 +30,7 @@ export const EdgeSelector: React.FC<EdgeSelectorProps> = ({ shape, isActive }) =
 
     const loadEdges = async () => {
       try {
-        const replicadEdges = shape.replicadShape.edges;
+        const replicadEdges = shape.replicadShape.edges();
         if (!replicadEdges || replicadEdges.length === 0) {
           console.warn('Shape has no edges');
           return;
