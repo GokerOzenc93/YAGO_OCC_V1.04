@@ -24,7 +24,8 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     setSelectedFaceIndex,
     filletMode,
     selectedFilletFaces,
-    addFilletFace
+    addFilletFace,
+    addFilletFaceData
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
@@ -82,11 +83,20 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       if (event.button === 2) {
         if (hoveredGroupIndex !== null) {
           if (filletMode && selectedFilletFaces.length < 2) {
-            addFilletFace(hoveredGroupIndex);
-            console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, hoveredGroupIndex);
+            const group = faceGroups[hoveredGroupIndex];
+            if (group) {
+              addFilletFace(hoveredGroupIndex);
+              addFilletFaceData({
+                normal: [group.normal.x, group.normal.y, group.normal.z],
+                center: [group.center.x, group.center.y, group.center.z]
+              });
+              console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, hoveredGroupIndex);
+              console.log('   Normal:', [group.normal.x.toFixed(2), group.normal.y.toFixed(2), group.normal.z.toFixed(2)]);
+              console.log('   Center:', [group.center.x.toFixed(2), group.center.y.toFixed(2), group.center.z.toFixed(2)]);
 
-            if (selectedFilletFaces.length === 1) {
-              console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
+              if (selectedFilletFaces.length === 1) {
+                console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
+              }
             }
           } else {
             setSelectedFaceIndex(hoveredGroupIndex);

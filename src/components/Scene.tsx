@@ -491,7 +491,9 @@ const Scene: React.FC = () => {
     setFaceEditMode,
     filletMode,
     selectedFilletFaces,
-    clearFilletFaces
+    clearFilletFaces,
+    selectedFilletFaceData,
+    updateShape
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -620,7 +622,7 @@ const Scene: React.FC = () => {
 
   useEffect(() => {
     (window as any).handleFilletRadius = async (radius: number) => {
-      if (selectedShapeId && filletMode && selectedFilletFaces.length === 2) {
+      if (selectedShapeId && filletMode && selectedFilletFaces.length === 2 && selectedFilletFaceData.length === 2) {
         console.log(`🔵 Applying fillet with radius ${radius} to faces:`, selectedFilletFaces);
 
         const shape = shapes.find(s => s.id === selectedShapeId);
@@ -630,14 +632,61 @@ const Scene: React.FC = () => {
         }
 
         try {
-          console.log('🔧 Fillet operation would be applied here');
-          console.log('Selected face groups:', selectedFilletFaces);
-          console.log('Radius:', radius);
+          const { convertReplicadToThreeGeometry } = await import('../services/replicad');
+          const { getReplicadVertices } = await import('../services/vertexEditor');
 
+          console.log('📐 Face 1 - Normal:', selectedFilletFaceData[0].normal, 'Center:', selectedFilletFaceData[0].center);
+          console.log('📐 Face 2 - Normal:', selectedFilletFaceData[1].normal, 'Center:', selectedFilletFaceData[1].center);
+
+          const face1Normal = new THREE.Vector3(...selectedFilletFaceData[0].normal);
+          const face2Normal = new THREE.Vector3(...selectedFilletFaceData[1].normal);
+          const face1Center = new THREE.Vector3(...selectedFilletFaceData[0].center);
+          const face2Center = new THREE.Vector3(...selectedFilletFaceData[1].center);
+
+          const edgeDirection = new THREE.Vector3().crossVectors(face1Normal, face2Normal).normalize();
+          const midPoint = new THREE.Vector3().addVectors(face1Center, face2Center).multiplyScalar(0.5);
+
+          console.log('🎯 Estimated edge direction:', [edgeDirection.x.toFixed(2), edgeDirection.y.toFixed(2), edgeDirection.z.toFixed(2)]);
+          console.log('🎯 Estimated edge position:', [midPoint.x.toFixed(2), midPoint.y.toFixed(2), midPoint.z.toFixed(2)]);
+
+          let replicadShape = shape.replicadShape;
+
+          const filletedShape = replicadShape.fillet(radius, (edge: any) => {
+            try {
+              const edgeCenter = edge.center ? edge.center : null;
+              if (!edgeCenter) return false;
+
+              const distanceToMidPoint = Math.sqrt(
+                Math.pow(edgeCenter[0] - midPoint.x, 2) +
+                Math.pow(edgeCenter[1] - midPoint.y, 2) +
+                Math.pow(edgeCenter[2] - midPoint.z, 2)
+              );
+
+              const threshold = Math.max(shape.parameters.width, shape.parameters.height, shape.parameters.depth) * 0.3;
+              return distanceToMidPoint < threshold;
+            } catch (e) {
+              return false;
+            }
+          });
+
+          const newGeometry = convertReplicadToThreeGeometry(filletedShape);
+          const newBaseVertices = await getReplicadVertices(filletedShape);
+
+          updateShape(selectedShapeId, {
+            geometry: newGeometry,
+            replicadShape: filletedShape,
+            parameters: {
+              ...shape.parameters,
+              scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+            }
+          });
+
+          console.log(`✅ Fillet with radius ${radius} applied successfully!`);
           clearFilletFaces();
           console.log('✅ Fillet faces cleared. Select 2 new faces for another fillet operation.');
         } catch (error) {
           console.error('❌ Failed to apply fillet:', error);
+          alert(`Failed to apply fillet: ${(error as Error).message}`);
         }
       }
 
@@ -650,7 +699,7 @@ const Scene: React.FC = () => {
       delete (window as any).handleFilletRadius;
       delete (window as any).pendingFilletOperation;
     };
-  }, [selectedShapeId, filletMode, selectedFilletFaces, shapes, clearFilletFaces]);
+  }, [selectedShapeId, filletMode, selectedFilletFaces, selectedFilletFaceData, shapes, clearFilletFaces, updateShape]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     if (vertexEditMode || faceEditMode) {

@@ -206,6 +206,9 @@ interface AppState {
   setSelectedFilletFaces: (faces: number[]) => void;
   addFilletFace: (faceIndex: number) => void;
   clearFilletFaces: () => void;
+  selectedFilletFaceData: Array<{ normal: [number, number, number]; center: [number, number, number] }>;
+  addFilletFaceData: (data: { normal: [number, number, number]; center: [number, number, number] }) => void;
+  clearFilletFaceData: () => void;
 }
 
 /**
@@ -229,7 +232,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Fillet Modu
   filletMode: false,
-  setFilletMode: (enabled) => set({ filletMode: enabled, selectedFilletFaces: enabled ? [] : [] }),
+  setFilletMode: (enabled) => set({
+    filletMode: enabled,
+    selectedFilletFaces: enabled ? [] : [],
+    selectedFilletFaceData: enabled ? [] : []
+  }),
   selectedFilletFaces: [],
   setSelectedFilletFaces: (faces) => set({ selectedFilletFaces: faces }),
   addFilletFace: (faceIndex) => set((state) => {
@@ -238,7 +245,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     console.log(`✅ Added face ${faceIndex} to fillet selection. Total: ${newFaces.length}/2`);
     return { selectedFilletFaces: newFaces };
   }),
-  clearFilletFaces: () => set({ selectedFilletFaces: [] }),
+  clearFilletFaces: () => set({ selectedFilletFaces: [], selectedFilletFaceData: [] }),
+  selectedFilletFaceData: [],
+  addFilletFaceData: (data) => set((state) => ({
+    selectedFilletFaceData: [...state.selectedFilletFaceData, data]
+  })),
+  clearFilletFaceData: () => set({ selectedFilletFaceData: [] }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

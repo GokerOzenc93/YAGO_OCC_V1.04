@@ -135,7 +135,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     faceEditMode,
     setFaceEditMode,
     selectedFilletFaces,
-    clearFilletFaces
+    clearFilletFaces,
+    clearFilletFaceData
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -189,6 +190,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setFilletMode(false);
     setFaceEditMode(false);
     clearFilletFaces();
+    clearFilletFaceData();
     setSelectedSubtractionIndex(null);
     setShowParametersPanel(false);
     onClose();
@@ -579,6 +581,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               setFilletMode(newFilletMode);
               setFaceEditMode(newFilletMode);
               clearFilletFaces();
+              clearFilletFaceData();
               if (newFilletMode) {
                 setVertexEditMode(false);
                 setSubtractionViewMode(false);
