@@ -6,6 +6,7 @@ import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
+import { FilletEditor } from './FilletEditor';
 import * as THREE from 'three';
 
 const SubtractionMesh: React.FC<{
@@ -485,7 +486,13 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    subtractionViewMode
+    subtractionViewMode,
+    filletMode,
+    setFilletMode,
+    selectedEdgeIndex,
+    setSelectedEdgeIndex,
+    filletRadius,
+    applyFillet
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -498,6 +505,8 @@ const Scene: React.FC = () => {
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
+        setFilletMode(false);
+        setSelectedEdgeIndex(null);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -789,6 +798,17 @@ const Scene: React.FC = () => {
                 onDirectionChange={(dir) => setVertexDirection(dir)}
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
+                }}
+              />
+            )}
+            {isSelected && filletMode && (
+              <FilletEditor
+                shape={shape}
+                isActive={true}
+                selectedEdgeIndex={selectedEdgeIndex}
+                onEdgeSelect={(index) => {
+                  setSelectedEdgeIndex(index);
+                  console.log('Edge selected for fillet:', index);
                 }}
               />
             )}

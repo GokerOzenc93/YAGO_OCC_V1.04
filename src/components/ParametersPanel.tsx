@@ -129,7 +129,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
     deleteSubtraction,
-    setShowParametersPanel
+    setShowParametersPanel,
+    filletMode,
+    setFilletMode,
+    selectedEdgeIndex,
+    setSelectedEdgeIndex,
+    filletRadius,
+    setFilletRadius,
+    applyFillet
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -181,6 +188,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setSubtractionViewMode(false);
     setVertexEditMode(false);
     setSelectedSubtractionIndex(null);
+    setFilletMode(false);
+    setSelectedEdgeIndex(null);
     setShowParametersPanel(false);
     onClose();
   };
@@ -529,7 +538,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setVertexEditMode(!vertexEditMode)}
+            onClick={() => {
+              setVertexEditMode(!vertexEditMode);
+              if (!vertexEditMode) {
+                setFilletMode(false);
+              }
+            }}
             className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
               vertexEditMode
                 ? 'bg-orange-600 text-white'
@@ -538,6 +552,22 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             title="Edit Vertices"
           >
             VERTEX
+          </button>
+          <button
+            onClick={() => {
+              setFilletMode(!filletMode);
+              if (!filletMode) {
+                setVertexEditMode(false);
+              }
+            }}
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+              filletMode
+                ? 'bg-blue-600 text-white'
+                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+            }`}
+            title="Fillet Edges"
+          >
+            FILLET
           </button>
           {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.filter(s => s !== null).length > 0 && (
             <button
@@ -696,6 +726,61 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                   {renderSubtractionParamRow('RX', subParams.rotX, 'rotX', 'Subtraction Rotation X', handleSubParamChange)}
                   {renderSubtractionParamRow('RY', subParams.rotY, 'rotY', 'Subtraction Rotation Y', handleSubParamChange)}
                   {renderSubtractionParamRow('RZ', subParams.rotZ, 'rotZ', 'Subtraction Rotation Z', handleSubParamChange)}
+                </div>
+              </div>
+            )}
+
+            {filletMode && (
+              <div className="space-y-2 pt-2 border-t-2 border-blue-400">
+                <div className="flex items-center justify-between text-xs font-semibold text-blue-700">
+                  <span>Fillet Mode</span>
+                  <button
+                    onClick={() => {
+                      setFilletMode(false);
+                      setSelectedEdgeIndex(null);
+                    }}
+                    className="p-0.5 hover:bg-blue-200 rounded transition-colors"
+                    title="Close fillet mode"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs text-blue-600 bg-blue-50 p-2 rounded">
+                    {selectedEdgeIndex === null
+                      ? 'Click on an edge to select it for filleting'
+                      : `Edge #${selectedEdgeIndex} selected`}
+                  </div>
+                  <ParameterRow
+                    label="R"
+                    value={filletRadius}
+                    onChange={setFilletRadius}
+                    description="Fillet Radius"
+                  />
+                  {selectedEdgeIndex !== null && (
+                    <button
+                      onClick={async () => {
+                        if (selectedShapeId && selectedEdgeIndex !== null) {
+                          await applyFillet(selectedShapeId, selectedEdgeIndex, filletRadius);
+                          setSelectedEdgeIndex(null);
+                        }
+                      }}
+                      className="w-full px-3 py-1.5 bg-blue-500 text-white text-xs font-medium rounded hover:bg-blue-600 transition-colors flex items-center justify-center gap-1"
+                    >
+                      <Check size={12} />
+                      Apply Fillet
+                    </button>
+                  )}
+                  {selectedShape?.parameters?.filletOperations && selectedShape.parameters.filletOperations.length > 0 && (
+                    <div className="space-y-1 pt-1 border-t border-blue-200">
+                      <div className="text-xs font-semibold text-blue-600">Applied Fillets</div>
+                      {selectedShape.parameters.filletOperations.map((fillet: any, idx: number) => (
+                        <div key={idx} className="text-xs text-blue-700 bg-blue-50 p-1 rounded">
+                          Edge #{fillet.edgeIndex} - R{fillet.radius}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
