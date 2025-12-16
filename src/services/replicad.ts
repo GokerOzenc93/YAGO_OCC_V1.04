@@ -288,28 +288,25 @@ export const applyFillet = async (
     const edgeCenter = edgeToFillet.center;
     console.log('Edge center:', edgeCenter);
 
-    const result = shape.fillet(radius, {
-      filter: {
-        shouldKeep: (edge: any) => {
-          try {
-            const center = edge.center;
-            if (!center || !edgeCenter) return false;
+    const result = shape.fillet((edge: any) => {
+      try {
+        const center = edge.center;
+        if (!center || !edgeCenter) return 0;
 
-            const distance = Math.sqrt(
-              Math.pow(center.x - edgeCenter.x, 2) +
-              Math.pow(center.y - edgeCenter.y, 2) +
-              Math.pow(center.z - edgeCenter.z, 2)
-            );
+        const distance = Math.sqrt(
+          Math.pow(center.x - edgeCenter.x, 2) +
+          Math.pow(center.y - edgeCenter.y, 2) +
+          Math.pow(center.z - edgeCenter.z, 2)
+        );
 
-            const isMatch = distance < 0.01;
-            if (isMatch) {
-              console.log('✓ Edge matched by center position');
-            }
-            return isMatch;
-          } catch (err) {
-            return false;
-          }
+        const isMatch = distance < 0.01;
+        if (isMatch) {
+          console.log('✓ Edge matched, applying radius:', radius);
+          return radius;
         }
+        return 0;
+      } catch (err) {
+        return 0;
       }
     });
 
