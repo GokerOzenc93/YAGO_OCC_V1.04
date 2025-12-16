@@ -453,7 +453,7 @@ const ShapeWithTransform: React.FC<{
 
       {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
         <TransformControls
-          key={geometryKey}
+          key={`${shape.id}-${shape.geometry.uuid}`}
           ref={transformRef}
           object={groupRef.current}
           mode={getTransformMode()}
@@ -547,13 +547,14 @@ const Scene: React.FC = () => {
             updateShape(shape.id, {
               geometry: newGeometry,
               replicadShape: filletedShape,
+              vertexModifications: [],
               parameters: {
                 ...shape.parameters,
                 scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
               }
             });
 
-            console.log('✅ Fillet applied successfully');
+            console.log('✅ Fillet applied successfully, vertex modifications cleared');
           } catch (error) {
             console.error('❌ Failed to apply fillet:', error);
           }
