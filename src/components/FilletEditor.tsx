@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
 import { getEdgesFromReplicadShape, findClosestEdge, EdgeInfo } from '../services/fillet';
 import { Shape } from '../store';
 
@@ -17,7 +16,7 @@ export const FilletEditor: React.FC<FilletEditorProps> = ({
   selectedEdgeIndex,
   onEdgeSelect
 }) => {
-  const { raycaster, camera, gl } = useThree();
+  const meshRef = useRef<THREE.Mesh>(null);
   const [edges, setEdges] = useState<EdgeInfo[]>([]);
   const [hoveredEdgeIndex, setHoveredEdgeIndex] = useState<number | null>(null);
 
@@ -34,72 +33,110 @@ export const FilletEditor: React.FC<FilletEditorProps> = ({
     loadEdges();
   }, [isActive, shape.id, shape.replicadShape]);
 
-  const handleSphereClick = (edgeIndex: number) => (event: any) => {
+  const handleMeshClick = (event: any) => {
     event.stopPropagation();
-    console.log('✅ Edge sphere clicked:', edgeIndex);
-    onEdgeSelect(edgeIndex);
+
+    if (edges.length === 0) return;
+
+    const intersectPoint = event.point.clone();
+
+    const localPoint = intersectPoint.clone();
+    localPoint.sub(new THREE.Vector3(...shape.position));
+
+    const inverseRotation = new THREE.Euler(-shape.rotation[0], -shape.rotation[1], -shape.rotation[2]);
+    localPoint.applyEuler(inverseRotation);
+
+    localPoint.x /= shape.scale[0];
+    localPoint.y /= shape.scale[1];
+    localPoint.z /= shape.scale[2];
+
+    const closestEdge = findClosestEdge(localPoint, edges, 80);
+
+    if (closestEdge) {
+      console.log('✅ Edge selected from geometry click:', closestEdge.index);
+      onEdgeSelect(closestEdge.index);
+    }
   };
 
-  const edgeLines = useMemo(() => {
-    if (!isActive || edges.length === 0) return null;
+  const handleMeshMove = (event: any) => {
+    event.stopPropagation();
 
-    return edges.map((edge, index) => {
-      const isSelected = selectedEdgeIndex === index;
-      const isHovered = hoveredEdgeIndex === index;
+    if (edges.length === 0) return;
 
-      const points = [edge.start, edge.end];
+    const intersectPoint = event.point.clone();
 
-      const color = isSelected ? '#00ff00' : isHovered ? '#ffff00' : '#ff0000';
-      const sphereSize = isSelected ? 8 : isHovered ? 6 : 4;
+    const localPoint = intersectPoint.clone();
+    localPoint.sub(new THREE.Vector3(...shape.position));
 
-      return (
-        <group
-          key={`edge-${index}`}
-          position={shape.position}
-          rotation={shape.rotation}
-          scale={shape.scale}
-        >
-          <line>
-            <bufferGeometry>
-              <bufferAttribute
-                attach="attributes-position"
-                count={2}
-                array={new Float32Array([
-                  edge.start.x, edge.start.y, edge.start.z,
-                  edge.end.x, edge.end.y, edge.end.z
-                ])}
-                itemSize={3}
-              />
-            </bufferGeometry>
-            <lineBasicMaterial color={color} linewidth={3} />
-          </line>
-          <mesh
-            position={[edge.midpoint.x, edge.midpoint.y, edge.midpoint.z]}
-            onClick={handleSphereClick(index)}
-            onPointerOver={(e) => {
-              e.stopPropagation();
-              setHoveredEdgeIndex(index);
-            }}
-            onPointerOut={(e) => {
-              e.stopPropagation();
-              setHoveredEdgeIndex(null);
-            }}
-            renderOrder={999}
-          >
-            <sphereGeometry args={[sphereSize, 16, 16]} />
-            <meshBasicMaterial
-              color={color}
-              transparent
-              opacity={0.8}
-              depthTest={false}
-            />
-          </mesh>
-        </group>
-      );
-    });
-  }, [edges, selectedEdgeIndex, hoveredEdgeIndex, isActive, shape.position, shape.rotation, shape.scale]);
+    const inverseRotation = new THREE.Euler(-shape.rotation[0], -shape.rotation[1], -shape.rotation[2]);
+    localPoint.applyEuler(inverseRotation);
+
+    localPoint.x /= shape.scale[0];
+    localPoint.y /= shape.scale[1];
+    localPoint.z /= shape.scale[2];
+
+    const closestEdge = findClosestEdge(localPoint, edges, 80);
+
+    if (closestEdge) {
+      setHoveredEdgeIndex(closestEdge.index);
+    } else {
+      setHoveredEdgeIndex(null);
+    }
+  };
 
   if (!isActive || edges.length === 0) return null;
 
-  return <>{edgeLines}</>;
+  return (
+    <>
+      <group
+        position={shape.position}
+        rotation={shape.rotation}
+        scale={shape.scale}
+      >
+        <mesh
+          ref={meshRef}
+          geometry={shape.geometry}
+          onClick={handleMeshClick}
+          onPointerMove={handleMeshMove}
+          onPointerOut={() => setHoveredEdgeIndex(null)}
+        >
+          <meshBasicMaterial
+            color="#2563eb"
+            transparent
+            opacity={0.1}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+
+        {edges.map((edge, index) => {
+          const isSelected = selectedEdgeIndex === index;
+          const isHovered = hoveredEdgeIndex === index;
+          const shouldHighlight = isSelected || isHovered;
+
+          return (
+            <line key={`edge-${index}`}>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([
+                    edge.start.x, edge.start.y, edge.start.z,
+                    edge.end.x, edge.end.y, edge.end.z
+                  ])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial
+                color={shouldHighlight ? '#ff0000' : '#888888'}
+                linewidth={shouldHighlight ? 4 : 1}
+                transparent
+                opacity={shouldHighlight ? 1.0 : 0.5}
+                depthTest={false}
+              />
+            </line>
+          );
+        })}
+      </group>
+    </>
+  );
 };

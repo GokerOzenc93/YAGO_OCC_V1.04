@@ -69,14 +69,14 @@ export const findClosestEdge = (
   console.log('🎯 Finding closest edge to click point:', clickPoint);
 
   for (const edge of edges) {
-    const distanceToStart = clickPoint.distanceTo(edge.start);
-    const distanceToEnd = clickPoint.distanceTo(edge.end);
-    const distanceToMidpoint = clickPoint.distanceTo(edge.midpoint);
+    const line = new THREE.Line3(edge.start, edge.end);
+    const closestPointOnLine = new THREE.Vector3();
+    line.closestPointToPoint(clickPoint, true, closestPointOnLine);
 
-    const minEdgeDistance = Math.min(distanceToStart, distanceToEnd, distanceToMidpoint);
+    const distanceToLine = clickPoint.distanceTo(closestPointOnLine);
 
-    if (minEdgeDistance < minDistance) {
-      minDistance = minEdgeDistance;
+    if (distanceToLine < minDistance) {
+      minDistance = distanceToLine;
       closestEdge = edge;
     }
   }
