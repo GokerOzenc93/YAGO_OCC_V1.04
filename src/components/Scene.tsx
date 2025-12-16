@@ -6,7 +6,6 @@ import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
-import { EdgeSelector } from './EdgeSelector';
 import * as THREE from 'three';
 
 const SubtractionMesh: React.FC<{
@@ -453,7 +452,7 @@ const ShapeWithTransform: React.FC<{
 
       {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
         <TransformControls
-          key={`${shape.id}-${shape.geometry.uuid}`}
+          key={geometryKey}
           ref={transformRef}
           object={groupRef.current}
           mode={getTransformMode()}
@@ -475,7 +474,6 @@ const Scene: React.FC = () => {
     selectedShapeId,
     secondarySelectedShapeId,
     selectShape,
-    updateShape,
     deleteShape,
     copyShape,
     isolateShape,
@@ -487,13 +485,7 @@ const Scene: React.FC = () => {
     vertexDirection,
     setVertexDirection,
     addVertexModification,
-    subtractionViewMode,
-    filletMode,
-    setFilletMode,
-    selectedEdgeIndex,
-    setSelectedEdgeIndex,
-    hoveredEdgeIndex,
-    setHoveredEdgeIndex
+    subtractionViewMode
   } = useAppStore();
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -506,7 +498,6 @@ const Scene: React.FC = () => {
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
-        setFilletMode(false);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -527,46 +518,9 @@ const Scene: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode, setFilletMode]);
+  }, [selectedShapeId, secondarySelectedShapeId, shapes, deleteShape, selectShape, exitIsolation, setVertexEditMode]);
 
   useEffect(() => {
-    (window as any).handleFilletRadius = async (radius: number) => {
-      if (selectedShapeId && selectedEdgeIndex !== null && filletMode) {
-        const shape = shapes.find(s => s.id === selectedShapeId);
-        if (shape && shape.replicadShape) {
-          console.log('🔄 Applying fillet:', { edgeIndex: selectedEdgeIndex, radius });
-
-          try {
-            const { applyFillet, convertReplicadToThreeGeometry } = await import('../services/replicad');
-            const { getReplicadVertices } = await import('../services/vertexEditor');
-
-            const filletedShape = await applyFillet(shape.replicadShape, selectedEdgeIndex, radius);
-            const newGeometry = convertReplicadToThreeGeometry(filletedShape);
-            const newBaseVertices = await getReplicadVertices(filletedShape);
-
-            updateShape(shape.id, {
-              geometry: newGeometry,
-              replicadShape: filletedShape,
-              vertexModifications: [],
-              parameters: {
-                ...shape.parameters,
-                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-              }
-            });
-
-            console.log('✅ Fillet applied successfully, vertex modifications cleared');
-          } catch (error) {
-            console.error('❌ Failed to apply fillet:', error);
-          }
-        }
-
-        (window as any).pendingFilletEdit = false;
-        setSelectedEdgeIndex(null);
-      }
-    };
-
-    (window as any).pendingFilletEdit = selectedEdgeIndex !== null && filletMode;
-
     (window as any).handleVertexOffset = async (newValue: number) => {
       if (selectedShapeId && selectedVertexIndex !== null && vertexDirection) {
         const shape = shapes.find(s => s.id === selectedShapeId);
@@ -653,10 +607,8 @@ const Scene: React.FC = () => {
     return () => {
       delete (window as any).handleVertexOffset;
       delete (window as any).pendingVertexEdit;
-      delete (window as any).handleFilletRadius;
-      delete (window as any).pendingFilletEdit;
     };
-  }, [selectedShapeId, selectedVertexIndex, vertexDirection, shapes, addVertexModification, setSelectedVertexIndex, selectedEdgeIndex, filletMode, setSelectedEdgeIndex, updateShape]);
+  }, [selectedShapeId, selectedVertexIndex, vertexDirection, shapes, addVertexModification, setSelectedVertexIndex]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     if (vertexEditMode) {
@@ -838,12 +790,6 @@ const Scene: React.FC = () => {
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
-              />
-            )}
-            {isSelected && filletMode && (
-              <EdgeSelector
-                shape={shape}
-                isActive={true}
               />
             )}
           </React.Fragment>

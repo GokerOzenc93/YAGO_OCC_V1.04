@@ -68,19 +68,6 @@ const Terminal: React.FC = () => {
     const trimmedCommand = command.trim();
     if (!trimmedCommand) return;
 
-    if ((window as any).pendingFilletEdit) {
-      const radiusValue = parseFloat(trimmedCommand);
-      if (!isNaN(radiusValue) && radiusValue > 0) {
-        if ((window as any).handleFilletRadius) {
-          (window as any).handleFilletRadius(radiusValue);
-          setCommandInput('');
-          return;
-        }
-      }
-      console.log('Geçersiz fillet değeri. Pozitif bir sayı girin.');
-      return;
-    }
-
     if ((window as any).pendingVertexEdit) {
       const offsetValue = parseFloat(trimmedCommand);
       if (!isNaN(offsetValue)) {
