@@ -90,10 +90,6 @@ export const FilletEditor: React.FC<FilletEditorProps> = ({
     setFaces(faceList);
   }, [isActive, shape.geometry]);
 
-  if (!isActive || faces.length === 0) {
-    return null;
-  }
-
   const handleFaceClick = (index: number, e: any) => {
     e.stopPropagation();
     onFaceSelect(index);
@@ -117,6 +113,10 @@ export const FilletEditor: React.FC<FilletEditorProps> = ({
       return geometry;
     });
   }, [faces]);
+
+  if (!isActive || faces.length === 0) {
+    return null;
+  }
 
   return (
     <group
