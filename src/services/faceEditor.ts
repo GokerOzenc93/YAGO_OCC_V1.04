@@ -157,8 +157,8 @@ function expandGroupWithNeighbors(
 
 export function groupCoplanarFaces(
   faces: FaceData[],
-  normalThreshold: number = 0.999,
-  distanceThreshold: number = 0.1
+  normalThreshold: number = 0.98,
+  distanceThreshold: number = 0.5
 ): CoplanarFaceGroup[] {
   const groups: CoplanarFaceGroup[] = [];
   const processed = new Set<number>();
@@ -176,37 +176,51 @@ export function groupCoplanarFaces(
 
     processed.add(i);
 
-    for (let j = i + 1; j < faces.length; j++) {
-      if (processed.has(j)) continue;
+    let addedNew = true;
+    while (addedNew) {
+      addedNew = false;
 
-      const otherFace = faces[j];
-      const normalDot = face.normal.dot(otherFace.normal);
+      for (let j = 0; j < faces.length; j++) {
+        if (processed.has(j)) continue;
 
-      if (normalDot > normalThreshold) {
-        const distance = Math.abs(
-          otherFace.center.clone().sub(face.center).dot(face.normal)
-        );
+        const otherFace = faces[j];
+        let isConnected = false;
 
-        if (distance < distanceThreshold) {
+        for (const groupIdx of group.faceIndices) {
+          const groupFace = faces[groupIdx];
+          const normalDot = groupFace.normal.dot(otherFace.normal);
+
+          if (normalDot > normalThreshold) {
+            const distance = Math.abs(
+              otherFace.center.clone().sub(groupFace.center).dot(groupFace.normal)
+            );
+
+            if (distance < distanceThreshold || areVerticesShared(groupFace, otherFace, 0.01)) {
+              isConnected = true;
+              break;
+            }
+          }
+        }
+
+        if (isConnected) {
           group.faceIndices.push(j);
           group.totalArea += otherFace.area;
           processed.add(j);
+          addedNew = true;
         }
       }
     }
 
-    if (group.faceIndices.length === 1) {
-      if (isCurvedSurface(faces, i, processed)) {
-        expandGroupWithNeighbors(faces, group, processed, 0.2);
-      }
-    }
-
     const avgCenter = new THREE.Vector3();
+    const avgNormal = new THREE.Vector3();
     group.faceIndices.forEach(idx => {
       avgCenter.add(faces[idx].center);
+      avgNormal.add(faces[idx].normal);
     });
     avgCenter.divideScalar(group.faceIndices.length);
+    avgNormal.divideScalar(group.faceIndices.length).normalize();
     group.center = avgCenter;
+    group.normal = avgNormal;
 
     groups.push(group);
   }
