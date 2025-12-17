@@ -201,7 +201,7 @@ const ShapeWithTransform: React.FC<{
 
         setLocalGeometry(geom);
 
-        const edges = new THREE.EdgesGeometry(geom, 1);
+        const edges = new THREE.EdgesGeometry(geom, 15);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -217,7 +217,7 @@ const ShapeWithTransform: React.FC<{
 
         setLocalGeometry(geom);
 
-        const edges = new THREE.EdgesGeometry(geom, 1);
+        const edges = new THREE.EdgesGeometry(geom, 15);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -369,7 +369,7 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 1]} />
+                <edgesGeometry args={[localGeometry, 15]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e3a8a' : '#0a0a0a'}
@@ -392,7 +392,7 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 1]} />
+                <edgesGeometry args={[localGeometry, 15]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
@@ -405,7 +405,7 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 1]} />
+                <edgesGeometry args={[localGeometry, 15]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
@@ -437,7 +437,7 @@ const ShapeWithTransform: React.FC<{
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 1]} />
+                <edgesGeometry args={[localGeometry, 15]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
