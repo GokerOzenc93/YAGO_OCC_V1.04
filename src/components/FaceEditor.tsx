@@ -69,7 +69,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     setHoveredFaceIndex(null);
   };
 
-  const handleClick = (e: any) => {
+  const handlePointerDown = (e: any) => {
     e.stopPropagation();
 
     if (e.button === 2 && hoveredGroupIndex !== null) {
@@ -125,7 +125,8 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         scale={shape.scale}
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
-        onClick={handleClick}
+        onPointerDown={handlePointerDown}
+        onContextMenu={(e) => e.stopPropagation()}
       />
 
       {selectedFilletGeometries.map((geom, idx) => (
