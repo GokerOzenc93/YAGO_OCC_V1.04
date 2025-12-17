@@ -13,6 +13,7 @@ export interface CoplanarFaceGroup {
   faceIndices: number[];
   center: THREE.Vector3;
   totalArea: number;
+  type: 'planar' | 'curved' | 'angulated';
 }
 
 export function extractFacesFromGeometry(geometry: THREE.BufferGeometry): FaceData[] {
@@ -155,13 +156,13 @@ function expandGroupWithNeighbors(
   }
 }
 
-export function groupCoplanarFaces(
+function groupPlanarFaces(
   faces: FaceData[],
+  processed: Set<number>,
   normalThreshold: number = 0.98,
   distanceThreshold: number = 0.5
 ): CoplanarFaceGroup[] {
   const groups: CoplanarFaceGroup[] = [];
-  const processed = new Set<number>();
 
   for (let i = 0; i < faces.length; i++) {
     if (processed.has(i)) continue;
@@ -171,7 +172,8 @@ export function groupCoplanarFaces(
       normal: face.normal.clone(),
       faceIndices: [i],
       center: face.center.clone(),
-      totalArea: face.area
+      totalArea: face.area,
+      type: 'planar'
     };
 
     processed.add(i);
@@ -226,6 +228,174 @@ export function groupCoplanarFaces(
   }
 
   return groups;
+}
+
+function groupCurvedFaces(
+  faces: FaceData[],
+  processed: Set<number>,
+  normalDotRange: [number, number] = [0.7, 0.98]
+): CoplanarFaceGroup[] {
+  const groups: CoplanarFaceGroup[] = [];
+
+  for (let i = 0; i < faces.length; i++) {
+    if (processed.has(i)) continue;
+
+    const face = faces[i];
+    const group: CoplanarFaceGroup = {
+      normal: face.normal.clone(),
+      faceIndices: [i],
+      center: face.center.clone(),
+      totalArea: face.area,
+      type: 'curved'
+    };
+
+    processed.add(i);
+
+    let addedNew = true;
+    while (addedNew) {
+      addedNew = false;
+
+      for (let j = 0; j < faces.length; j++) {
+        if (processed.has(j)) continue;
+
+        const otherFace = faces[j];
+        let isConnected = false;
+
+        for (const groupIdx of group.faceIndices) {
+          const groupFace = faces[groupIdx];
+
+          if (areVerticesShared(groupFace, otherFace, 0.01)) {
+            const normalDot = Math.abs(groupFace.normal.dot(otherFace.normal));
+
+            if (normalDot >= normalDotRange[0] && normalDot < normalDotRange[1]) {
+              isConnected = true;
+              break;
+            }
+          }
+        }
+
+        if (isConnected) {
+          group.faceIndices.push(j);
+          group.totalArea += otherFace.area;
+          processed.add(j);
+          addedNew = true;
+        }
+      }
+    }
+
+    if (group.faceIndices.length > 1) {
+      const avgCenter = new THREE.Vector3();
+      const avgNormal = new THREE.Vector3();
+      group.faceIndices.forEach(idx => {
+        avgCenter.add(faces[idx].center);
+        avgNormal.add(faces[idx].normal);
+      });
+      avgCenter.divideScalar(group.faceIndices.length);
+      avgNormal.divideScalar(group.faceIndices.length).normalize();
+      group.center = avgCenter;
+      group.normal = avgNormal;
+
+      groups.push(group);
+    } else {
+      processed.delete(i);
+    }
+  }
+
+  return groups;
+}
+
+function groupAngulatedFaces(
+  faces: FaceData[],
+  processed: Set<number>,
+  normalDotThreshold: number = 0.3
+): CoplanarFaceGroup[] {
+  const groups: CoplanarFaceGroup[] = [];
+
+  for (let i = 0; i < faces.length; i++) {
+    if (processed.has(i)) continue;
+
+    const face = faces[i];
+    const group: CoplanarFaceGroup = {
+      normal: face.normal.clone(),
+      faceIndices: [i],
+      center: face.center.clone(),
+      totalArea: face.area,
+      type: 'angulated'
+    };
+
+    processed.add(i);
+
+    let addedNew = true;
+    while (addedNew) {
+      addedNew = false;
+
+      for (let j = 0; j < faces.length; j++) {
+        if (processed.has(j)) continue;
+
+        const otherFace = faces[j];
+        let isConnected = false;
+
+        for (const groupIdx of group.faceIndices) {
+          const groupFace = faces[groupIdx];
+
+          if (areVerticesShared(groupFace, otherFace, 0.01)) {
+            const normalDot = Math.abs(groupFace.normal.dot(otherFace.normal));
+
+            if (normalDot >= normalDotThreshold) {
+              isConnected = true;
+              break;
+            }
+          }
+        }
+
+        if (isConnected) {
+          group.faceIndices.push(j);
+          group.totalArea += otherFace.area;
+          processed.add(j);
+          addedNew = true;
+        }
+      }
+    }
+
+    if (group.faceIndices.length > 1) {
+      const avgCenter = new THREE.Vector3();
+      const avgNormal = new THREE.Vector3();
+      group.faceIndices.forEach(idx => {
+        avgCenter.add(faces[idx].center);
+        avgNormal.add(faces[idx].normal);
+      });
+      avgCenter.divideScalar(group.faceIndices.length);
+      avgNormal.divideScalar(group.faceIndices.length).normalize();
+      group.center = avgCenter;
+      group.normal = avgNormal;
+
+      groups.push(group);
+    } else {
+      processed.delete(i);
+    }
+  }
+
+  return groups;
+}
+
+export function groupCoplanarFaces(
+  faces: FaceData[],
+  normalThreshold: number = 0.98,
+  distanceThreshold: number = 0.5
+): CoplanarFaceGroup[] {
+  const allGroups: CoplanarFaceGroup[] = [];
+  const processed = new Set<number>();
+
+  const planarGroups = groupPlanarFaces(faces, processed, normalThreshold, distanceThreshold);
+  allGroups.push(...planarGroups);
+
+  const curvedGroups = groupCurvedFaces(faces, processed, [0.7, 0.98]);
+  allGroups.push(...curvedGroups);
+
+  const angulatedGroups = groupAngulatedFaces(faces, processed, 0.3);
+  allGroups.push(...angulatedGroups);
+
+  return allGroups;
 }
 
 export function findClosestFaceToRay(
