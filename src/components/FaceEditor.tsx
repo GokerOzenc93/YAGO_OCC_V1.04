@@ -1,13 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
-import { Line } from '@react-three/drei';
 import { useAppStore } from '../store';
 import {
   extractFacesFromGeometry,
   groupCoplanarFaces,
   createFaceHighlightGeometry,
-  extractGroupBoundaryEdges,
-  createEdgeGeometry,
   type FaceData,
   type CoplanarFaceGroup
 } from '../services/faceEditor';
@@ -109,52 +106,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     }).filter(g => g !== null);
   }, [filletMode, selectedFilletFaces, faceGroups, faces]);
 
-  const selectedFilletEdges = useMemo(() => {
-    if (!filletMode || selectedFilletFaces.length === 0) return [];
-
-    return selectedFilletFaces.map(faceGroupIndex => {
-      const group = faceGroups[faceGroupIndex];
-      if (!group) return null;
-      const edges = extractGroupBoundaryEdges(faces, group, faceGroups);
-      console.log(`🔍 Group ${faceGroupIndex} boundary edges:`, edges.length);
-      return edges.length > 0 ? edges : null;
-    }).filter(e => e !== null);
-  }, [filletMode, selectedFilletFaces, faceGroups, faces]);
-
   const highlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
 
     const group = faceGroups[hoveredGroupIndex];
     return createFaceHighlightGeometry(faces, group.faceIndices);
   }, [hoveredGroupIndex, faceGroups, faces]);
-
-  const hoveredGroupEdges = useMemo(() => {
-    if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex] || selectedFilletFaces.includes(hoveredGroupIndex)) return null;
-
-    const group = faceGroups[hoveredGroupIndex];
-    const edges = extractGroupBoundaryEdges(faces, group, faceGroups);
-    return edges.length > 0 ? edges : null;
-  }, [hoveredGroupIndex, faceGroups, faces, selectedFilletFaces]);
-
-  const isFilletGroup = (group: CoplanarFaceGroup): boolean => {
-    if (group.faceIndices.length < 3) return false;
-
-    let hasVariation = false;
-    const firstNormal = faces[group.faceIndices[0]].normal;
-
-    for (let i = 1; i < group.faceIndices.length; i++) {
-      const currentNormal = faces[group.faceIndices[i]].normal;
-      const dot = firstNormal.dot(currentNormal);
-      const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
-
-      if (angle > 1) {
-        hasVariation = true;
-        break;
-      }
-    }
-
-    return hasVariation;
-  };
 
   if (!isActive) return null;
 
@@ -192,85 +149,23 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         </mesh>
       ))}
 
-      {selectedFilletEdges.map((edges, groupIdx) =>
-        edges && edges.map((edge, edgeIdx) => {
-          const points = [
-            edge.v1.clone().applyMatrix4(
-              new THREE.Matrix4().compose(
-                new THREE.Vector3(...shape.position),
-                new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape.rotation)),
-                new THREE.Vector3(...shape.scale)
-              )
-            ),
-            edge.v2.clone().applyMatrix4(
-              new THREE.Matrix4().compose(
-                new THREE.Vector3(...shape.position),
-                new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape.rotation)),
-                new THREE.Vector3(...shape.scale)
-              )
-            )
-          ];
-
-          return (
-            <Line
-              key={`edge-${groupIdx}-${edgeIdx}`}
-              points={points}
-              color={0x00ff00}
-              lineWidth={5}
-              dashed={false}
-            />
-          );
-        })
-      )}
-
       {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && (
-        <>
-          <mesh
-            geometry={highlightGeometry}
-            position={shape.position}
-            rotation={shape.rotation}
-            scale={shape.scale}
-          >
-            <meshBasicMaterial
-              color={hoveredGroupIndex !== null && isFilletGroup(faceGroups[hoveredGroupIndex]) ? 0x3b82f6 : 0xff0000}
-              transparent
-              opacity={0.5}
-              side={THREE.DoubleSide}
-              polygonOffset
-              polygonOffsetFactor={-1}
-              polygonOffsetUnits={-1}
-            />
-          </mesh>
-
-          {hoveredGroupEdges && hoveredGroupEdges.map((edge, edgeIdx) => {
-            const points = [
-              edge.v1.clone().applyMatrix4(
-                new THREE.Matrix4().compose(
-                  new THREE.Vector3(...shape.position),
-                  new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape.rotation)),
-                  new THREE.Vector3(...shape.scale)
-                )
-              ),
-              edge.v2.clone().applyMatrix4(
-                new THREE.Matrix4().compose(
-                  new THREE.Vector3(...shape.position),
-                  new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape.rotation)),
-                  new THREE.Vector3(...shape.scale)
-                )
-              )
-            ];
-
-            return (
-              <Line
-                key={`hover-edge-${edgeIdx}`}
-                points={points}
-                color={hoveredGroupIndex !== null && isFilletGroup(faceGroups[hoveredGroupIndex]) ? 0xfbbf24 : 0x22c55e}
-                lineWidth={4}
-                dashed={false}
-              />
-            );
-          })}
-        </>
+        <mesh
+          geometry={highlightGeometry}
+          position={shape.position}
+          rotation={shape.rotation}
+          scale={shape.scale}
+        >
+          <meshBasicMaterial
+            color={0xff0000}
+            transparent
+            opacity={0.5}
+            side={THREE.DoubleSide}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
+        </mesh>
       )}
     </>
   );
