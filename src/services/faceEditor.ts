@@ -87,6 +87,28 @@ function areVerticesShared(face1: FaceData, face2: FaceData, tolerance: number =
   return false;
 }
 
+function isCurvedSurface(
+  faces: FaceData[],
+  faceIndex: number,
+  processed: Set<number>
+): boolean {
+  const face = faces[faceIndex];
+
+  for (let i = 0; i < faces.length; i++) {
+    if (i === faceIndex || processed.has(i)) continue;
+
+    const candidate = faces[i];
+    if (areVerticesShared(face, candidate)) {
+      const normalDot = face.normal.dot(candidate.normal);
+      if (normalDot < 0.95) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function expandGroupWithNeighbors(
   faces: FaceData[],
   group: CoplanarFaceGroup,
@@ -171,7 +193,9 @@ export function groupCoplanarFaces(
     }
 
     if (group.faceIndices.length === 1) {
-      expandGroupWithNeighbors(faces, group, processed, 0.85);
+      if (isCurvedSurface(faces, i, processed)) {
+        expandGroupWithNeighbors(faces, group, processed, 0.85);
+      }
     }
 
     const avgCenter = new THREE.Vector3();
