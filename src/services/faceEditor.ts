@@ -155,10 +155,40 @@ function expandGroupWithNeighbors(
   }
 }
 
+function isPartOfCurvedSurface(
+  face: FaceData,
+  faces: FaceData[],
+  faceIndex: number
+): boolean {
+  let neighborNormals: THREE.Vector3[] = [];
+
+  for (let i = 0; i < faces.length; i++) {
+    if (i === faceIndex) continue;
+
+    const other = faces[i];
+    if (areVerticesShared(face, other, 0.01)) {
+      neighborNormals.push(other.normal);
+    }
+  }
+
+  if (neighborNormals.length < 2) return false;
+
+  for (let i = 0; i < neighborNormals.length; i++) {
+    for (let j = i + 1; j < neighborNormals.length; j++) {
+      const dot = neighborNormals[i].dot(neighborNormals[j]);
+      if (dot < 0.95) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export function groupCoplanarFaces(
   faces: FaceData[],
-  normalThreshold: number = 0.98,
-  distanceThreshold: number = 0.5
+  normalThreshold: number = 0.999,
+  distanceThreshold: number = 0.1
 ): CoplanarFaceGroup[] {
   const groups: CoplanarFaceGroup[] = [];
   const processed = new Set<number>();
@@ -167,6 +197,8 @@ export function groupCoplanarFaces(
     if (processed.has(i)) continue;
 
     const face = faces[i];
+    const isCurved = isPartOfCurvedSurface(face, faces, i);
+
     const group: CoplanarFaceGroup = {
       normal: face.normal.clone(),
       faceIndices: [i],
@@ -176,37 +208,43 @@ export function groupCoplanarFaces(
 
     processed.add(i);
 
-    let addedNew = true;
-    while (addedNew) {
-      addedNew = false;
+    if (!isCurved) {
+      let addedNew = true;
+      while (addedNew) {
+        addedNew = false;
 
-      for (let j = 0; j < faces.length; j++) {
-        if (processed.has(j)) continue;
+        for (let j = 0; j < faces.length; j++) {
+          if (processed.has(j)) continue;
 
-        const otherFace = faces[j];
-        let isConnected = false;
+          const otherFace = faces[j];
+          const otherIsCurved = isPartOfCurvedSurface(otherFace, faces, j);
 
-        for (const groupIdx of group.faceIndices) {
-          const groupFace = faces[groupIdx];
-          const normalDot = groupFace.normal.dot(otherFace.normal);
+          if (otherIsCurved) continue;
 
-          if (normalDot > normalThreshold) {
-            const distance = Math.abs(
-              otherFace.center.clone().sub(groupFace.center).dot(groupFace.normal)
-            );
+          let isConnected = false;
 
-            if (distance < distanceThreshold || areVerticesShared(groupFace, otherFace, 0.01)) {
-              isConnected = true;
-              break;
+          for (const groupIdx of group.faceIndices) {
+            const groupFace = faces[groupIdx];
+            const normalDot = groupFace.normal.dot(otherFace.normal);
+
+            if (normalDot > normalThreshold) {
+              const distance = Math.abs(
+                otherFace.center.clone().sub(groupFace.center).dot(groupFace.normal)
+              );
+
+              if (distance < distanceThreshold || areVerticesShared(groupFace, otherFace, 0.01)) {
+                isConnected = true;
+                break;
+              }
             }
           }
-        }
 
-        if (isConnected) {
-          group.faceIndices.push(j);
-          group.totalArea += otherFace.area;
-          processed.add(j);
-          addedNew = true;
+          if (isConnected) {
+            group.faceIndices.push(j);
+            group.totalArea += otherFace.area;
+            processed.add(j);
+            addedNew = true;
+          }
         }
       }
     }
