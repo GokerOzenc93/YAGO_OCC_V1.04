@@ -100,7 +100,7 @@ function isCurvedSurface(
     const candidate = faces[i];
     if (areVerticesShared(face, candidate)) {
       const normalDot = face.normal.dot(candidate.normal);
-      if (normalDot < 0.95) {
+      if (normalDot < 0.999) {
         return true;
       }
     }
@@ -113,7 +113,7 @@ function expandGroupWithNeighbors(
   faces: FaceData[],
   group: CoplanarFaceGroup,
   processed: Set<number>,
-  normalDotThreshold: number = 0.85
+  normalDotThreshold: number = 0.5
 ): void {
   let addedNew = true;
 
@@ -194,7 +194,7 @@ export function groupCoplanarFaces(
 
     if (group.faceIndices.length === 1) {
       if (isCurvedSurface(faces, i, processed)) {
-        expandGroupWithNeighbors(faces, group, processed, 0.85);
+        expandGroupWithNeighbors(faces, group, processed, 0.5);
       }
     }
 
