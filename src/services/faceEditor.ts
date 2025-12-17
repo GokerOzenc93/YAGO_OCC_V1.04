@@ -76,6 +76,60 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry): FaceDa
   return faces;
 }
 
+function areVerticesShared(face1: FaceData, face2: FaceData, tolerance: number = 0.001): boolean {
+  for (const v1 of face1.vertices) {
+    for (const v2 of face2.vertices) {
+      if (v1.distanceTo(v2) < tolerance) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function expandGroupWithNeighbors(
+  faces: FaceData[],
+  group: CoplanarFaceGroup,
+  processed: Set<number>,
+  normalDotThreshold: number = 0.85
+): void {
+  let addedNew = true;
+
+  while (addedNew) {
+    addedNew = false;
+
+    for (let i = 0; i < faces.length; i++) {
+      if (processed.has(i)) continue;
+
+      const candidate = faces[i];
+      let isNeighbor = false;
+
+      for (const groupFaceIdx of group.faceIndices) {
+        const groupFace = faces[groupFaceIdx];
+        if (areVerticesShared(groupFace, candidate)) {
+          isNeighbor = true;
+          break;
+        }
+      }
+
+      if (isNeighbor) {
+        let maxDot = -1;
+        for (const groupFaceIdx of group.faceIndices) {
+          const dot = faces[groupFaceIdx].normal.dot(candidate.normal);
+          maxDot = Math.max(maxDot, dot);
+        }
+
+        if (maxDot > normalDotThreshold) {
+          group.faceIndices.push(i);
+          group.totalArea += candidate.area;
+          processed.add(i);
+          addedNew = true;
+        }
+      }
+    }
+  }
+}
+
 export function groupCoplanarFaces(
   faces: FaceData[],
   normalThreshold: number = 0.999,
@@ -114,6 +168,10 @@ export function groupCoplanarFaces(
           processed.add(j);
         }
       }
+    }
+
+    if (group.faceIndices.length === 1) {
+      expandGroupWithNeighbors(faces, group, processed, 0.85);
     }
 
     const avgCenter = new THREE.Vector3();
