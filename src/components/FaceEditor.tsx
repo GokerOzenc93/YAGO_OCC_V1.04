@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import {
   extractFacesFromGeometry,
@@ -16,7 +15,6 @@ interface FaceEditorProps {
 }
 
 export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
-  const { camera, raycaster, gl } = useThree();
   const {
     hoveredFaceIndex,
     setHoveredFaceIndex,
@@ -31,8 +29,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
-  const meshRef = useRef<THREE.Mesh>(null);
-  const highlightMeshRef = useRef<THREE.Mesh>(null);
 
   useEffect(() => {
     if (!shape.geometry) return;
@@ -49,71 +45,56 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     setFaceGroups(groups);
   }, [shape.geometry, shape.id]);
 
-  useEffect(() => {
-    if (!isActive) return;
+  const handlePointerMove = (e: any) => {
+    if (!isActive || faces.length === 0) return;
 
-    const handlePointerMove = (event: PointerEvent) => {
-      if (!meshRef.current || faces.length === 0) return;
+    e.stopPropagation();
+    const faceIndex = e.faceIndex;
 
-      const rect = gl.domElement.getBoundingClientRect();
-      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    if (faceIndex !== undefined) {
+      const groupIndex = faceGroups.findIndex(group =>
+        group.faceIndices.includes(faceIndex)
+      );
 
-      raycaster.setFromCamera(new THREE.Vector2(x, y), camera);
-      const intersects = raycaster.intersectObject(meshRef.current, false);
-
-      if (intersects.length > 0 && intersects[0].faceIndex !== undefined) {
-        const faceIndex = intersects[0].faceIndex;
-
-        const groupIndex = faceGroups.findIndex(group =>
-          group.faceIndices.includes(faceIndex)
-        );
-
-        if (groupIndex !== -1) {
-          setHoveredGroupIndex(groupIndex);
-          setHoveredFaceIndex(faceIndex);
-        }
-      } else {
-        setHoveredGroupIndex(null);
-        setHoveredFaceIndex(null);
+      if (groupIndex !== -1) {
+        setHoveredGroupIndex(groupIndex);
+        setHoveredFaceIndex(faceIndex);
       }
-    };
+    }
+  };
 
-    const handleClick = (event: MouseEvent) => {
-      if (event.button === 2) {
-        if (hoveredGroupIndex !== null) {
-          if (filletMode && selectedFilletFaces.length < 2) {
-            const group = faceGroups[hoveredGroupIndex];
-            if (group) {
-              addFilletFace(hoveredGroupIndex);
-              addFilletFaceData({
-                normal: [group.normal.x, group.normal.y, group.normal.z],
-                center: [group.center.x, group.center.y, group.center.z]
-              });
-              console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, hoveredGroupIndex);
-              console.log('   Normal:', [group.normal.x.toFixed(2), group.normal.y.toFixed(2), group.normal.z.toFixed(2)]);
-              console.log('   Center:', [group.center.x.toFixed(2), group.center.y.toFixed(2), group.center.z.toFixed(2)]);
+  const handlePointerOut = (e: any) => {
+    e.stopPropagation();
+    setHoveredGroupIndex(null);
+    setHoveredFaceIndex(null);
+  };
 
-              if (selectedFilletFaces.length === 1) {
-                console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
-              }
-            }
-          } else {
-            setSelectedFaceIndex(hoveredGroupIndex);
-            console.log('✅ Face group selected:', hoveredGroupIndex);
+  const handleClick = (e: any) => {
+    e.stopPropagation();
+
+    if (e.button === 2 && hoveredGroupIndex !== null) {
+      if (filletMode && selectedFilletFaces.length < 2) {
+        const group = faceGroups[hoveredGroupIndex];
+        if (group) {
+          addFilletFace(hoveredGroupIndex);
+          addFilletFaceData({
+            normal: [group.normal.x, group.normal.y, group.normal.z],
+            center: [group.center.x, group.center.y, group.center.z]
+          });
+          console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, hoveredGroupIndex);
+          console.log('   Normal:', [group.normal.x.toFixed(2), group.normal.y.toFixed(2), group.normal.z.toFixed(2)]);
+          console.log('   Center:', [group.center.x.toFixed(2), group.center.y.toFixed(2), group.center.z.toFixed(2)]);
+
+          if (selectedFilletFaces.length === 1) {
+            console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
           }
         }
+      } else {
+        setSelectedFaceIndex(hoveredGroupIndex);
+        console.log('✅ Face group selected:', hoveredGroupIndex);
       }
-    };
-
-    gl.domElement.addEventListener('pointermove', handlePointerMove);
-    gl.domElement.addEventListener('mousedown', handleClick);
-
-    return () => {
-      gl.domElement.removeEventListener('pointermove', handlePointerMove);
-      gl.domElement.removeEventListener('mousedown', handleClick);
-    };
-  }, [isActive, faces, faceGroups, hoveredGroupIndex, camera, raycaster, gl, setHoveredFaceIndex, setSelectedFaceIndex]);
+    }
+  };
 
   const selectedFilletGeometries = useMemo(() => {
     if (!filletMode || selectedFilletFaces.length === 0) return [];
@@ -137,12 +118,14 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   return (
     <>
       <mesh
-        ref={meshRef}
         geometry={shape.geometry}
         visible={false}
         position={shape.position}
         rotation={shape.rotation}
         scale={shape.scale}
+        onPointerMove={handlePointerMove}
+        onPointerOut={handlePointerOut}
+        onClick={handleClick}
       />
 
       {selectedFilletGeometries.map((geom, idx) => (
@@ -158,14 +141,15 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
             transparent
             opacity={0.6}
             side={THREE.DoubleSide}
-            depthTest={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
           />
         </mesh>
       ))}
 
       {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && (
         <mesh
-          ref={highlightMeshRef}
           geometry={highlightGeometry}
           position={shape.position}
           rotation={shape.rotation}
@@ -176,7 +160,9 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
             transparent
             opacity={0.5}
             side={THREE.DoubleSide}
-            depthTest={false}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
           />
         </mesh>
       )}
