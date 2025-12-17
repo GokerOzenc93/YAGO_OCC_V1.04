@@ -141,7 +141,7 @@ function expandGroupWithNeighbors(
           maxDot = Math.max(maxDot, dot);
         }
 
-        if (maxDot > normalDotThreshold) {
+        if (maxDot > normalDotThreshold && maxDot < 0.999) {
           group.faceIndices.push(i);
           group.totalArea += candidate.area;
           processed.add(i);
