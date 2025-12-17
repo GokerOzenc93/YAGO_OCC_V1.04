@@ -6,6 +6,7 @@ export interface FaceData {
   center: THREE.Vector3;
   vertices: THREE.Vector3[];
   area: number;
+  isCurved?: boolean;
 }
 
 export interface CoplanarFaceGroup {
@@ -87,6 +88,21 @@ function areVerticesShared(face1: FaceData, face2: FaceData, tolerance: number =
   return false;
 }
 
+function checkIfCurved(face: FaceData, faces: FaceData[], adjacencyMap: Map<number, Set<number>>): boolean {
+  const neighbors = adjacencyMap.get(face.faceIndex);
+  if (!neighbors || neighbors.size === 0) return false;
+
+  let maxAngleDiff = 0;
+  for (const neighborIdx of neighbors) {
+    const neighbor = faces[neighborIdx];
+    const dot = face.normal.dot(neighbor.normal);
+    const angleDiff = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
+    maxAngleDiff = Math.max(maxAngleDiff, angleDiff);
+  }
+
+  return maxAngleDiff > 0.5 && maxAngleDiff < 45;
+}
+
 function buildAdjacencyMap(faces: FaceData[]): Map<number, Set<number>> {
   const adjacencyMap = new Map<number, Set<number>>();
 
@@ -114,6 +130,10 @@ export function groupCoplanarFaces(
   const visited = new Set<number>();
   const adjacencyMap = buildAdjacencyMap(faces);
 
+  faces.forEach((face, idx) => {
+    face.isCurved = checkIfCurved(face, faces, adjacencyMap);
+  });
+
   const thresholdDot = Math.cos((thresholdAngleDegrees * Math.PI) / 180);
 
   for (let startIdx = 0; startIdx < faces.length; startIdx++) {
@@ -123,6 +143,8 @@ export function groupCoplanarFaces(
     visited.add(startIdx);
 
     const stack: number[] = [startIdx];
+    const startFace = faces[startIdx];
+    const isCurvedGroup = startFace.isCurved || false;
 
     while (stack.length > 0) {
       const currIdx = stack.pop()!;
@@ -136,10 +158,16 @@ export function groupCoplanarFaces(
 
         const neighborFace = faces[neighborIdx];
 
+        if ((neighborFace.isCurved || false) !== isCurvedGroup) {
+          continue;
+        }
+
         const dot = currFace.normal.dot(neighborFace.normal);
         const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
 
-        if (angle < thresholdAngleDegrees) {
+        const effectiveThreshold = isCurvedGroup ? 25 : thresholdAngleDegrees;
+
+        if (angle < effectiveThreshold) {
           visited.add(neighborIdx);
           currentGroup.push(neighborIdx);
           stack.push(neighborIdx);
