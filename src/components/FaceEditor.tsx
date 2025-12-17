@@ -40,14 +40,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     setFaces(extractedFaces);
 
     const groups = groupCoplanarFaces(extractedFaces);
-    const planarCount = groups.filter(g => g.type === 'planar').length;
-    const curvedCount = groups.filter(g => g.type === 'curved').length;
-    const angulatedCount = groups.filter(g => g.type === 'angulated').length;
-
-    console.log(`✅ Grouped into ${groups.length} face groups:`);
-    console.log(`   - ${planarCount} düz yüzey grupları`);
-    console.log(`   - ${curvedCount} kavisli yüzey grupları`);
-    console.log(`   - ${angulatedCount} açılı yüzey grupları`);
+    console.log(`✅ Grouped into ${groups.length} coplanar face groups`);
 
     setFaceGroups(groups);
   }, [shape.geometry, shape.id]);
@@ -88,35 +81,17 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
             normal: [group.normal.x, group.normal.y, group.normal.z],
             center: [group.center.x, group.center.y, group.center.z]
           });
-
-          const typeNames = {
-            planar: 'Düz',
-            curved: 'Kavisli',
-            angulated: 'Açılı'
-          };
-
-          console.log(`✅ Fillet yüzeyi ${selectedFilletFaces.length + 1} seçildi (${typeNames[group.type]}):`, hoveredGroupIndex);
-          console.log(`   Tip: ${typeNames[group.type]}`);
-          console.log('   Yüzey sayısı:', group.faceIndices.length);
+          console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, hoveredGroupIndex);
           console.log('   Normal:', [group.normal.x.toFixed(2), group.normal.y.toFixed(2), group.normal.z.toFixed(2)]);
           console.log('   Center:', [group.center.x.toFixed(2), group.center.y.toFixed(2), group.center.z.toFixed(2)]);
 
           if (selectedFilletFaces.length === 1) {
-            console.log('🎯 İki yüzey seçildi! Fillet işlemi hazır. Terminale yarıçap girin.');
+            console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
           }
         }
       } else {
-        const group = faceGroups[hoveredGroupIndex];
-        if (group) {
-          const typeNames = {
-            planar: 'Düz',
-            curved: 'Kavisli',
-            angulated: 'Açılı'
-          };
-          setSelectedFaceIndex(hoveredGroupIndex);
-          console.log(`✅ ${typeNames[group.type]} yüzey grubu seçildi:`, hoveredGroupIndex);
-          console.log(`   Yüzey sayısı: ${group.faceIndices.length}`);
-        }
+        setSelectedFaceIndex(hoveredGroupIndex);
+        console.log('✅ Face group selected:', hoveredGroupIndex);
       }
     }
   };
@@ -137,19 +112,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     const group = faceGroups[hoveredGroupIndex];
     return createFaceHighlightGeometry(faces, group.faceIndices);
   }, [hoveredGroupIndex, faceGroups, faces]);
-
-  const getHighlightColor = (type: 'planar' | 'curved' | 'angulated') => {
-    switch (type) {
-      case 'planar':
-        return 0x00ff00;
-      case 'curved':
-        return 0xffaa00;
-      case 'angulated':
-        return 0x00aaff;
-      default:
-        return 0xff0000;
-    }
-  };
 
   if (!isActive) return null;
 
@@ -187,7 +149,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         </mesh>
       ))}
 
-      {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && hoveredGroupIndex !== null && (
+      {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && (
         <mesh
           geometry={highlightGeometry}
           position={shape.position}
@@ -195,7 +157,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
           scale={shape.scale}
         >
           <meshBasicMaterial
-            color={getHighlightColor(faceGroups[hoveredGroupIndex].type)}
+            color={0xff0000}
             transparent
             opacity={0.5}
             side={THREE.DoubleSide}
