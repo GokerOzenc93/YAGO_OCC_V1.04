@@ -176,37 +176,45 @@ export function groupCoplanarFaces(
 
     processed.add(i);
 
-    let addedNew = true;
-    while (addedNew) {
-      addedNew = false;
+    const isCurved = isCurvedSurface(faces, i, processed);
 
-      for (let j = 0; j < faces.length; j++) {
-        if (processed.has(j)) continue;
+    if (isCurved) {
+      console.log(`🌊 Detected curved surface starting at face ${i}, using relaxed grouping`);
 
-        const otherFace = faces[j];
-        let isConnected = false;
+      expandGroupWithNeighbors(faces, group, processed, 0.3);
+    } else {
+      let addedNew = true;
+      while (addedNew) {
+        addedNew = false;
 
-        for (const groupIdx of group.faceIndices) {
-          const groupFace = faces[groupIdx];
-          const normalDot = groupFace.normal.dot(otherFace.normal);
+        for (let j = 0; j < faces.length; j++) {
+          if (processed.has(j)) continue;
 
-          if (normalDot > normalThreshold) {
-            const distance = Math.abs(
-              otherFace.center.clone().sub(groupFace.center).dot(groupFace.normal)
-            );
+          const otherFace = faces[j];
+          let isConnected = false;
 
-            if (distance < distanceThreshold || areVerticesShared(groupFace, otherFace, 0.01)) {
-              isConnected = true;
-              break;
+          for (const groupIdx of group.faceIndices) {
+            const groupFace = faces[groupIdx];
+            const normalDot = groupFace.normal.dot(otherFace.normal);
+
+            if (normalDot > normalThreshold) {
+              const distance = Math.abs(
+                otherFace.center.clone().sub(groupFace.center).dot(groupFace.normal)
+              );
+
+              if (distance < distanceThreshold || areVerticesShared(groupFace, otherFace, 0.01)) {
+                isConnected = true;
+                break;
+              }
             }
           }
-        }
 
-        if (isConnected) {
-          group.faceIndices.push(j);
-          group.totalArea += otherFace.area;
-          processed.add(j);
-          addedNew = true;
+          if (isConnected) {
+            group.faceIndices.push(j);
+            group.totalArea += otherFace.area;
+            processed.add(j);
+            addedNew = true;
+          }
         }
       }
     }
@@ -221,6 +229,10 @@ export function groupCoplanarFaces(
     avgNormal.divideScalar(group.faceIndices.length).normalize();
     group.center = avgCenter;
     group.normal = avgNormal;
+
+    if (isCurved) {
+      console.log(`✅ Curved surface group created with ${group.faceIndices.length} faces`);
+    }
 
     groups.push(group);
   }
