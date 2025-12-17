@@ -223,3 +223,100 @@ export function getFaceWorldNormal(
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(worldMatrix);
   return face.normal.clone().applyMatrix3(normalMatrix).normalize();
 }
+
+interface Edge {
+  v1: THREE.Vector3;
+  v2: THREE.Vector3;
+}
+
+function edgeKey(v1: THREE.Vector3, v2: THREE.Vector3): string {
+  const sorted = [v1, v2].sort((a, b) => {
+    if (Math.abs(a.x - b.x) > 0.001) return a.x - b.x;
+    if (Math.abs(a.y - b.y) > 0.001) return a.y - b.y;
+    return a.z - b.z;
+  });
+  return `${sorted[0].x.toFixed(3)},${sorted[0].y.toFixed(3)},${sorted[0].z.toFixed(3)}-${sorted[1].x.toFixed(3)},${sorted[1].y.toFixed(3)},${sorted[1].z.toFixed(3)}`;
+}
+
+export function extractGroupBoundaryEdges(
+  faces: FaceData[],
+  group: CoplanarFaceGroup,
+  allGroups: CoplanarFaceGroup[]
+): Edge[] {
+  const edges: Edge[] = [];
+  const edgeCount = new Map<string, number>();
+  const groupFaceSet = new Set(group.faceIndices);
+
+  group.faceIndices.forEach(faceIdx => {
+    const face = faces[faceIdx];
+    const faceEdges = [
+      [face.vertices[0], face.vertices[1]],
+      [face.vertices[1], face.vertices[2]],
+      [face.vertices[2], face.vertices[0]]
+    ];
+
+    faceEdges.forEach(([v1, v2]) => {
+      const key = edgeKey(v1, v2);
+      edgeCount.set(key, (edgeCount.get(key) || 0) + 1);
+    });
+  });
+
+  const adjacencyMap = new Map<number, Set<number>>();
+  faces.forEach((face, i) => {
+    adjacencyMap.set(i, new Set());
+    faces.forEach((otherFace, j) => {
+      if (i !== j && areVerticesShared(face, otherFace)) {
+        adjacencyMap.get(i)!.add(j);
+      }
+    });
+  });
+
+  group.faceIndices.forEach(faceIdx => {
+    const face = faces[faceIdx];
+    const neighbors = adjacencyMap.get(faceIdx);
+
+    if (neighbors) {
+      for (const neighborIdx of neighbors) {
+        if (!groupFaceSet.has(neighborIdx)) {
+          const neighborGroupIdx = allGroups.findIndex(g => g.faceIndices.includes(neighborIdx));
+          if (neighborGroupIdx !== -1 && neighborGroupIdx !== allGroups.indexOf(group)) {
+            const neighborFace = faces[neighborIdx];
+
+            for (let i = 0; i < 3; i++) {
+              for (let j = 0; j < 3; j++) {
+                const v1 = face.vertices[i];
+                const v2 = face.vertices[(i + 1) % 3];
+                const nv1 = neighborFace.vertices[j];
+                const nv2 = neighborFace.vertices[(j + 1) % 3];
+
+                if ((v1.distanceTo(nv1) < 0.001 && v2.distanceTo(nv2) < 0.001) ||
+                    (v1.distanceTo(nv2) < 0.001 && v2.distanceTo(nv1) < 0.001)) {
+                  const key = edgeKey(v1, v2);
+                  if (!edges.some(e => edgeKey(e.v1, e.v2) === key)) {
+                    edges.push({ v1: v1.clone(), v2: v2.clone() });
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  });
+
+  return edges;
+}
+
+export function createEdgeGeometry(edges: Edge[]): THREE.BufferGeometry {
+  const positions: number[] = [];
+
+  edges.forEach(edge => {
+    positions.push(edge.v1.x, edge.v1.y, edge.v1.z);
+    positions.push(edge.v2.x, edge.v2.y, edge.v2.z);
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+
+  return geometry;
+}

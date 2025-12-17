@@ -5,6 +5,8 @@ import {
   extractFacesFromGeometry,
   groupCoplanarFaces,
   createFaceHighlightGeometry,
+  extractGroupBoundaryEdges,
+  createEdgeGeometry,
   type FaceData,
   type CoplanarFaceGroup
 } from '../services/faceEditor';
@@ -106,6 +108,17 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     }).filter(g => g !== null);
   }, [filletMode, selectedFilletFaces, faceGroups, faces]);
 
+  const selectedFilletEdgeGeometries = useMemo(() => {
+    if (!filletMode || selectedFilletFaces.length === 0) return [];
+
+    return selectedFilletFaces.map(faceGroupIndex => {
+      const group = faceGroups[faceGroupIndex];
+      if (!group) return null;
+      const edges = extractGroupBoundaryEdges(faces, group, faceGroups);
+      return edges.length > 0 ? createEdgeGeometry(edges) : null;
+    }).filter(g => g !== null);
+  }, [filletMode, selectedFilletFaces, faceGroups, faces]);
+
   const highlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
 
@@ -147,6 +160,22 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
             polygonOffsetUnits={-1}
           />
         </mesh>
+      ))}
+
+      {selectedFilletEdgeGeometries.map((geom, idx) => (
+        <lineSegments
+          key={`edge-${idx}`}
+          geometry={geom}
+          position={shape.position}
+          rotation={shape.rotation}
+          scale={shape.scale}
+        >
+          <lineBasicMaterial
+            color={0x00ff00}
+            linewidth={3}
+            depthTest={false}
+          />
+        </lineSegments>
       ))}
 
       {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && (
