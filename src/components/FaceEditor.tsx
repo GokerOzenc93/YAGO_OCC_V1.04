@@ -156,6 +156,39 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     return hasVariation;
   };
 
+  const filletGroupGeometries = useMemo(() => {
+    return faceGroups
+      .map((group, idx) => {
+        if (!isFilletGroup(group)) return null;
+
+        const geometry = createFaceHighlightGeometry(faces, group.faceIndices);
+        const edges = extractGroupBoundaryEdges(faces, group, faceGroups);
+
+        return {
+          groupIndex: idx,
+          geometry,
+          edges,
+          center: group.center
+        };
+      })
+      .filter(g => g !== null);
+  }, [faceGroups, faces]);
+
+  const flatGroupGeometries = useMemo(() => {
+    return faceGroups
+      .map((group, idx) => {
+        if (isFilletGroup(group)) return null;
+
+        const geometry = createFaceHighlightGeometry(faces, group.faceIndices);
+
+        return {
+          groupIndex: idx,
+          geometry
+        };
+      })
+      .filter(g => g !== null);
+  }, [faceGroups, faces]);
+
   if (!isActive) return null;
 
   return (
@@ -171,6 +204,70 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         onPointerDown={handlePointerDown}
         onContextMenu={(e) => e.stopPropagation()}
       />
+
+      {flatGroupGeometries.map((item) => (
+        <mesh
+          key={`flat-${item.groupIndex}`}
+          geometry={item.geometry}
+          position={shape.position}
+          rotation={shape.rotation}
+          scale={shape.scale}
+        >
+          <meshStandardMaterial
+            color={0x94a3b8}
+            metalness={0.3}
+            roughness={0.4}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ))}
+
+      {filletGroupGeometries.map((item) => (
+        <React.Fragment key={`fillet-${item.groupIndex}`}>
+          <mesh
+            geometry={item.geometry}
+            position={shape.position}
+            rotation={shape.rotation}
+            scale={shape.scale}
+          >
+            <meshStandardMaterial
+              color={0x3b82f6}
+              metalness={0.4}
+              roughness={0.3}
+              side={THREE.DoubleSide}
+            />
+          </mesh>
+
+          {item.edges.map((edge, edgeIdx) => {
+            const points = [
+              edge.v1.clone().applyMatrix4(
+                new THREE.Matrix4().compose(
+                  new THREE.Vector3(...shape.position),
+                  new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape.rotation)),
+                  new THREE.Vector3(...shape.scale)
+                )
+              ),
+              edge.v2.clone().applyMatrix4(
+                new THREE.Matrix4().compose(
+                  new THREE.Vector3(...shape.position),
+                  new THREE.Quaternion().setFromEuler(new THREE.Euler(...shape.rotation)),
+                  new THREE.Vector3(...shape.scale)
+                )
+              )
+            ];
+
+            return (
+              <Line
+                key={`fillet-edge-${item.groupIndex}-${edgeIdx}`}
+                points={points}
+                color={0xfbbf24}
+                lineWidth={3}
+                dashed={false}
+              />
+            );
+          })}
+        </React.Fragment>
+      ))}
 
       {selectedFilletGeometries.map((geom, idx) => (
         <mesh
