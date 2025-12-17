@@ -87,142 +87,86 @@ function areVerticesShared(face1: FaceData, face2: FaceData, tolerance: number =
   return false;
 }
 
-function isCurvedSurface(
-  faces: FaceData[],
-  faceIndex: number,
-  processed: Set<number>
-): boolean {
-  const face = faces[faceIndex];
+function buildAdjacencyMap(faces: FaceData[]): Map<number, Set<number>> {
+  const adjacencyMap = new Map<number, Set<number>>();
 
   for (let i = 0; i < faces.length; i++) {
-    if (i === faceIndex || processed.has(i)) continue;
+    adjacencyMap.set(i, new Set<number>());
+  }
 
-    const candidate = faces[i];
-    if (areVerticesShared(face, candidate)) {
-      const normalDot = face.normal.dot(candidate.normal);
-      if (normalDot < 0.999) {
-        return true;
+  for (let i = 0; i < faces.length; i++) {
+    for (let j = i + 1; j < faces.length; j++) {
+      if (areVerticesShared(faces[i], faces[j])) {
+        adjacencyMap.get(i)!.add(j);
+        adjacencyMap.get(j)!.add(i);
       }
     }
   }
 
-  return false;
-}
-
-function expandGroupWithNeighbors(
-  faces: FaceData[],
-  group: CoplanarFaceGroup,
-  processed: Set<number>,
-  normalDotThreshold: number = 0.2
-): void {
-  let addedNew = true;
-  let iterations = 0;
-  const maxIterations = 100;
-
-  while (addedNew && iterations < maxIterations) {
-    addedNew = false;
-    iterations++;
-
-    for (let i = 0; i < faces.length; i++) {
-      if (processed.has(i)) continue;
-
-      const candidate = faces[i];
-      let isNeighbor = false;
-
-      for (const groupFaceIdx of group.faceIndices) {
-        const groupFace = faces[groupFaceIdx];
-        if (areVerticesShared(groupFace, candidate)) {
-          isNeighbor = true;
-          break;
-        }
-      }
-
-      if (isNeighbor) {
-        let maxDot = -1;
-        for (const groupFaceIdx of group.faceIndices) {
-          const dot = faces[groupFaceIdx].normal.dot(candidate.normal);
-          maxDot = Math.max(maxDot, dot);
-        }
-
-        if (maxDot > normalDotThreshold && maxDot < 0.999) {
-          group.faceIndices.push(i);
-          group.totalArea += candidate.area;
-          processed.add(i);
-          addedNew = true;
-        }
-      }
-    }
-  }
+  return adjacencyMap;
 }
 
 export function groupCoplanarFaces(
   faces: FaceData[],
-  normalThreshold: number = 0.98,
-  distanceThreshold: number = 0.5
+  thresholdAngleDegrees: number = 10
 ): CoplanarFaceGroup[] {
   const groups: CoplanarFaceGroup[] = [];
-  const processed = new Set<number>();
+  const visited = new Set<number>();
+  const adjacencyMap = buildAdjacencyMap(faces);
 
-  for (let i = 0; i < faces.length; i++) {
-    if (processed.has(i)) continue;
+  const thresholdDot = Math.cos((thresholdAngleDegrees * Math.PI) / 180);
 
-    const face = faces[i];
-    const group: CoplanarFaceGroup = {
-      normal: face.normal.clone(),
-      faceIndices: [i],
-      center: face.center.clone(),
-      totalArea: face.area
-    };
+  for (let startIdx = 0; startIdx < faces.length; startIdx++) {
+    if (visited.has(startIdx)) continue;
 
-    processed.add(i);
+    const currentGroup: number[] = [startIdx];
+    visited.add(startIdx);
 
-    let addedNew = true;
-    while (addedNew) {
-      addedNew = false;
+    const stack: number[] = [startIdx];
 
-      for (let j = 0; j < faces.length; j++) {
-        if (processed.has(j)) continue;
+    while (stack.length > 0) {
+      const currIdx = stack.pop()!;
+      const currFace = faces[currIdx];
 
-        const otherFace = faces[j];
-        let isConnected = false;
+      const neighbors = adjacencyMap.get(currIdx);
+      if (!neighbors) continue;
 
-        for (const groupIdx of group.faceIndices) {
-          const groupFace = faces[groupIdx];
-          const normalDot = groupFace.normal.dot(otherFace.normal);
+      for (const neighborIdx of neighbors) {
+        if (visited.has(neighborIdx)) continue;
 
-          if (normalDot > normalThreshold) {
-            const distance = Math.abs(
-              otherFace.center.clone().sub(groupFace.center).dot(groupFace.normal)
-            );
+        const neighborFace = faces[neighborIdx];
 
-            if (distance < distanceThreshold || areVerticesShared(groupFace, otherFace, 0.01)) {
-              isConnected = true;
-              break;
-            }
-          }
-        }
+        const dot = currFace.normal.dot(neighborFace.normal);
+        const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
 
-        if (isConnected) {
-          group.faceIndices.push(j);
-          group.totalArea += otherFace.area;
-          processed.add(j);
-          addedNew = true;
+        if (angle < thresholdAngleDegrees) {
+          visited.add(neighborIdx);
+          currentGroup.push(neighborIdx);
+          stack.push(neighborIdx);
         }
       }
     }
 
     const avgCenter = new THREE.Vector3();
     const avgNormal = new THREE.Vector3();
-    group.faceIndices.forEach(idx => {
-      avgCenter.add(faces[idx].center);
-      avgNormal.add(faces[idx].normal);
-    });
-    avgCenter.divideScalar(group.faceIndices.length);
-    avgNormal.divideScalar(group.faceIndices.length).normalize();
-    group.center = avgCenter;
-    group.normal = avgNormal;
+    let totalArea = 0;
 
-    groups.push(group);
+    currentGroup.forEach(idx => {
+      const face = faces[idx];
+      avgCenter.add(face.center);
+      avgNormal.add(face.normal);
+      totalArea += face.area;
+    });
+
+    avgCenter.divideScalar(currentGroup.length);
+    avgNormal.divideScalar(currentGroup.length).normalize();
+
+    groups.push({
+      normal: avgNormal,
+      faceIndices: currentGroup,
+      center: avgCenter,
+      totalArea
+    });
   }
 
   return groups;
