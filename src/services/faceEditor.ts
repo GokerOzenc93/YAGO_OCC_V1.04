@@ -113,12 +113,15 @@ function expandGroupWithNeighbors(
   faces: FaceData[],
   group: CoplanarFaceGroup,
   processed: Set<number>,
-  normalDotThreshold: number = 0.5
+  normalDotThreshold: number = 0.2
 ): void {
   let addedNew = true;
+  let iterations = 0;
+  const maxIterations = 100;
 
-  while (addedNew) {
+  while (addedNew && iterations < maxIterations) {
     addedNew = false;
+    iterations++;
 
     for (let i = 0; i < faces.length; i++) {
       if (processed.has(i)) continue;
@@ -194,7 +197,7 @@ export function groupCoplanarFaces(
 
     if (group.faceIndices.length === 1) {
       if (isCurvedSurface(faces, i, processed)) {
-        expandGroupWithNeighbors(faces, group, processed, 0.5);
+        expandGroupWithNeighbors(faces, group, processed, 0.2);
       }
     }
 
