@@ -40,7 +40,8 @@ export interface FilletInfo {
  * parametrik olarak tekrar hesaplanabilmesi için kritiktir.
  */
 export interface SubtractedGeometry {
-  geometry: THREE.BufferGeometry;        // Kesip atan parçanın geometrisi
+  geometry: THREE.BufferGeometry;        // Kesip atan parçanın orijinal geometrisi (BoxGeometry)
+  visualGeometry?: THREE.BufferGeometry; // Görselleştirme için: base'den kesilmiş gerçek parça (filletli)
   relativeOffset: [number, number, number]; // Ana parçaya göre konumu (Delta)
   relativeRotation: [number, number, number]; // Ana parçaya göre dönüşü
   scale: [number, number, number];       // Ölçeği
@@ -734,6 +735,39 @@ export const useAppStore = create<AppState>((set, get) => ({
               note: 'relativeOffset is now corner-based (bottom-left-back), Scene.tsx will handle centering'
             });
 
+            console.log('📐 Creating visual geometry for new subtraction...');
+            const { createSubtractionVisualGeometry } = await import('./services/shapeUpdater');
+
+            const newSubtraction = {
+              geometry: subtractedGeometry,
+              relativeOffset,
+              relativeRotation,
+              scale: [1, 1, 1] as [number, number, number],
+              parameters: {
+                width: String(shape2Size[0]),
+                height: String(shape2Size[1]),
+                depth: String(shape2Size[2]),
+                posX: String(relativeOffset[0]),
+                posY: String(relativeOffset[1]),
+                posZ: String(relativeOffset[2]),
+                rotX: String(relativeRotation[0] * (180 / Math.PI)),
+                rotY: String(relativeRotation[1] * (180 / Math.PI)),
+                rotZ: String(relativeRotation[2] * (180 / Math.PI))
+              }
+            };
+
+            let visualGeometry: THREE.BufferGeometry | undefined;
+            try {
+              visualGeometry = await createSubtractionVisualGeometry(
+                shape1Replicad,
+                newSubtraction,
+                shape1.fillets || [],
+                { width: shape1Size[0], height: shape1Size[1], depth: shape1Size[2] }
+              );
+            } catch (error) {
+              console.error('❌ Failed to create visual geometry for new subtraction:', error);
+            }
+
             // --- 5. State'i Güncelle ---
             set((state) => ({
               shapes: state.shapes.map((s) => {
@@ -749,21 +783,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                     subtractionGeometries: [
                       ...existingSubtractions,
                       {
-                        geometry: subtractedGeometry,
-                        relativeOffset,
-                        relativeRotation,
-                        scale: [1, 1, 1] as [number, number, number],
-                        parameters: {
-                          width: String(shape2Size[0]),
-                          height: String(shape2Size[1]),
-                          depth: String(shape2Size[2]),
-                          posX: String(relativeOffset[0]),
-                          posY: String(relativeOffset[1]),
-                          posZ: String(relativeOffset[2]),
-                          rotX: String(relativeRotation[0] * (180 / Math.PI)),
-                          rotY: String(relativeRotation[1] * (180 / Math.PI)),
-                          rotZ: String(relativeRotation[2] * (180 / Math.PI))
-                        }
+                        ...newSubtraction,
+                        visualGeometry
                       }
                     ],
                     parameters: {
@@ -857,6 +878,31 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
       }
 
+      console.log('📐 Creating visual geometries for remaining subtractions...');
+      const { createSubtractionVisualGeometry } = await import('./services/shapeUpdater');
+
+      const firstBaseShape = await createReplicadBox({
+        width: size.x,
+        height: size.y,
+        depth: size.z
+      });
+
+      const updatedSubtractions = await Promise.all(newSubtractionGeometries.map(async (sub, idx) => {
+        if (!sub) return sub;
+        try {
+          const visualGeom = await createSubtractionVisualGeometry(
+            firstBaseShape,
+            sub,
+            shape.fillets || [],
+            { width: size.x, height: size.y, depth: size.z }
+          );
+          return { ...sub, visualGeometry: visualGeom };
+        } catch (error) {
+          console.error(`❌ Failed to create visual geometry for subtraction ${idx}:`, error);
+          return sub;
+        }
+      }));
+
       const newGeometry = convertReplicadToThreeGeometry(baseShape);
       const newBaseVertices = await getReplicadVertices(baseShape);
 
@@ -867,7 +913,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...s,
               geometry: newGeometry,
               replicadShape: baseShape,
-              subtractionGeometries: newSubtractionGeometries,
+              subtractionGeometries: updatedSubtractions,
               parameters: {
                 ...s.parameters,
                 scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])

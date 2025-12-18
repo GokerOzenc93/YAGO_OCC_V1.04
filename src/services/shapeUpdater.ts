@@ -11,6 +11,48 @@ export const getOriginalSize = (geometry: THREE.BufferGeometry) => {
   return size;
 };
 
+export async function createSubtractionVisualGeometry(
+  baseShape: any,
+  subtraction: any,
+  fillets: FilletInfo[],
+  shapeSize: { width: number; height: number; depth: number }
+): Promise<THREE.BufferGeometry> {
+  const { createReplicadBox, performBooleanIntersection, convertReplicadToThreeGeometry } = await import('./replicad');
+
+  let visualBaseShape = baseShape;
+
+  if (fillets && fillets.length > 0) {
+    visualBaseShape = await applyFillets(baseShape, fillets, shapeSize);
+  }
+
+  const subSize = getOriginalSize(subtraction.geometry);
+  let subBox = await createReplicadBox({
+    width: subSize.x,
+    height: subSize.y,
+    depth: subSize.z
+  });
+
+  if (subtraction.relativeRotation && subtraction.relativeRotation.some((r: number) => r !== 0)) {
+    subBox = subBox.rotate(
+      subtraction.relativeRotation[0] * (180 / Math.PI),
+      subtraction.relativeRotation[1] * (180 / Math.PI),
+      subtraction.relativeRotation[2] * (180 / Math.PI)
+    );
+  }
+
+  if (subtraction.relativeOffset && subtraction.relativeOffset.some((o: number) => o !== 0)) {
+    subBox = subBox.translate(
+      subtraction.relativeOffset[0],
+      subtraction.relativeOffset[1],
+      subtraction.relativeOffset[2]
+    );
+  }
+
+  const intersectionResult = await performBooleanIntersection(visualBaseShape, subBox);
+
+  return convertReplicadToThreeGeometry(intersectionResult);
+}
+
 export async function applyFillets(replicadShape: any, fillets: FilletInfo[], shapeSize: { width: number; height: number; depth: number }) {
   if (!fillets || fillets.length === 0) return replicadShape;
 
@@ -333,6 +375,23 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         resultShape = await applyFillets(resultShape, selectedShape.fillets, { width, height, depth });
       }
 
+      console.log('📐 Creating visual geometries for subtractions...');
+      const updatedSubtractions = await Promise.all(allSubtractions.map(async (sub, idx) => {
+        if (!sub) return sub;
+        try {
+          const visualGeom = await createSubtractionVisualGeometry(
+            baseShape,
+            sub,
+            selectedShape.fillets || [],
+            { width, height, depth }
+          );
+          return { ...sub, visualGeometry: visualGeom };
+        } catch (error) {
+          console.error(`❌ Failed to create visual geometry for subtraction ${idx}:`, error);
+          return sub;
+        }
+      }));
+
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
 
@@ -340,7 +399,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         ...baseUpdate,
         geometry: newGeometry,
         replicadShape: resultShape,
-        subtractionGeometries: allSubtractions,
+        subtractionGeometries: updatedSubtractions,
         parameters: {
           ...baseUpdate.parameters,
           scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
@@ -503,6 +562,27 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     });
   }
 
+  console.log('📐 Creating visual geometries for subtractions...');
+  const updatedSubtractions = await Promise.all(allSubtractions.map(async (sub, idx) => {
+    if (!sub) return sub;
+    try {
+      const visualGeom = await createSubtractionVisualGeometry(
+        baseShape,
+        sub,
+        currentShape.fillets || [],
+        {
+          width: currentShape.parameters.width || 1,
+          height: currentShape.parameters.height || 1,
+          depth: currentShape.parameters.depth || 1
+        }
+      );
+      return { ...sub, visualGeometry: visualGeom };
+    } catch (error) {
+      console.error(`❌ Failed to create visual geometry for subtraction ${idx}:`, error);
+      return sub;
+    }
+  }));
+
   const newGeometry = convertReplicadToThreeGeometry(resultShape);
   const newBaseVertices = await getReplicadVertices(resultShape);
 
@@ -511,7 +591,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
   updateShape(currentShape.id, {
     geometry: newGeometry,
     replicadShape: resultShape,
-    subtractionGeometries: allSubtractions,
+    subtractionGeometries: updatedSubtractions,
     parameters: {
       ...currentShape.parameters,
       scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
