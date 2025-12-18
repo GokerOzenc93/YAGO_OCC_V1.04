@@ -238,6 +238,8 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     }
 
     const hasSubtractionChanges = selectedSubtractionIndex !== null && selectedShape.subtractionGeometries?.length > 0;
+    const hasSubtractions = selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.filter((s: any) => s !== null).length > 0;
+    const needsRebuild = dimensionsChanged && (hasSubtractions || hasFillets);
 
     const newRotation: [number, number, number] = [
       rotX * (Math.PI / 180),
@@ -260,34 +262,39 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       scale: selectedShape.scale
     };
 
-    if (hasSubtractionChanges) {
-      console.log('🔄 Recalculating subtraction with updated dimensions...');
+    if (hasSubtractionChanges || needsRebuild) {
+      console.log('🔄 Rebuilding shape with subtractions and/or fillets...');
 
-      const updatedSubtraction = {
-        ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
-        geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
-        relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
-        relativeRotation: [
-          subRotX * (Math.PI / 180),
-          subRotY * (Math.PI / 180),
-          subRotZ * (Math.PI / 180)
-        ] as [number, number, number],
-        parameters: subParams ? {
-          width: subParams.width.expression,
-          height: subParams.height.expression,
-          depth: subParams.depth.expression,
-          posX: subParams.posX.expression,
-          posY: subParams.posY.expression,
-          posZ: subParams.posZ.expression,
-          rotX: subParams.rotX.expression,
-          rotY: subParams.rotY.expression,
-          rotZ: subParams.rotZ.expression
-        } : undefined
-      };
+      let allSubtractions = selectedShape.subtractionGeometries || [];
 
-      const allSubtractions = selectedShape.subtractionGeometries!.map((sub: any, idx: number) =>
-        idx === selectedSubtractionIndex ? updatedSubtraction : sub
-      );
+      if (hasSubtractionChanges) {
+        console.log('🔄 Updating selected subtraction...');
+        const updatedSubtraction = {
+          ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
+          geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
+          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
+          relativeRotation: [
+            subRotX * (Math.PI / 180),
+            subRotY * (Math.PI / 180),
+            subRotZ * (Math.PI / 180)
+          ] as [number, number, number],
+          parameters: subParams ? {
+            width: subParams.width.expression,
+            height: subParams.height.expression,
+            depth: subParams.depth.expression,
+            posX: subParams.posX.expression,
+            posY: subParams.posY.expression,
+            posZ: subParams.posZ.expression,
+            rotX: subParams.rotX.expression,
+            rotY: subParams.rotY.expression,
+            rotZ: subParams.rotZ.expression
+          } : undefined
+        };
+
+        allSubtractions = selectedShape.subtractionGeometries!.map((sub: any, idx: number) =>
+          idx === selectedSubtractionIndex ? updatedSubtraction : sub
+        );
+      }
 
       let baseShape = await createReplicadBox({
         width,
@@ -340,19 +347,14 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         }
       });
     } else {
-      if (dimensionsChanged) {
-        console.log('🔄 Dimensions changed, recreating replicad shape with new dimensions...');
+      if (dimensionsChanged && !hasFillets) {
+        console.log('🔄 Dimensions changed without fillets/subtractions - recreating base shape...');
 
-        let newReplicadShape = await createReplicadBox({
+        const newReplicadShape = await createReplicadBox({
           width,
           height,
           depth
         });
-
-        if (selectedShape.fillets && selectedShape.fillets.length > 0) {
-          console.log('🔵 Reapplying fillets after dimension change...');
-          newReplicadShape = await applyFillets(newReplicadShape, selectedShape.fillets, { width, height, depth });
-        }
 
         const newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
         const newBaseVertices = await getReplicadVertices(newReplicadShape);
