@@ -97,15 +97,31 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
           (start.z + end.z) / 2
         );
 
-        const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
-        const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
+        const edgeDir = new THREE.Vector3(
+          end.x - start.x,
+          end.y - start.y,
+          end.z - start.z
+        ).normalize();
+
+        const toFace1 = centerVec.clone().sub(face1Center);
+        const toFace2 = centerVec.clone().sub(face2Center);
+
+        const distToFace1 = Math.abs(toFace1.dot(face1Normal));
+        const distToFace2 = Math.abs(toFace2.dot(face2Normal));
+
+        const face1DotEdge = Math.abs(face1Normal.dot(edgeDir));
+        const face2DotEdge = Math.abs(face2Normal.dot(edgeDir));
 
         const maxDimension = Math.max(shapeSize.width || 1, shapeSize.height || 1, shapeSize.depth || 1);
-        const tolerance = maxDimension * 0.15;
+        const tolerance = maxDimension * 0.5;
 
-        if (distToFace1 < tolerance && distToFace2 < tolerance) {
+        const isPerpendicularToFace1 = face1DotEdge < 0.1;
+        const isPerpendicularToFace2 = face2DotEdge < 0.1;
+
+        if (distToFace1 < tolerance && distToFace2 < tolerance &&
+            isPerpendicularToFace1 && isPerpendicularToFace2) {
           foundEdgeCount++;
-          console.log(`✅ Found shared edge #${foundEdgeCount} - applying fillet radius: ${fillet.radius}`);
+          console.log(`✅ Found shared edge #${foundEdgeCount} at (${centerVec.x.toFixed(1)}, ${centerVec.y.toFixed(1)}, ${centerVec.z.toFixed(1)}) - applying fillet radius: ${fillet.radius}`);
           return fillet.radius;
         }
 
