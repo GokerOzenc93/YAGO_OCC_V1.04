@@ -878,33 +878,40 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
       }
 
-      console.log('📐 Creating visual geometries for remaining subtractions...');
-      const { createSubtractionVisualGeometry } = await import('./services/shapeUpdater');
-
-      const firstBaseShape = await createReplicadBox({
-        width: size.x,
-        height: size.y,
-        depth: size.z
-      });
-
-      const updatedSubtractions = await Promise.all(newSubtractionGeometries.map(async (sub, idx) => {
-        if (!sub) return sub;
-        try {
-          const visualGeom = await createSubtractionVisualGeometry(
-            firstBaseShape,
-            sub,
-            shape.fillets || [],
-            { width: size.x, height: size.y, depth: size.z }
-          );
-          return { ...sub, visualGeometry: visualGeom };
-        } catch (error) {
-          console.error(`❌ Failed to create visual geometry for subtraction ${idx}:`, error);
-          return sub;
-        }
-      }));
-
       const newGeometry = convertReplicadToThreeGeometry(baseShape);
       const newBaseVertices = await getReplicadVertices(baseShape);
+
+      let updatedSubtractions = newSubtractionGeometries;
+      if (newSubtractionGeometries.length > 0) {
+        console.log('📐 Creating visual geometries for remaining subtractions...');
+        const { createSubtractionVisualGeometry } = await import('./services/shapeUpdater');
+
+        const firstBaseShape = await createReplicadBox({
+          width: size.x,
+          height: size.y,
+          depth: size.z
+        });
+
+        try {
+          updatedSubtractions = await Promise.all(newSubtractionGeometries.map(async (sub, idx) => {
+            if (!sub) return sub;
+            try {
+              const visualGeom = await createSubtractionVisualGeometry(
+                firstBaseShape,
+                sub,
+                shape.fillets || [],
+                { width: size.x, height: size.y, depth: size.z }
+              );
+              return { ...sub, visualGeometry: visualGeom };
+            } catch (error) {
+              console.error(`❌ Failed to create visual geometry for subtraction ${idx}:`, error);
+              return sub;
+            }
+          }));
+        } catch (error) {
+          console.error('❌ Failed to create visual geometries, using original subtractions:', error);
+        }
+      }
 
       set((state) => ({
         shapes: state.shapes.map((s) => {
