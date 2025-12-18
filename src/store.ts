@@ -30,6 +30,7 @@ export interface FilletInfo {
   face1Data: { normal: [number, number, number]; center: [number, number, number] };
   face2Data: { normal: [number, number, number]; center: [number, number, number] };
   radius: number; // Mutlak yarıçap değeri (scale'den bağımsız)
+  originalSize: { width: number; height: number; depth: number }; // Filletin uygulandığı zamanki boyutlar
 }
 
 /**

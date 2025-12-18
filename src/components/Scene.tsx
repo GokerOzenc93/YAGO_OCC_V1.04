@@ -702,7 +702,12 @@ const Scene: React.FC = () => {
               {
                 face1Data: selectedFilletFaceData[0],
                 face2Data: selectedFilletFaceData[1],
-                radius
+                radius,
+                originalSize: {
+                  width: shape.parameters.width || 1,
+                  height: shape.parameters.height || 1,
+                  depth: shape.parameters.depth || 1
+                }
               }
             ]
           });

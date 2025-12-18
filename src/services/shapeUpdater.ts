@@ -21,10 +21,22 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
   for (const fillet of fillets) {
     console.log(`🔵 Applying fillet with radius ${fillet.radius}...`);
 
+    const scaleX = shapeSize.width / fillet.originalSize.width;
+    const scaleY = shapeSize.height / fillet.originalSize.height;
+    const scaleZ = shapeSize.depth / fillet.originalSize.depth;
+
     const face1Center = new THREE.Vector3(...fillet.face1Data.center);
+    face1Center.multiply(new THREE.Vector3(scaleX, scaleY, scaleZ));
+
     const face2Center = new THREE.Vector3(...fillet.face2Data.center);
+    face2Center.multiply(new THREE.Vector3(scaleX, scaleY, scaleZ));
+
     const face1Normal = new THREE.Vector3(...fillet.face1Data.normal);
     const face2Normal = new THREE.Vector3(...fillet.face2Data.normal);
+
+    console.log(`📐 Scaled face centers for new dimensions (${shapeSize.width}x${shapeSize.height}x${shapeSize.depth})`);
+    console.log(`   Face1 center: (${face1Center.x.toFixed(2)}, ${face1Center.y.toFixed(2)}, ${face1Center.z.toFixed(2)})`);
+    console.log(`   Face2 center: (${face2Center.x.toFixed(2)}, ${face2Center.y.toFixed(2)}, ${face2Center.z.toFixed(2)})`);
 
     let edgeCount = 0;
     let foundEdgeCount = 0;
@@ -203,21 +215,26 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     });
 
     let scaledGeometry = selectedShape.geometry;
+    const hasFillets = selectedShape.fillets && selectedShape.fillets.length > 0;
 
     if (dimensionsChanged && selectedShape.geometry) {
-      console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
-      scaledGeometry = selectedShape.geometry.clone();
-      scaledGeometry.scale(scaleX, scaleY, scaleZ);
-      scaledGeometry.computeVertexNormals();
-      scaledGeometry.computeBoundingBox();
-      scaledGeometry.computeBoundingSphere();
+      if (hasFillets) {
+        console.log('🔵 Dimensions changed with fillets - will recreate shape with fillets (not scale)');
+      } else {
+        console.log('📏 Scaling geometry by:', { scaleX, scaleY, scaleZ });
+        scaledGeometry = selectedShape.geometry.clone();
+        scaledGeometry.scale(scaleX, scaleY, scaleZ);
+        scaledGeometry.computeVertexNormals();
+        scaledGeometry.computeBoundingBox();
+        scaledGeometry.computeBoundingSphere();
 
-      const box = new THREE.Box3().setFromBufferAttribute(
-        scaledGeometry.getAttribute('position')
-      );
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-      console.log('✓ Scaled geometry center:', { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) });
+        const box = new THREE.Box3().setFromBufferAttribute(
+          scaledGeometry.getAttribute('position')
+        );
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        console.log('✓ Scaled geometry center:', { x: center.x.toFixed(2), y: center.y.toFixed(2), z: center.z.toFixed(2) });
+      }
     }
 
     const hasSubtractionChanges = selectedSubtractionIndex !== null && selectedShape.subtractionGeometries?.length > 0;
@@ -323,7 +340,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         }
       });
     } else {
-      if (dimensionsChanged && scaledGeometry) {
+      if (dimensionsChanged) {
         console.log('🔄 Dimensions changed, recreating replicad shape with new dimensions...');
 
         let newReplicadShape = await createReplicadBox({
