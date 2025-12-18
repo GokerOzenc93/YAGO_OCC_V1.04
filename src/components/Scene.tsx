@@ -26,8 +26,6 @@ const SubtractionMesh: React.FC<{
   setHoveredSubtractionIndex,
   setSelectedSubtractionIndex
 }) => {
-  const displayGeometry = subtraction.visualGeometry || subtraction.geometry;
-
   const geometryInfo = useMemo(() => {
     const box = new THREE.Box3().setFromBufferAttribute(
       subtraction.geometry.attributes.position as THREE.BufferAttribute
@@ -51,8 +49,8 @@ const SubtractionMesh: React.FC<{
       rotation={subtraction.relativeRotation}
     >
       <mesh
-        geometry={displayGeometry}
-        position={subtraction.visualGeometry ? [0, 0, 0] : geometryInfo.meshOffset}
+        geometry={subtraction.geometry}
+        position={geometryInfo.meshOffset}
         onPointerOver={(e) => {
           e.stopPropagation();
           if (isSelected) {

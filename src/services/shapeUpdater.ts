@@ -11,48 +11,6 @@ export const getOriginalSize = (geometry: THREE.BufferGeometry) => {
   return size;
 };
 
-export async function createSubtractionVisualGeometry(
-  baseShape: any,
-  subtraction: any,
-  fillets: FilletInfo[],
-  shapeSize: { width: number; height: number; depth: number }
-): Promise<THREE.BufferGeometry> {
-  const { createReplicadBox, performBooleanIntersection, convertReplicadToThreeGeometry } = await import('./replicad');
-
-  let visualBaseShape = baseShape;
-
-  if (fillets && fillets.length > 0) {
-    visualBaseShape = await applyFillets(baseShape, fillets, shapeSize);
-  }
-
-  const subSize = getOriginalSize(subtraction.geometry);
-  let subBox = await createReplicadBox({
-    width: subSize.x,
-    height: subSize.y,
-    depth: subSize.z
-  });
-
-  if (subtraction.relativeRotation && subtraction.relativeRotation.some((r: number) => r !== 0)) {
-    subBox = subBox.rotate(
-      subtraction.relativeRotation[0] * (180 / Math.PI),
-      subtraction.relativeRotation[1] * (180 / Math.PI),
-      subtraction.relativeRotation[2] * (180 / Math.PI)
-    );
-  }
-
-  if (subtraction.relativeOffset && subtraction.relativeOffset.some((o: number) => o !== 0)) {
-    subBox = subBox.translate(
-      subtraction.relativeOffset[0],
-      subtraction.relativeOffset[1],
-      subtraction.relativeOffset[2]
-    );
-  }
-
-  const intersectionResult = await performBooleanIntersection(visualBaseShape, subBox);
-
-  return convertReplicadToThreeGeometry(intersectionResult);
-}
-
 export async function applyFillets(replicadShape: any, fillets: FilletInfo[], shapeSize: { width: number; height: number; depth: number }) {
   if (!fillets || fillets.length === 0) return replicadShape;
 
@@ -97,31 +55,15 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
           (start.z + end.z) / 2
         );
 
-        const edgeDir = new THREE.Vector3(
-          end.x - start.x,
-          end.y - start.y,
-          end.z - start.z
-        ).normalize();
-
-        const toFace1 = centerVec.clone().sub(face1Center);
-        const toFace2 = centerVec.clone().sub(face2Center);
-
-        const distToFace1 = Math.abs(toFace1.dot(face1Normal));
-        const distToFace2 = Math.abs(toFace2.dot(face2Normal));
-
-        const face1DotEdge = Math.abs(face1Normal.dot(edgeDir));
-        const face2DotEdge = Math.abs(face2Normal.dot(edgeDir));
+        const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
+        const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
 
         const maxDimension = Math.max(shapeSize.width || 1, shapeSize.height || 1, shapeSize.depth || 1);
-        const tolerance = maxDimension * 0.5;
+        const tolerance = maxDimension * 0.15;
 
-        const isPerpendicularToFace1 = face1DotEdge < 0.1;
-        const isPerpendicularToFace2 = face2DotEdge < 0.1;
-
-        if (distToFace1 < tolerance && distToFace2 < tolerance &&
-            isPerpendicularToFace1 && isPerpendicularToFace2) {
+        if (distToFace1 < tolerance && distToFace2 < tolerance) {
           foundEdgeCount++;
-          console.log(`✅ Found shared edge #${foundEdgeCount} at (${centerVec.x.toFixed(1)}, ${centerVec.y.toFixed(1)}, ${centerVec.z.toFixed(1)}) - applying fillet radius: ${fillet.radius}`);
+          console.log(`✅ Found shared edge #${foundEdgeCount} - applying fillet radius: ${fillet.radius}`);
           return fillet.radius;
         }
 
@@ -296,18 +238,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     }
 
     const hasSubtractionChanges = selectedSubtractionIndex !== null && selectedShape.subtractionGeometries?.length > 0;
-    const hasSubtractions = selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.filter((s: any) => s !== null).length > 0;
-    const needsRebuild = dimensionsChanged && (hasSubtractions || hasFillets);
-
-    console.log('🔍 Rebuild check:', {
-      dimensionsChanged,
-      hasFillets,
-      filletCount: selectedShape.fillets?.length || 0,
-      hasSubtractions,
-      needsRebuild,
-      currentDimensions: { width: currentWidth, height: currentHeight, depth: currentDepth },
-      newDimensions: { width, height, depth }
-    });
 
     const newRotation: [number, number, number] = [
       rotX * (Math.PI / 180),
@@ -330,39 +260,34 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       scale: selectedShape.scale
     };
 
-    if (hasSubtractionChanges || needsRebuild) {
-      console.log('🔄 Rebuilding shape with subtractions and/or fillets...');
+    if (hasSubtractionChanges) {
+      console.log('🔄 Recalculating subtraction with updated dimensions...');
 
-      let allSubtractions = selectedShape.subtractionGeometries || [];
+      const updatedSubtraction = {
+        ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
+        geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
+        relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
+        relativeRotation: [
+          subRotX * (Math.PI / 180),
+          subRotY * (Math.PI / 180),
+          subRotZ * (Math.PI / 180)
+        ] as [number, number, number],
+        parameters: subParams ? {
+          width: subParams.width.expression,
+          height: subParams.height.expression,
+          depth: subParams.depth.expression,
+          posX: subParams.posX.expression,
+          posY: subParams.posY.expression,
+          posZ: subParams.posZ.expression,
+          rotX: subParams.rotX.expression,
+          rotY: subParams.rotY.expression,
+          rotZ: subParams.rotZ.expression
+        } : undefined
+      };
 
-      if (hasSubtractionChanges) {
-        console.log('🔄 Updating selected subtraction...');
-        const updatedSubtraction = {
-          ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
-          geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
-          relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
-          relativeRotation: [
-            subRotX * (Math.PI / 180),
-            subRotY * (Math.PI / 180),
-            subRotZ * (Math.PI / 180)
-          ] as [number, number, number],
-          parameters: subParams ? {
-            width: subParams.width.expression,
-            height: subParams.height.expression,
-            depth: subParams.depth.expression,
-            posX: subParams.posX.expression,
-            posY: subParams.posY.expression,
-            posZ: subParams.posZ.expression,
-            rotX: subParams.rotX.expression,
-            rotY: subParams.rotY.expression,
-            rotZ: subParams.rotZ.expression
-          } : undefined
-        };
-
-        allSubtractions = selectedShape.subtractionGeometries!.map((sub: any, idx: number) =>
-          idx === selectedSubtractionIndex ? updatedSubtraction : sub
-        );
-      }
+      const allSubtractions = selectedShape.subtractionGeometries!.map((sub: any, idx: number) =>
+        idx === selectedSubtractionIndex ? updatedSubtraction : sub
+      );
 
       let baseShape = await createReplicadBox({
         width,
@@ -404,51 +329,30 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
 
-      let updatedSubtractions = allSubtractions;
-      if (allSubtractions.length > 0) {
-        console.log('📐 Creating visual geometries for subtractions...');
-        try {
-          updatedSubtractions = await Promise.all(allSubtractions.map(async (sub, idx) => {
-            if (!sub) return sub;
-            try {
-              const visualGeom = await createSubtractionVisualGeometry(
-                baseShape,
-                sub,
-                selectedShape.fillets || [],
-                { width, height, depth }
-              );
-              return { ...sub, visualGeometry: visualGeom };
-            } catch (error) {
-              console.error(`❌ Failed to create visual geometry for subtraction ${idx}:`, error);
-              return sub;
-            }
-          }));
-        } catch (error) {
-          console.error('❌ Failed to create visual geometries, using original subtractions:', error);
-        }
-      }
-
       updateShape(selectedShape.id, {
         ...baseUpdate,
         geometry: newGeometry,
         replicadShape: resultShape,
-        subtractionGeometries: updatedSubtractions,
+        subtractionGeometries: allSubtractions,
         parameters: {
           ...baseUpdate.parameters,
           scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
         }
       });
-
-      console.log('✅ Shape rebuilt successfully with new dimensions');
     } else {
-      if (dimensionsChanged && !hasFillets) {
-        console.log('🔄 Dimensions changed without fillets/subtractions - recreating base shape...');
+      if (dimensionsChanged) {
+        console.log('🔄 Dimensions changed, recreating replicad shape with new dimensions...');
 
-        const newReplicadShape = await createReplicadBox({
+        let newReplicadShape = await createReplicadBox({
           width,
           height,
           depth
         });
+
+        if (selectedShape.fillets && selectedShape.fillets.length > 0) {
+          console.log('🔵 Reapplying fillets after dimension change...');
+          newReplicadShape = await applyFillets(newReplicadShape, selectedShape.fillets, { width, height, depth });
+        }
 
         const newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
         const newBaseVertices = await getReplicadVertices(newReplicadShape);
@@ -600,40 +504,12 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
   const newGeometry = convertReplicadToThreeGeometry(resultShape);
   const newBaseVertices = await getReplicadVertices(resultShape);
 
-  let updatedSubtractions = allSubtractions;
-  if (allSubtractions.length > 0) {
-    console.log('📐 Creating visual geometries for subtractions...');
-    try {
-      updatedSubtractions = await Promise.all(allSubtractions.map(async (sub, idx) => {
-        if (!sub) return sub;
-        try {
-          const visualGeom = await createSubtractionVisualGeometry(
-            baseShape,
-            sub,
-            currentShape.fillets || [],
-            {
-              width: currentShape.parameters.width || 1,
-              height: currentShape.parameters.height || 1,
-              depth: currentShape.parameters.depth || 1
-            }
-          );
-          return { ...sub, visualGeometry: visualGeom };
-        } catch (error) {
-          console.error(`❌ Failed to create visual geometry for subtraction ${idx}:`, error);
-          return sub;
-        }
-      }));
-    } catch (error) {
-      console.error('❌ Failed to create visual geometries, using original subtractions:', error);
-    }
-  }
-
-  console.log('✅ Subtraction changes applied');
+  console.log('✅ Subtraction complete');
 
   updateShape(currentShape.id, {
     geometry: newGeometry,
     replicadShape: resultShape,
-    subtractionGeometries: updatedSubtractions,
+    subtractionGeometries: allSubtractions,
     parameters: {
       ...currentShape.parameters,
       scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
