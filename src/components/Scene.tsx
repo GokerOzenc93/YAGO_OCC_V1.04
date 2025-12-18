@@ -687,7 +687,7 @@ const Scene: React.FC = () => {
           console.log('🔢 Total edges checked:', edgeCount);
           console.log('🔢 Edges selected for fillet:', foundEdgeCount);
 
-          const newGeometry = convertReplicadToThreeGeometry(filletedShape);
+          const newGeometry = convertReplicadToThreeGeometry(filletedShape, { tolerance: 0.05, angularTolerance: 30 });
           const newBaseVertices = await getReplicadVertices(filletedShape);
 
           updateShape(selectedShapeId, {

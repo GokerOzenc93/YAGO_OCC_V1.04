@@ -39,8 +39,17 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
 
     setFaces(extractedFaces);
 
-    const groups = groupCoplanarFaces(extractedFaces);
-    console.log(`✅ Grouped into ${groups.length} coplanar face groups`);
+    const groups = groupCoplanarFaces(extractedFaces, 2);
+    console.log(`✅ Grouped into ${groups.length} face groups`);
+
+    const curvedGroupCount = groups.filter((group) => {
+      const firstFace = extractedFaces.find(f => f.faceIndex === group.faceIndices[0]);
+      return firstFace?.isCurved;
+    }).length;
+    const flatGroupCount = groups.length - curvedGroupCount;
+
+    console.log(`   📊 ${curvedGroupCount} curved groups (fillet surfaces)`);
+    console.log(`   📊 ${flatGroupCount} flat groups (planar surfaces)`);
 
     setFaceGroups(groups);
   }, [shape.geometry, shape.id]);
@@ -138,13 +147,14 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
           scale={shape.scale}
         >
           <meshBasicMaterial
-            color={0xff0000}
+            color={0x00ff00}
             transparent
-            opacity={0.6}
+            opacity={0.7}
             side={THREE.DoubleSide}
             polygonOffset
-            polygonOffsetFactor={-1}
-            polygonOffsetUnits={-1}
+            polygonOffsetFactor={-2}
+            polygonOffsetUnits={-2}
+            depthTest={true}
           />
         </mesh>
       ))}
@@ -157,13 +167,14 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
           scale={shape.scale}
         >
           <meshBasicMaterial
-            color={0xff0000}
+            color={0xffaa00}
             transparent
-            opacity={0.5}
+            opacity={0.6}
             side={THREE.DoubleSide}
             polygonOffset
-            polygonOffsetFactor={-1}
-            polygonOffsetUnits={-1}
+            polygonOffsetFactor={-2}
+            polygonOffsetUnits={-2}
+            depthTest={true}
           />
         </mesh>
       )}
