@@ -103,16 +103,12 @@ export const createReplicadSphere = async (params: ReplicadSphereParams): Promis
   return sphere;
 };
 
-export const convertReplicadToThreeGeometry = (shape: any, options?: { tolerance?: number, angularTolerance?: number }): THREE.BufferGeometry => {
+export const convertReplicadToThreeGeometry = (shape: any): THREE.BufferGeometry => {
   try {
-    const tolerance = options?.tolerance ?? 0.05;
-    const angularTolerance = options?.angularTolerance ?? 30;
-
     console.log('🔄 Converting Replicad shape to Three.js geometry...');
     console.log('Shape object:', shape);
-    console.log('Mesh options:', { tolerance, angularTolerance });
 
-    const mesh = shape.mesh({ tolerance, angularTolerance });
+    const mesh = shape.mesh({ tolerance: 0.1, angularTolerance: 30 });
     console.log('Mesh data:', mesh);
 
     const vertices: number[] = [];

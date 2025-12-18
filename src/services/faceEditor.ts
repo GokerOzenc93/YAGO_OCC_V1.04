@@ -124,7 +124,7 @@ function buildAdjacencyMap(faces: FaceData[]): Map<number, Set<number>> {
 
 export function groupCoplanarFaces(
   faces: FaceData[],
-  thresholdAngleDegrees: number = 2
+  thresholdAngleDegrees: number = 10
 ): CoplanarFaceGroup[] {
   const groups: CoplanarFaceGroup[] = [];
   const visited = new Set<number>();
@@ -165,7 +165,7 @@ export function groupCoplanarFaces(
         const dot = currFace.normal.dot(neighborFace.normal);
         const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
 
-        const effectiveThreshold = isCurvedGroup ? 35 : thresholdAngleDegrees;
+        const effectiveThreshold = isCurvedGroup ? 25 : thresholdAngleDegrees;
 
         if (angle < effectiveThreshold) {
           visited.add(neighborIdx);
@@ -196,11 +196,6 @@ export function groupCoplanarFaces(
       totalArea
     });
   }
-
-  console.log(`✅ Grouped ${faces.length} faces into ${groups.length} groups`, {
-    curvedGroups: groups.filter((_, idx) => faces[groups[idx].faceIndices[0]].isCurved).length,
-    flatGroups: groups.filter((_, idx) => !faces[groups[idx].faceIndices[0]].isCurved).length
-  });
 
   return groups;
 }
