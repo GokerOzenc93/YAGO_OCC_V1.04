@@ -696,10 +696,18 @@ const Scene: React.FC = () => {
             parameters: {
               ...shape.parameters,
               scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-            }
+            },
+            fillets: [
+              ...(shape.fillets || []),
+              {
+                face1Data: selectedFilletFaceData[0],
+                face2Data: selectedFilletFaceData[1],
+                radius
+              }
+            ]
           });
 
-          console.log(`✅ Fillet with radius ${radius} applied successfully!`);
+          console.log(`✅ Fillet with radius ${radius} applied successfully and saved to shape.fillets!`);
           clearFilletFaces();
           console.log('✅ Fillet faces cleared. Select 2 new faces for another fillet operation.');
         } catch (error) {

@@ -22,6 +22,17 @@ export interface SubtractionParameters {
 }
 
 /**
+ * FilletInfo:
+ * Fillet (köşe yuvarlama) işleminin parametrik bilgileri.
+ * Geometri büyüyüp küçüldükçe fillet yarıçapı sabit kalır.
+ */
+export interface FilletInfo {
+  face1Data: { normal: [number, number, number]; center: [number, number, number] };
+  face2Data: { normal: [number, number, number]; center: [number, number, number] };
+  radius: number; // Mutlak yarıçap değeri (scale'den bağımsız)
+}
+
+/**
  * SubtractedGeometry:
  * Bir şekil başka bir şekli kestiğinde (Boolean Cut), kesen parçanın
  * bilgileri burada saklanır. Bu, işlemin geri alınabilmesi veya
@@ -55,6 +66,7 @@ export interface Shape {
   groupId?: string;                      // Eğer bir grubun parçasıysa grup ID'si
   isReferenceBox?: boolean;              // Boolean işleminde referans kutusu mu?
   subtractionGeometries?: SubtractedGeometry[]; // Bu şekilden çıkarılmış parçaların listesi
+  fillets?: FilletInfo[];                // Parametrik fillet bilgileri
 }
 
 /**
@@ -654,7 +666,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             // --- 3. Boolean Cut İşlemi ---
             // Shape1'den Shape2'yi çıkar
-            const resultShape = await performBooleanCut(
+            let resultShape = await performBooleanCut(
               shape1Replicad,
               shape2Replicad,
               shape1Center as [number, number, number],
@@ -666,6 +678,17 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape1Size,
               shape2Size
             );
+
+            // Shape1'de fillet varsa, yeniden uygula
+            if (shape1.fillets && shape1.fillets.length > 0) {
+              console.log('🔵 Reapplying fillets after boolean cut...');
+              const { applyFillets } = await import('./services/shapeUpdater');
+              resultShape = await applyFillets(resultShape, shape1.fillets, {
+                width: shape1Size[0],
+                height: shape1Size[1],
+                depth: shape1Size[2]
+              });
+            }
 
             // Sonucu Three.js geometrisine çevir
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
@@ -720,6 +743,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     ...s,
                     geometry: newGeometry,      // Yeni kesilmiş geometri
                     replicadShape: resultShape, // Yeni CAD verisi
+                    fillets: s.fillets,         // Fillet bilgilerini koru
                     // Kesilen parçayı listeye ekle
                     subtractionGeometries: [
                       ...existingSubtractions,
@@ -779,6 +803,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./services/replicad');
       const { getReplicadVertices } = await import('./services/vertexEditor');
+      const { applyFillets } = await import('./services/shapeUpdater');
 
       const box = new THREE.Box3().setFromBufferAttribute(
         shape.geometry.getAttribute('position')
@@ -820,6 +845,15 @@ export const useAppStore = create<AppState>((set, get) => ({
           undefined,
           subtraction.scale || [1, 1, 1]
         );
+      }
+
+      if (shape.fillets && shape.fillets.length > 0) {
+        console.log('🔵 Reapplying fillets after subtraction deletion...');
+        baseShape = await applyFillets(baseShape, shape.fillets, {
+          width: size.x,
+          height: size.y,
+          depth: size.z
+        });
       }
 
       const newGeometry = convertReplicadToThreeGeometry(baseShape);

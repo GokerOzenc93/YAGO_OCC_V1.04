@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { evaluateExpression } from '../utils/expression';
+import type { FilletInfo } from '../store';
 
 export const getOriginalSize = (geometry: THREE.BufferGeometry) => {
   const box = new THREE.Box3().setFromBufferAttribute(
@@ -9,6 +10,64 @@ export const getOriginalSize = (geometry: THREE.BufferGeometry) => {
   box.getSize(size);
   return size;
 };
+
+export async function applyFillets(replicadShape: any, fillets: FilletInfo[], shapeSize: { width: number; height: number; depth: number }) {
+  if (!fillets || fillets.length === 0) return replicadShape;
+
+  console.log(`🔵 Applying ${fillets.length} fillet(s) to shape...`);
+
+  let currentShape = replicadShape;
+
+  for (const fillet of fillets) {
+    console.log(`🔵 Applying fillet with radius ${fillet.radius}...`);
+
+    const face1Center = new THREE.Vector3(...fillet.face1Data.center);
+    const face2Center = new THREE.Vector3(...fillet.face2Data.center);
+    const face1Normal = new THREE.Vector3(...fillet.face1Data.normal);
+    const face2Normal = new THREE.Vector3(...fillet.face2Data.normal);
+
+    let edgeCount = 0;
+    let foundEdgeCount = 0;
+
+    currentShape = currentShape.fillet((edge: any) => {
+      edgeCount++;
+      try {
+        const start = edge.startPoint;
+        const end = edge.endPoint;
+
+        if (!start || !end) return null;
+
+        const centerVec = new THREE.Vector3(
+          (start.x + end.x) / 2,
+          (start.y + end.y) / 2,
+          (start.z + end.z) / 2
+        );
+
+        const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
+        const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
+
+        const maxDimension = Math.max(shapeSize.width || 1, shapeSize.height || 1, shapeSize.depth || 1);
+        const tolerance = maxDimension * 0.15;
+
+        if (distToFace1 < tolerance && distToFace2 < tolerance) {
+          foundEdgeCount++;
+          console.log(`✅ Found shared edge #${foundEdgeCount} - applying fillet radius: ${fillet.radius}`);
+          return fillet.radius;
+        }
+
+        return null;
+      } catch (e) {
+        console.error('❌ Error checking edge:', e);
+        return null;
+      }
+    });
+
+    console.log(`🔢 Total edges checked: ${edgeCount}, Edges filleted: ${foundEdgeCount}`);
+  }
+
+  console.log('✅ All fillets applied successfully!');
+  return currentShape;
+}
 
 interface ApplyShapeChangesParams {
   selectedShape: any;
@@ -245,6 +304,11 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         );
       }
 
+      if (selectedShape.fillets && selectedShape.fillets.length > 0) {
+        console.log('🔵 Reapplying fillets after subtraction...');
+        resultShape = await applyFillets(resultShape, selectedShape.fillets, { width, height, depth });
+      }
+
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
 
@@ -262,17 +326,23 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       if (dimensionsChanged && scaledGeometry) {
         console.log('🔄 Dimensions changed, recreating replicad shape with new dimensions...');
 
-        const newReplicadShape = await createReplicadBox({
+        let newReplicadShape = await createReplicadBox({
           width,
           height,
           depth
         });
 
+        if (selectedShape.fillets && selectedShape.fillets.length > 0) {
+          console.log('🔵 Reapplying fillets after dimension change...');
+          newReplicadShape = await applyFillets(newReplicadShape, selectedShape.fillets, { width, height, depth });
+        }
+
+        const newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
         const newBaseVertices = await getReplicadVertices(newReplicadShape);
 
         updateShape(selectedShape.id, {
           ...baseUpdate,
-          geometry: scaledGeometry,
+          geometry: newGeometry,
           replicadShape: newReplicadShape,
           parameters: {
             ...baseUpdate.parameters,
@@ -403,6 +473,15 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       undefined,
       subtraction.scale || [1, 1, 1] as [number, number, number]
     );
+  }
+
+  if (currentShape.fillets && currentShape.fillets.length > 0) {
+    console.log('🔵 Reapplying fillets after subtraction changes...');
+    resultShape = await applyFillets(resultShape, currentShape.fillets, {
+      width: currentShape.parameters.width || 1,
+      height: currentShape.parameters.height || 1,
+      depth: currentShape.parameters.depth || 1
+    });
   }
 
   const newGeometry = convertReplicadToThreeGeometry(resultShape);
