@@ -349,6 +349,34 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           depth
         });
 
+        if (selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0) {
+          console.log('🔄 Reapplying all subtractions after dimension change...');
+
+          for (let i = 0; i < selectedShape.subtractionGeometries.length; i++) {
+            const subtraction = selectedShape.subtractionGeometries[i];
+            if (!subtraction) continue;
+
+            const subSize = getOriginalSize(subtraction.geometry);
+
+            const subBox = await createReplicadBox({
+              width: subSize.x,
+              height: subSize.y,
+              depth: subSize.z
+            });
+
+            newReplicadShape = await performBooleanCut(
+              newReplicadShape,
+              subBox,
+              undefined,
+              subtraction.relativeOffset,
+              undefined,
+              subtraction.relativeRotation || [0, 0, 0],
+              undefined,
+              subtraction.scale || [1, 1, 1] as [number, number, number]
+            );
+          }
+        }
+
         if (selectedShape.fillets && selectedShape.fillets.length > 0) {
           console.log('🔵 Reapplying fillets after dimension change...');
           newReplicadShape = await applyFillets(newReplicadShape, selectedShape.fillets, { width, height, depth });
