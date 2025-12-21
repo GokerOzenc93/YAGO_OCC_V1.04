@@ -482,7 +482,74 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
         console.log('✓ Replicad shape recreated with dimensions:', { width, height, depth });
       } else {
-        updateShape(selectedShape.id, baseUpdate);
+        const filletsChanged = filletRadii && filletRadii.length > 0 &&
+          filletRadii.some((r, idx) => (selectedShape.fillets?.[idx]?.radius || 0) !== r);
+
+        if (filletsChanged && selectedShape.replicadShape) {
+          console.log('🔄 Fillet radii changed without dimension change, reapplying fillets...');
+
+          let updatedFillets = selectedShape.fillets || [];
+          updatedFillets = updatedFillets.map((fillet: FilletInfo, idx: number) => ({
+            ...fillet,
+            radius: filletRadii[idx] !== undefined ? filletRadii[idx] : fillet.radius
+          }));
+
+          let newReplicadShape = selectedShape.replicadShape;
+
+          if (selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0) {
+            newReplicadShape = await createReplicadBox({ width, height, depth });
+
+            for (let i = 0; i < selectedShape.subtractionGeometries.length; i++) {
+              const subtraction = selectedShape.subtractionGeometries[i];
+              if (!subtraction) continue;
+
+              const subSize = getOriginalSize(subtraction.geometry);
+              const subBox = await createReplicadBox({
+                width: subSize.x,
+                height: subSize.y,
+                depth: subSize.z
+              });
+
+              newReplicadShape = await performBooleanCut(
+                newReplicadShape,
+                subBox,
+                undefined,
+                subtraction.relativeOffset,
+                undefined,
+                subtraction.relativeRotation || [0, 0, 0],
+                undefined,
+                subtraction.scale || [1, 1, 1] as [number, number, number]
+              );
+            }
+          } else {
+            newReplicadShape = await createReplicadBox({ width, height, depth });
+          }
+
+          let finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
+          let finalBaseVertices = await getReplicadVertices(newReplicadShape);
+
+          updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
+
+          console.log('🔵 Reapplying fillets with new radii...');
+          newReplicadShape = await applyFillets(newReplicadShape, updatedFillets, { width, height, depth });
+          finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
+          finalBaseVertices = await getReplicadVertices(newReplicadShape);
+
+          updateShape(selectedShape.id, {
+            ...baseUpdate,
+            geometry: finalGeometry,
+            replicadShape: newReplicadShape,
+            fillets: updatedFillets,
+            parameters: {
+              ...baseUpdate.parameters,
+              scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
+            }
+          });
+
+          console.log('✅ Fillets reapplied with new radii');
+        } else {
+          updateShape(selectedShape.id, baseUpdate);
+        }
       }
     }
 
