@@ -26,17 +26,28 @@ export async function updateFilletCentersForNewGeometry(
 
   const updatedFillets = fillets.map((fillet, idx) => {
     console.log(`🔄 Updating fillet #${idx + 1} using descriptors...`);
+    console.log(`   Current radius: ${fillet.radius}`);
 
     if (!fillet.face1Descriptor || !fillet.face2Descriptor) {
       console.warn(`⚠️ Fillet #${idx + 1} missing descriptors, skipping update`);
       return fillet;
     }
 
+    console.log(`   Face1 descriptor - Normal: [${fillet.face1Descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
+    console.log(`   Face2 descriptor - Normal: [${fillet.face2Descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
+
     const newFace1 = findFaceByDescriptor(fillet.face1Descriptor, faces, newGeometry);
     const newFace2 = findFaceByDescriptor(fillet.face2Descriptor, faces, newGeometry);
 
-    if (!newFace1 || !newFace2) {
-      console.warn(`⚠️ Could not find matching faces for fillet #${idx + 1}`);
+    if (!newFace1) {
+      console.error(`❌ Could not find matching face1 for fillet #${idx + 1}`);
+      console.error(`   Target normal: [${fillet.face1Descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
+      return fillet;
+    }
+
+    if (!newFace2) {
+      console.error(`❌ Could not find matching face2 for fillet #${idx + 1}`);
+      console.error(`   Target normal: [${fillet.face2Descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
       return fillet;
     }
 
@@ -108,7 +119,7 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
         const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
 
         const maxDimension = Math.max(shapeSize.width || 1, shapeSize.height || 1, shapeSize.depth || 1);
-        const tolerance = maxDimension * 0.15;
+        const tolerance = maxDimension * 0.25;
 
         if (distToFace1 < tolerance && distToFace2 < tolerance) {
           foundEdgeCount++;

@@ -291,7 +291,8 @@ export function findFaceByDescriptor(
   for (const face of faces) {
     const faceDescriptor = createFaceDescriptor(face, geometry);
 
-    const normalDiff = Math.abs(targetNormal.dot(face.normal) - 1);
+    const dotProduct = targetNormal.dot(face.normal);
+    const normalDiff = Math.abs(dotProduct - 1);
 
     const centerDiff = Math.sqrt(
       Math.pow(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0], 2) +
@@ -307,5 +308,9 @@ export function findFaceByDescriptor(
     }
   }
 
-  return bestScore < 0.5 ? bestMatch : null;
+  if (bestMatch) {
+    console.log(`🔍 Face match - Score: ${bestScore.toFixed(4)}, Normal: [${descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
+  }
+
+  return bestScore < 1.0 ? bestMatch : null;
 }
