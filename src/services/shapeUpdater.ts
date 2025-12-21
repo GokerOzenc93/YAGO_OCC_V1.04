@@ -464,21 +464,28 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }
         }
 
-        if (selectedShape.fillets && selectedShape.fillets.length > 0) {
-          console.log('🔵 Reapplying fillets after dimension change...');
-          newReplicadShape = await applyFillets(newReplicadShape, selectedShape.fillets, { width, height, depth });
-        }
+        let finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
+        let finalBaseVertices = await getReplicadVertices(newReplicadShape);
+        let updatedFillets = selectedShape.fillets || [];
 
-        const newGeometry = convertReplicadToThreeGeometry(newReplicadShape);
-        const newBaseVertices = await getReplicadVertices(newReplicadShape);
+        if (updatedFillets.length > 0) {
+          console.log('🔄 Updating fillet centers after dimension change...');
+          updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
+
+          console.log('🔵 Reapplying fillets with updated centers...');
+          newReplicadShape = await applyFillets(newReplicadShape, updatedFillets, { width, height, depth });
+          finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
+          finalBaseVertices = await getReplicadVertices(newReplicadShape);
+        }
 
         updateShape(selectedShape.id, {
           ...baseUpdate,
-          geometry: newGeometry,
+          geometry: finalGeometry,
           replicadShape: newReplicadShape,
+          fillets: updatedFillets,
           parameters: {
             ...baseUpdate.parameters,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+            scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
           }
         });
 
