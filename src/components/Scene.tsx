@@ -634,6 +634,7 @@ const Scene: React.FC = () => {
         try {
           const { convertReplicadToThreeGeometry } = await import('../services/replicad');
           const { getReplicadVertices } = await import('../services/vertexEditor');
+          const { extractFacesFromGeometry, createFaceDescriptor, groupCoplanarFaces } = await import('../services/faceEditor');
 
           console.log('📐 Face 1 - Normal:', selectedFilletFaceData[0].normal, 'Center:', selectedFilletFaceData[0].center);
           console.log('📐 Face 2 - Normal:', selectedFilletFaceData[1].normal, 'Center:', selectedFilletFaceData[1].center);
@@ -642,6 +643,25 @@ const Scene: React.FC = () => {
           const face2Center = new THREE.Vector3(...selectedFilletFaceData[1].center);
           const face1Normal = new THREE.Vector3(...selectedFilletFaceData[0].normal);
           const face2Normal = new THREE.Vector3(...selectedFilletFaceData[1].normal);
+
+          const faces = extractFacesFromGeometry(shape.geometry);
+          const faceGroups = groupCoplanarFaces(faces);
+          const group1 = faceGroups[selectedFilletFaces[0]];
+          const group2 = faceGroups[selectedFilletFaces[1]];
+
+          const face1Data = faces.find(f => group1.faceIndices.includes(f.faceIndex));
+          const face2Data = faces.find(f => group2.faceIndices.includes(f.faceIndex));
+
+          if (!face1Data || !face2Data) {
+            console.error('❌ Could not find face data for descriptors');
+            return;
+          }
+
+          const face1Descriptor = createFaceDescriptor(face1Data, shape.geometry);
+          const face2Descriptor = createFaceDescriptor(face2Data, shape.geometry);
+
+          console.log('🆔 Face 1 Descriptor:', face1Descriptor);
+          console.log('🆔 Face 2 Descriptor:', face2Descriptor);
 
           let replicadShape = shape.replicadShape;
 
@@ -695,11 +715,16 @@ const Scene: React.FC = () => {
             replicadShape: filletedShape,
             parameters: {
               ...shape.parameters,
-              scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+              scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
+              width: shape.parameters.width || 1,
+              height: shape.parameters.height || 1,
+              depth: shape.parameters.depth || 1
             },
             fillets: [
               ...(shape.fillets || []),
               {
+                face1Descriptor,
+                face2Descriptor,
                 face1Data: selectedFilletFaceData[0],
                 face2Data: selectedFilletFaceData[1],
                 radius,

@@ -22,15 +22,27 @@ export interface SubtractionParameters {
 }
 
 /**
+ * FaceDescriptor:
+ * Geometri değişse bile face'i tanımlayabilen benzersiz imza.
+ */
+export interface FaceDescriptor {
+  normal: [number, number, number];           // Yüzey normal vektörü
+  normalizedCenter: [number, number, number]; // Merkez pozisyonu (0-1 arası, geometriye göre normalize)
+  area: number;                               // Yüzey alanı
+}
+
+/**
  * FilletInfo:
  * Fillet (köşe yuvarlama) işleminin parametrik bilgileri.
  * Geometri büyüyüp küçüldükçe fillet yarıçapı sabit kalır.
  */
 export interface FilletInfo {
-  face1Data: { normal: [number, number, number]; center: [number, number, number] };
-  face2Data: { normal: [number, number, number]; center: [number, number, number] };
-  radius: number; // Mutlak yarıçap değeri (scale'den bağımsız)
-  originalSize: { width: number; height: number; depth: number }; // Filletin uygulandığı zamanki boyutlar
+  face1Descriptor: FaceDescriptor;            // Face 1'in benzersiz tanımlayıcısı
+  face2Descriptor: FaceDescriptor;            // Face 2'nin benzersiz tanımlayıcısı
+  face1Data: { normal: [number, number, number]; center: [number, number, number] }; // Güncel data
+  face2Data: { normal: [number, number, number]; center: [number, number, number] }; // Güncel data
+  radius: number;                              // Fillet yarıçapı
+  originalSize: { width: number; height: number; depth: number }; // İlk uygulama zamanı boyutlar
 }
 
 /**

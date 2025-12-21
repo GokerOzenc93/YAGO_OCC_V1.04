@@ -18,64 +18,45 @@ export async function updateFilletCentersForNewGeometry(
 ): Promise<FilletInfo[]> {
   if (!fillets || fillets.length === 0) return fillets;
 
-  console.log('🔄 Updating fillet centers for new geometry...');
+  console.log('🔄 Updating fillet centers for new geometry using descriptors...');
 
-  const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./faceEditor');
+  const { extractFacesFromGeometry, findFaceByDescriptor } = await import('./faceEditor');
 
   const faces = extractFacesFromGeometry(newGeometry);
-  const faceGroups = groupCoplanarFaces(faces);
 
   const updatedFillets = fillets.map((fillet, idx) => {
-    const face1Normal = new THREE.Vector3(...fillet.face1Data.normal);
-    const face2Normal = new THREE.Vector3(...fillet.face2Data.normal);
+    console.log(`🔄 Updating fillet #${idx + 1} using descriptors...`);
 
-    let newFace1Center: THREE.Vector3 | null = null;
-    let newFace2Center: THREE.Vector3 | null = null;
-
-    for (const group of faceGroups) {
-      const groupNormal = new THREE.Vector3(group.normal.x, group.normal.y, group.normal.z);
-
-      if (!newFace1Center && groupNormal.distanceTo(face1Normal) < 0.01) {
-        newFace1Center = group.center.clone();
-        console.log(`✅ Found face 1 for fillet #${idx + 1} at center:`, [
-          newFace1Center.x.toFixed(2),
-          newFace1Center.y.toFixed(2),
-          newFace1Center.z.toFixed(2)
-        ]);
-      }
-
-      if (!newFace2Center && groupNormal.distanceTo(face2Normal) < 0.01) {
-        newFace2Center = group.center.clone();
-        console.log(`✅ Found face 2 for fillet #${idx + 1} at center:`, [
-          newFace2Center.x.toFixed(2),
-          newFace2Center.y.toFixed(2),
-          newFace2Center.z.toFixed(2)
-        ]);
-      }
-
-      if (newFace1Center && newFace2Center) break;
-    }
-
-    if (!newFace1Center || !newFace2Center) {
-      console.warn(`⚠️ Could not find matching faces for fillet #${idx + 1}, keeping old centers`);
+    if (!fillet.face1Descriptor || !fillet.face2Descriptor) {
+      console.warn(`⚠️ Fillet #${idx + 1} missing descriptors, skipping update`);
       return fillet;
     }
+
+    const newFace1 = findFaceByDescriptor(fillet.face1Descriptor, faces, newGeometry);
+    const newFace2 = findFaceByDescriptor(fillet.face2Descriptor, faces, newGeometry);
+
+    if (!newFace1 || !newFace2) {
+      console.warn(`⚠️ Could not find matching faces for fillet #${idx + 1}`);
+      return fillet;
+    }
+
+    console.log(`✅ Fillet #${idx + 1} updated - Found matching faces by descriptor`);
 
     return {
       ...fillet,
       face1Data: {
-        ...fillet.face1Data,
-        center: [newFace1Center.x, newFace1Center.y, newFace1Center.z] as [number, number, number]
+        normal: [newFace1.normal.x, newFace1.normal.y, newFace1.normal.z] as [number, number, number],
+        center: [newFace1.center.x, newFace1.center.y, newFace1.center.z] as [number, number, number]
       },
       face2Data: {
-        ...fillet.face2Data,
-        center: [newFace2Center.x, newFace2Center.y, newFace2Center.z] as [number, number, number]
+        normal: [newFace2.normal.x, newFace2.normal.y, newFace2.normal.z] as [number, number, number],
+        center: [newFace2.center.x, newFace2.center.y, newFace2.center.z] as [number, number, number]
       },
       originalSize: newSize
     };
   });
 
-  console.log(`✅ Updated ${updatedFillets.length} fillet center(s)`);
+  console.log(`✅ Updated ${updatedFillets.length} fillet center(s) using descriptors`);
   return updatedFillets;
 }
 
@@ -159,6 +140,7 @@ interface ApplyShapeChangesParams {
   rotZ: number;
   customParameters: any[];
   vertexModifications: any[];
+  filletRadii?: number[];
   selectedSubtractionIndex: number | null;
   subWidth: number;
   subHeight: number;
@@ -194,6 +176,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     rotZ,
     customParameters,
     vertexModifications,
+    filletRadii,
     selectedSubtractionIndex,
     subWidth,
     subHeight,
@@ -468,11 +451,19 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         let finalBaseVertices = await getReplicadVertices(newReplicadShape);
         let updatedFillets = selectedShape.fillets || [];
 
+        if (filletRadii && filletRadii.length > 0) {
+          console.log('🔄 Updating fillet radii from parameters...');
+          updatedFillets = updatedFillets.map((fillet: FilletInfo, idx: number) => ({
+            ...fillet,
+            radius: filletRadii[idx] !== undefined ? filletRadii[idx] : fillet.radius
+          }));
+        }
+
         if (updatedFillets.length > 0) {
           console.log('🔄 Updating fillet centers after dimension change...');
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
-          console.log('🔵 Reapplying fillets with updated centers...');
+          console.log('🔵 Reapplying fillets with updated centers and radii...');
           newReplicadShape = await applyFillets(newReplicadShape, updatedFillets, { width, height, depth });
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);

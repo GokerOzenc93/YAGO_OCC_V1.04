@@ -206,6 +206,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   const [rotZ, setRotZ] = useState(0);
   const [customParameters, setCustomParameters] = useState<CustomParameter[]>([]);
   const [vertexModifications, setVertexModifications] = useState<any[]>([]);
+  const [filletRadii, setFilletRadii] = useState<number[]>([]);
 
   const [subParams, setSubParams] = useState({
     width: { expression: '0', result: 0 },
@@ -229,6 +230,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setRotZ((selectedShape.rotation?.[2] || 0) * (180 / Math.PI));
       setCustomParameters(selectedShape.parameters.customParameters || []);
       setVertexModifications(selectedShape.vertexModifications || []);
+      setFilletRadii((selectedShape.fillets || []).map(f => f.radius));
     } else {
       setWidth(0);
       setHeight(0);
@@ -238,6 +240,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setRotZ(0);
       setCustomParameters([]);
       setVertexModifications([]);
+      setFilletRadii([]);
     }
   }, [selectedShape, selectedShapeId, shapes]);
 
@@ -485,6 +488,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       rotZ,
       customParameters,
       vertexModifications,
+      filletRadii,
       selectedSubtractionIndex,
       subWidth: subParams.width.result,
       subHeight: subParams.height.result,
@@ -660,6 +664,25 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 step={1}
               />
             </div>
+
+            {filletRadii.length > 0 && (
+              <div className="space-y-1 pt-2 border-t border-stone-300">
+                {filletRadii.map((radius, idx) => (
+                  <ParameterRow
+                    key={`fillet-${idx}`}
+                    label={`F${idx + 1}`}
+                    value={radius}
+                    onChange={(newRadius) => {
+                      const newRadii = [...filletRadii];
+                      newRadii[idx] = newRadius;
+                      setFilletRadii(newRadii);
+                    }}
+                    description={`Fillet ${idx + 1} Radius`}
+                    step={0.1}
+                  />
+                ))}
+              </div>
+            )}
 
             {customParameters.length > 0 && (
               <div className="space-y-1">

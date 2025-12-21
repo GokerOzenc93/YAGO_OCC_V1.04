@@ -251,3 +251,61 @@ export function getFaceWorldNormal(
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(worldMatrix);
   return face.normal.clone().applyMatrix3(normalMatrix).normalize();
 }
+
+export function createFaceDescriptor(
+  face: FaceData,
+  geometry: THREE.BufferGeometry
+): { normal: [number, number, number]; normalizedCenter: [number, number, number]; area: number } {
+  const boundingBox = new THREE.Box3().setFromBufferAttribute(
+    geometry.getAttribute('position')
+  );
+  const size = new THREE.Vector3();
+  const min = new THREE.Vector3();
+  boundingBox.getSize(size);
+  boundingBox.min.clone().toArray();
+  min.copy(boundingBox.min);
+
+  const normalizedCenter: [number, number, number] = [
+    size.x > 0 ? (face.center.x - min.x) / size.x : 0.5,
+    size.y > 0 ? (face.center.y - min.y) / size.y : 0.5,
+    size.z > 0 ? (face.center.z - min.z) / size.z : 0.5
+  ];
+
+  return {
+    normal: [face.normal.x, face.normal.y, face.normal.z],
+    normalizedCenter,
+    area: face.area
+  };
+}
+
+export function findFaceByDescriptor(
+  descriptor: { normal: [number, number, number]; normalizedCenter: [number, number, number]; area: number },
+  faces: FaceData[],
+  geometry: THREE.BufferGeometry
+): FaceData | null {
+  let bestMatch: FaceData | null = null;
+  let bestScore = Infinity;
+
+  const targetNormal = new THREE.Vector3(...descriptor.normal);
+
+  for (const face of faces) {
+    const faceDescriptor = createFaceDescriptor(face, geometry);
+
+    const normalDiff = Math.abs(targetNormal.dot(face.normal) - 1);
+
+    const centerDiff = Math.sqrt(
+      Math.pow(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0], 2) +
+      Math.pow(faceDescriptor.normalizedCenter[1] - descriptor.normalizedCenter[1], 2) +
+      Math.pow(faceDescriptor.normalizedCenter[2] - descriptor.normalizedCenter[2], 2)
+    );
+
+    const score = normalDiff * 10 + centerDiff;
+
+    if (score < bestScore) {
+      bestScore = score;
+      bestMatch = face;
+    }
+  }
+
+  return bestScore < 0.5 ? bestMatch : null;
+}
