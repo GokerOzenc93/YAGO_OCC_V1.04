@@ -321,10 +321,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         );
       }
 
-      if (selectedShape.fillets && selectedShape.fillets.length > 0) {
-        console.log('🔵 Reapplying fillets after subtraction...');
-        resultShape = await applyFillets(resultShape, selectedShape.fillets, { width, height, depth });
-      }
+      console.log('⚠️ Subtraction parameters changed - clearing fillets (geometry has changed, old fillet data is invalid)');
 
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
@@ -334,6 +331,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         geometry: newGeometry,
         replicadShape: resultShape,
         subtractionGeometries: allSubtractions,
+        fillets: [],
         parameters: {
           ...baseUpdate.parameters,
           scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
@@ -520,14 +518,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     );
   }
 
-  if (currentShape.fillets && currentShape.fillets.length > 0) {
-    console.log('🔵 Reapplying fillets after subtraction changes...');
-    resultShape = await applyFillets(resultShape, currentShape.fillets, {
-      width: currentShape.parameters.width || 1,
-      height: currentShape.parameters.height || 1,
-      depth: currentShape.parameters.depth || 1
-    });
-  }
+  console.log('⚠️ Subtraction changed - clearing fillets (geometry has changed, old fillet data is invalid)');
 
   const newGeometry = convertReplicadToThreeGeometry(resultShape);
   const newBaseVertices = await getReplicadVertices(resultShape);
@@ -538,6 +529,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     geometry: newGeometry,
     replicadShape: resultShape,
     subtractionGeometries: allSubtractions,
+    fillets: [],
     parameters: {
       ...currentShape.parameters,
       scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])

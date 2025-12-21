@@ -680,16 +680,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2Size
             );
 
-            // Shape1'de fillet varsa, yeniden uygula
-            if (shape1.fillets && shape1.fillets.length > 0) {
-              console.log('🔵 Reapplying fillets after boolean cut...');
-              const { applyFillets } = await import('./services/shapeUpdater');
-              resultShape = await applyFillets(resultShape, shape1.fillets, {
-                width: shape1Size[0],
-                height: shape1Size[1],
-                depth: shape1Size[2]
-              });
-            }
+            console.log('⚠️ Boolean cut applied - clearing fillets (geometry has changed, old fillet data is invalid)');
 
             // Sonucu Three.js geometrisine çevir
             const newGeometry = convertReplicadToThreeGeometry(resultShape);
@@ -744,7 +735,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                     ...s,
                     geometry: newGeometry,      // Yeni kesilmiş geometri
                     replicadShape: resultShape, // Yeni CAD verisi
-                    fillets: s.fillets,         // Fillet bilgilerini koru
+                    fillets: [],                // Temizle: geometri değiştiğinden eski fillet verisi geçersiz
                     // Kesilen parçayı listeye ekle
                     subtractionGeometries: [
                       ...existingSubtractions,
@@ -804,7 +795,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./services/replicad');
       const { getReplicadVertices } = await import('./services/vertexEditor');
-      const { applyFillets } = await import('./services/shapeUpdater');
 
       const box = new THREE.Box3().setFromBufferAttribute(
         shape.geometry.getAttribute('position')
@@ -848,14 +838,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         );
       }
 
-      if (shape.fillets && shape.fillets.length > 0) {
-        console.log('🔵 Reapplying fillets after subtraction deletion...');
-        baseShape = await applyFillets(baseShape, shape.fillets, {
-          width: size.x,
-          height: size.y,
-          depth: size.z
-        });
-      }
+      console.log('⚠️ Subtraction deleted - clearing fillets (geometry has changed, old fillet data is invalid)');
 
       const newGeometry = convertReplicadToThreeGeometry(baseShape);
       const newBaseVertices = await getReplicadVertices(baseShape);
@@ -868,6 +851,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               geometry: newGeometry,
               replicadShape: baseShape,
               subtractionGeometries: newSubtractionGeometries,
+              fillets: [],
               parameters: {
                 ...s.parameters,
                 scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
