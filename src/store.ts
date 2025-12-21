@@ -680,11 +680,32 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2Size
             );
 
-            console.log('⚠️ Boolean cut applied - clearing fillets (geometry has changed, old fillet data is invalid)');
-
             // Sonucu Three.js geometrisine çevir
-            const newGeometry = convertReplicadToThreeGeometry(resultShape);
-            const newBaseVertices = await getReplicadVertices(resultShape);
+            let newGeometry = convertReplicadToThreeGeometry(resultShape);
+            let newBaseVertices = await getReplicadVertices(resultShape);
+
+            let updatedFillets = shape1.fillets || [];
+            let finalResultShape = resultShape;
+
+            if (updatedFillets.length > 0) {
+              console.log('🔄 Updating fillet centers after boolean cut...');
+              const { updateFilletCentersForNewGeometry, applyFillets } = await import('./services/shapeUpdater');
+
+              updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, {
+                width: shape1Size[0],
+                height: shape1Size[1],
+                depth: shape1Size[2]
+              });
+
+              console.log('🔵 Reapplying fillets with updated centers...');
+              finalResultShape = await applyFillets(finalResultShape, updatedFillets, {
+                width: shape1Size[0],
+                height: shape1Size[1],
+                depth: shape1Size[2]
+              });
+              newGeometry = convertReplicadToThreeGeometry(finalResultShape);
+              newBaseVertices = await getReplicadVertices(finalResultShape);
+            }
 
             // --- 4. Kesilen Parçayı Hafızaya Al (History) ---
             // Shape2'nin geometrisini kopyala
@@ -734,8 +755,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                   return {
                     ...s,
                     geometry: newGeometry,      // Yeni kesilmiş geometri
-                    replicadShape: resultShape, // Yeni CAD verisi
-                    fillets: [],                // Temizle: geometri değiştiğinden eski fillet verisi geçersiz
+                    replicadShape: finalResultShape, // Yeni CAD verisi
+                    fillets: updatedFillets,    // Güncelleme: Yeni geometride doğru kenarlara uygulanan filletler
                     // Kesilen parçayı listeye ekle
                     subtractionGeometries: [
                       ...existingSubtractions,
@@ -838,23 +859,46 @@ export const useAppStore = create<AppState>((set, get) => ({
         );
       }
 
-      console.log('⚠️ Subtraction deleted - clearing fillets (geometry has changed, old fillet data is invalid)');
-
       const newGeometry = convertReplicadToThreeGeometry(baseShape);
       const newBaseVertices = await getReplicadVertices(baseShape);
+
+      let updatedFillets = shape.fillets || [];
+      let finalShape = baseShape;
+      let finalGeometry = newGeometry;
+      let finalBaseVertices = newBaseVertices;
+
+      if (updatedFillets.length > 0) {
+        console.log('🔄 Updating fillet centers after subtraction deletion...');
+        const { updateFilletCentersForNewGeometry, applyFillets } = await import('./services/shapeUpdater');
+
+        updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, {
+          width: size.x,
+          height: size.y,
+          depth: size.z
+        });
+
+        console.log('🔵 Reapplying fillets with updated centers...');
+        finalShape = await applyFillets(finalShape, updatedFillets, {
+          width: size.x,
+          height: size.y,
+          depth: size.z
+        });
+        finalGeometry = convertReplicadToThreeGeometry(finalShape);
+        finalBaseVertices = await getReplicadVertices(finalShape);
+      }
 
       set((state) => ({
         shapes: state.shapes.map((s) => {
           if (s.id === shapeId) {
             return {
               ...s,
-              geometry: newGeometry,
-              replicadShape: baseShape,
+              geometry: finalGeometry,
+              replicadShape: finalShape,
               subtractionGeometries: newSubtractionGeometries,
-              fillets: [],
+              fillets: updatedFillets,
               parameters: {
                 ...s.parameters,
-                scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+                scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
               }
             };
           }

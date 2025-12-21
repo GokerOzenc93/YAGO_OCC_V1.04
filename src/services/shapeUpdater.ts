@@ -11,6 +11,74 @@ export const getOriginalSize = (geometry: THREE.BufferGeometry) => {
   return size;
 };
 
+export async function updateFilletCentersForNewGeometry(
+  fillets: FilletInfo[],
+  newGeometry: THREE.BufferGeometry,
+  newSize: { width: number; height: number; depth: number }
+): Promise<FilletInfo[]> {
+  if (!fillets || fillets.length === 0) return fillets;
+
+  console.log('🔄 Updating fillet centers for new geometry...');
+
+  const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./faceEditor');
+
+  const faces = extractFacesFromGeometry(newGeometry);
+  const faceGroups = groupCoplanarFaces(faces);
+
+  const updatedFillets = fillets.map((fillet, idx) => {
+    const face1Normal = new THREE.Vector3(...fillet.face1Data.normal);
+    const face2Normal = new THREE.Vector3(...fillet.face2Data.normal);
+
+    let newFace1Center: THREE.Vector3 | null = null;
+    let newFace2Center: THREE.Vector3 | null = null;
+
+    for (const group of faceGroups) {
+      const groupNormal = new THREE.Vector3(group.normal.x, group.normal.y, group.normal.z);
+
+      if (!newFace1Center && groupNormal.distanceTo(face1Normal) < 0.01) {
+        newFace1Center = group.center.clone();
+        console.log(`✅ Found face 1 for fillet #${idx + 1} at center:`, [
+          newFace1Center.x.toFixed(2),
+          newFace1Center.y.toFixed(2),
+          newFace1Center.z.toFixed(2)
+        ]);
+      }
+
+      if (!newFace2Center && groupNormal.distanceTo(face2Normal) < 0.01) {
+        newFace2Center = group.center.clone();
+        console.log(`✅ Found face 2 for fillet #${idx + 1} at center:`, [
+          newFace2Center.x.toFixed(2),
+          newFace2Center.y.toFixed(2),
+          newFace2Center.z.toFixed(2)
+        ]);
+      }
+
+      if (newFace1Center && newFace2Center) break;
+    }
+
+    if (!newFace1Center || !newFace2Center) {
+      console.warn(`⚠️ Could not find matching faces for fillet #${idx + 1}, keeping old centers`);
+      return fillet;
+    }
+
+    return {
+      ...fillet,
+      face1Data: {
+        ...fillet.face1Data,
+        center: [newFace1Center.x, newFace1Center.y, newFace1Center.z] as [number, number, number]
+      },
+      face2Data: {
+        ...fillet.face2Data,
+        center: [newFace2Center.x, newFace2Center.y, newFace2Center.z] as [number, number, number]
+      },
+      originalSize: newSize
+    };
+  });
+
+  console.log(`✅ Updated ${updatedFillets.length} fillet center(s)`);
+  return updatedFillets;
+}
+
 export async function applyFillets(replicadShape: any, fillets: FilletInfo[], shapeSize: { width: number; height: number; depth: number }) {
   if (!fillets || fillets.length === 0) return replicadShape;
 
@@ -321,22 +389,43 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         );
       }
 
-      console.log('⚠️ Subtraction parameters changed - clearing fillets (geometry has changed, old fillet data is invalid)');
-
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
 
-      updateShape(selectedShape.id, {
-        ...baseUpdate,
-        geometry: newGeometry,
-        replicadShape: resultShape,
-        subtractionGeometries: allSubtractions,
-        fillets: [],
-        parameters: {
-          ...baseUpdate.parameters,
-          scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-        }
-      });
+      let updatedFillets = selectedShape.fillets || [];
+      if (updatedFillets.length > 0) {
+        console.log('🔄 Updating fillet centers after subtraction change...');
+        updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, { width, height, depth });
+
+        console.log('🔵 Reapplying fillets with updated centers...');
+        resultShape = await applyFillets(resultShape, updatedFillets, { width, height, depth });
+        const finalGeometry = convertReplicadToThreeGeometry(resultShape);
+        const finalBaseVertices = await getReplicadVertices(resultShape);
+
+        updateShape(selectedShape.id, {
+          ...baseUpdate,
+          geometry: finalGeometry,
+          replicadShape: resultShape,
+          subtractionGeometries: allSubtractions,
+          fillets: updatedFillets,
+          parameters: {
+            ...baseUpdate.parameters,
+            scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
+          }
+        });
+      } else {
+        updateShape(selectedShape.id, {
+          ...baseUpdate,
+          geometry: newGeometry,
+          replicadShape: resultShape,
+          subtractionGeometries: allSubtractions,
+          fillets: [],
+          parameters: {
+            ...baseUpdate.parameters,
+            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+          }
+        });
+      }
     } else {
       if (dimensionsChanged) {
         console.log('🔄 Dimensions changed, recreating replicad shape with new dimensions...');
@@ -518,21 +607,48 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     );
   }
 
-  console.log('⚠️ Subtraction changed - clearing fillets (geometry has changed, old fillet data is invalid)');
-
   const newGeometry = convertReplicadToThreeGeometry(resultShape);
   const newBaseVertices = await getReplicadVertices(resultShape);
 
-  console.log('✅ Subtraction complete');
+  let updatedFillets = currentShape.fillets || [];
+  if (updatedFillets.length > 0) {
+    console.log('🔄 Updating fillet centers after subtraction change...');
+    const shapeSize = {
+      width: currentShape.parameters.width || 1,
+      height: currentShape.parameters.height || 1,
+      depth: currentShape.parameters.depth || 1
+    };
+    updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, shapeSize);
 
-  updateShape(currentShape.id, {
-    geometry: newGeometry,
-    replicadShape: resultShape,
-    subtractionGeometries: allSubtractions,
-    fillets: [],
-    parameters: {
-      ...currentShape.parameters,
-      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-    }
-  });
+    console.log('🔵 Reapplying fillets with updated centers...');
+    resultShape = await applyFillets(resultShape, updatedFillets, shapeSize);
+    const finalGeometry = convertReplicadToThreeGeometry(resultShape);
+    const finalBaseVertices = await getReplicadVertices(resultShape);
+
+    console.log('✅ Subtraction complete with fillets');
+
+    updateShape(currentShape.id, {
+      geometry: finalGeometry,
+      replicadShape: resultShape,
+      subtractionGeometries: allSubtractions,
+      fillets: updatedFillets,
+      parameters: {
+        ...currentShape.parameters,
+        scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
+      }
+    });
+  } else {
+    console.log('✅ Subtraction complete');
+
+    updateShape(currentShape.id, {
+      geometry: newGeometry,
+      replicadShape: resultShape,
+      subtractionGeometries: allSubtractions,
+      fillets: [],
+      parameters: {
+        ...currentShape.parameters,
+        scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+      }
+    });
+  }
 }
