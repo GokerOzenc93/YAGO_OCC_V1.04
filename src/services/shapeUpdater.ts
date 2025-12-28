@@ -575,14 +575,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     }
 
     console.log('✅ Parameters applied');
-
-    const { useAppStore } = await import('../store');
-    const store = useAppStore.getState();
-    store.clearFilletFaces();
-    store.clearFilletFaceData();
-    store.setFilletMode(false);
-    store.setFaceEditMode(false);
-    console.log('🧹 Face/Fillet selection cleared after shape changes');
   } catch (error) {
     console.error('❌ Failed to update parameters:', error);
     updateShape(selectedShape.id, {
@@ -745,12 +737,4 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       }
     });
   }
-
-  const { useAppStore } = await import('../store');
-  const store = useAppStore.getState();
-  store.clearFilletFaces();
-  store.clearFilletFaceData();
-  store.setFilletMode(false);
-  store.setFaceEditMode(false);
-  console.log('🧹 Face/Fillet selection cleared after subtraction changes');
 }

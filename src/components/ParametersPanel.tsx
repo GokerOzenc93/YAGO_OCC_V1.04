@@ -502,14 +502,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       subParams,
       updateShape
     });
-
-    if (filletRadii && filletRadii.length > 0) {
-      clearFilletFaces();
-      clearFilletFaceData();
-      setFilletMode(false);
-      setFaceEditMode(false);
-      console.log('🧹 Fillet selection cleared after applying changes');
-    }
   };
 
   const handleApplySubtractionChanges = async (shapeOverride?: any) => {

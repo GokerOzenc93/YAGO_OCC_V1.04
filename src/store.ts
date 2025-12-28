@@ -801,13 +801,6 @@ export const useAppStore = create<AppState>((set, get) => ({
             }));
 
             console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
-
-            get().clearFilletFaces();
-            get().clearFilletFaceData();
-            get().setFilletMode(false);
-            get().setFaceEditMode(false);
-            console.log('🧹 Face/Fillet selection cleared after boolean operation');
-
             return; // İlk başarılı işlemde çık (Tek seferde tek işlem)
 
           } catch (error) {
@@ -927,12 +920,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
       console.log('✅ Subtraction deleted and shape updated');
-
-      get().clearFilletFaces();
-      get().clearFilletFaceData();
-      get().setFilletMode(false);
-      get().setFaceEditMode(false);
-      console.log('🧹 Face/Fillet selection cleared after subtraction deletion');
     } catch (error) {
       console.error('❌ Failed to delete subtraction:', error);
     }
