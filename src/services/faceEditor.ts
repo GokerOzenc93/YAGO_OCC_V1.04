@@ -7,6 +7,7 @@ export interface FaceData {
   vertices: THREE.Vector3[];
   area: number;
   isCurved?: boolean;
+  nativeFaceType?: string;
 }
 
 export interface CoplanarFaceGroup {
@@ -14,6 +15,69 @@ export interface CoplanarFaceGroup {
   faceIndices: number[];
   center: THREE.Vector3;
   totalArea: number;
+}
+
+function getNativeFaceTypes(replicadShape: any): Map<number, string> {
+  const faceTypeMap = new Map<number, string>();
+
+  try {
+    const nativeFaces = replicadShape.faces();
+    console.log(`🔍 Analyzing ${nativeFaces.length} native CAD faces...`);
+
+    nativeFaces.forEach((face: any, index: number) => {
+      try {
+        const surfaceType = face.geomType;
+        faceTypeMap.set(index, surfaceType);
+        console.log(`  Face ${index}: ${surfaceType}`);
+      } catch (e) {
+        faceTypeMap.set(index, 'UNKNOWN');
+      }
+    });
+  } catch (error) {
+    console.warn('⚠️ Could not extract native face types:', error);
+  }
+
+  return faceTypeMap;
+}
+
+function matchTriangleToNativeFace(
+  triangleCenter: THREE.Vector3,
+  triangleNormal: THREE.Vector3,
+  nativeFaces: any[],
+  faceTypeMap: Map<number, string>
+): { faceIndex: number; faceType: string } | null {
+  let bestMatch = null;
+  let bestDistance = Infinity;
+
+  for (let i = 0; i < nativeFaces.length; i++) {
+    try {
+      const nativeFace = nativeFaces[i];
+      const mesh = nativeFace.mesh({ tolerance: 0.1, angularTolerance: 30 });
+
+      if (!mesh.vertices || mesh.vertices.length === 0) continue;
+
+      const faceCenter = new THREE.Vector3();
+      let count = 0;
+      for (let j = 0; j < mesh.vertices.length; j += 3) {
+        faceCenter.x += mesh.vertices[j];
+        faceCenter.y += mesh.vertices[j + 1];
+        faceCenter.z += mesh.vertices[j + 2];
+        count++;
+      }
+      faceCenter.divideScalar(count / 3);
+
+      const distance = triangleCenter.distanceTo(faceCenter);
+
+      if (distance < bestDistance && distance < 50) {
+        bestDistance = distance;
+        bestMatch = { faceIndex: i, faceType: faceTypeMap.get(i) || 'UNKNOWN' };
+      }
+    } catch (e) {
+      continue;
+    }
+  }
+
+  return bestMatch;
 }
 
 export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replicadShape?: any): FaceData[] {
@@ -31,6 +95,20 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replica
 
   const vertexCount = indices ? indices.length : positions.length / 3;
   const faceCount = Math.floor(vertexCount / 3);
+
+  let nativeFaces: any[] = [];
+  let faceTypeMap = new Map<number, string>();
+
+  if (replicadShape) {
+    try {
+      nativeFaces = replicadShape.faces();
+      faceTypeMap = getNativeFaceTypes(replicadShape);
+    } catch (e) {
+      console.warn('⚠️ Could not extract native faces from replicad shape');
+    }
+  }
+
+  const faceGroups = new Map<string, number[]>();
 
   for (let i = 0; i < faceCount; i++) {
     const i0 = indices ? indices[i * 3] : i * 3;
@@ -65,12 +143,33 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replica
 
     const area = edge1.cross(edge2).length() / 2;
 
+    let nativeFaceType = 'UNKNOWN';
+    if (nativeFaces.length > 0) {
+      const match = matchTriangleToNativeFace(center, normal, nativeFaces, faceTypeMap);
+      if (match) {
+        nativeFaceType = match.faceType;
+        const key = `${match.faceIndex}-${nativeFaceType}`;
+        if (!faceGroups.has(key)) {
+          faceGroups.set(key, []);
+        }
+        faceGroups.get(key)!.push(i);
+      }
+    }
+
     faces.push({
       faceIndex: i,
       normal,
       center,
       vertices: [v0, v1, v2],
-      area
+      area,
+      nativeFaceType
+    });
+  }
+
+  if (faceGroups.size > 0) {
+    console.log(`📊 Native face mapping: ${faceGroups.size} distinct CAD faces`);
+    faceGroups.forEach((triangles, key) => {
+      console.log(`  ${key}: ${triangles.length} triangles`);
     });
   }
 
@@ -139,6 +238,63 @@ export function groupCoplanarFaces(
   const groups: CoplanarFaceGroup[] = [];
   const visited = new Set<number>();
   const adjacencyMap = buildAdjacencyMap(faces);
+
+  const hasNativeTypes = faces.some(f => f.nativeFaceType && f.nativeFaceType !== 'UNKNOWN');
+
+  if (hasNativeTypes) {
+    console.log('✅ Using native CAD face types for grouping');
+
+    const nativeFaceGroups = new Map<string, number[]>();
+
+    faces.forEach((face, idx) => {
+      const faceType = face.nativeFaceType || 'UNKNOWN';
+      const key = `${faceType}`;
+
+      if (!nativeFaceGroups.has(key)) {
+        nativeFaceGroups.set(key, []);
+      }
+      nativeFaceGroups.get(key)!.push(idx);
+    });
+
+    nativeFaceGroups.forEach((faceIndices, key) => {
+      const facesInGroup = faceIndices.map(idx => faces[idx]);
+
+      const avgCenter = new THREE.Vector3();
+      const avgNormal = new THREE.Vector3();
+      let totalArea = 0;
+
+      facesInGroup.forEach(face => {
+        avgCenter.add(face.center);
+        avgNormal.add(face.normal);
+        totalArea += face.area;
+      });
+
+      avgCenter.divideScalar(facesInGroup.length);
+      avgNormal.divideScalar(facesInGroup.length).normalize();
+
+      const isCurved = !key.includes('PLANE') && !key.includes('UNKNOWN');
+
+      facesInGroup.forEach(face => {
+        face.isCurved = isCurved;
+      });
+
+      groups.push({
+        normal: avgNormal,
+        faceIndices,
+        center: avgCenter,
+        totalArea
+      });
+    });
+
+    console.log(`📊 Native face grouping: ${groups.length} groups from ${faces.length} triangles`);
+    groups.forEach((group, idx) => {
+      const faceType = faces[group.faceIndices[0]]?.nativeFaceType || 'UNKNOWN';
+      const isCurved = faces[group.faceIndices[0]]?.isCurved || false;
+      console.log(`  Group ${idx}: ${group.faceIndices.length} faces, Type: ${faceType}, ${isCurved ? 'CURVED' : 'PLANAR'}`);
+    });
+
+    return groups;
+  }
 
   faces.forEach((face, idx) => {
     face.isCurved = checkIfCurved(face, faces, adjacencyMap);
