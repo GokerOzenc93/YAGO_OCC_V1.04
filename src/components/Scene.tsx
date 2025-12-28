@@ -675,31 +675,38 @@ const Scene: React.FC = () => {
 
               if (!start || !end) return null;
 
+              const startVec = new THREE.Vector3(start.x, start.y, start.z);
+              const endVec = new THREE.Vector3(end.x, end.y, end.z);
               const centerVec = new THREE.Vector3(
                 (start.x + end.x) / 2,
                 (start.y + end.y) / 2,
                 (start.z + end.z) / 2
               );
 
-              const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
-              const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
-
               const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
-              const tolerance = maxDimension * 0.15;
+              const tolerance = maxDimension * 0.05;
 
-              if (edgeCount <= 3 || (distToFace1 < tolerance && distToFace2 < tolerance)) {
-                console.log(`Edge ${edgeCount}: center=(${centerVec.x.toFixed(2)}, ${centerVec.y.toFixed(2)}, ${centerVec.z.toFixed(2)}), distToFace1=${distToFace1.toFixed(3)}, distToFace2=${distToFace2.toFixed(3)}, tolerance=${tolerance.toFixed(3)}`);
-              }
+              const startDistFace1 = Math.abs(startVec.clone().sub(face1Center).dot(face1Normal));
+              const startDistFace2 = Math.abs(startVec.clone().sub(face2Center).dot(face2Normal));
+              const endDistFace1 = Math.abs(endVec.clone().sub(face1Center).dot(face1Normal));
+              const endDistFace2 = Math.abs(endVec.clone().sub(face2Center).dot(face2Normal));
+              const centerDistFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
+              const centerDistFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
 
-              if (distToFace1 < tolerance && distToFace2 < tolerance) {
+              const allPointsOnFace1 = startDistFace1 < tolerance && endDistFace1 < tolerance && centerDistFace1 < tolerance;
+              const allPointsOnFace2 = startDistFace2 < tolerance && endDistFace2 < tolerance && centerDistFace2 < tolerance;
+
+              if (allPointsOnFace1 && allPointsOnFace2) {
                 foundEdgeCount++;
-                console.log('✅ Found shared edge #' + foundEdgeCount + ' - applying fillet radius:', radius);
+                console.log('Found shared edge #' + foundEdgeCount + ' - applying fillet radius:', radius);
+                console.log(`  Start: (${startVec.x.toFixed(2)}, ${startVec.y.toFixed(2)}, ${startVec.z.toFixed(2)})`);
+                console.log(`  End: (${endVec.x.toFixed(2)}, ${endVec.y.toFixed(2)}, ${endVec.z.toFixed(2)})`);
                 return radius;
               }
 
               return null;
             } catch (e) {
-              console.error('❌ Error checking edge:', e);
+              console.error('Error checking edge:', e);
               return null;
             }
           });
