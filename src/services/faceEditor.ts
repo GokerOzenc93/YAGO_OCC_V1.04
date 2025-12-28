@@ -70,6 +70,9 @@ export function clearNativeFaceCache() {
   cacheGeometryId = null;
 }
 
+const MESH_TOLERANCE = 0.05;
+const MESH_ANGULAR_TOLERANCE = 15;
+
 function buildNativeFaceVertexCache(
   nativeFaces: any[],
   faceTypeMap: Map<number, string>,
@@ -80,7 +83,8 @@ function buildNativeFaceVertexCache(
   const bbox = geometry.boundingBox || new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
   const size = new THREE.Vector3();
   bbox.getSize(size);
-  const tolerance = Math.max(size.x, size.y, size.z) * 0.001;
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const vertexTolerance = Math.max(maxDim * 0.005, 0.5);
 
   for (let i = 0; i < nativeFaces.length; i++) {
     try {
@@ -88,7 +92,7 @@ function buildNativeFaceVertexCache(
       const faceType = faceTypeMap.get(i) || 'UNKNOWN';
       const isCurved = isNativeCurved(faceType);
 
-      const mesh = nativeFace.mesh({ tolerance: 0.05, angularTolerance: 10 });
+      const mesh = nativeFace.mesh({ tolerance: MESH_TOLERANCE, angularTolerance: MESH_ANGULAR_TOLERANCE });
       if (!mesh.vertices || mesh.vertices.length === 0) continue;
 
       const vertexSet = new Set<string>();
@@ -99,13 +103,13 @@ function buildNativeFaceVertexCache(
         const y = mesh.vertices[j + 1];
         const z = mesh.vertices[j + 2];
 
-        const key = `${Math.round(x / tolerance) * tolerance}:${Math.round(y / tolerance) * tolerance}:${Math.round(z / tolerance) * tolerance}`;
+        const key = `${Math.round(x / vertexTolerance) * vertexTolerance}:${Math.round(y / vertexTolerance) * vertexTolerance}:${Math.round(z / vertexTolerance) * vertexTolerance}`;
         vertexSet.add(key);
 
         faceBbox.expandByPoint(new THREE.Vector3(x, y, z));
       }
 
-      faceBbox.expandByScalar(tolerance * 2);
+      faceBbox.expandByScalar(vertexTolerance * 3);
 
       cache.push({
         faceIndex: i,
@@ -139,7 +143,8 @@ function matchTriangleToNativeFace(
   const bbox = geometry.boundingBox || new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
   const size = new THREE.Vector3();
   bbox.getSize(size);
-  const tolerance = Math.max(size.x, size.y, size.z) * 0.001;
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const vertexTolerance = Math.max(maxDim * 0.005, 0.5);
 
   let bestMatch = null;
   let bestScore = -1;
@@ -153,7 +158,7 @@ function matchTriangleToNativeFace(
       let matchCount = 0;
 
       for (const vertex of triangleVertices) {
-        const key = `${Math.round(vertex.x / tolerance) * tolerance}:${Math.round(vertex.y / tolerance) * tolerance}:${Math.round(vertex.z / tolerance) * tolerance}`;
+        const key = `${Math.round(vertex.x / vertexTolerance) * vertexTolerance}:${Math.round(vertex.y / vertexTolerance) * vertexTolerance}:${Math.round(vertex.z / vertexTolerance) * vertexTolerance}`;
         if (cached.vertexSet.has(key)) {
           matchCount++;
         }
