@@ -118,39 +118,26 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
         const edgeDir = new THREE.Vector3().subVectors(endVec, startVec).normalize();
         const edgeLength = startVec.distanceTo(endVec);
 
+        if (edgeLength < 1) return null;
+
         const centerVec = new THREE.Vector3(
           (start.x + end.x) / 2,
           (start.y + end.y) / 2,
           (start.z + end.z) / 2
         );
 
-        const d1 = face1Center.dot(face1Normal);
-        const d2 = face2Center.dot(face2Normal);
+        const distToFace1Center = centerVec.distanceTo(face1Center);
+        const distToFace2Center = centerVec.distanceTo(face2Center);
 
-        const distToPlane1Center = Math.abs(centerVec.dot(face1Normal) - d1);
-        const distToPlane1Start = Math.abs(startVec.dot(face1Normal) - d1);
-        const distToPlane1End = Math.abs(endVec.dot(face1Normal) - d1);
-
-        const distToPlane2Center = Math.abs(centerVec.dot(face2Normal) - d2);
-        const distToPlane2Start = Math.abs(startVec.dot(face2Normal) - d2);
-        const distToPlane2End = Math.abs(endVec.dot(face2Normal) - d2);
-
-        const maxDimension = Math.max(shapeSize.width || 1, shapeSize.height || 1, shapeSize.depth || 1);
-        const tolerance = Math.max(maxDimension * 0.05, 10);
-
-        const onPlane1 = distToPlane1Center < tolerance && distToPlane1Start < tolerance && distToPlane1End < tolerance;
-        const onPlane2 = distToPlane2Center < tolerance && distToPlane2Start < tolerance && distToPlane2End < tolerance;
-
-        let directionMatch = true;
-        if (hasExpectedDir && edgeLength > 1) {
-          const dotWithExpected = Math.abs(edgeDir.dot(expectedEdgeDir));
-          directionMatch = dotWithExpected > 0.9;
+        let dirScore = 1.0;
+        if (hasExpectedDir) {
+          dirScore = Math.abs(edgeDir.dot(expectedEdgeDir));
         }
 
-        if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1) {
-          const score = distToPlane1Center + distToPlane2Center + distToPlane1Start + distToPlane2Start + distToPlane1End + distToPlane2End;
-          candidateEdges.push({ index: edgeCount, score });
-        }
+        const combinedDist = distToFace1Center + distToFace2Center;
+        const score = combinedDist * (2 - dirScore);
+
+        candidateEdges.push({ index: edgeCount, score });
 
         return null;
       } catch (e) {
@@ -159,7 +146,7 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
     });
 
     if (candidateEdges.length === 0) {
-      console.warn(`⚠️ No suitable edges found for fillet with radius ${fillet.radius}`);
+      console.warn(`⚠️ No edges found for fillet with radius ${fillet.radius}`);
       continue;
     }
 
@@ -179,35 +166,26 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
         const edgeDir = new THREE.Vector3().subVectors(endVec, startVec).normalize();
         const edgeLength = startVec.distanceTo(endVec);
 
+        if (edgeLength < 1) return null;
+
         const centerVec = new THREE.Vector3(
           (start.x + end.x) / 2,
           (start.y + end.y) / 2,
           (start.z + end.z) / 2
         );
 
-        const d1 = face1Center.dot(face1Normal);
-        const d2 = face2Center.dot(face2Normal);
+        const distToFace1Center = centerVec.distanceTo(face1Center);
+        const distToFace2Center = centerVec.distanceTo(face2Center);
 
-        const distToPlane1Center = Math.abs(centerVec.dot(face1Normal) - d1);
-        const distToPlane1Start = Math.abs(startVec.dot(face1Normal) - d1);
-        const distToPlane1End = Math.abs(endVec.dot(face1Normal) - d1);
-
-        const distToPlane2Center = Math.abs(centerVec.dot(face2Normal) - d2);
-        const distToPlane2Start = Math.abs(startVec.dot(face2Normal) - d2);
-        const distToPlane2End = Math.abs(endVec.dot(face2Normal) - d2);
-
-        const score = distToPlane1Center + distToPlane2Center + distToPlane1Start + distToPlane2Start + distToPlane1End + distToPlane2End;
-
-        const tol = Math.max(maxDimension * 0.05, 10);
-        const onPlane1 = distToPlane1Center < tol && distToPlane1Start < tol && distToPlane1End < tol;
-        const onPlane2 = distToPlane2Center < tol && distToPlane2Start < tol && distToPlane2End < tol;
-
-        let directionMatch = true;
-        if (hasExpectedDir && edgeLength > 1) {
-          directionMatch = Math.abs(edgeDir.dot(expectedEdgeDir)) > 0.9;
+        let dirScore = 1.0;
+        if (hasExpectedDir) {
+          dirScore = Math.abs(edgeDir.dot(expectedEdgeDir));
         }
 
-        if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1 && Math.abs(score - bestCandidate.score) < 1.0) {
+        const combinedDist = distToFace1Center + distToFace2Center;
+        const score = combinedDist * (2 - dirScore);
+
+        if (Math.abs(score - bestCandidate.score) < 0.1) {
           foundEdgeCount++;
           console.log(`✅ Found shared edge #${foundEdgeCount} - applying fillet radius: ${fillet.radius}`);
           return fillet.radius;
