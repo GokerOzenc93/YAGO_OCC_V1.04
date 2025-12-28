@@ -8,6 +8,7 @@ export interface FaceData {
   area: number;
   isCurved?: boolean;
   nativeFaceType?: string;
+  nativeFaceIndex?: number;
 }
 
 export interface CoplanarFaceGroup {
@@ -186,7 +187,8 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replica
       center,
       vertices: [v0, v1, v2],
       area,
-      nativeFaceType
+      nativeFaceType,
+      nativeFaceIndex
     });
   }
 
@@ -268,53 +270,21 @@ export function groupCoplanarFaces(
   if (hasNativeTypes) {
     console.log('✅ Using native CAD face types for grouping');
 
-    const nativeFaceGroups = new Map<string, { indices: number[]; center: THREE.Vector3; normal: THREE.Vector3 }>();
+    const nativeFaceGroups = new Map<number, number[]>();
 
     faces.forEach((face, idx) => {
-      const faceType = face.nativeFaceType || 'UNKNOWN';
+      const nativeFaceIdx = face.nativeFaceIndex ?? -1;
 
-      let assignedToGroup = false;
-
-      nativeFaceGroups.forEach((groupData, key) => {
-        if (assignedToGroup) return;
-
-        const [existingType, ...rest] = key.split('-');
-        if (existingType !== faceType) return;
-
-        const centerDistance = face.center.distanceTo(groupData.center);
-        const normalDot = Math.abs(face.normal.dot(groupData.normal));
-
-        const maxDist = faceType.includes('PLANE') ? 100 : 300;
-        const minNormalSimilarity = faceType.includes('PLANE') ? 0.95 : 0.7;
-
-        if (centerDistance < maxDist && normalDot > minNormalSimilarity) {
-          groupData.indices.push(idx);
-
-          const totalFaces = groupData.indices.length;
-          groupData.center.multiplyScalar((totalFaces - 1) / totalFaces);
-          groupData.center.add(face.center.clone().multiplyScalar(1 / totalFaces));
-
-          groupData.normal.multiplyScalar((totalFaces - 1) / totalFaces);
-          groupData.normal.add(face.normal.clone().multiplyScalar(1 / totalFaces));
-          groupData.normal.normalize();
-
-          assignedToGroup = true;
+      if (nativeFaceIdx >= 0) {
+        if (!nativeFaceGroups.has(nativeFaceIdx)) {
+          nativeFaceGroups.set(nativeFaceIdx, []);
         }
-      });
-
-      if (!assignedToGroup) {
-        const newKey = `${faceType}-${nativeFaceGroups.size}`;
-        nativeFaceGroups.set(newKey, {
-          indices: [idx],
-          center: face.center.clone(),
-          normal: face.normal.clone()
-        });
+        nativeFaceGroups.get(nativeFaceIdx)!.push(idx);
       }
     });
 
-    nativeFaceGroups.forEach((groupData, key) => {
-      const [faceType] = key.split('-');
-      const facesInGroup = groupData.indices.map(idx => faces[idx]);
+    nativeFaceGroups.forEach((faceIndices, nativeFaceIdx) => {
+      const facesInGroup = faceIndices.map(idx => faces[idx]);
 
       const avgCenter = new THREE.Vector3();
       const avgNormal = new THREE.Vector3();
@@ -329,6 +299,7 @@ export function groupCoplanarFaces(
       avgCenter.divideScalar(facesInGroup.length);
       avgNormal.divideScalar(facesInGroup.length).normalize();
 
+      const faceType = facesInGroup[0]?.nativeFaceType || 'UNKNOWN';
       const isCurved = !faceType.includes('PLANE') && !faceType.includes('UNKNOWN');
 
       facesInGroup.forEach(face => {
@@ -337,7 +308,7 @@ export function groupCoplanarFaces(
 
       groups.push({
         normal: avgNormal,
-        faceIndices: groupData.indices,
+        faceIndices,
         center: avgCenter,
         totalArea
       });
