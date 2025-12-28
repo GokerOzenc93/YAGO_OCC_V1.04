@@ -302,27 +302,6 @@ const ShapeWithTransform: React.FC<{
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
 
-  const filletReferenceGeometry = useMemo(() => {
-    if (!shape.fillets || shape.fillets.length === 0) return null;
-
-    const allPoints: number[] = [];
-    shape.fillets.forEach((fillet: any) => {
-      if (fillet.edgePoints && fillet.edgePoints.length > 0) {
-        fillet.edgePoints.forEach((edge: number[]) => {
-          allPoints.push(edge[0], edge[1], edge[2]);
-          allPoints.push(edge[3], edge[4], edge[5]);
-        });
-      }
-    });
-
-    if (allPoints.length === 0) return null;
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.Float32BufferAttribute(allPoints, 3));
-    console.log(`📍 Created fillet reference geometry with ${allPoints.length / 6} edge lines`);
-    return geometry;
-  }, [shape.fillets, shape.id]);
-
   if (shape.isolated === false) {
     return null;
   }
@@ -375,45 +354,32 @@ const ShapeWithTransform: React.FC<{
           );
         })}
         {!isWireframe && !isXray && !shouldShowAsReference && (
-          <>
-            <mesh
-              ref={meshRef}
-              geometry={localGeometry}
-              castShadow
-              receiveShadow
-            >
-              <meshStandardMaterial
-                color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
-                metalness={0.3}
-                roughness={0.4}
+          <mesh
+            ref={meshRef}
+            geometry={localGeometry}
+            castShadow
+            receiveShadow
+          >
+            <meshStandardMaterial
+              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
+              metalness={0.3}
+              roughness={0.4}
+            />
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 15]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#1e3a8a' : '#0a0a0a'}
+                linewidth={1.5}
+                opacity={0.8}
+                transparent
+                depthTest={true}
               />
-              <lineSegments>
-                {edgeGeometry ? (
-                  <bufferGeometry {...edgeGeometry} />
-                ) : (
-                  <edgesGeometry args={[localGeometry, 15]} />
-                )}
-                <lineBasicMaterial
-                  color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-                  linewidth={1.5}
-                  opacity={0.8}
-                  transparent
-                  depthTest={true}
-                />
-              </lineSegments>
-            </mesh>
-            {filletReferenceGeometry && (
-              <lineSegments geometry={filletReferenceGeometry}>
-                <lineBasicMaterial
-                  color="#ff0000"
-                  linewidth={4}
-                  depthTest={false}
-                  transparent
-                  opacity={0.9}
-                />
-              </lineSegments>
-            )}
-          </>
+            </lineSegments>
+          </mesh>
         )}
         {isWireframe && (
           <>
@@ -449,17 +415,6 @@ const ShapeWithTransform: React.FC<{
                 depthTest={true}
               />
             </lineSegments>
-            {filletReferenceGeometry && (
-              <lineSegments geometry={filletReferenceGeometry}>
-                <lineBasicMaterial
-                  color="#ff0000"
-                  linewidth={4}
-                  depthTest={true}
-                  transparent
-                  opacity={0.8}
-                />
-              </lineSegments>
-            )}
           </>
         )}
         {(isXray || shouldShowAsReference) && (
@@ -492,17 +447,6 @@ const ShapeWithTransform: React.FC<{
                 opacity={0.9}
               />
             </lineSegments>
-            {filletReferenceGeometry && (
-              <lineSegments geometry={filletReferenceGeometry}>
-                <lineBasicMaterial
-                  color="#ff0000"
-                  linewidth={4}
-                  depthTest={true}
-                  transparent
-                  opacity={0.8}
-                />
-              </lineSegments>
-            )}
           </>
         )}
       </group>
@@ -763,38 +707,6 @@ const Scene: React.FC = () => {
           console.log('🔢 Total edges checked:', edgeCount);
           console.log('🔢 Edges selected for fillet:', foundEdgeCount);
 
-          const filletEdgePoints: number[][] = [];
-          replicadShape.fillet((edge: any) => {
-            try {
-              const start = edge.startPoint;
-              const end = edge.endPoint;
-
-              if (!start || !end) return null;
-
-              const centerVec = new THREE.Vector3(
-                (start.x + end.x) / 2,
-                (start.y + end.y) / 2,
-                (start.z + end.z) / 2
-              );
-
-              const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
-              const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
-
-              const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
-              const tolerance = maxDimension * 0.15;
-
-              if (distToFace1 < tolerance && distToFace2 < tolerance) {
-                filletEdgePoints.push([start.x, start.y, start.z, end.x, end.y, end.z]);
-                console.log(`📍 Recorded fillet edge: (${start.x.toFixed(2)}, ${start.y.toFixed(2)}, ${start.z.toFixed(2)}) → (${end.x.toFixed(2)}, ${end.y.toFixed(2)}, ${end.z.toFixed(2)})`);
-                return radius;
-              }
-
-              return null;
-            } catch (e) {
-              return null;
-            }
-          });
-
           const newGeometry = convertReplicadToThreeGeometry(filletedShape);
           const newBaseVertices = await getReplicadVertices(filletedShape);
 
@@ -816,7 +728,6 @@ const Scene: React.FC = () => {
                 face1Data: selectedFilletFaceData[0],
                 face2Data: selectedFilletFaceData[1],
                 radius,
-                edgePoints: filletEdgePoints,
                 originalSize: {
                   width: shape.parameters.width || 1,
                   height: shape.parameters.height || 1,
