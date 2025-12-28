@@ -7,8 +7,6 @@ export interface FaceData {
   vertices: THREE.Vector3[];
   area: number;
   isCurved?: boolean;
-  nativeFaceType?: string;
-  nativeFaceIndex?: number;
 }
 
 export interface CoplanarFaceGroup {
@@ -18,183 +16,7 @@ export interface CoplanarFaceGroup {
   totalArea: number;
 }
 
-function isNativeCurved(nativeType: string | undefined): boolean {
-  if (!nativeType) return false;
-
-  const t = nativeType.toUpperCase();
-  return (
-    t.includes('CYLINDER') ||
-    t.includes('SPHERE') ||
-    t.includes('TORUS') ||
-    t.includes('BSPLINE') ||
-    t.includes('BEZIER')
-  );
-}
-
-function getNativeFaceTypes(replicadShape: any): Map<number, string> {
-  const faceTypeMap = new Map<number, string>();
-
-  try {
-    const nativeFaces = replicadShape.faces();
-    console.log(`🔍 Analyzing ${nativeFaces.length} native CAD faces...`);
-
-    nativeFaces.forEach((face: any, index: number) => {
-      try {
-        const surfaceType = face.geomType;
-        faceTypeMap.set(index, surfaceType);
-        console.log(`  Face ${index}: ${surfaceType}`);
-      } catch (e) {
-        faceTypeMap.set(index, 'UNKNOWN');
-      }
-    });
-  } catch (error) {
-    console.warn('⚠️ Could not extract native face types:', error);
-  }
-
-  return faceTypeMap;
-}
-
-interface NativeFaceVertexCache {
-  faceIndex: number;
-  faceType: string;
-  vertexSet: Set<string>;
-  boundingBox: THREE.Box3;
-  isCurved: boolean;
-}
-
-let nativeFaceCache: NativeFaceVertexCache[] = [];
-let cacheGeometryId: string | null = null;
-
-export function clearNativeFaceCache() {
-  nativeFaceCache = [];
-  cacheGeometryId = null;
-}
-
-const MESH_TOLERANCE = 0.05;
-const MESH_ANGULAR_TOLERANCE = 15;
-
-function buildNativeFaceVertexCache(
-  nativeFaces: any[],
-  faceTypeMap: Map<number, string>,
-  geometry: THREE.BufferGeometry
-): NativeFaceVertexCache[] {
-  const cache: NativeFaceVertexCache[] = [];
-
-  const bbox = geometry.boundingBox || new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
-  const size = new THREE.Vector3();
-  bbox.getSize(size);
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const vertexTolerance = Math.max(maxDim * 0.005, 0.5);
-
-  for (let i = 0; i < nativeFaces.length; i++) {
-    try {
-      const nativeFace = nativeFaces[i];
-      const faceType = faceTypeMap.get(i) || 'UNKNOWN';
-      const isCurved = isNativeCurved(faceType);
-
-      const mesh = nativeFace.mesh({ tolerance: MESH_TOLERANCE, angularTolerance: MESH_ANGULAR_TOLERANCE });
-      if (!mesh.vertices || mesh.vertices.length === 0) continue;
-
-      const vertexSet = new Set<string>();
-      const faceBbox = new THREE.Box3();
-
-      for (let j = 0; j < mesh.vertices.length; j += 3) {
-        const x = mesh.vertices[j];
-        const y = mesh.vertices[j + 1];
-        const z = mesh.vertices[j + 2];
-
-        const key = `${Math.round(x / vertexTolerance) * vertexTolerance}:${Math.round(y / vertexTolerance) * vertexTolerance}:${Math.round(z / vertexTolerance) * vertexTolerance}`;
-        vertexSet.add(key);
-
-        faceBbox.expandByPoint(new THREE.Vector3(x, y, z));
-      }
-
-      faceBbox.expandByScalar(vertexTolerance * 3);
-
-      cache.push({
-        faceIndex: i,
-        faceType,
-        vertexSet,
-        boundingBox: faceBbox,
-        isCurved
-      });
-    } catch (e) {
-      continue;
-    }
-  }
-
-  return cache;
-}
-
-function matchTriangleToNativeFace(
-  triangleCenter: THREE.Vector3,
-  triangleNormal: THREE.Vector3,
-  nativeFaces: any[],
-  faceTypeMap: Map<number, string>,
-  geometry: THREE.BufferGeometry,
-  triangleVertices?: THREE.Vector3[]
-): { faceIndex: number; faceType: string } | null {
-  const geomId = geometry.uuid;
-  if (cacheGeometryId !== geomId || nativeFaceCache.length === 0) {
-    nativeFaceCache = buildNativeFaceVertexCache(nativeFaces, faceTypeMap, geometry);
-    cacheGeometryId = geomId;
-  }
-
-  const bbox = geometry.boundingBox || new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
-  const size = new THREE.Vector3();
-  bbox.getSize(size);
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const vertexTolerance = Math.max(maxDim * 0.005, 0.5);
-
-  let bestMatch = null;
-  let bestScore = -1;
-
-  for (const cached of nativeFaceCache) {
-    if (!cached.boundingBox.containsPoint(triangleCenter)) {
-      continue;
-    }
-
-    if (triangleVertices && triangleVertices.length === 3) {
-      let matchCount = 0;
-
-      for (const vertex of triangleVertices) {
-        const key = `${Math.round(vertex.x / vertexTolerance) * vertexTolerance}:${Math.round(vertex.y / vertexTolerance) * vertexTolerance}:${Math.round(vertex.z / vertexTolerance) * vertexTolerance}`;
-        if (cached.vertexSet.has(key)) {
-          matchCount++;
-        }
-      }
-
-      if (matchCount >= 2) {
-        const score = matchCount * 10 + (cached.isCurved ? 5 : 0);
-        if (score > bestScore) {
-          bestScore = score;
-          bestMatch = { faceIndex: cached.faceIndex, faceType: cached.faceType };
-        }
-      }
-    } else {
-      if (bestMatch === null) {
-        bestMatch = { faceIndex: cached.faceIndex, faceType: cached.faceType };
-      }
-    }
-  }
-
-  if (!bestMatch) {
-    let closestDist = Infinity;
-    for (const cached of nativeFaceCache) {
-      const dist = cached.boundingBox.distanceToPoint(triangleCenter);
-      if (dist < closestDist) {
-        closestDist = dist;
-        bestMatch = { faceIndex: cached.faceIndex, faceType: cached.faceType };
-      }
-    }
-  }
-
-  return bestMatch;
-}
-
-export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replicadShape?: any): FaceData[] {
-  clearNativeFaceCache();
-
+export function extractFacesFromGeometry(geometry: THREE.BufferGeometry): FaceData[] {
   const faces: FaceData[] = [];
   const positionAttribute = geometry.getAttribute('position');
   const indexAttribute = geometry.getIndex();
@@ -209,20 +31,6 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replica
 
   const vertexCount = indices ? indices.length : positions.length / 3;
   const faceCount = Math.floor(vertexCount / 3);
-
-  let nativeFaces: any[] = [];
-  let faceTypeMap = new Map<number, string>();
-
-  if (replicadShape) {
-    try {
-      nativeFaces = replicadShape.faces();
-      faceTypeMap = getNativeFaceTypes(replicadShape);
-    } catch (e) {
-      console.warn('⚠️ Could not extract native faces from replicad shape');
-    }
-  }
-
-  const faceGroups = new Map<string, number[]>();
 
   for (let i = 0; i < faceCount; i++) {
     const i0 = indices ? indices[i * 3] : i * 3;
@@ -257,39 +65,12 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replica
 
     const area = edge1.cross(edge2).length() / 2;
 
-    let nativeFaceType = 'UNKNOWN';
-    let nativeFaceIndex = -1;
-    if (nativeFaces.length > 0) {
-      const match = matchTriangleToNativeFace(center, normal, nativeFaces, faceTypeMap, geometry, [v0, v1, v2]);
-      if (match) {
-        nativeFaceType = match.faceType;
-        nativeFaceIndex = match.faceIndex;
-        const key = `${match.faceIndex}-${nativeFaceType}`;
-        if (!faceGroups.has(key)) {
-          faceGroups.set(key, []);
-        }
-        faceGroups.get(key)!.push(i);
-      }
-    }
-
-    const isCurved = isNativeCurved(nativeFaceType);
-
     faces.push({
       faceIndex: i,
       normal,
       center,
       vertices: [v0, v1, v2],
-      area,
-      nativeFaceType,
-      nativeFaceIndex,
-      isCurved
-    });
-  }
-
-  if (faceGroups.size > 0) {
-    console.log(`📊 Native face mapping: ${faceGroups.size} distinct CAD faces`);
-    faceGroups.forEach((triangles, key) => {
-      console.log(`  ${key}: ${triangles.length} triangles`);
+      area
     });
   }
 
@@ -311,25 +92,15 @@ function checkIfCurved(face: FaceData, faces: FaceData[], adjacencyMap: Map<numb
   const neighbors = adjacencyMap.get(face.faceIndex);
   if (!neighbors || neighbors.size === 0) return false;
 
-  let totalAngleDiff = 0;
-  let count = 0;
-  let hasSignificantCurvature = false;
-
+  let maxAngleDiff = 0;
   for (const neighborIdx of neighbors) {
     const neighbor = faces[neighborIdx];
     const dot = face.normal.dot(neighbor.normal);
     const angleDiff = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
-    totalAngleDiff += angleDiff;
-    count++;
-
-    if (angleDiff > 2 && angleDiff < 50) {
-      hasSignificantCurvature = true;
-    }
+    maxAngleDiff = Math.max(maxAngleDiff, angleDiff);
   }
 
-  const avgAngleDiff = count > 0 ? totalAngleDiff / count : 0;
-
-  return hasSignificantCurvature && avgAngleDiff > 1;
+  return maxAngleDiff > 0.5 && maxAngleDiff < 45;
 }
 
 function buildAdjacencyMap(faces: FaceData[]): Map<number, Set<number>> {
@@ -358,65 +129,6 @@ export function groupCoplanarFaces(
   const groups: CoplanarFaceGroup[] = [];
   const visited = new Set<number>();
   const adjacencyMap = buildAdjacencyMap(faces);
-
-  const hasNativeTypes = faces.some(f => f.nativeFaceType && f.nativeFaceType !== 'UNKNOWN');
-
-  if (hasNativeTypes) {
-    console.log('✅ Using native CAD face types for grouping');
-
-    const nativeFaceGroups = new Map<number, number[]>();
-
-    faces.forEach((face, idx) => {
-      const nativeFaceIdx = face.nativeFaceIndex ?? -1;
-
-      if (nativeFaceIdx >= 0) {
-        if (!nativeFaceGroups.has(nativeFaceIdx)) {
-          nativeFaceGroups.set(nativeFaceIdx, []);
-        }
-        nativeFaceGroups.get(nativeFaceIdx)!.push(idx);
-      }
-    });
-
-    nativeFaceGroups.forEach((faceIndices, nativeFaceIdx) => {
-      const facesInGroup = faceIndices.map(idx => faces[idx]);
-      const faceType = facesInGroup[0]?.nativeFaceType || 'UNKNOWN';
-      const isCurvedType = isNativeCurved(faceType);
-
-      if (!isCurvedType && !faceType.includes('PLANE')) {
-        return;
-      }
-
-      const avgCenter = new THREE.Vector3();
-      const avgNormal = new THREE.Vector3();
-      let totalArea = 0;
-
-      facesInGroup.forEach(face => {
-        avgCenter.add(face.center);
-        avgNormal.add(face.normal);
-        totalArea += face.area;
-        face.isCurved = isCurvedType;
-      });
-
-      avgCenter.divideScalar(facesInGroup.length);
-      avgNormal.divideScalar(facesInGroup.length).normalize();
-
-      groups.push({
-        normal: avgNormal,
-        faceIndices,
-        center: avgCenter,
-        totalArea
-      });
-    });
-
-    console.log(`📊 Native face grouping: ${groups.length} groups from ${faces.length} triangles`);
-    groups.forEach((group, idx) => {
-      const faceType = faces[group.faceIndices[0]]?.nativeFaceType || 'UNKNOWN';
-      const isCurved = faces[group.faceIndices[0]]?.isCurved || false;
-      console.log(`  Group ${idx}: ${group.faceIndices.length} faces, Type: ${faceType}, ${isCurved ? 'CURVED' : 'PLANAR'}`);
-    });
-
-    return groups;
-  }
 
   faces.forEach((face, idx) => {
     face.isCurved = checkIfCurved(face, faces, adjacencyMap);
@@ -453,7 +165,7 @@ export function groupCoplanarFaces(
         const dot = currFace.normal.dot(neighborFace.normal);
         const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
 
-        const effectiveThreshold = isCurvedGroup ? 20 : thresholdAngleDegrees;
+        const effectiveThreshold = isCurvedGroup ? 25 : thresholdAngleDegrees;
 
         if (angle < effectiveThreshold) {
           visited.add(neighborIdx);
@@ -484,12 +196,6 @@ export function groupCoplanarFaces(
       totalArea
     });
   }
-
-  console.log(`📊 Face grouping complete: ${groups.length} groups from ${faces.length} triangles`);
-  groups.forEach((group, idx) => {
-    const isCurved = faces[group.faceIndices[0]]?.isCurved || false;
-    console.log(`  Group ${idx}: ${group.faceIndices.length} faces, ${isCurved ? 'CURVED' : 'PLANAR'}`);
-  });
 
   return groups;
 }

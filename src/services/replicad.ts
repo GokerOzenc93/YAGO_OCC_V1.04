@@ -108,7 +108,7 @@ export const convertReplicadToThreeGeometry = (shape: any): THREE.BufferGeometry
     console.log('🔄 Converting Replicad shape to Three.js geometry...');
     console.log('Shape object:', shape);
 
-    const mesh = shape.mesh({ tolerance: 0.05, angularTolerance: 15 });
+    const mesh = shape.mesh({ tolerance: 0.1, angularTolerance: 30 });
     console.log('Mesh data:', mesh);
 
     const vertices: number[] = [];
@@ -150,18 +150,6 @@ export const convertReplicadToThreeGeometry = (shape: any): THREE.BufferGeometry
     console.error('❌ Failed to convert Replicad shape to Three.js geometry:', error);
     console.error('Error details:', error);
     throw error;
-  }
-};
-
-export const extractNativeFacesFromShape = (shape: any): any[] => {
-  try {
-    console.log('🔍 Extracting native faces from Replicad shape...');
-    const faces = shape.faces();
-    console.log(`✅ Found ${faces.length} native CAD faces`);
-    return faces;
-  } catch (error) {
-    console.error('❌ Failed to extract native faces:', error);
-    return [];
   }
 };
 
