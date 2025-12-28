@@ -644,7 +644,7 @@ const Scene: React.FC = () => {
           const face1Normal = new THREE.Vector3(...selectedFilletFaceData[0].normal);
           const face2Normal = new THREE.Vector3(...selectedFilletFaceData[1].normal);
 
-          const faces = extractFacesFromGeometry(shape.geometry);
+          const faces = extractFacesFromGeometry(shape.geometry, shape.replicadShape);
           const faceGroups = groupCoplanarFaces(faces);
           const group1 = faceGroups[selectedFilletFaces[0]];
           const group2 = faceGroups[selectedFilletFaces[1]];
@@ -742,7 +742,8 @@ const Scene: React.FC = () => {
           console.log('✅ Fillet faces cleared. Select 2 new faces for another fillet operation.');
         } catch (error) {
           console.error('❌ Failed to apply fillet:', error);
-          alert(`Failed to apply fillet: ${(error as Error).message}`);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          alert(`Failed to apply fillet: ${errorMessage}`);
         }
       }
 
