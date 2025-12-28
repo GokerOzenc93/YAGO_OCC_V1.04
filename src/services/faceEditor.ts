@@ -92,15 +92,55 @@ function checkIfCurved(face: FaceData, faces: FaceData[], adjacencyMap: Map<numb
   const neighbors = adjacencyMap.get(face.faceIndex);
   if (!neighbors || neighbors.size === 0) return false;
 
-  let maxAngleDiff = 0;
+  let totalAngleDiff = 0;
+  let neighborCount = 0;
+  let hasSignificantVariation = false;
+
   for (const neighborIdx of neighbors) {
     const neighbor = faces[neighborIdx];
     const dot = face.normal.dot(neighbor.normal);
     const angleDiff = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
-    maxAngleDiff = Math.max(maxAngleDiff, angleDiff);
+    totalAngleDiff += angleDiff;
+    neighborCount++;
+
+    if (angleDiff > 1 && angleDiff < 60) {
+      hasSignificantVariation = true;
+    }
   }
 
-  return maxAngleDiff > 0.5 && maxAngleDiff < 45;
+  const avgAngleDiff = neighborCount > 0 ? totalAngleDiff / neighborCount : 0;
+  return hasSignificantVariation || (avgAngleDiff > 0.5 && avgAngleDiff < 45);
+}
+
+function isFlatFace(face: FaceData, faces: FaceData[], adjacencyMap: Map<number, Set<number>>): boolean {
+  const neighbors = adjacencyMap.get(face.faceIndex);
+  if (!neighbors || neighbors.size === 0) return true;
+
+  for (const neighborIdx of neighbors) {
+    const neighbor = faces[neighborIdx];
+    const dot = Math.abs(face.normal.dot(neighbor.normal));
+    if (dot > 0.999) {
+      return true;
+    }
+  }
+
+  const mainAxes = [
+    new THREE.Vector3(1, 0, 0),
+    new THREE.Vector3(0, 1, 0),
+    new THREE.Vector3(0, 0, 1),
+    new THREE.Vector3(-1, 0, 0),
+    new THREE.Vector3(0, -1, 0),
+    new THREE.Vector3(0, 0, -1)
+  ];
+
+  for (const axis of mainAxes) {
+    const dot = Math.abs(face.normal.dot(axis));
+    if (dot > 0.999) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function buildAdjacencyMap(faces: FaceData[]): Map<number, Set<number>> {
@@ -130,11 +170,11 @@ export function groupCoplanarFaces(
   const visited = new Set<number>();
   const adjacencyMap = buildAdjacencyMap(faces);
 
-  faces.forEach((face, idx) => {
-    face.isCurved = checkIfCurved(face, faces, adjacencyMap);
+  faces.forEach((face) => {
+    const curved = checkIfCurved(face, faces, adjacencyMap);
+    const flat = isFlatFace(face, faces, adjacencyMap);
+    face.isCurved = curved && !flat;
   });
-
-  const thresholdDot = Math.cos((thresholdAngleDegrees * Math.PI) / 180);
 
   for (let startIdx = 0; startIdx < faces.length; startIdx++) {
     if (visited.has(startIdx)) continue;
@@ -157,15 +197,21 @@ export function groupCoplanarFaces(
         if (visited.has(neighborIdx)) continue;
 
         const neighborFace = faces[neighborIdx];
+        const neighborIsCurved = neighborFace.isCurved || false;
 
-        if ((neighborFace.isCurved || false) !== isCurvedGroup) {
+        if (neighborIsCurved !== isCurvedGroup) {
           continue;
         }
 
         const dot = currFace.normal.dot(neighborFace.normal);
         const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
 
-        const effectiveThreshold = isCurvedGroup ? 25 : thresholdAngleDegrees;
+        let effectiveThreshold: number;
+        if (isCurvedGroup) {
+          effectiveThreshold = 35;
+        } else {
+          effectiveThreshold = thresholdAngleDegrees;
+        }
 
         if (angle < effectiveThreshold) {
           visited.add(neighborIdx);
