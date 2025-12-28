@@ -29,6 +29,8 @@ export interface FaceDescriptor {
   normal: [number, number, number];           // Yüzey normal vektörü
   normalizedCenter: [number, number, number]; // Merkez pozisyonu (0-1 arası, geometriye göre normalize)
   area: number;                               // Yüzey alanı
+  isCurved?: boolean;                         // Fillet/curved surface mi?
+  axisDirection?: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null; // Düz yüzey yönü
 }
 
 /**

@@ -341,10 +341,21 @@ export function getFaceWorldNormal(
   return face.normal.clone().applyMatrix3(normalMatrix).normalize();
 }
 
+function getAxisDirection(normal: THREE.Vector3): 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null {
+  const tolerance = 0.95;
+  if (normal.x > tolerance) return 'x+';
+  if (normal.x < -tolerance) return 'x-';
+  if (normal.y > tolerance) return 'y+';
+  if (normal.y < -tolerance) return 'y-';
+  if (normal.z > tolerance) return 'z+';
+  if (normal.z < -tolerance) return 'z-';
+  return null;
+}
+
 export function createFaceDescriptor(
   face: FaceData,
   geometry: THREE.BufferGeometry
-): { normal: [number, number, number]; normalizedCenter: [number, number, number]; area: number } {
+): { normal: [number, number, number]; normalizedCenter: [number, number, number]; area: number; isCurved?: boolean; axisDirection?: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null } {
   const boundingBox = new THREE.Box3().setFromBufferAttribute(
     geometry.getAttribute('position')
   );
@@ -360,15 +371,20 @@ export function createFaceDescriptor(
     size.z > 0 ? (face.center.z - min.z) / size.z : 0.5
   ];
 
+  const axisDirection = getAxisDirection(face.normal);
+  const isCurved = face.isCurved || axisDirection === null;
+
   return {
     normal: [face.normal.x, face.normal.y, face.normal.z],
     normalizedCenter,
-    area: face.area
+    area: face.area,
+    isCurved,
+    axisDirection
   };
 }
 
 export function findFaceByDescriptor(
-  descriptor: { normal: [number, number, number]; normalizedCenter: [number, number, number]; area: number },
+  descriptor: { normal: [number, number, number]; normalizedCenter: [number, number, number]; area: number; isCurved?: boolean; axisDirection?: string | null },
   faces: FaceData[],
   geometry: THREE.BufferGeometry
 ): FaceData | null {
@@ -376,37 +392,69 @@ export function findFaceByDescriptor(
   let bestScore = Infinity;
 
   const targetNormal = new THREE.Vector3(...descriptor.normal);
+  const targetAxisDir = descriptor.axisDirection || getAxisDirection(targetNormal);
+  const isFlatSurface = targetAxisDir !== null && !descriptor.isCurved;
 
   for (const face of faces) {
     const faceDescriptor = createFaceDescriptor(face, geometry);
+    const faceAxisDir = faceDescriptor.axisDirection;
 
-    const dotProduct = targetNormal.dot(face.normal);
-    const normalAngle = Math.acos(Math.min(1, Math.max(-1, dotProduct))) * (180 / Math.PI);
+    if (isFlatSurface) {
+      if (faceAxisDir !== targetAxisDir) {
+        continue;
+      }
 
-    if (normalAngle > 5) {
-      continue;
-    }
+      let relevantCenterDiff = 0;
+      if (targetAxisDir === 'x+' || targetAxisDir === 'x-') {
+        relevantCenterDiff = Math.sqrt(
+          Math.pow(faceDescriptor.normalizedCenter[1] - descriptor.normalizedCenter[1], 2) +
+          Math.pow(faceDescriptor.normalizedCenter[2] - descriptor.normalizedCenter[2], 2)
+        );
+      } else if (targetAxisDir === 'y+' || targetAxisDir === 'y-') {
+        relevantCenterDiff = Math.sqrt(
+          Math.pow(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0], 2) +
+          Math.pow(faceDescriptor.normalizedCenter[2] - descriptor.normalizedCenter[2], 2)
+        );
+      } else if (targetAxisDir === 'z+' || targetAxisDir === 'z-') {
+        relevantCenterDiff = Math.sqrt(
+          Math.pow(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0], 2) +
+          Math.pow(faceDescriptor.normalizedCenter[1] - descriptor.normalizedCenter[1], 2)
+        );
+      }
 
-    const centerDiff = Math.sqrt(
-      Math.pow(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0], 2) +
-      Math.pow(faceDescriptor.normalizedCenter[1] - descriptor.normalizedCenter[1], 2) +
-      Math.pow(faceDescriptor.normalizedCenter[2] - descriptor.normalizedCenter[2], 2)
-    );
+      const score = relevantCenterDiff * 10;
 
-    const areaDiff = Math.abs(face.area - descriptor.area) / Math.max(face.area, descriptor.area);
+      if (score < bestScore) {
+        bestScore = score;
+        bestMatch = face;
+      }
+    } else {
+      const dotProduct = targetNormal.dot(face.normal);
+      const normalAngle = Math.acos(Math.min(1, Math.max(-1, dotProduct))) * (180 / Math.PI);
 
-    const score = normalAngle * 2 + centerDiff * 10 + areaDiff * 5;
+      if (normalAngle > 15) {
+        continue;
+      }
 
-    if (score < bestScore) {
-      bestScore = score;
-      bestMatch = face;
+      const centerDiff = Math.sqrt(
+        Math.pow(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0], 2) +
+        Math.pow(faceDescriptor.normalizedCenter[1] - descriptor.normalizedCenter[1], 2) +
+        Math.pow(faceDescriptor.normalizedCenter[2] - descriptor.normalizedCenter[2], 2)
+      );
+
+      const score = normalAngle * 2 + centerDiff * 10;
+
+      if (score < bestScore) {
+        bestScore = score;
+        bestMatch = face;
+      }
     }
   }
 
   if (bestMatch) {
-    console.log(`🔍 Face match - Score: ${bestScore.toFixed(4)}, Normal: [${descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
+    console.log(`Face match - Score: ${bestScore.toFixed(4)}, AxisDir: ${targetAxisDir}, Normal: [${descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
   } else {
-    console.warn(`⚠️ No face match found for normal: [${descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
+    console.warn(`No face match found for normal: [${descriptor.normal.map(n => n.toFixed(2)).join(', ')}], AxisDir: ${targetAxisDir}`);
   }
 
   return bestMatch;
