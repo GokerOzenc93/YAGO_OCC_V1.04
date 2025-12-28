@@ -242,7 +242,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setVertexModifications([]);
       setFilletRadii([]);
     }
-  }, [selectedShape, selectedShapeId, shapes]);
+  }, [selectedShape, selectedShapeId, shapes, selectedShape?.fillets?.length]);
 
   useEffect(() => {
     if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
