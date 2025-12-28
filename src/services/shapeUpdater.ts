@@ -94,18 +94,14 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
     const face1Normal = new THREE.Vector3(...fillet.face1Data.normal);
     const face2Normal = new THREE.Vector3(...fillet.face2Data.normal);
 
-    const expectedEdgeDir = new THREE.Vector3().crossVectors(face1Normal, face2Normal).normalize();
-    const hasExpectedDir = expectedEdgeDir.length() > 0.1;
-
     console.log(`📐 Scaled face centers for new dimensions (${shapeSize.width}x${shapeSize.height}x${shapeSize.depth})`);
     console.log(`   Face1 center: (${face1Center.x.toFixed(2)}, ${face1Center.y.toFixed(2)}, ${face1Center.z.toFixed(2)})`);
     console.log(`   Face2 center: (${face2Center.x.toFixed(2)}, ${face2Center.y.toFixed(2)}, ${face2Center.z.toFixed(2)})`);
 
     let edgeCount = 0;
     let foundEdgeCount = 0;
-    const candidateEdges: Array<{ index: number; score: number }> = [];
 
-    currentShape.fillet((edge: any) => {
+    currentShape = currentShape.fillet((edge: any) => {
       edgeCount++;
       try {
         const start = edge.startPoint;
@@ -115,84 +111,35 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
 
         const startVec = new THREE.Vector3(start.x, start.y, start.z);
         const endVec = new THREE.Vector3(end.x, end.y, end.z);
-        const edgeDir = new THREE.Vector3().subVectors(endVec, startVec).normalize();
-        const edgeLength = startVec.distanceTo(endVec);
-
-        if (edgeLength < 1) return null;
-
         const centerVec = new THREE.Vector3(
           (start.x + end.x) / 2,
           (start.y + end.y) / 2,
           (start.z + end.z) / 2
         );
 
-        const distToFace1Center = centerVec.distanceTo(face1Center);
-        const distToFace2Center = centerVec.distanceTo(face2Center);
+        const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
+        const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
 
-        let dirScore = 1.0;
-        if (hasExpectedDir) {
-          dirScore = Math.abs(edgeDir.dot(expectedEdgeDir));
-        }
+        const maxDimension = Math.max(shapeSize.width || 1, shapeSize.height || 1, shapeSize.depth || 1);
+        const tolerance = maxDimension * 0.08;
 
-        const combinedDist = distToFace1Center + distToFace2Center;
-        const score = combinedDist * (2 - dirScore);
+        const startDistFace1 = Math.abs(startVec.clone().sub(face1Center).dot(face1Normal));
+        const startDistFace2 = Math.abs(startVec.clone().sub(face2Center).dot(face2Normal));
+        const endDistFace1 = Math.abs(endVec.clone().sub(face1Center).dot(face1Normal));
+        const endDistFace2 = Math.abs(endVec.clone().sub(face2Center).dot(face2Normal));
 
-        candidateEdges.push({ index: edgeCount, score });
-
-        return null;
-      } catch (e) {
-        return null;
-      }
-    });
-
-    if (candidateEdges.length === 0) {
-      console.warn(`⚠️ No edges found for fillet with radius ${fillet.radius}`);
-      continue;
-    }
-
-    candidateEdges.sort((a, b) => a.score - b.score);
-    const bestCandidate = candidateEdges[0];
-    console.log(`🎯 Best edge: #${bestCandidate.index} with score ${bestCandidate.score.toFixed(4)}`);
-
-    currentShape = currentShape.fillet((edge: any) => {
-      try {
-        const start = edge.startPoint;
-        const end = edge.endPoint;
-
-        if (!start || !end) return null;
-
-        const startVec = new THREE.Vector3(start.x, start.y, start.z);
-        const endVec = new THREE.Vector3(end.x, end.y, end.z);
-        const edgeDir = new THREE.Vector3().subVectors(endVec, startVec).normalize();
-        const edgeLength = startVec.distanceTo(endVec);
-
-        if (edgeLength < 1) return null;
-
-        const centerVec = new THREE.Vector3(
-          (start.x + end.x) / 2,
-          (start.y + end.y) / 2,
-          (start.z + end.z) / 2
-        );
-
-        const distToFace1Center = centerVec.distanceTo(face1Center);
-        const distToFace2Center = centerVec.distanceTo(face2Center);
-
-        let dirScore = 1.0;
-        if (hasExpectedDir) {
-          dirScore = Math.abs(edgeDir.dot(expectedEdgeDir));
-        }
-
-        const combinedDist = distToFace1Center + distToFace2Center;
-        const score = combinedDist * (2 - dirScore);
-
-        if (Math.abs(score - bestCandidate.score) < 0.1) {
+        if (distToFace1 < tolerance && distToFace2 < tolerance &&
+            startDistFace1 < tolerance && startDistFace2 < tolerance &&
+            endDistFace1 < tolerance && endDistFace2 < tolerance) {
           foundEdgeCount++;
           console.log(`✅ Found shared edge #${foundEdgeCount} - applying fillet radius: ${fillet.radius}`);
+          console.log(`   Edge distances - Center: ${distToFace1.toFixed(2)}, ${distToFace2.toFixed(2)}`);
           return fillet.radius;
         }
 
         return null;
       } catch (e) {
+        console.error('❌ Error checking edge:', e);
         return null;
       }
     });

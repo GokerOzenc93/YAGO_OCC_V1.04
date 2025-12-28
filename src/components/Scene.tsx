@@ -665,21 +665,9 @@ const Scene: React.FC = () => {
 
           let replicadShape = shape.replicadShape;
 
-          const expectedEdgeDir = new THREE.Vector3().crossVectors(face1Normal, face2Normal).normalize();
-          const hasExpectedDir = expectedEdgeDir.length() > 0.1;
-
-          console.log('📐 Face1 Normal:', face1Normal.toArray().map(v => v.toFixed(3)));
-          console.log('📐 Face2 Normal:', face2Normal.toArray().map(v => v.toFixed(3)));
-          console.log('📐 Face1 Center:', face1Center.toArray().map(v => v.toFixed(2)));
-          console.log('📐 Face2 Center:', face2Center.toArray().map(v => v.toFixed(2)));
-          console.log('📐 Expected edge direction:', expectedEdgeDir.toArray().map(v => v.toFixed(3)));
-
           let edgeCount = 0;
           let foundEdgeCount = 0;
-
-          const candidateEdges: Array<{ index: number; score: number; distToFace1: number; distToFace2: number; dirScore: number }> = [];
-
-          replicadShape.fillet((edge: any) => {
+          const filletedShape = replicadShape.fillet((edge: any) => {
             edgeCount++;
             try {
               const start = edge.startPoint;
@@ -687,103 +675,36 @@ const Scene: React.FC = () => {
 
               if (!start || !end) return null;
 
-              const startVec = new THREE.Vector3(start.x, start.y, start.z);
-              const endVec = new THREE.Vector3(end.x, end.y, end.z);
-              const edgeDir = new THREE.Vector3().subVectors(endVec, startVec).normalize();
-              const edgeLength = startVec.distanceTo(endVec);
-
-              if (edgeLength < 1) return null;
-
               const centerVec = new THREE.Vector3(
                 (start.x + end.x) / 2,
                 (start.y + end.y) / 2,
                 (start.z + end.z) / 2
               );
 
-              const distToFace1Center = centerVec.distanceTo(face1Center);
-              const distToFace2Center = centerVec.distanceTo(face2Center);
+              const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
+              const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
 
-              let dirScore = 1.0;
-              if (hasExpectedDir) {
-                dirScore = Math.abs(edgeDir.dot(expectedEdgeDir));
+              const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
+              const tolerance = maxDimension * 0.15;
+
+              if (edgeCount <= 3 || (distToFace1 < tolerance && distToFace2 < tolerance)) {
+                console.log(`Edge ${edgeCount}: center=(${centerVec.x.toFixed(2)}, ${centerVec.y.toFixed(2)}, ${centerVec.z.toFixed(2)}), distToFace1=${distToFace1.toFixed(3)}, distToFace2=${distToFace2.toFixed(3)}, tolerance=${tolerance.toFixed(3)}`);
               }
 
-              const combinedDist = distToFace1Center + distToFace2Center;
-              const score = combinedDist * (2 - dirScore);
-
-              candidateEdges.push({
-                index: edgeCount,
-                score,
-                distToFace1: distToFace1Center,
-                distToFace2: distToFace2Center,
-                dirScore
-              });
-
-              return null;
-            } catch (e) {
-              return null;
-            }
-          });
-
-          candidateEdges.sort((a, b) => a.score - b.score);
-
-          console.log(`🔢 Total edges: ${edgeCount}`);
-          console.log('📊 Top 5 candidates:');
-          candidateEdges.slice(0, 5).forEach((c, i) => {
-            console.log(`   ${i + 1}. Edge #${c.index}: score=${c.score.toFixed(2)}, dist1=${c.distToFace1.toFixed(2)}, dist2=${c.distToFace2.toFixed(2)}, dirMatch=${c.dirScore.toFixed(3)}`);
-          });
-
-          if (candidateEdges.length === 0) {
-            console.error('❌ No edges found');
-            alert('No edges found in shape.');
-            return;
-          }
-
-          const bestCandidate = candidateEdges[0];
-
-          if (hasExpectedDir && bestCandidate.dirScore < 0.7) {
-            console.warn('⚠️ Best candidate has poor direction match, may select wrong edge');
-          }
-          console.log(`🎯 Best edge: #${bestCandidate.index} with score ${bestCandidate.score.toFixed(4)}`);
-
-          const filletedShape = replicadShape.fillet((edge: any) => {
-            try {
-              const start = edge.startPoint;
-              const end = edge.endPoint;
-              if (!start || !end) return null;
-
-              const startVec = new THREE.Vector3(start.x, start.y, start.z);
-              const endVec = new THREE.Vector3(end.x, end.y, end.z);
-              const edgeDir = new THREE.Vector3().subVectors(endVec, startVec).normalize();
-              const edgeLength = startVec.distanceTo(endVec);
-
-              if (edgeLength < 1) return null;
-
-              const centerVec = new THREE.Vector3((start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2);
-
-              const distToFace1Center = centerVec.distanceTo(face1Center);
-              const distToFace2Center = centerVec.distanceTo(face2Center);
-
-              let dirScore = 1.0;
-              if (hasExpectedDir) {
-                dirScore = Math.abs(edgeDir.dot(expectedEdgeDir));
-              }
-
-              const combinedDist = distToFace1Center + distToFace2Center;
-              const score = combinedDist * (2 - dirScore);
-
-              if (Math.abs(score - bestCandidate.score) < 0.1) {
+              if (distToFace1 < tolerance && distToFace2 < tolerance) {
                 foundEdgeCount++;
-                console.log(`✅ Applying fillet to edge, score=${score.toFixed(4)}`);
+                console.log('✅ Found shared edge #' + foundEdgeCount + ' - applying fillet radius:', radius);
                 return radius;
               }
 
               return null;
             } catch (e) {
+              console.error('❌ Error checking edge:', e);
               return null;
             }
           });
 
+          console.log('🔢 Total edges checked:', edgeCount);
           console.log('🔢 Edges selected for fillet:', foundEdgeCount);
 
           const newGeometry = convertReplicadToThreeGeometry(filletedShape);
