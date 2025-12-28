@@ -675,6 +675,8 @@ const Scene: React.FC = () => {
 
               if (!start || !end) return null;
 
+              const startVec = new THREE.Vector3(start.x, start.y, start.z);
+              const endVec = new THREE.Vector3(end.x, end.y, end.z);
               const centerVec = new THREE.Vector3(
                 (start.x + end.x) / 2,
                 (start.y + end.y) / 2,
@@ -684,14 +686,23 @@ const Scene: React.FC = () => {
               const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
               const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
 
-              const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
-              const tolerance = maxDimension * 0.15;
+              const startDistFace1 = Math.abs(startVec.clone().sub(face1Center).dot(face1Normal));
+              const startDistFace2 = Math.abs(startVec.clone().sub(face2Center).dot(face2Normal));
+              const endDistFace1 = Math.abs(endVec.clone().sub(face1Center).dot(face1Normal));
+              const endDistFace2 = Math.abs(endVec.clone().sub(face2Center).dot(face2Normal));
 
-              if (edgeCount <= 3 || (distToFace1 < tolerance && distToFace2 < tolerance)) {
+              const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
+              const tolerance = maxDimension * 0.08;
+
+              const centerOnBothPlanes = distToFace1 < tolerance && distToFace2 < tolerance;
+              const startOnBothPlanes = startDistFace1 < tolerance && startDistFace2 < tolerance;
+              const endOnBothPlanes = endDistFace1 < tolerance && endDistFace2 < tolerance;
+
+              if (edgeCount <= 3 || centerOnBothPlanes) {
                 console.log(`Edge ${edgeCount}: center=(${centerVec.x.toFixed(2)}, ${centerVec.y.toFixed(2)}, ${centerVec.z.toFixed(2)}), distToFace1=${distToFace1.toFixed(3)}, distToFace2=${distToFace2.toFixed(3)}, tolerance=${tolerance.toFixed(3)}`);
               }
 
-              if (distToFace1 < tolerance && distToFace2 < tolerance) {
+              if (centerOnBothPlanes && startOnBothPlanes && endOnBothPlanes) {
                 foundEdgeCount++;
                 console.log('✅ Found shared edge #' + foundEdgeCount + ' - applying fillet radius:', radius);
                 return radius;
