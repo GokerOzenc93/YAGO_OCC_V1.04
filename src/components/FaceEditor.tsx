@@ -5,6 +5,7 @@ import {
   extractFacesFromGeometry,
   groupCoplanarFaces,
   createFaceHighlightGeometry,
+  createGroupBoundaryEdges,
   type FaceData,
   type CoplanarFaceGroup
 } from '../services/faceEditor';
@@ -113,6 +114,11 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     return createFaceHighlightGeometry(faces, group.faceIndices);
   }, [hoveredGroupIndex, faceGroups, faces]);
 
+  const boundaryEdgesGeometry = useMemo(() => {
+    if (faces.length === 0 || faceGroups.length === 0) return null;
+    return createGroupBoundaryEdges(faces, faceGroups);
+  }, [faces, faceGroups]);
+
   if (!isActive) return null;
 
   return (
@@ -166,6 +172,17 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
             polygonOffsetUnits={-1}
           />
         </mesh>
+      )}
+
+      {boundaryEdgesGeometry && (
+        <lineSegments
+          geometry={boundaryEdgesGeometry}
+          position={shape.position}
+          rotation={shape.rotation}
+          scale={shape.scale}
+        >
+          <lineBasicMaterial color={0x00ffff} linewidth={2} />
+        </lineSegments>
       )}
     </>
   );

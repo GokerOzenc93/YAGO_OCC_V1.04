@@ -88,59 +88,69 @@ function areVerticesShared(face1: FaceData, face2: FaceData, tolerance: number =
   return false;
 }
 
-function checkIfCurved(face: FaceData, faces: FaceData[], adjacencyMap: Map<number, Set<number>>): boolean {
-  const neighbors = adjacencyMap.get(face.faceIndex);
-  if (!neighbors || neighbors.size === 0) return false;
+function isAxisAligned(normal: THREE.Vector3, tolerance: number = 0.98): boolean {
+  const absX = Math.abs(normal.x);
+  const absY = Math.abs(normal.y);
+  const absZ = Math.abs(normal.z);
+  return absX > tolerance || absY > tolerance || absZ > tolerance;
+}
 
-  let totalAngleDiff = 0;
-  let neighborCount = 0;
-  let hasSignificantVariation = false;
+function calculateSurfaceType(
+  face: FaceData,
+  faces: FaceData[],
+  adjacencyMap: Map<number, Set<number>>
+): 'flat' | 'curved' | 'unknown' {
+  const neighbors = adjacencyMap.get(face.faceIndex);
+  if (!neighbors || neighbors.size === 0) {
+    return isAxisAligned(face.normal) ? 'flat' : 'unknown';
+  }
+
+  if (isAxisAligned(face.normal, 0.99)) {
+    let allNeighborsAligned = true;
+    for (const neighborIdx of neighbors) {
+      const neighbor = faces[neighborIdx];
+      const dot = Math.abs(face.normal.dot(neighbor.normal));
+      if (dot < 0.99) {
+        allNeighborsAligned = false;
+        break;
+      }
+    }
+    if (allNeighborsAligned) {
+      return 'flat';
+    }
+  }
+
+  let minAngle = Infinity;
+  let maxAngle = 0;
+  let neighborAngles: number[] = [];
 
   for (const neighborIdx of neighbors) {
     const neighbor = faces[neighborIdx];
     const dot = face.normal.dot(neighbor.normal);
-    const angleDiff = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
-    totalAngleDiff += angleDiff;
-    neighborCount++;
-
-    if (angleDiff > 1 && angleDiff < 60) {
-      hasSignificantVariation = true;
-    }
+    const angle = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
+    neighborAngles.push(angle);
+    minAngle = Math.min(minAngle, angle);
+    maxAngle = Math.max(maxAngle, angle);
   }
 
-  const avgAngleDiff = neighborCount > 0 ? totalAngleDiff / neighborCount : 0;
-  return hasSignificantVariation || (avgAngleDiff > 0.5 && avgAngleDiff < 45);
-}
-
-function isFlatFace(face: FaceData, faces: FaceData[], adjacencyMap: Map<number, Set<number>>): boolean {
-  const neighbors = adjacencyMap.get(face.faceIndex);
-  if (!neighbors || neighbors.size === 0) return true;
-
-  for (const neighborIdx of neighbors) {
-    const neighbor = faces[neighborIdx];
-    const dot = Math.abs(face.normal.dot(neighbor.normal));
-    if (dot > 0.999) {
-      return true;
-    }
+  if (maxAngle < 1) {
+    return 'flat';
   }
 
-  const mainAxes = [
-    new THREE.Vector3(1, 0, 0),
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(0, 0, 1),
-    new THREE.Vector3(-1, 0, 0),
-    new THREE.Vector3(0, -1, 0),
-    new THREE.Vector3(0, 0, -1)
-  ];
-
-  for (const axis of mainAxes) {
-    const dot = Math.abs(face.normal.dot(axis));
-    if (dot > 0.999) {
-      return true;
-    }
+  if (minAngle > 0.5 && maxAngle < 50 && !isAxisAligned(face.normal, 0.95)) {
+    return 'curved';
   }
 
-  return false;
+  if (isAxisAligned(face.normal, 0.99)) {
+    return 'flat';
+  }
+
+  const avgAngle = neighborAngles.reduce((a, b) => a + b, 0) / neighborAngles.length;
+  if (avgAngle > 1 && avgAngle < 40) {
+    return 'curved';
+  }
+
+  return 'unknown';
 }
 
 function buildAdjacencyMap(faces: FaceData[]): Map<number, Set<number>> {
@@ -170,10 +180,11 @@ export function groupCoplanarFaces(
   const visited = new Set<number>();
   const adjacencyMap = buildAdjacencyMap(faces);
 
+  const surfaceTypes = new Map<number, 'flat' | 'curved' | 'unknown'>();
   faces.forEach((face) => {
-    const curved = checkIfCurved(face, faces, adjacencyMap);
-    const flat = isFlatFace(face, faces, adjacencyMap);
-    face.isCurved = curved && !flat;
+    const surfaceType = calculateSurfaceType(face, faces, adjacencyMap);
+    surfaceTypes.set(face.faceIndex, surfaceType);
+    face.isCurved = surfaceType === 'curved';
   });
 
   for (let startIdx = 0; startIdx < faces.length; startIdx++) {
@@ -184,7 +195,7 @@ export function groupCoplanarFaces(
 
     const stack: number[] = [startIdx];
     const startFace = faces[startIdx];
-    const isCurvedGroup = startFace.isCurved || false;
+    const startSurfaceType = surfaceTypes.get(startIdx) || 'unknown';
 
     while (stack.length > 0) {
       const currIdx = stack.pop()!;
@@ -197,9 +208,12 @@ export function groupCoplanarFaces(
         if (visited.has(neighborIdx)) continue;
 
         const neighborFace = faces[neighborIdx];
-        const neighborIsCurved = neighborFace.isCurved || false;
+        const neighborSurfaceType = surfaceTypes.get(neighborIdx) || 'unknown';
 
-        if (neighborIsCurved !== isCurvedGroup) {
+        if (startSurfaceType === 'flat' && neighborSurfaceType !== 'flat') {
+          continue;
+        }
+        if (startSurfaceType === 'curved' && neighborSurfaceType !== 'curved') {
           continue;
         }
 
@@ -207,10 +221,12 @@ export function groupCoplanarFaces(
         const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
 
         let effectiveThreshold: number;
-        if (isCurvedGroup) {
-          effectiveThreshold = 35;
-        } else {
+        if (startSurfaceType === 'curved') {
+          effectiveThreshold = 40;
+        } else if (startSurfaceType === 'flat') {
           effectiveThreshold = thresholdAngleDegrees;
+        } else {
+          effectiveThreshold = 20;
         }
 
         if (angle < effectiveThreshold) {
@@ -244,6 +260,55 @@ export function groupCoplanarFaces(
   }
 
   return groups;
+}
+
+export function createGroupBoundaryEdges(
+  faces: FaceData[],
+  groups: CoplanarFaceGroup[]
+): THREE.BufferGeometry {
+  const edgeVertices: number[] = [];
+  const faceToGroup = new Map<number, number>();
+
+  groups.forEach((group, groupIdx) => {
+    group.faceIndices.forEach(faceIdx => {
+      faceToGroup.set(faceIdx, groupIdx);
+    });
+  });
+
+  const edgeMap = new Map<string, { v1: THREE.Vector3; v2: THREE.Vector3; faces: number[] }>();
+
+  faces.forEach((face) => {
+    const verts = face.vertices;
+    for (let i = 0; i < 3; i++) {
+      const v1 = verts[i];
+      const v2 = verts[(i + 1) % 3];
+
+      const key1 = `${v1.x.toFixed(4)},${v1.y.toFixed(4)},${v1.z.toFixed(4)}`;
+      const key2 = `${v2.x.toFixed(4)},${v2.y.toFixed(4)},${v2.z.toFixed(4)}`;
+      const edgeKey = key1 < key2 ? `${key1}-${key2}` : `${key2}-${key1}`;
+
+      if (!edgeMap.has(edgeKey)) {
+        edgeMap.set(edgeKey, { v1: v1.clone(), v2: v2.clone(), faces: [] });
+      }
+      edgeMap.get(edgeKey)!.faces.push(face.faceIndex);
+    }
+  });
+
+  edgeMap.forEach((edge) => {
+    if (edge.faces.length === 2) {
+      const group1 = faceToGroup.get(edge.faces[0]);
+      const group2 = faceToGroup.get(edge.faces[1]);
+
+      if (group1 !== undefined && group2 !== undefined && group1 !== group2) {
+        edgeVertices.push(edge.v1.x, edge.v1.y, edge.v1.z);
+        edgeVertices.push(edge.v2.x, edge.v2.y, edge.v2.z);
+      }
+    }
+  });
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(edgeVertices, 3));
+  return geometry;
 }
 
 export function findClosestFaceToRay(
