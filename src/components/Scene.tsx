@@ -707,7 +707,8 @@ const Scene: React.FC = () => {
               const distToPlane2Start = Math.abs(startVec.dot(face2Normal) - d2);
               const distToPlane2End = Math.abs(endVec.dot(face2Normal) - d2);
 
-              const tolerance = 1.0;
+              const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
+              const tolerance = Math.max(maxDimension * 0.05, 10);
 
               const onPlane1 = distToPlane1Center < tolerance && distToPlane1Start < tolerance && distToPlane1End < tolerance;
               const onPlane2 = distToPlane2Center < tolerance && distToPlane2Start < tolerance && distToPlane2End < tolerance;
@@ -715,13 +716,15 @@ const Scene: React.FC = () => {
               let directionMatch = true;
               if (hasExpectedDir && edgeLength > 1) {
                 const dotWithExpected = Math.abs(edgeDir.dot(expectedEdgeDir));
-                directionMatch = dotWithExpected > 0.95;
+                directionMatch = dotWithExpected > 0.9;
               }
 
               if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1) {
                 const score = distToPlane1Center + distToPlane2Center + distToPlane1Start + distToPlane2Start + distToPlane1End + distToPlane2End;
                 candidateEdges.push({ index: edgeCount, score, radius });
                 console.log(`✅ Candidate edge #${edgeCount}: length=${edgeLength.toFixed(2)}, score=${score.toFixed(4)}, dir match=${directionMatch}`);
+              } else if (edgeCount <= 5) {
+                console.log(`Edge ${edgeCount}: dist1=${distToPlane1Center.toFixed(2)}, dist2=${distToPlane2Center.toFixed(2)}, tol=${tolerance.toFixed(2)}, dirMatch=${directionMatch}`);
               }
 
               return null;
@@ -766,16 +769,17 @@ const Scene: React.FC = () => {
 
               const score = distToPlane1Center + distToPlane2Center + distToPlane1Start + distToPlane2Start + distToPlane1End + distToPlane2End;
 
-              const tolerance = 1.0;
-              const onPlane1 = distToPlane1Center < tolerance && distToPlane1Start < tolerance && distToPlane1End < tolerance;
-              const onPlane2 = distToPlane2Center < tolerance && distToPlane2Start < tolerance && distToPlane2End < tolerance;
+              const maxDim = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
+              const tol = Math.max(maxDim * 0.05, 10);
+              const onPlane1 = distToPlane1Center < tol && distToPlane1Start < tol && distToPlane1End < tol;
+              const onPlane2 = distToPlane2Center < tol && distToPlane2Start < tol && distToPlane2End < tol;
 
               let directionMatch = true;
               if (hasExpectedDir && edgeLength > 1) {
-                directionMatch = Math.abs(edgeDir.dot(expectedEdgeDir)) > 0.95;
+                directionMatch = Math.abs(edgeDir.dot(expectedEdgeDir)) > 0.9;
               }
 
-              if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1 && Math.abs(score - bestCandidate.score) < 0.01) {
+              if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1 && Math.abs(score - bestCandidate.score) < 1.0) {
                 foundEdgeCount++;
                 console.log(`✅ Applying fillet to edge #${currentIdx}, score=${score.toFixed(4)}`);
                 return radius;

@@ -135,7 +135,8 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
         const distToPlane2Start = Math.abs(startVec.dot(face2Normal) - d2);
         const distToPlane2End = Math.abs(endVec.dot(face2Normal) - d2);
 
-        const tolerance = 1.0;
+        const maxDimension = Math.max(shapeSize.width || 1, shapeSize.height || 1, shapeSize.depth || 1);
+        const tolerance = Math.max(maxDimension * 0.05, 10);
 
         const onPlane1 = distToPlane1Center < tolerance && distToPlane1Start < tolerance && distToPlane1End < tolerance;
         const onPlane2 = distToPlane2Center < tolerance && distToPlane2Start < tolerance && distToPlane2End < tolerance;
@@ -143,7 +144,7 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
         let directionMatch = true;
         if (hasExpectedDir && edgeLength > 1) {
           const dotWithExpected = Math.abs(edgeDir.dot(expectedEdgeDir));
-          directionMatch = dotWithExpected > 0.95;
+          directionMatch = dotWithExpected > 0.9;
         }
 
         if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1) {
@@ -197,16 +198,16 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
 
         const score = distToPlane1Center + distToPlane2Center + distToPlane1Start + distToPlane2Start + distToPlane1End + distToPlane2End;
 
-        const tolerance = 1.0;
-        const onPlane1 = distToPlane1Center < tolerance && distToPlane1Start < tolerance && distToPlane1End < tolerance;
-        const onPlane2 = distToPlane2Center < tolerance && distToPlane2Start < tolerance && distToPlane2End < tolerance;
+        const tol = Math.max(maxDimension * 0.05, 10);
+        const onPlane1 = distToPlane1Center < tol && distToPlane1Start < tol && distToPlane1End < tol;
+        const onPlane2 = distToPlane2Center < tol && distToPlane2Start < tol && distToPlane2End < tol;
 
         let directionMatch = true;
         if (hasExpectedDir && edgeLength > 1) {
-          directionMatch = Math.abs(edgeDir.dot(expectedEdgeDir)) > 0.95;
+          directionMatch = Math.abs(edgeDir.dot(expectedEdgeDir)) > 0.9;
         }
 
-        if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1 && Math.abs(score - bestCandidate.score) < 0.01) {
+        if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1 && Math.abs(score - bestCandidate.score) < 1.0) {
           foundEdgeCount++;
           console.log(`✅ Found shared edge #${foundEdgeCount} - applying fillet radius: ${fillet.radius}`);
           return fillet.radius;
