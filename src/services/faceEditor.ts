@@ -99,41 +99,41 @@ function calculateSurfaceType(
   face: FaceData,
   faces: FaceData[],
   adjacencyMap: Map<number, Set<number>>
-): 'flat' | 'curved' | 'unknown' {
-  if (isAxisAligned(face.normal, 0.99)) {
+): 'flat' | 'curved' {
+  if (isAxisAligned(face.normal, 0.95)) {
     return 'flat';
   }
 
   const neighbors = adjacencyMap.get(face.faceIndex);
   if (!neighbors || neighbors.size === 0) {
-    return 'unknown';
-  }
-
-  let alignedNeighborCount = 0;
-  let totalNeighbors = 0;
-  let maxAngleDiff = 0;
-
-  for (const neighborIdx of neighbors) {
-    const neighbor = faces[neighborIdx];
-    const dot = face.normal.dot(neighbor.normal);
-    const angle = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
-
-    totalNeighbors++;
-    if (angle < 1) {
-      alignedNeighborCount++;
-    }
-    maxAngleDiff = Math.max(maxAngleDiff, angle);
-  }
-
-  if (alignedNeighborCount === totalNeighbors && maxAngleDiff < 1) {
-    return 'flat';
-  }
-
-  if (maxAngleDiff > 0.5 && maxAngleDiff < 60) {
     return 'curved';
   }
 
-  return 'unknown';
+  let hasAxisAlignedNeighbor = false;
+  let hasCurvedNeighbor = false;
+
+  for (const neighborIdx of neighbors) {
+    const neighbor = faces[neighborIdx];
+    if (isAxisAligned(neighbor.normal, 0.95)) {
+      hasAxisAlignedNeighbor = true;
+    }
+
+    const dot = face.normal.dot(neighbor.normal);
+    const angle = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
+    if (angle > 2 && angle < 50) {
+      hasCurvedNeighbor = true;
+    }
+  }
+
+  if (hasCurvedNeighbor && !isAxisAligned(face.normal, 0.9)) {
+    return 'curved';
+  }
+
+  if (hasAxisAlignedNeighbor && isAxisAligned(face.normal, 0.9)) {
+    return 'flat';
+  }
+
+  return 'curved';
 }
 
 function buildAdjacencyMap(faces: FaceData[]): Map<number, Set<number>> {
@@ -163,7 +163,7 @@ export function groupCoplanarFaces(
   const visited = new Set<number>();
   const adjacencyMap = buildAdjacencyMap(faces);
 
-  const surfaceTypes = new Map<number, 'flat' | 'curved' | 'unknown'>();
+  const surfaceTypes = new Map<number, 'flat' | 'curved'>();
   faces.forEach((face) => {
     const surfaceType = calculateSurfaceType(face, faces, adjacencyMap);
     surfaceTypes.set(face.faceIndex, surfaceType);
@@ -178,7 +178,7 @@ export function groupCoplanarFaces(
 
     const stack: number[] = [startIdx];
     const startFace = faces[startIdx];
-    const startSurfaceType = surfaceTypes.get(startIdx) || 'unknown';
+    const startSurfaceType = surfaceTypes.get(startIdx) || 'curved';
 
     while (stack.length > 0) {
       const currIdx = stack.pop()!;
@@ -191,12 +191,9 @@ export function groupCoplanarFaces(
         if (visited.has(neighborIdx)) continue;
 
         const neighborFace = faces[neighborIdx];
-        const neighborSurfaceType = surfaceTypes.get(neighborIdx) || 'unknown';
+        const neighborSurfaceType = surfaceTypes.get(neighborIdx) || 'curved';
 
-        if (startSurfaceType === 'flat' && neighborSurfaceType !== 'flat') {
-          continue;
-        }
-        if (startSurfaceType === 'curved' && neighborSurfaceType !== 'curved') {
+        if (startSurfaceType !== neighborSurfaceType) {
           continue;
         }
 
@@ -205,11 +202,9 @@ export function groupCoplanarFaces(
 
         let effectiveThreshold: number;
         if (startSurfaceType === 'curved') {
-          effectiveThreshold = 40;
-        } else if (startSurfaceType === 'flat') {
-          effectiveThreshold = thresholdAngleDegrees;
+          effectiveThreshold = 45;
         } else {
-          effectiveThreshold = 20;
+          effectiveThreshold = thresholdAngleDegrees;
         }
 
         if (angle < effectiveThreshold) {
