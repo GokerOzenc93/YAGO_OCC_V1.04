@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
@@ -383,6 +383,30 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       [param]: { expression, result }
     }));
   };
+
+  useEffect(() => {
+    if (selectedSubtractionIndex !== null && selectedShape) {
+      const timeoutId = setTimeout(() => {
+        applySubtractionChanges({
+          selectedShapeId,
+          selectedSubtractionIndex,
+          shapes,
+          subWidth: subParams.width.result,
+          subHeight: subParams.height.result,
+          subDepth: subParams.depth.result,
+          subPosX: subParams.posX.result,
+          subPosY: subParams.posY.result,
+          subPosZ: subParams.posZ.result,
+          subRotX: subParams.rotX.result,
+          subRotY: subParams.rotY.result,
+          subRotZ: subParams.rotZ.result,
+          updateShape
+        });
+      }, 300);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [subParams, selectedSubtractionIndex, selectedShapeId, selectedShape, shapes, updateShape]);
 
   const addCustomParameter = () => {
     const newParam: CustomParameter = {
