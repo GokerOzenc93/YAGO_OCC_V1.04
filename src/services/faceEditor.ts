@@ -100,53 +100,36 @@ function calculateSurfaceType(
   faces: FaceData[],
   adjacencyMap: Map<number, Set<number>>
 ): 'flat' | 'curved' | 'unknown' {
+  if (isAxisAligned(face.normal, 0.99)) {
+    return 'flat';
+  }
+
   const neighbors = adjacencyMap.get(face.faceIndex);
   if (!neighbors || neighbors.size === 0) {
-    return isAxisAligned(face.normal) ? 'flat' : 'unknown';
+    return 'unknown';
   }
 
-  if (isAxisAligned(face.normal, 0.99)) {
-    let allNeighborsAligned = true;
-    for (const neighborIdx of neighbors) {
-      const neighbor = faces[neighborIdx];
-      const dot = Math.abs(face.normal.dot(neighbor.normal));
-      if (dot < 0.99) {
-        allNeighborsAligned = false;
-        break;
-      }
-    }
-    if (allNeighborsAligned) {
-      return 'flat';
-    }
-  }
-
-  let minAngle = Infinity;
-  let maxAngle = 0;
-  let neighborAngles: number[] = [];
+  let alignedNeighborCount = 0;
+  let totalNeighbors = 0;
+  let maxAngleDiff = 0;
 
   for (const neighborIdx of neighbors) {
     const neighbor = faces[neighborIdx];
     const dot = face.normal.dot(neighbor.normal);
     const angle = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
-    neighborAngles.push(angle);
-    minAngle = Math.min(minAngle, angle);
-    maxAngle = Math.max(maxAngle, angle);
+
+    totalNeighbors++;
+    if (angle < 1) {
+      alignedNeighborCount++;
+    }
+    maxAngleDiff = Math.max(maxAngleDiff, angle);
   }
 
-  if (maxAngle < 1) {
+  if (alignedNeighborCount === totalNeighbors && maxAngleDiff < 1) {
     return 'flat';
   }
 
-  if (minAngle > 0.5 && maxAngle < 50 && !isAxisAligned(face.normal, 0.95)) {
-    return 'curved';
-  }
-
-  if (isAxisAligned(face.normal, 0.99)) {
-    return 'flat';
-  }
-
-  const avgAngle = neighborAngles.reduce((a, b) => a + b, 0) / neighborAngles.length;
-  if (avgAngle > 1 && avgAngle < 40) {
+  if (maxAngleDiff > 0.5 && maxAngleDiff < 60) {
     return 'curved';
   }
 
