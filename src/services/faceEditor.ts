@@ -18,6 +18,19 @@ export interface CoplanarFaceGroup {
   totalArea: number;
 }
 
+function isNativeCurved(nativeType: string | undefined): boolean {
+  if (!nativeType) return false;
+
+  const t = nativeType.toUpperCase();
+  return (
+    t.includes('CYLINDER') ||
+    t.includes('SPHERE') ||
+    t.includes('TORUS') ||
+    t.includes('BSPLINE') ||
+    t.includes('BEZIER')
+  );
+}
+
 function getNativeFaceTypes(replicadShape: any): Map<number, string> {
   const faceTypeMap = new Map<number, string>();
 
@@ -89,11 +102,18 @@ function matchTriangleToNativeFace(
       const normalDot = avgNormal.length() > 0 ? Math.abs(triangleNormal.dot(avgNormal)) : 0.5;
       const normalSimilarity = normalDot;
 
+      const nativeType = faceTypeMap.get(i) || 'UNKNOWN';
+      const isNativeCurvedFace = isNativeCurved(nativeType);
+
+      if (isNativeCurvedFace && normalSimilarity > 0.98) {
+        continue;
+      }
+
       const score = distance * (2 - normalSimilarity);
 
       if (distance < distanceTolerance && score < bestScore) {
         bestScore = score;
-        bestMatch = { faceIndex: i, faceType: faceTypeMap.get(i) || 'UNKNOWN' };
+        bestMatch = { faceIndex: i, faceType: nativeType };
       }
     } catch (e) {
       continue;
@@ -181,6 +201,8 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replica
       }
     }
 
+    const isCurved = isNativeCurved(nativeFaceType);
+
     faces.push({
       faceIndex: i,
       normal,
@@ -188,7 +210,8 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replica
       vertices: [v0, v1, v2],
       area,
       nativeFaceType,
-      nativeFaceIndex
+      nativeFaceIndex,
+      isCurved
     });
   }
 
@@ -285,6 +308,12 @@ export function groupCoplanarFaces(
 
     nativeFaceGroups.forEach((faceIndices, nativeFaceIdx) => {
       const facesInGroup = faceIndices.map(idx => faces[idx]);
+      const faceType = facesInGroup[0]?.nativeFaceType || 'UNKNOWN';
+      const isCurvedType = isNativeCurved(faceType);
+
+      if (!isCurvedType && !faceType.includes('PLANE')) {
+        return;
+      }
 
       const avgCenter = new THREE.Vector3();
       const avgNormal = new THREE.Vector3();
@@ -294,17 +323,11 @@ export function groupCoplanarFaces(
         avgCenter.add(face.center);
         avgNormal.add(face.normal);
         totalArea += face.area;
+        face.isCurved = isCurvedType;
       });
 
       avgCenter.divideScalar(facesInGroup.length);
       avgNormal.divideScalar(facesInGroup.length).normalize();
-
-      const faceType = facesInGroup[0]?.nativeFaceType || 'UNKNOWN';
-      const isCurved = !faceType.includes('PLANE') && !faceType.includes('UNKNOWN');
-
-      facesInGroup.forEach(face => {
-        face.isCurved = isCurved;
-      });
 
       groups.push({
         normal: avgNormal,
