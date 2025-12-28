@@ -392,20 +392,30 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         );
       }
 
-      const newGeometry = convertReplicadToThreeGeometry(resultShape);
-      const newBaseVertices = await getReplicadVertices(resultShape);
+      let finalGeometry = convertReplicadToThreeGeometry(resultShape);
+      let finalBaseVertices = await getReplicadVertices(resultShape);
 
-      console.log('🧹 Clearing fillets because subtraction changed (edges are different now)');
+      let updatedFillets = selectedShape.fillets || [];
+      if (updatedFillets.length > 0) {
+        console.log('🔄 Updating fillet centers after subtraction change...');
+        updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
+
+        console.log('🔵 Reapplying fillets with updated centers...');
+        resultShape = await applyFillets(resultShape, updatedFillets, { width, height, depth });
+        finalGeometry = convertReplicadToThreeGeometry(resultShape);
+        finalBaseVertices = await getReplicadVertices(resultShape);
+        console.log('✅ Fillets preserved after subtraction change');
+      }
 
       updateShape(selectedShape.id, {
         ...baseUpdate,
-        geometry: newGeometry,
+        geometry: finalGeometry,
         replicadShape: resultShape,
         subtractionGeometries: allSubtractions,
-        fillets: [],
+        fillets: updatedFillets,
         parameters: {
           ...baseUpdate.parameters,
-          scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+          scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
         }
       });
     } else {
@@ -671,21 +681,36 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     );
   }
 
-  const newGeometry = convertReplicadToThreeGeometry(resultShape);
-  const newBaseVertices = await getReplicadVertices(resultShape);
+  let finalGeometry = convertReplicadToThreeGeometry(resultShape);
+  let finalBaseVertices = await getReplicadVertices(resultShape);
 
-  console.log('🧹 Clearing fillets because subtraction changed (edges are different now)');
+  let updatedFillets = currentShape.fillets || [];
+  if (updatedFillets.length > 0) {
+    console.log('🔄 Updating fillet centers after subtraction change...');
+    const shapeSize = {
+      width: currentShape.parameters.width || 1,
+      height: currentShape.parameters.height || 1,
+      depth: currentShape.parameters.depth || 1
+    };
+    updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, shapeSize);
+
+    console.log('🔵 Reapplying fillets with updated centers...');
+    resultShape = await applyFillets(resultShape, updatedFillets, shapeSize);
+    finalGeometry = convertReplicadToThreeGeometry(resultShape);
+    finalBaseVertices = await getReplicadVertices(resultShape);
+    console.log('✅ Fillets preserved after subtraction change');
+  }
 
   updateShape(currentShape.id, {
-    geometry: newGeometry,
+    geometry: finalGeometry,
     replicadShape: resultShape,
     subtractionGeometries: allSubtractions,
-    fillets: [],
+    fillets: updatedFillets,
     parameters: {
       ...currentShape.parameters,
-      scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
+      scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
     }
   });
 
-  console.log('✅ Subtraction complete (fillets cleared)');
+  console.log('✅ Subtraction complete');
 }
