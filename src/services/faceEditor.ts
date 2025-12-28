@@ -44,10 +44,17 @@ function matchTriangleToNativeFace(
   triangleCenter: THREE.Vector3,
   triangleNormal: THREE.Vector3,
   nativeFaces: any[],
-  faceTypeMap: Map<number, string>
+  faceTypeMap: Map<number, string>,
+  geometry: THREE.BufferGeometry
 ): { faceIndex: number; faceType: string } | null {
   let bestMatch = null;
-  let bestDistance = Infinity;
+  let bestScore = Infinity;
+
+  const bbox = geometry.boundingBox || new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
+  const size = new THREE.Vector3();
+  bbox.getSize(size);
+  const maxDimension = Math.max(size.x, size.y, size.z);
+  const distanceTolerance = maxDimension * 0.5;
 
   for (let i = 0; i < nativeFaces.length; i++) {
     try {
@@ -66,10 +73,25 @@ function matchTriangleToNativeFace(
       }
       faceCenter.divideScalar(count / 3);
 
+      const avgNormal = new THREE.Vector3();
+      if (mesh.normals && mesh.normals.length > 0) {
+        for (let j = 0; j < mesh.normals.length; j += 3) {
+          avgNormal.x += mesh.normals[j];
+          avgNormal.y += mesh.normals[j + 1];
+          avgNormal.z += mesh.normals[j + 2];
+        }
+        avgNormal.divideScalar(mesh.normals.length / 3).normalize();
+      }
+
       const distance = triangleCenter.distanceTo(faceCenter);
 
-      if (distance < bestDistance && distance < 50) {
-        bestDistance = distance;
+      const normalDot = avgNormal.length() > 0 ? Math.abs(triangleNormal.dot(avgNormal)) : 0.5;
+      const normalSimilarity = normalDot;
+
+      const score = distance * (2 - normalSimilarity);
+
+      if (distance < distanceTolerance && score < bestScore) {
+        bestScore = score;
         bestMatch = { faceIndex: i, faceType: faceTypeMap.get(i) || 'UNKNOWN' };
       }
     } catch (e) {
@@ -144,10 +166,12 @@ export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replica
     const area = edge1.cross(edge2).length() / 2;
 
     let nativeFaceType = 'UNKNOWN';
+    let nativeFaceIndex = -1;
     if (nativeFaces.length > 0) {
-      const match = matchTriangleToNativeFace(center, normal, nativeFaces, faceTypeMap);
+      const match = matchTriangleToNativeFace(center, normal, nativeFaces, faceTypeMap, geometry);
       if (match) {
         nativeFaceType = match.faceType;
+        nativeFaceIndex = match.faceIndex;
         const key = `${match.faceIndex}-${nativeFaceType}`;
         if (!faceGroups.has(key)) {
           faceGroups.set(key, []);
@@ -244,20 +268,53 @@ export function groupCoplanarFaces(
   if (hasNativeTypes) {
     console.log('✅ Using native CAD face types for grouping');
 
-    const nativeFaceGroups = new Map<string, number[]>();
+    const nativeFaceGroups = new Map<string, { indices: number[]; center: THREE.Vector3; normal: THREE.Vector3 }>();
 
     faces.forEach((face, idx) => {
       const faceType = face.nativeFaceType || 'UNKNOWN';
-      const key = `${faceType}`;
 
-      if (!nativeFaceGroups.has(key)) {
-        nativeFaceGroups.set(key, []);
+      let assignedToGroup = false;
+
+      nativeFaceGroups.forEach((groupData, key) => {
+        if (assignedToGroup) return;
+
+        const [existingType, ...rest] = key.split('-');
+        if (existingType !== faceType) return;
+
+        const centerDistance = face.center.distanceTo(groupData.center);
+        const normalDot = Math.abs(face.normal.dot(groupData.normal));
+
+        const maxDist = faceType.includes('PLANE') ? 100 : 300;
+        const minNormalSimilarity = faceType.includes('PLANE') ? 0.95 : 0.7;
+
+        if (centerDistance < maxDist && normalDot > minNormalSimilarity) {
+          groupData.indices.push(idx);
+
+          const totalFaces = groupData.indices.length;
+          groupData.center.multiplyScalar((totalFaces - 1) / totalFaces);
+          groupData.center.add(face.center.clone().multiplyScalar(1 / totalFaces));
+
+          groupData.normal.multiplyScalar((totalFaces - 1) / totalFaces);
+          groupData.normal.add(face.normal.clone().multiplyScalar(1 / totalFaces));
+          groupData.normal.normalize();
+
+          assignedToGroup = true;
+        }
+      });
+
+      if (!assignedToGroup) {
+        const newKey = `${faceType}-${nativeFaceGroups.size}`;
+        nativeFaceGroups.set(newKey, {
+          indices: [idx],
+          center: face.center.clone(),
+          normal: face.normal.clone()
+        });
       }
-      nativeFaceGroups.get(key)!.push(idx);
     });
 
-    nativeFaceGroups.forEach((faceIndices, key) => {
-      const facesInGroup = faceIndices.map(idx => faces[idx]);
+    nativeFaceGroups.forEach((groupData, key) => {
+      const [faceType] = key.split('-');
+      const facesInGroup = groupData.indices.map(idx => faces[idx]);
 
       const avgCenter = new THREE.Vector3();
       const avgNormal = new THREE.Vector3();
@@ -272,7 +329,7 @@ export function groupCoplanarFaces(
       avgCenter.divideScalar(facesInGroup.length);
       avgNormal.divideScalar(facesInGroup.length).normalize();
 
-      const isCurved = !key.includes('PLANE') && !key.includes('UNKNOWN');
+      const isCurved = !faceType.includes('PLANE') && !faceType.includes('UNKNOWN');
 
       facesInGroup.forEach(face => {
         face.isCurved = isCurved;
@@ -280,7 +337,7 @@ export function groupCoplanarFaces(
 
       groups.push({
         normal: avgNormal,
-        faceIndices,
+        faceIndices: groupData.indices,
         center: avgCenter,
         totalArea
       });
