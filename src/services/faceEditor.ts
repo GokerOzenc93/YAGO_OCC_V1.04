@@ -16,7 +16,7 @@ export interface CoplanarFaceGroup {
   totalArea: number;
 }
 
-export function extractFacesFromGeometry(geometry: THREE.BufferGeometry): FaceData[] {
+export function extractFacesFromGeometry(geometry: THREE.BufferGeometry, replicadShape?: any): FaceData[] {
   const faces: FaceData[] = [];
   const positionAttribute = geometry.getAttribute('position');
   const indexAttribute = geometry.getIndex();
@@ -92,15 +92,25 @@ function checkIfCurved(face: FaceData, faces: FaceData[], adjacencyMap: Map<numb
   const neighbors = adjacencyMap.get(face.faceIndex);
   if (!neighbors || neighbors.size === 0) return false;
 
-  let maxAngleDiff = 0;
+  let totalAngleDiff = 0;
+  let count = 0;
+  let hasSignificantCurvature = false;
+
   for (const neighborIdx of neighbors) {
     const neighbor = faces[neighborIdx];
     const dot = face.normal.dot(neighbor.normal);
     const angleDiff = Math.acos(Math.min(1, Math.max(-1, dot))) * (180 / Math.PI);
-    maxAngleDiff = Math.max(maxAngleDiff, angleDiff);
+    totalAngleDiff += angleDiff;
+    count++;
+
+    if (angleDiff > 2 && angleDiff < 50) {
+      hasSignificantCurvature = true;
+    }
   }
 
-  return maxAngleDiff > 0.5 && maxAngleDiff < 45;
+  const avgAngleDiff = count > 0 ? totalAngleDiff / count : 0;
+
+  return hasSignificantCurvature && avgAngleDiff > 1;
 }
 
 function buildAdjacencyMap(faces: FaceData[]): Map<number, Set<number>> {
@@ -165,7 +175,7 @@ export function groupCoplanarFaces(
         const dot = currFace.normal.dot(neighborFace.normal);
         const angle = (Math.acos(Math.min(1, Math.max(-1, dot))) * 180) / Math.PI;
 
-        const effectiveThreshold = isCurvedGroup ? 25 : thresholdAngleDegrees;
+        const effectiveThreshold = isCurvedGroup ? 20 : thresholdAngleDegrees;
 
         if (angle < effectiveThreshold) {
           visited.add(neighborIdx);
@@ -196,6 +206,12 @@ export function groupCoplanarFaces(
       totalArea
     });
   }
+
+  console.log(`📊 Face grouping complete: ${groups.length} groups from ${faces.length} triangles`);
+  groups.forEach((group, idx) => {
+    const isCurved = faces[group.faceIndices[0]]?.isCurved || false;
+    console.log(`  Group ${idx}: ${group.faceIndices.length} faces, ${isCurved ? 'CURVED' : 'PLANAR'}`);
+  });
 
   return groups;
 }

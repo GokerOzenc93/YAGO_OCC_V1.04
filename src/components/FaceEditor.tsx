@@ -34,12 +34,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     if (!shape.geometry) return;
 
     console.log('🔍 Extracting faces from geometry...');
-    const extractedFaces = extractFacesFromGeometry(shape.geometry);
+    const extractedFaces = extractFacesFromGeometry(shape.geometry, shape.replicadShape);
     console.log(`✅ Extracted ${extractedFaces.length} faces`);
 
     setFaces(extractedFaces);
 
-    const groups = groupCoplanarFaces(extractedFaces);
+    const groups = groupCoplanarFaces(extractedFaces, 5);
     console.log(`✅ Grouped into ${groups.length} coplanar face groups`);
 
     setFaceGroups(groups);
