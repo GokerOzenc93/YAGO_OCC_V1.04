@@ -55,7 +55,7 @@ function matchTriangleToNativeFace(
   const size = new THREE.Vector3();
   bbox.getSize(size);
   const maxDimension = Math.max(size.x, size.y, size.z);
-  const distanceTolerance = maxDimension * 0.5;
+  const distanceTolerance = maxDimension * 0.02;
 
   for (let i = 0; i < nativeFaces.length; i++) {
     try {
