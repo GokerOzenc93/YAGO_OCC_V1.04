@@ -665,9 +665,19 @@ const Scene: React.FC = () => {
 
           let replicadShape = shape.replicadShape;
 
+          const expectedEdgeDir = new THREE.Vector3().crossVectors(face1Normal, face2Normal).normalize();
+          const hasExpectedDir = expectedEdgeDir.length() > 0.1;
+
+          console.log('📐 Expected edge direction (cross product):', expectedEdgeDir.toArray().map(v => v.toFixed(3)));
+          console.log('📐 Faces are parallel:', !hasExpectedDir);
+
           let edgeCount = 0;
           let foundEdgeCount = 0;
-          const filletedShape = replicadShape.fillet((edge: any) => {
+          let bestEdge: { index: number; score: number } | null = null;
+
+          const candidateEdges: Array<{ index: number; score: number; radius: number }> = [];
+
+          replicadShape.fillet((edge: any) => {
             edgeCount++;
             try {
               const start = edge.startPoint;
@@ -677,40 +687,102 @@ const Scene: React.FC = () => {
 
               const startVec = new THREE.Vector3(start.x, start.y, start.z);
               const endVec = new THREE.Vector3(end.x, end.y, end.z);
+              const edgeDir = new THREE.Vector3().subVectors(endVec, startVec).normalize();
+              const edgeLength = startVec.distanceTo(endVec);
+
               const centerVec = new THREE.Vector3(
                 (start.x + end.x) / 2,
                 (start.y + end.y) / 2,
                 (start.z + end.z) / 2
               );
 
-              const distToFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
-              const distToFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
+              const d1 = face1Center.dot(face1Normal);
+              const d2 = face2Center.dot(face2Normal);
 
-              const startDistFace1 = Math.abs(startVec.clone().sub(face1Center).dot(face1Normal));
-              const startDistFace2 = Math.abs(startVec.clone().sub(face2Center).dot(face2Normal));
-              const endDistFace1 = Math.abs(endVec.clone().sub(face1Center).dot(face1Normal));
-              const endDistFace2 = Math.abs(endVec.clone().sub(face2Center).dot(face2Normal));
+              const distToPlane1Center = Math.abs(centerVec.dot(face1Normal) - d1);
+              const distToPlane1Start = Math.abs(startVec.dot(face1Normal) - d1);
+              const distToPlane1End = Math.abs(endVec.dot(face1Normal) - d1);
 
-              const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
-              const tolerance = maxDimension * 0.08;
+              const distToPlane2Center = Math.abs(centerVec.dot(face2Normal) - d2);
+              const distToPlane2Start = Math.abs(startVec.dot(face2Normal) - d2);
+              const distToPlane2End = Math.abs(endVec.dot(face2Normal) - d2);
 
-              const centerOnBothPlanes = distToFace1 < tolerance && distToFace2 < tolerance;
-              const startOnBothPlanes = startDistFace1 < tolerance && startDistFace2 < tolerance;
-              const endOnBothPlanes = endDistFace1 < tolerance && endDistFace2 < tolerance;
+              const tolerance = 1.0;
 
-              if (edgeCount <= 3 || centerOnBothPlanes) {
-                console.log(`Edge ${edgeCount}: center=(${centerVec.x.toFixed(2)}, ${centerVec.y.toFixed(2)}, ${centerVec.z.toFixed(2)}), distToFace1=${distToFace1.toFixed(3)}, distToFace2=${distToFace2.toFixed(3)}, tolerance=${tolerance.toFixed(3)}`);
+              const onPlane1 = distToPlane1Center < tolerance && distToPlane1Start < tolerance && distToPlane1End < tolerance;
+              const onPlane2 = distToPlane2Center < tolerance && distToPlane2Start < tolerance && distToPlane2End < tolerance;
+
+              let directionMatch = true;
+              if (hasExpectedDir && edgeLength > 1) {
+                const dotWithExpected = Math.abs(edgeDir.dot(expectedEdgeDir));
+                directionMatch = dotWithExpected > 0.95;
               }
 
-              if (centerOnBothPlanes && startOnBothPlanes && endOnBothPlanes) {
+              if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1) {
+                const score = distToPlane1Center + distToPlane2Center + distToPlane1Start + distToPlane2Start + distToPlane1End + distToPlane2End;
+                candidateEdges.push({ index: edgeCount, score, radius });
+                console.log(`✅ Candidate edge #${edgeCount}: length=${edgeLength.toFixed(2)}, score=${score.toFixed(4)}, dir match=${directionMatch}`);
+              }
+
+              return null;
+            } catch (e) {
+              return null;
+            }
+          });
+
+          console.log(`🔢 Total edges checked: ${edgeCount}, Candidates found: ${candidateEdges.length}`);
+
+          if (candidateEdges.length === 0) {
+            console.error('❌ No suitable edges found for fillet');
+            alert('No suitable edge found between selected faces. Try selecting adjacent faces that share an edge.');
+            return;
+          }
+
+          candidateEdges.sort((a, b) => a.score - b.score);
+          const bestCandidate = candidateEdges[0];
+          console.log(`🎯 Best edge: #${bestCandidate.index} with score ${bestCandidate.score.toFixed(4)}`);
+
+          const filletedShape = replicadShape.fillet((edge: any, idx: number) => {
+            const currentIdx = idx + 1;
+            try {
+              const start = edge.startPoint;
+              const end = edge.endPoint;
+              if (!start || !end) return null;
+
+              const startVec = new THREE.Vector3(start.x, start.y, start.z);
+              const endVec = new THREE.Vector3(end.x, end.y, end.z);
+              const edgeDir = new THREE.Vector3().subVectors(endVec, startVec).normalize();
+              const edgeLength = startVec.distanceTo(endVec);
+              const centerVec = new THREE.Vector3((start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2);
+
+              const d1 = face1Center.dot(face1Normal);
+              const d2 = face2Center.dot(face2Normal);
+              const distToPlane1Center = Math.abs(centerVec.dot(face1Normal) - d1);
+              const distToPlane2Center = Math.abs(centerVec.dot(face2Normal) - d2);
+              const distToPlane1Start = Math.abs(startVec.dot(face1Normal) - d1);
+              const distToPlane2Start = Math.abs(startVec.dot(face2Normal) - d2);
+              const distToPlane1End = Math.abs(endVec.dot(face1Normal) - d1);
+              const distToPlane2End = Math.abs(endVec.dot(face2Normal) - d2);
+
+              const score = distToPlane1Center + distToPlane2Center + distToPlane1Start + distToPlane2Start + distToPlane1End + distToPlane2End;
+
+              const tolerance = 1.0;
+              const onPlane1 = distToPlane1Center < tolerance && distToPlane1Start < tolerance && distToPlane1End < tolerance;
+              const onPlane2 = distToPlane2Center < tolerance && distToPlane2Start < tolerance && distToPlane2End < tolerance;
+
+              let directionMatch = true;
+              if (hasExpectedDir && edgeLength > 1) {
+                directionMatch = Math.abs(edgeDir.dot(expectedEdgeDir)) > 0.95;
+              }
+
+              if (onPlane1 && onPlane2 && directionMatch && edgeLength > 1 && Math.abs(score - bestCandidate.score) < 0.01) {
                 foundEdgeCount++;
-                console.log('✅ Found shared edge #' + foundEdgeCount + ' - applying fillet radius:', radius);
+                console.log(`✅ Applying fillet to edge #${currentIdx}, score=${score.toFixed(4)}`);
                 return radius;
               }
 
               return null;
             } catch (e) {
-              console.error('❌ Error checking edge:', e);
               return null;
             }
           });
