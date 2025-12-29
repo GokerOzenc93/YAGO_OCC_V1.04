@@ -362,8 +362,11 @@ const ShapeWithTransform: React.FC<{
           >
             <meshStandardMaterial
               color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
-              metalness={0.3}
-              roughness={0.4}
+              metalness={0.2}
+              roughness={0.5}
+              transparent
+              opacity={0.75}
+              side={THREE.DoubleSide}
             />
             <lineSegments>
               {edgeGeometry ? (
@@ -373,9 +376,9 @@ const ShapeWithTransform: React.FC<{
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-                linewidth={1.5}
-                opacity={0.8}
-                transparent
+                linewidth={2.5}
+                opacity={1}
+                transparent={false}
                 depthTest={true}
               />
             </lineSegments>
@@ -396,7 +399,7 @@ const ShapeWithTransform: React.FC<{
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? 3 : 2}
+                linewidth={isSelected || shouldShowAsReference ? 3.5 : 2.5}
                 depthTest={true}
                 depthWrite={true}
               />
@@ -409,9 +412,9 @@ const ShapeWithTransform: React.FC<{
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
-                linewidth={isSelected || shouldShowAsReference ? 1.5 : 1}
+                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
                 transparent
-                opacity={0.3}
+                opacity={0.4}
                 depthTest={true}
               />
             </lineSegments>
@@ -427,10 +430,11 @@ const ShapeWithTransform: React.FC<{
             >
               <meshStandardMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
-                metalness={0.3}
-                roughness={0.4}
+                metalness={0.2}
+                roughness={0.5}
                 transparent
-                opacity={0.15}
+                opacity={0.25}
+                side={THREE.DoubleSide}
               />
             </mesh>
             <lineSegments>
@@ -441,10 +445,10 @@ const ShapeWithTransform: React.FC<{
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
-                linewidth={isSelected || shouldShowAsReference ? 2.5 : 2}
+                linewidth={isSelected || shouldShowAsReference ? 3 : 2.5}
                 depthTest={true}
-                transparent
-                opacity={0.9}
+                transparent={false}
+                opacity={1}
               />
             </lineSegments>
           </>
