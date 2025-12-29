@@ -125,7 +125,7 @@ const FilletEdgeLines: React.FC<{
     } catch (e) {
       return null;
     }
-  }, [shape.geometry, shape.fillets?.length]);
+  }, [shape.geometry, shape.geometry?.uuid, shape.fillets?.length, shape.replicadShape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
 
   if (!boundaryEdgesGeometry) return null;
 
