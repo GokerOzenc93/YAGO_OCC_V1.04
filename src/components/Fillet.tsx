@@ -148,35 +148,38 @@ interface FilletEdgeLinesProps {
 
 export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   const groupRef = useRef<THREE.Group>(null);
-
-  useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
-      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
-      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
-    }
-  }, [shape]);
+  const shapeRef = useRef(shape);
+  shapeRef.current = shape;
 
   useFrame(() => {
     if (groupRef.current) {
-      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
-      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
-      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
+      const currentShape = shapeRef.current;
+      if (currentShape) {
+        groupRef.current.position.set(currentShape.position[0], currentShape.position[1], currentShape.position[2]);
+        groupRef.current.rotation.set(currentShape.rotation[0], currentShape.rotation[1], currentShape.rotation[2]);
+        groupRef.current.scale.set(currentShape.scale[0], currentShape.scale[1], currentShape.scale[2]);
+      }
     }
   });
 
-  const boundaryEdgesGeometry = useMemo(() => {
-    if (!shape.geometry) return null;
+  const faces = useMemo(() => {
+    if (!shape.geometry) return [];
     try {
-      const faces = extractFacesFromGeometry(shape.geometry);
-      if (faces.length === 0) return null;
-      const faceGroups = groupCoplanarFaces(faces);
-      if (faceGroups.length === 0) return null;
-      return createGroupBoundaryEdges(faces, faceGroups);
+      return extractFacesFromGeometry(shape.geometry);
     } catch (e) {
-      return null;
+      return [];
     }
   }, [shape.geometry, shape.geometry?.uuid, shape.fillets?.length, shape.replicadShape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
+
+  const faceGroups = useMemo(() => {
+    if (faces.length === 0) return [];
+    return groupCoplanarFaces(faces);
+  }, [faces]);
+
+  const boundaryEdgesGeometry = useMemo(() => {
+    if (faces.length === 0 || faceGroups.length === 0) return null;
+    return createGroupBoundaryEdges(faces, faceGroups);
+  }, [faces, faceGroups]);
 
   if (!boundaryEdgesGeometry) return null;
 
