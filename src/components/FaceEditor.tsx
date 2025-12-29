@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import * as THREE from 'three';
+import { useFrame } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import {
   extractFacesFromGeometry,
@@ -30,6 +31,15 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
+  const groupRef = useRef<THREE.Group>(null);
+
+  useFrame(() => {
+    if (groupRef.current && shape) {
+      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
+      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
+      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
+    }
+  });
 
   useEffect(() => {
     if (!shape.geometry) return;
@@ -97,10 +107,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     }
   };
 
-  const shapePositionKey = JSON.stringify(shape.position);
-  const shapeRotationKey = JSON.stringify(shape.rotation);
-  const shapeScaleKey = JSON.stringify(shape.scale);
-
   const selectedFilletGeometries = useMemo(() => {
     if (!filletMode || selectedFilletFaces.length === 0) return [];
 
@@ -109,34 +115,27 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       if (!group) return null;
       return createFaceHighlightGeometry(faces, group.faceIndices);
     }).filter(g => g !== null);
-  }, [filletMode, selectedFilletFaces, faceGroups, faces, shapePositionKey, shapeRotationKey, shapeScaleKey]);
+  }, [filletMode, selectedFilletFaces, faceGroups, faces]);
 
   const highlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
 
     const group = faceGroups[hoveredGroupIndex];
     return createFaceHighlightGeometry(faces, group.faceIndices);
-  }, [hoveredGroupIndex, faceGroups, faces, shapePositionKey, shapeRotationKey, shapeScaleKey]);
+  }, [hoveredGroupIndex, faceGroups, faces]);
 
   const boundaryEdgesGeometry = useMemo(() => {
     if (faces.length === 0 || faceGroups.length === 0) return null;
     return createGroupBoundaryEdges(faces, faceGroups);
-  }, [faces, faceGroups, shapePositionKey, shapeRotationKey, shapeScaleKey]);
+  }, [faces, faceGroups]);
 
   if (!isActive) return null;
 
-  const position: [number, number, number] = [shape.position[0], shape.position[1], shape.position[2]];
-  const rotation: [number, number, number] = [shape.rotation[0], shape.rotation[1], shape.rotation[2]];
-  const scale: [number, number, number] = [shape.scale[0], shape.scale[1], shape.scale[2]];
-
   return (
-    <>
+    <group ref={groupRef}>
       <mesh
         geometry={shape.geometry}
         visible={false}
-        position={position}
-        rotation={rotation}
-        scale={scale}
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
         onPointerDown={handlePointerDown}
@@ -147,9 +146,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         <mesh
           key={`selected-${idx}`}
           geometry={geom}
-          position={position}
-          rotation={rotation}
-          scale={scale}
         >
           <meshBasicMaterial
             color={0xff0000}
@@ -166,9 +162,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && (
         <mesh
           geometry={highlightGeometry}
-          position={position}
-          rotation={rotation}
-          scale={scale}
         >
           <meshBasicMaterial
             color={0xff0000}
@@ -185,13 +178,10 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       {boundaryEdgesGeometry && (
         <lineSegments
           geometry={boundaryEdgesGeometry}
-          position={position}
-          rotation={rotation}
-          scale={scale}
         >
           <lineBasicMaterial color={0x00ffff} linewidth={2} />
         </lineSegments>
       )}
-    </>
+    </group>
   );
 };
