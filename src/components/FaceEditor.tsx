@@ -125,14 +125,18 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
 
   if (!isActive) return null;
 
+  const position: [number, number, number] = [shape.position[0], shape.position[1], shape.position[2]];
+  const rotation: [number, number, number] = [shape.rotation[0], shape.rotation[1], shape.rotation[2]];
+  const scale: [number, number, number] = [shape.scale[0], shape.scale[1], shape.scale[2]];
+
   return (
     <>
       <mesh
         geometry={shape.geometry}
         visible={false}
-        position={shape.position}
-        rotation={shape.rotation}
-        scale={shape.scale}
+        position={position}
+        rotation={rotation}
+        scale={scale}
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
         onPointerDown={handlePointerDown}
@@ -143,9 +147,9 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         <mesh
           key={`selected-${idx}`}
           geometry={geom}
-          position={shape.position}
-          rotation={shape.rotation}
-          scale={shape.scale}
+          position={position}
+          rotation={rotation}
+          scale={scale}
         >
           <meshBasicMaterial
             color={0xff0000}
@@ -162,9 +166,9 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && (
         <mesh
           geometry={highlightGeometry}
-          position={shape.position}
-          rotation={shape.rotation}
-          scale={shape.scale}
+          position={position}
+          rotation={rotation}
+          scale={scale}
         >
           <meshBasicMaterial
             color={0xff0000}
@@ -181,9 +185,9 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       {boundaryEdgesGeometry && (
         <lineSegments
           geometry={boundaryEdgesGeometry}
-          position={shape.position}
-          rotation={shape.rotation}
-          scale={shape.scale}
+          position={position}
+          rotation={rotation}
+          scale={scale}
         >
           <lineBasicMaterial color={0x00ffff} linewidth={2} />
         </lineSegments>

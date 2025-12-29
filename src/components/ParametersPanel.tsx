@@ -592,6 +592,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       updateShape(selectedShape.id, {
         geometry: finalGeometry,
         replicadShape: finalShape,
+        position: selectedShape.position,
+        rotation: selectedShape.rotation,
+        scale: selectedShape.scale,
         fillets: updatedFillets,
         parameters: {
           ...selectedShape.parameters,

@@ -727,6 +727,9 @@ const Scene: React.FC = () => {
           updateShape(selectedShapeId, {
             geometry: newGeometry,
             replicadShape: filletedShape,
+            position: shape.position,
+            rotation: shape.rotation,
+            scale: shape.scale,
             parameters: {
               ...shape.parameters,
               scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z]),
