@@ -578,7 +578,10 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     console.error('❌ Failed to update parameters:', error);
     updateShape(selectedShape.id, {
       parameters: { ...selectedShape.parameters, width, height, depth, customParameters },
-      vertexModifications: []
+      vertexModifications: [],
+      position: selectedShape.position,
+      rotation: selectedShape.rotation,
+      scale: selectedShape.scale
     });
   }
 }
@@ -717,6 +720,9 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: updatedFillets,
+      position: currentShape.position,
+      rotation: currentShape.rotation,
+      scale: currentShape.scale,
       parameters: {
         ...currentShape.parameters,
         scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -730,6 +736,9 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: [],
+      position: currentShape.position,
+      rotation: currentShape.rotation,
+      scale: currentShape.scale,
       parameters: {
         ...currentShape.parameters,
         scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])

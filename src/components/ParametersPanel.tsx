@@ -478,8 +478,14 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   };
 
   const handleApplyChanges = async () => {
+    const currentState = useAppStore.getState();
+    const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
+    if (!currentShape) return;
+
+    console.log('📍 Apply Changes - Current shape position:', currentShape.position);
+
     await applyShapeChanges({
-      selectedShape,
+      selectedShape: currentShape,
       width,
       height,
       depth,
@@ -524,11 +530,13 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   };
 
   const handleDeleteFillet = async (filletIndex: number) => {
-    if (!selectedShape) return;
+    const currentState = useAppStore.getState();
+    const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
+    if (!currentShape) return;
 
-    console.log(`🗑️ Deleting fillet #${filletIndex + 1} from shape ${selectedShape.id}`);
+    console.log(`🗑️ Deleting fillet #${filletIndex + 1} from shape ${currentShape.id}`);
 
-    const newFillets = (selectedShape.fillets || []).filter((_: any, idx: number) => idx !== filletIndex);
+    const newFillets = (currentShape.fillets || []).filter((_: any, idx: number) => idx !== filletIndex);
     const newFilletRadii = filletRadii.filter((_, idx) => idx !== filletIndex);
 
     try {
@@ -542,11 +550,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         depth
       });
 
-      if (selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0) {
+      if (currentShape.subtractionGeometries && currentShape.subtractionGeometries.length > 0) {
         console.log('🔄 Reapplying subtractions after fillet deletion...');
 
-        for (let i = 0; i < selectedShape.subtractionGeometries.length; i++) {
-          const subtraction = selectedShape.subtractionGeometries[i];
+        for (let i = 0; i < currentShape.subtractionGeometries.length; i++) {
+          const subtraction = currentShape.subtractionGeometries[i];
           if (!subtraction) continue;
 
           const subBox = new THREE.Box3().setFromBufferAttribute(
@@ -589,15 +597,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         finalBaseVertices = await getReplicadVertices(finalShape);
       }
 
-      updateShape(selectedShape.id, {
+      updateShape(currentShape.id, {
         geometry: finalGeometry,
         replicadShape: finalShape,
-        position: selectedShape.position,
-        rotation: selectedShape.rotation,
-        scale: selectedShape.scale,
+        position: currentShape.position,
+        rotation: currentShape.rotation,
+        scale: currentShape.scale,
         fillets: updatedFillets,
         parameters: {
-          ...selectedShape.parameters,
+          ...currentShape.parameters,
           scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
         }
       });

@@ -958,7 +958,7 @@ const Scene: React.FC = () => {
             )}
             {isSelected && faceEditMode && (
               <FaceEditor
-                key={`face-editor-${shape.id}-${shape.position.join(',')}-${shape.rotation.join(',')}`}
+                key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
                 shape={shape}
                 isActive={true}
               />

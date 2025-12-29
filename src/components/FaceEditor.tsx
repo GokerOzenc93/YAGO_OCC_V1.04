@@ -41,10 +41,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     }
   });
 
+  const geometryUuid = shape.geometry?.uuid || '';
+
   useEffect(() => {
     if (!shape.geometry) return;
 
-    console.log('🔍 Extracting faces from geometry...');
+    console.log('🔍 Extracting faces from geometry...', geometryUuid);
     const extractedFaces = extractFacesFromGeometry(shape.geometry);
     console.log(`✅ Extracted ${extractedFaces.length} faces`);
 
@@ -54,7 +56,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     console.log(`✅ Grouped into ${groups.length} coplanar face groups`);
 
     setFaceGroups(groups);
-  }, [shape.geometry, shape.id]);
+  }, [shape.geometry, shape.id, geometryUuid]);
 
   const handlePointerMove = (e: any) => {
     if (!isActive || faces.length === 0) return;
