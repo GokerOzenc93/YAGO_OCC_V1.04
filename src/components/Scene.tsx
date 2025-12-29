@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls } from '@react-three/drei';
 import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
@@ -7,6 +7,11 @@ import SaveDialog from './SaveDialog';
 import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
 import { FaceEditor } from './FaceEditor';
+import {
+  extractFacesFromGeometry,
+  groupCoplanarFaces,
+  createGroupBoundaryEdges
+} from '../services/faceEditor';
 import * as THREE from 'three';
 
 const SubtractionMesh: React.FC<{
@@ -81,6 +86,50 @@ const SubtractionMesh: React.FC<{
 });
 
 SubtractionMesh.displayName = 'SubtractionMesh';
+
+const FilletEdgeLines: React.FC<{
+  shape: any;
+}> = React.memo(({ shape }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const shapeRef = useRef(shape);
+  shapeRef.current = shape;
+
+  useFrame(() => {
+    if (groupRef.current) {
+      const s = shapeRef.current;
+      if (s) {
+        groupRef.current.position.set(s.position[0], s.position[1], s.position[2]);
+        groupRef.current.rotation.set(s.rotation[0], s.rotation[1], s.rotation[2]);
+        groupRef.current.scale.set(s.scale[0], s.scale[1], s.scale[2]);
+      }
+    }
+  });
+
+  const boundaryEdgesGeometry = useMemo(() => {
+    if (!shape.geometry) return null;
+    try {
+      const faces = extractFacesFromGeometry(shape.geometry);
+      if (faces.length === 0) return null;
+      const faceGroups = groupCoplanarFaces(faces);
+      if (faceGroups.length === 0) return null;
+      return createGroupBoundaryEdges(faces, faceGroups);
+    } catch (e) {
+      return null;
+    }
+  }, [shape.geometry]);
+
+  if (!boundaryEdgesGeometry) return null;
+
+  return (
+    <group ref={groupRef}>
+      <lineSegments geometry={boundaryEdgesGeometry}>
+        <lineBasicMaterial color={0x00ffff} linewidth={2} transparent opacity={0.8} />
+      </lineSegments>
+    </group>
+  );
+});
+
+FilletEdgeLines.displayName = 'FilletEdgeLines';
 
 const ShapeWithTransform: React.FC<{
   shape: any;
@@ -950,6 +999,7 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
+        const hasFillets = shape.fillets && shape.fillets.length > 0;
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -958,6 +1008,12 @@ const Scene: React.FC = () => {
               orbitControlsRef={controlsRef}
               onContextMenu={handleContextMenu}
             />
+            {hasFillets && !faceEditMode && (
+              <FilletEdgeLines
+                key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}`}
+                shape={shape}
+              />
+            )}
             {isSelected && vertexEditMode && (
               <VertexEditor
                 shape={shape}
