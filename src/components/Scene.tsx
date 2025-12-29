@@ -215,6 +215,8 @@ const Scene: React.FC = () => {
           });
 
           console.log(`✅ Fillet with radius ${radius} applied successfully and saved to shape.fillets!`);
+          const updatedShape = currentState.shapes.find(s => s.id === selectedShapeId);
+          console.log(`📍 After update, shape.fillets.length: ${updatedShape?.fillets?.length || 0}`);
           currentState.clearFilletFaces();
           console.log('✅ Fillet faces cleared. Select 2 new faces for another fillet operation.');
         } catch (error) {
@@ -398,6 +400,9 @@ const Scene: React.FC = () => {
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
         const hasFillets = shape.fillets && shape.fillets.length > 0;
+        if (hasFillets) {
+          console.log(`📍 Scene: Shape ${shape.id} has ${shape.fillets.length} fillets`);
+        }
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
