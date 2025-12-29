@@ -73,6 +73,7 @@ const SubtractionMesh: React.FC<{
           transparent
           opacity={0.35}
           depthWrite={false}
+          side={THREE.DoubleSide}
         />
       </mesh>
     </group>
@@ -367,6 +368,7 @@ const ShapeWithTransform: React.FC<{
               transparent
               opacity={0.75}
               side={THREE.DoubleSide}
+              depthWrite={false}
             />
             <lineSegments>
               {edgeGeometry ? (
@@ -435,6 +437,7 @@ const ShapeWithTransform: React.FC<{
                 transparent
                 opacity={0.25}
                 side={THREE.DoubleSide}
+                depthWrite={false}
               />
             </mesh>
             <lineSegments>
@@ -913,7 +916,7 @@ const Scene: React.FC = () => {
         minDistance={50}
       />
 
-      <group position={[-2500, -0.001, -2500]}>
+      <group position={[-2500, -1, -2500]}>
         <Grid
           args={[50000, 50000]}
           cellSize={50}
