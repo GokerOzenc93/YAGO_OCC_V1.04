@@ -63,6 +63,29 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     setFaceGroups(groups);
   }, [shape.geometry, shape.id, geometryUuid]);
 
+  const handleFaceSelection = (groupIndex: number) => {
+    if (filletMode && selectedFilletFaces.length < 2) {
+      const group = faceGroups[groupIndex];
+      if (group) {
+        addFilletFace(groupIndex);
+        addFilletFaceData({
+          normal: [group.normal.x, group.normal.y, group.normal.z],
+          center: [group.center.x, group.center.y, group.center.z]
+        });
+        console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, groupIndex);
+        console.log('   Normal:', [group.normal.x.toFixed(2), group.normal.y.toFixed(2), group.normal.z.toFixed(2)]);
+        console.log('   Center:', [group.center.x.toFixed(2), group.center.y.toFixed(2), group.center.z.toFixed(2)]);
+
+        if (selectedFilletFaces.length === 1) {
+          console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
+        }
+      }
+    } else {
+      setSelectedFaceIndex(groupIndex);
+      console.log('✅ Face group selected:', groupIndex);
+    }
+  };
+
   const handlePointerMove = (e: any) => {
     if (!isActive || faces.length === 0) return;
 
@@ -91,26 +114,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     e.stopPropagation();
 
     if (e.button === 2 && hoveredGroupIndex !== null) {
-      if (filletMode && selectedFilletFaces.length < 2) {
-        const group = faceGroups[hoveredGroupIndex];
-        if (group) {
-          addFilletFace(hoveredGroupIndex);
-          addFilletFaceData({
-            normal: [group.normal.x, group.normal.y, group.normal.z],
-            center: [group.center.x, group.center.y, group.center.z]
-          });
-          console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, hoveredGroupIndex);
-          console.log('   Normal:', [group.normal.x.toFixed(2), group.normal.y.toFixed(2), group.normal.z.toFixed(2)]);
-          console.log('   Center:', [group.center.x.toFixed(2), group.center.y.toFixed(2), group.center.z.toFixed(2)]);
-
-          if (selectedFilletFaces.length === 1) {
-            console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
-          }
-        }
-      } else {
-        setSelectedFaceIndex(hoveredGroupIndex);
-        console.log('✅ Face group selected:', hoveredGroupIndex);
-      }
+      handleFaceSelection(hoveredGroupIndex);
     }
   };
 
