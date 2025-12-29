@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import * as THREE from 'three';
-import { getBoxVertices, getReplicadVertices } from '../services/vertexEditor';
+import { getBoxVertices, getReplicadVertices } from './VertexEditorService';
 
 interface VertexEditorProps {
   shape: any;

@@ -379,7 +379,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     console.log('📦 Adding box geometry with Replicad...');
 
     try {
-      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
       const w = 600, h = 600, d = 600;
       const replicadShape = await createReplicadBox({ width: w, height: h, depth: d });
@@ -412,7 +412,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     console.log('🛢️ Adding cylinder geometry with Replicad...');
 
     try {
-      const { createReplicadCylinder, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { createReplicadCylinder, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
       const radius = 300, height = 600;
       const replicadShape = await createReplicadCylinder({ radius, height });
@@ -492,8 +492,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
       console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) that will keep the result`);
 
-      const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      const { getReplicadVertices } = await import('../services/vertexEditor');
+      const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { getReplicadVertices } = await import('./VertexEditorService');
 
       for (const targetShape of intersectingShapes) {
         if (!targetShape.replicadShape) {

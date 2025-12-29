@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
-import { VertexModification } from './services/vertexEditor';
+import { VertexModification } from './components/VertexEditorService';
 
 /**
  * ------------------------------------------------------------------
@@ -613,8 +613,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
           try {
             // Replicad fonksiyonlarını dinamik import et (Performans için)
-            const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./services/replicad');
-            const { getReplicadVertices } = await import('./services/vertexEditor');
+            const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./components/ReplicadService');
+            const { getReplicadVertices } = await import('./components/VertexEditorService');
 
             // --- 1. Geometrik Verileri Hazırla ---
             
@@ -703,7 +703,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
             if (updatedFillets.length > 0) {
               console.log('🔄 Updating fillet centers after boolean cut...');
-              const { updateFilletCentersForNewGeometry, applyFillets } = await import('./services/shapeUpdater');
+              const { updateFilletCentersForNewGeometry, applyFillets } = await import('./components/ShapeUpdaterService');
 
               updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, {
                 width: shape1Size[0],
@@ -828,8 +828,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     newSubtractionGeometries[subtractionIndex] = null as any;
 
     try {
-      const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./services/replicad');
-      const { getReplicadVertices } = await import('./services/vertexEditor');
+      const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./components/ReplicadService');
+      const { getReplicadVertices } = await import('./components/VertexEditorService');
 
       const box = new THREE.Box3().setFromBufferAttribute(
         shape.geometry.getAttribute('position')
@@ -883,7 +883,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       if (updatedFillets.length > 0) {
         console.log('🔄 Updating fillet centers after subtraction deletion...');
-        const { updateFilletCentersForNewGeometry, applyFillets } = await import('./services/shapeUpdater');
+        const { updateFilletCentersForNewGeometry, applyFillets } = await import('./components/ShapeUpdaterService');
 
         updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, {
           width: size.x,

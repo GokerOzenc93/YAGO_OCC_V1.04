@@ -9,7 +9,7 @@ import {
   createGroupBoundaryEdges,
   type FaceData,
   type CoplanarFaceGroup
-} from '../services/faceEditor';
+} from './FaceEditorService';
 
 interface FaceEditorProps {
   shape: any;

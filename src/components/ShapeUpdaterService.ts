@@ -20,7 +20,7 @@ export async function updateFilletCentersForNewGeometry(
 
   console.log('🔄 Updating fillet centers for new geometry using descriptors...');
 
-  const { extractFacesFromGeometry, findFaceByDescriptor } = await import('./faceEditor');
+  const { extractFacesFromGeometry, findFaceByDescriptor } = await import('./FaceEditorService');
 
   const faces = extractFacesFromGeometry(newGeometry);
 
@@ -216,8 +216,8 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
   console.log('📐 Applying parameter changes:', { width, height, depth });
 
   try {
-    const { getBoxVertices, getReplicadVertices } = await import('./vertexEditor');
-    const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./replicad');
+    const { getBoxVertices, getReplicadVertices } = await import('./VertexEditorService');
+    const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
     let newBaseVertices: THREE.Vector3[] = [];
     let currentBaseVertices: THREE.Vector3[] = [];
@@ -630,8 +630,8 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     newPos: { x: subPosX, y: subPosY, z: subPosZ }
   });
 
-  const { getReplicadVertices } = await import('./vertexEditor');
-  const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./replicad');
+  const { getReplicadVertices } = await import('./VertexEditorService');
+  const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
   const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
   const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];

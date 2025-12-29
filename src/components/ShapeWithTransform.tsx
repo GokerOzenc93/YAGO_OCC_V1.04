@@ -70,7 +70,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             vertexMap.get(key)!.push(i);
           }
 
-          const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
+          const { getBoxVertices, getReplicadVertices } = await import('./VertexEditorService');
           let baseVertices: THREE.Vector3[] = [];
 
           if (shape.parameters?.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {

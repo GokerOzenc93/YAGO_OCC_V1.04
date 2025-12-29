@@ -4,13 +4,12 @@ import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, Ort
 import { useAppStore, CameraType } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
-import { catalogService } from '../services/supabase';
+import { catalogService } from './Database';
 import { VertexEditor } from './VertexEditor';
 import { FaceEditor } from './FaceEditor';
-import { FilletEdgeLines } from './FilletEdgeLines';
+import { FilletEdgeLines, applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
-import { applyFilletToShape } from '../services/filletService';
-import { getReplicadVertices } from '../services/vertexEditor';
+import { getReplicadVertices } from './VertexEditorService';
 
 const Scene: React.FC = () => {
   const controlsRef = useRef<any>(null);
@@ -96,12 +95,12 @@ const Scene: React.FC = () => {
             console.log(`✅ Using ${baseVertices.length} scaled base vertices`);
           } else if (shape.replicadShape) {
             console.log('🔍 Getting vertices from Replicad shape for offset calculation...');
-            const { getReplicadVertices } = await import('../services/vertexEditor');
+            const { getReplicadVertices } = await import('./VertexEditorService');
             const verts = await getReplicadVertices(shape.replicadShape);
             baseVertices = verts.map(v => [v.x, v.y, v.z]);
             console.log(`✅ Got ${baseVertices.length} vertices from Replicad`);
           } else if (shape.type === 'box') {
-            const { getBoxVertices } = await import('../services/vertexEditor');
+            const { getBoxVertices } = await import('./VertexEditorService');
             const verts = getBoxVertices(
               shape.parameters.width,
               shape.parameters.height,

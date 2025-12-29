@@ -3,7 +3,7 @@ import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
 import { evaluateExpression } from '../utils/expression';
-import { applyShapeChanges, applySubtractionChanges } from '../services/shapeUpdater';
+import { applyShapeChanges, applySubtractionChanges } from './ShapeUpdaterService';
 
 interface CustomParameter {
   id: string;
@@ -540,9 +540,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const newFilletRadii = filletRadii.filter((_, idx) => idx !== filletIndex);
 
     try {
-      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      const { getReplicadVertices } = await import('../services/vertexEditor');
-      const { applyFillets, updateFilletCentersForNewGeometry } = await import('../services/shapeUpdater');
+      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { getReplicadVertices } = await import('./VertexEditorService');
+      const { applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
 
       let baseShape = await createReplicadBox({
         width,
