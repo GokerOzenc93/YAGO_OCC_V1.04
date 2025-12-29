@@ -242,7 +242,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setVertexModifications([]);
       setFilletRadii([]);
     }
-  }, [selectedShape, selectedShapeId, shapes, selectedShape?.fillets?.length]);
+  }, [selectedShape, selectedShapeId, shapes]);
 
   useEffect(() => {
     if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
@@ -668,57 +668,18 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             {filletRadii.length > 0 && (
               <div className="space-y-1 pt-2 border-t border-stone-300">
                 {filletRadii.map((radius, idx) => (
-                  <div key={`fillet-${idx}`} className="flex gap-1 items-center">
-                    <input
-                      type="text"
-                      value={`F${idx + 1}`}
-                      readOnly
-                      tabIndex={-1}
-                      className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
-                    />
-                    <input
-                      type="text"
-                      value={radius.toString()}
-                      onChange={(e) => {
-                        const newValue = e.target.value;
-                        if (newValue === '' || newValue === '-' || newValue === '+' || newValue === '.') {
-                          return;
-                        }
-                        const parsed = parseFloat(newValue);
-                        if (!isNaN(parsed)) {
-                          const newRadii = [...filletRadii];
-                          newRadii[idx] = parsed;
-                          setFilletRadii(newRadii);
-                        }
-                      }}
-                      className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-left"
-                    />
-                    <input
-                      type="text"
-                      value={radius.toFixed(2)}
-                      readOnly
-                      tabIndex={-1}
-                      className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
-                    />
-                    <input
-                      type="text"
-                      value={`Fillet ${idx + 1} Radius`}
-                      readOnly
-                      tabIndex={-1}
-                      className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
-                    />
-                    <button
-                      onClick={async () => {
-                        if (selectedShape) {
-                          await deleteFillet(selectedShape.id, idx);
-                        }
-                      }}
-                      className="p-0.5 hover:bg-red-100 rounded transition-colors"
-                      title="Delete fillet"
-                    >
-                      <X size={12} className="text-red-600" />
-                    </button>
-                  </div>
+                  <ParameterRow
+                    key={`fillet-${idx}`}
+                    label={`F${idx + 1}`}
+                    value={radius}
+                    onChange={(newRadius) => {
+                      const newRadii = [...filletRadii];
+                      newRadii[idx] = newRadius;
+                      setFilletRadii(newRadii);
+                    }}
+                    description={`Fillet ${idx + 1} Radius`}
+                    step={0.1}
+                  />
                 ))}
               </div>
             )}
