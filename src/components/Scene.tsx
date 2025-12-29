@@ -89,14 +89,28 @@ SubtractionMesh.displayName = 'SubtractionMesh';
 
 const FilletEdgeLines: React.FC<{
   shape: any;
-}> = React.memo(({ shape }) => {
+}> = ({ shape }) => {
   const groupRef = useRef<THREE.Group>(null);
+  const shapeRef = useRef(shape);
 
-  useFrame(() => {
+  useEffect(() => {
+    shapeRef.current = shape;
+  }, [shape]);
+
+  useEffect(() => {
     if (groupRef.current) {
       groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
       groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
       groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
+    }
+  }, [shape.position, shape.rotation, shape.scale]);
+
+  useFrame(() => {
+    if (groupRef.current) {
+      const s = shapeRef.current;
+      groupRef.current.position.set(s.position[0], s.position[1], s.position[2]);
+      groupRef.current.rotation.set(s.rotation[0], s.rotation[1], s.rotation[2]);
+      groupRef.current.scale.set(s.scale[0], s.scale[1], s.scale[2]);
     }
   });
 
@@ -122,7 +136,7 @@ const FilletEdgeLines: React.FC<{
       </lineSegments>
     </group>
   );
-});
+};
 
 FilletEdgeLines.displayName = 'FilletEdgeLines';
 
