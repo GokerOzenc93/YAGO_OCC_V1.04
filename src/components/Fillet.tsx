@@ -152,11 +152,17 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   shapeRef.current = shape;
 
   useEffect(() => {
+    console.log('🔷 FilletEdgeLines mounted/updated, shape.id:', shape.id, 'groupRef.current:', groupRef.current);
+  }, [shape.id]);
+
+  useEffect(() => {
     if (groupRef.current && shape) {
       console.log('🔷 FilletEdgeLines - Setting transform:', { position: shape.position, shape_id: shape.id });
       groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
       groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
       groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
+    } else {
+      console.warn('🔷 FilletEdgeLines - groupRef not set or shape missing');
     }
   }, [shape.position, shape.rotation, shape.scale, shape.id]);
 
@@ -192,12 +198,21 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   }, [faces]);
 
   const boundaryEdgesGeometry = useMemo(() => {
-    if (faces.length === 0 || faceGroups.length === 0) return null;
-    return createGroupBoundaryEdges(faces, faceGroups);
+    if (faces.length === 0 || faceGroups.length === 0) {
+      console.warn('🔷 No boundary edges: faces.length=', faces.length, 'faceGroups.length=', faceGroups.length);
+      return null;
+    }
+    const geom = createGroupBoundaryEdges(faces, faceGroups);
+    console.log('🔷 Created boundary edges geometry, faces:', faces.length, 'groups:', faceGroups.length);
+    return geom;
   }, [faces, faceGroups]);
 
-  if (!boundaryEdgesGeometry) return null;
+  if (!boundaryEdgesGeometry) {
+    console.warn('🔷 FilletEdgeLines - No boundaryEdgesGeometry, returning null');
+    return null;
+  }
 
+  console.log('🔷 FilletEdgeLines - Rendering group with geometry', shape.id);
   return (
     <group ref={groupRef}>
       <lineSegments geometry={boundaryEdgesGeometry}>

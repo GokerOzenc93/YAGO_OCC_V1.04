@@ -407,10 +407,13 @@ const Scene: React.FC = () => {
               onContextMenu={handleContextMenu}
             />
             {hasFillets && !faceEditMode && (
-              <FilletEdgeLines
-                key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}-${shape.fillets.length}`}
-                shape={shape}
-              />
+              <>
+                {console.log(`📍 Scene render: FilletEdgeLines for ${shape.id}, geometry uuid: ${shape.geometry?.uuid}, fillets: ${shape.fillets.length}`)}
+                <FilletEdgeLines
+                  key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}-${shape.fillets.length}`}
+                  shape={shape}
+                />
+              </>
             )}
             {isSelected && vertexEditMode && (
               <VertexEditor
