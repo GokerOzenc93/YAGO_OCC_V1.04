@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
-import { evaluateExpression } from '../utils/expression';
+import { evaluateExpression } from './Expression';
 import { applyShapeChanges, applySubtractionChanges } from './ShapeUpdaterService';
 
 interface CustomParameter {

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { evaluateExpression } from '../utils/expression';
+import { evaluateExpression } from './Expression';
 import type { FilletInfo } from '../store';
 
 export const getOriginalSize = (geometry: THREE.BufferGeometry) => {
