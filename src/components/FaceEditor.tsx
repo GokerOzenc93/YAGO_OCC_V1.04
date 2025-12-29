@@ -97,6 +97,10 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     }
   };
 
+  const shapePositionKey = JSON.stringify(shape.position);
+  const shapeRotationKey = JSON.stringify(shape.rotation);
+  const shapeScaleKey = JSON.stringify(shape.scale);
+
   const selectedFilletGeometries = useMemo(() => {
     if (!filletMode || selectedFilletFaces.length === 0) return [];
 
@@ -105,19 +109,19 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       if (!group) return null;
       return createFaceHighlightGeometry(faces, group.faceIndices);
     }).filter(g => g !== null);
-  }, [filletMode, selectedFilletFaces, faceGroups, faces]);
+  }, [filletMode, selectedFilletFaces, faceGroups, faces, shapePositionKey, shapeRotationKey, shapeScaleKey]);
 
   const highlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
 
     const group = faceGroups[hoveredGroupIndex];
     return createFaceHighlightGeometry(faces, group.faceIndices);
-  }, [hoveredGroupIndex, faceGroups, faces]);
+  }, [hoveredGroupIndex, faceGroups, faces, shapePositionKey, shapeRotationKey, shapeScaleKey]);
 
   const boundaryEdgesGeometry = useMemo(() => {
     if (faces.length === 0 || faceGroups.length === 0) return null;
     return createGroupBoundaryEdges(faces, faceGroups);
-  }, [faces, faceGroups]);
+  }, [faces, faceGroups, shapePositionKey, shapeRotationKey, shapeScaleKey]);
 
   if (!isActive) return null;
 
