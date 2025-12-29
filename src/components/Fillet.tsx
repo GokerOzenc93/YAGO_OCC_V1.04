@@ -151,6 +151,15 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   const shapeRef = useRef(shape);
   shapeRef.current = shape;
 
+  useEffect(() => {
+    if (groupRef.current && shape) {
+      console.log('🔷 FilletEdgeLines - Setting transform:', { position: shape.position, shape_id: shape.id });
+      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
+      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
+      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
+    }
+  }, [shape.position, shape.rotation, shape.scale, shape.id]);
+
   useFrame(() => {
     if (groupRef.current) {
       const currentShape = shapeRef.current;
@@ -165,8 +174,14 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   const faces = useMemo(() => {
     if (!shape.geometry) return [];
     try {
-      return extractFacesFromGeometry(shape.geometry);
+      const extracted = extractFacesFromGeometry(shape.geometry);
+      console.log(`🔷 FilletEdgeLines - Extracted ${extracted.length} faces from geometry uuid: ${shape.geometry.uuid}`);
+      if (extracted.length > 0) {
+        console.log('🔷 First face center:', extracted[0].center);
+      }
+      return extracted;
     } catch (e) {
+      console.error('🔷 Error extracting faces:', e);
       return [];
     }
   }, [shape.geometry, shape.geometry?.uuid, shape.fillets?.length, shape.replicadShape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
