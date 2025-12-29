@@ -6,7 +6,7 @@ import {
   groupCoplanarFaces,
   createGroupBoundaryEdges,
   createFaceDescriptor
-} from './FaceEditorService';
+} from './FaceEditor';
 import { convertReplicadToThreeGeometry } from './ReplicadService';
 import { getReplicadVertices } from './VertexEditorService';
 

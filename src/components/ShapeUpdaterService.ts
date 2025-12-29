@@ -20,7 +20,7 @@ export async function updateFilletCentersForNewGeometry(
 
   console.log('🔄 Updating fillet centers for new geometry using descriptors...');
 
-  const { extractFacesFromGeometry, findFaceByDescriptor } = await import('./FaceEditorService');
+  const { extractFacesFromGeometry, findFaceByDescriptor } = await import('./FaceEditor');
 
   const faces = extractFacesFromGeometry(newGeometry);
 
