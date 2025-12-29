@@ -32,12 +32,17 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const shapeRef = useRef(shape);
+  shapeRef.current = shape;
 
   useFrame(() => {
-    if (groupRef.current && shape) {
-      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
-      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
-      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
+    if (groupRef.current) {
+      const currentShape = shapeRef.current;
+      if (currentShape) {
+        groupRef.current.position.set(currentShape.position[0], currentShape.position[1], currentShape.position[2]);
+        groupRef.current.rotation.set(currentShape.rotation[0], currentShape.rotation[1], currentShape.rotation[2]);
+        groupRef.current.scale.set(currentShape.scale[0], currentShape.scale[1], currentShape.scale[2]);
+      }
     }
   });
 

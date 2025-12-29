@@ -539,10 +539,15 @@ const Scene: React.FC = () => {
 
   useEffect(() => {
     (window as any).handleVertexOffset = async (newValue: number) => {
-      if (selectedShapeId && selectedVertexIndex !== null && vertexDirection) {
-        const shape = shapes.find(s => s.id === selectedShapeId);
+      const currentState = useAppStore.getState();
+      const currentSelectedShapeId = currentState.selectedShapeId;
+      const currentSelectedVertexIndex = currentState.selectedVertexIndex;
+      const currentVertexDirection = currentState.vertexDirection;
+
+      if (currentSelectedShapeId && currentSelectedVertexIndex !== null && currentVertexDirection) {
+        const shape = currentState.shapes.find(s => s.id === currentSelectedShapeId);
         if (shape && shape.parameters) {
-          console.log('📝 Processing vertex offset:', { newValue, vertexIndex: selectedVertexIndex, direction: vertexDirection });
+          console.log('📝 Processing vertex offset:', { newValue, vertexIndex: currentSelectedVertexIndex, direction: currentVertexDirection });
 
           let baseVertices: number[][] = [];
 
@@ -567,14 +572,14 @@ const Scene: React.FC = () => {
             console.log(`✅ Got ${baseVertices.length} vertices from box parameters`);
           }
 
-          if (selectedVertexIndex >= baseVertices.length) {
-            console.error('❌ Invalid vertex index:', selectedVertexIndex);
+          if (currentSelectedVertexIndex >= baseVertices.length) {
+            console.error('❌ Invalid vertex index:', currentSelectedVertexIndex);
             return;
           }
 
-          const originalPos = baseVertices[selectedVertexIndex];
+          const originalPos = baseVertices[currentSelectedVertexIndex];
 
-          const axisIndex = vertexDirection.startsWith('x') ? 0 : vertexDirection.startsWith('y') ? 1 : 2;
+          const axisIndex = currentVertexDirection.startsWith('x') ? 0 : currentVertexDirection.startsWith('y') ? 1 : 2;
 
           const newPosition: [number, number, number] = [...originalPos];
           newPosition[axisIndex] = newValue;
@@ -583,11 +588,11 @@ const Scene: React.FC = () => {
           const offset: [number, number, number] = [0, 0, 0];
           offset[axisIndex] = offsetAmount;
 
-          const axisName = vertexDirection[0].toUpperCase();
-          const directionSymbol = vertexDirection[1] === '+' ? '+' : '-';
+          const axisName = currentVertexDirection[0].toUpperCase();
+          const directionSymbol = currentVertexDirection[1] === '+' ? '+' : '-';
 
           console.log(`🎯 Absolute position applied:`, {
-            direction: vertexDirection,
+            direction: currentVertexDirection,
             userInput: newValue,
             originalPosAxis: originalPos[axisIndex].toFixed(1),
             newPosAxis: newPosition[axisIndex].toFixed(1),
@@ -595,17 +600,17 @@ const Scene: React.FC = () => {
             explanation: `${axisName}${directionSymbol} → move to ${newValue} (offset: ${offsetAmount.toFixed(1)})`
           });
 
-          addVertexModification(selectedShapeId, {
-            vertexIndex: selectedVertexIndex,
+          currentState.addVertexModification(currentSelectedShapeId, {
+            vertexIndex: currentSelectedVertexIndex,
             originalPosition: originalPos as [number, number, number],
             newPosition,
-            direction: vertexDirection,
+            direction: currentVertexDirection,
             expression: String(newValue),
-            description: `Vertex ${selectedVertexIndex} ${axisName}${directionSymbol}`,
+            description: `Vertex ${currentSelectedVertexIndex} ${axisName}${directionSymbol}`,
             offset
           });
 
-          console.log(`✅ Vertex ${selectedVertexIndex}:`, {
+          console.log(`✅ Vertex ${currentSelectedVertexIndex}:`, {
             base: `[${originalPos[0].toFixed(1)}, ${originalPos[1].toFixed(1)}, ${originalPos[2].toFixed(1)}]`,
             userValue: newValue,
             axis: axisName,
@@ -615,7 +620,7 @@ const Scene: React.FC = () => {
         }
 
         (window as any).pendingVertexEdit = false;
-        setSelectedVertexIndex(null);
+        currentState.setSelectedVertexIndex(null);
       }
     };
 
@@ -625,36 +630,44 @@ const Scene: React.FC = () => {
       delete (window as any).handleVertexOffset;
       delete (window as any).pendingVertexEdit;
     };
-  }, [selectedShapeId, selectedVertexIndex, vertexDirection, shapes, addVertexModification, setSelectedVertexIndex]);
+  }, [selectedVertexIndex, vertexDirection]);
 
   useEffect(() => {
     (window as any).handleFilletRadius = async (radius: number) => {
-      if (selectedShapeId && filletMode && selectedFilletFaces.length === 2 && selectedFilletFaceData.length === 2) {
-        console.log(`🔵 Applying fillet with radius ${radius} to faces:`, selectedFilletFaces);
+      const currentState = useAppStore.getState();
+      const currentSelectedShapeId = currentState.selectedShapeId;
+      const currentFilletMode = currentState.filletMode;
+      const currentSelectedFilletFaces = currentState.selectedFilletFaces;
+      const currentSelectedFilletFaceData = currentState.selectedFilletFaceData;
 
-        const shape = shapes.find(s => s.id === selectedShapeId);
+      if (currentSelectedShapeId && currentFilletMode && currentSelectedFilletFaces.length === 2 && currentSelectedFilletFaceData.length === 2) {
+        console.log(`🔵 Applying fillet with radius ${radius} to faces:`, currentSelectedFilletFaces);
+
+        const shape = currentState.shapes.find(s => s.id === currentSelectedShapeId);
         if (!shape || !shape.replicadShape) {
           console.error('❌ Shape or replicadShape not found');
           return;
         }
+
+        console.log('📍 Fillet - Current shape position:', shape.position);
 
         try {
           const { convertReplicadToThreeGeometry } = await import('../services/replicad');
           const { getReplicadVertices } = await import('../services/vertexEditor');
           const { extractFacesFromGeometry, createFaceDescriptor, groupCoplanarFaces } = await import('../services/faceEditor');
 
-          console.log('📐 Face 1 - Normal:', selectedFilletFaceData[0].normal, 'Center:', selectedFilletFaceData[0].center);
-          console.log('📐 Face 2 - Normal:', selectedFilletFaceData[1].normal, 'Center:', selectedFilletFaceData[1].center);
+          console.log('📐 Face 1 - Normal:', currentSelectedFilletFaceData[0].normal, 'Center:', currentSelectedFilletFaceData[0].center);
+          console.log('📐 Face 2 - Normal:', currentSelectedFilletFaceData[1].normal, 'Center:', currentSelectedFilletFaceData[1].center);
 
-          const face1Center = new THREE.Vector3(...selectedFilletFaceData[0].center);
-          const face2Center = new THREE.Vector3(...selectedFilletFaceData[1].center);
-          const face1Normal = new THREE.Vector3(...selectedFilletFaceData[0].normal);
-          const face2Normal = new THREE.Vector3(...selectedFilletFaceData[1].normal);
+          const face1Center = new THREE.Vector3(...currentSelectedFilletFaceData[0].center);
+          const face2Center = new THREE.Vector3(...currentSelectedFilletFaceData[1].center);
+          const face1Normal = new THREE.Vector3(...currentSelectedFilletFaceData[0].normal);
+          const face2Normal = new THREE.Vector3(...currentSelectedFilletFaceData[1].normal);
 
           const faces = extractFacesFromGeometry(shape.geometry);
           const faceGroups = groupCoplanarFaces(faces);
-          const group1 = faceGroups[selectedFilletFaces[0]];
-          const group2 = faceGroups[selectedFilletFaces[1]];
+          const group1 = faceGroups[currentSelectedFilletFaces[0]];
+          const group2 = faceGroups[currentSelectedFilletFaces[1]];
 
           const face1Data = faces.find(f => group1.faceIndices.includes(f.faceIndex));
           const face2Data = faces.find(f => group2.faceIndices.includes(f.faceIndex));
@@ -724,7 +737,7 @@ const Scene: React.FC = () => {
           const newGeometry = convertReplicadToThreeGeometry(filletedShape);
           const newBaseVertices = await getReplicadVertices(filletedShape);
 
-          updateShape(selectedShapeId, {
+          currentState.updateShape(currentSelectedShapeId, {
             geometry: newGeometry,
             replicadShape: filletedShape,
             position: shape.position,
@@ -742,8 +755,8 @@ const Scene: React.FC = () => {
               {
                 face1Descriptor,
                 face2Descriptor,
-                face1Data: selectedFilletFaceData[0],
-                face2Data: selectedFilletFaceData[1],
+                face1Data: currentSelectedFilletFaceData[0],
+                face2Data: currentSelectedFilletFaceData[1],
                 radius,
                 originalSize: {
                   width: shape.parameters.width || 1,
@@ -755,7 +768,7 @@ const Scene: React.FC = () => {
           });
 
           console.log(`✅ Fillet with radius ${radius} applied successfully and saved to shape.fillets!`);
-          clearFilletFaces();
+          currentState.clearFilletFaces();
           console.log('✅ Fillet faces cleared. Select 2 new faces for another fillet operation.');
         } catch (error) {
           console.error('❌ Failed to apply fillet:', error);
@@ -772,7 +785,7 @@ const Scene: React.FC = () => {
       delete (window as any).handleFilletRadius;
       delete (window as any).pendingFilletOperation;
     };
-  }, [selectedShapeId, filletMode, selectedFilletFaces, selectedFilletFaceData, shapes, clearFilletFaces, updateShape]);
+  }, [filletMode, selectedFilletFaces.length]);
 
   const handleContextMenu = (e: any, shapeId: string) => {
     if (vertexEditMode || faceEditMode) {
