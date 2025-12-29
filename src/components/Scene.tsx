@@ -91,22 +91,14 @@ const FilletEdgeLines: React.FC<{
   shape: any;
 }> = React.memo(({ shape }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const shapeRef = useRef(shape);
-  shapeRef.current = shape;
 
   useFrame(() => {
     if (groupRef.current) {
-      const s = shapeRef.current;
-      if (s) {
-        groupRef.current.position.set(s.position[0], s.position[1], s.position[2]);
-        groupRef.current.rotation.set(s.rotation[0], s.rotation[1], s.rotation[2]);
-        groupRef.current.scale.set(s.scale[0], s.scale[1], s.scale[2]);
-      }
+      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
+      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
+      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
     }
   });
-
-  const geometryUuid = shape.geometry?.uuid || '';
-  const filletsCount = shape.fillets?.length || 0;
 
   const boundaryEdgesGeometry = useMemo(() => {
     if (!shape.geometry) return null;
@@ -119,7 +111,7 @@ const FilletEdgeLines: React.FC<{
     } catch (e) {
       return null;
     }
-  }, [shape.geometry, geometryUuid, filletsCount]);
+  }, [shape.geometry, shape.fillets?.length]);
 
   if (!boundaryEdgesGeometry) return null;
 
