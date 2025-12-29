@@ -105,6 +105,9 @@ const FilletEdgeLines: React.FC<{
     }
   });
 
+  const geometryUuid = shape.geometry?.uuid || '';
+  const filletsCount = shape.fillets?.length || 0;
+
   const boundaryEdgesGeometry = useMemo(() => {
     if (!shape.geometry) return null;
     try {
@@ -116,7 +119,7 @@ const FilletEdgeLines: React.FC<{
     } catch (e) {
       return null;
     }
-  }, [shape.geometry]);
+  }, [shape.geometry, geometryUuid, filletsCount]);
 
   if (!boundaryEdgesGeometry) return null;
 
@@ -1010,7 +1013,7 @@ const Scene: React.FC = () => {
             />
             {hasFillets && !faceEditMode && (
               <FilletEdgeLines
-                key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}`}
+                key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}-${shape.fillets.length}`}
                 shape={shape}
               />
             )}
