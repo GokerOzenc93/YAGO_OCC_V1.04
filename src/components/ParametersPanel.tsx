@@ -523,6 +523,90 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     });
   };
 
+  const handleDeleteFillet = async (filletIndex: number) => {
+    if (!selectedShape) return;
+
+    console.log(`🗑️ Deleting fillet #${filletIndex + 1} from shape ${selectedShape.id}`);
+
+    const newFillets = (selectedShape.fillets || []).filter((_: any, idx: number) => idx !== filletIndex);
+    const newFilletRadii = filletRadii.filter((_, idx) => idx !== filletIndex);
+
+    try {
+      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { getReplicadVertices } = await import('../services/vertexEditor');
+      const { applyFillets, updateFilletCentersForNewGeometry } = await import('../services/shapeUpdater');
+
+      let baseShape = await createReplicadBox({
+        width,
+        height,
+        depth
+      });
+
+      if (selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0) {
+        console.log('🔄 Reapplying subtractions after fillet deletion...');
+
+        for (let i = 0; i < selectedShape.subtractionGeometries.length; i++) {
+          const subtraction = selectedShape.subtractionGeometries[i];
+          if (!subtraction) continue;
+
+          const subBox = new THREE.Box3().setFromBufferAttribute(
+            subtraction.geometry.getAttribute('position')
+          );
+          const subSize = new THREE.Vector3();
+          subBox.getSize(subSize);
+
+          const subShape = await createReplicadBox({
+            width: subSize.x,
+            height: subSize.y,
+            depth: subSize.z
+          });
+
+          baseShape = await performBooleanCut(
+            baseShape,
+            subShape,
+            undefined,
+            subtraction.relativeOffset,
+            undefined,
+            subtraction.relativeRotation || [0, 0, 0],
+            undefined,
+            subtraction.scale || [1, 1, 1]
+          );
+        }
+      }
+
+      let finalGeometry = convertReplicadToThreeGeometry(baseShape);
+      let finalBaseVertices = await getReplicadVertices(baseShape);
+      let finalShape = baseShape;
+      let updatedFillets = newFillets;
+
+      if (newFillets.length > 0) {
+        console.log('🔄 Updating remaining fillet centers after deletion...');
+        updatedFillets = await updateFilletCentersForNewGeometry(newFillets, finalGeometry, { width, height, depth });
+
+        console.log('🔵 Reapplying remaining fillets...');
+        finalShape = await applyFillets(finalShape, updatedFillets, { width, height, depth });
+        finalGeometry = convertReplicadToThreeGeometry(finalShape);
+        finalBaseVertices = await getReplicadVertices(finalShape);
+      }
+
+      updateShape(selectedShape.id, {
+        geometry: finalGeometry,
+        replicadShape: finalShape,
+        fillets: updatedFillets,
+        parameters: {
+          ...selectedShape.parameters,
+          scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
+        }
+      });
+
+      setFilletRadii(newFilletRadii);
+
+      console.log('✅ Fillet deleted and shape updated');
+    } catch (error) {
+      console.error('❌ Failed to delete fillet:', error);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -668,18 +752,32 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             {filletRadii.length > 0 && (
               <div className="space-y-1 pt-2 border-t border-stone-300">
                 {filletRadii.map((radius, idx) => (
-                  <ParameterRow
-                    key={`fillet-${idx}`}
-                    label={`F${idx + 1}`}
-                    value={radius}
-                    onChange={(newRadius) => {
-                      const newRadii = [...filletRadii];
-                      newRadii[idx] = newRadius;
-                      setFilletRadii(newRadii);
-                    }}
-                    description={`Fillet ${idx + 1} Radius`}
-                    step={0.1}
-                  />
+                  <div key={`fillet-${idx}`} className="flex gap-1 items-center">
+                    <div className="flex-1">
+                      <ParameterRow
+                        label={`F${idx + 1}`}
+                        value={radius}
+                        onChange={(newRadius) => {
+                          const newRadii = [...filletRadii];
+                          newRadii[idx] = newRadius;
+                          setFilletRadii(newRadii);
+                        }}
+                        description={`Fillet ${idx + 1} Radius`}
+                        step={0.1}
+                      />
+                    </div>
+                    <button
+                      onClick={async () => {
+                        if (selectedShape) {
+                          await handleDeleteFillet(idx);
+                        }
+                      }}
+                      className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                      title="Delete fillet"
+                    >
+                      <Trash2 size={12} className="text-red-600" />
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
