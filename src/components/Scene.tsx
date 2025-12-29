@@ -215,9 +215,10 @@ const Scene: React.FC = () => {
           });
 
           console.log(`✅ Fillet with radius ${radius} applied successfully and saved to shape.fillets!`);
-          const updatedShape = currentState.shapes.find(s => s.id === selectedShapeId);
+          const newState = useAppStore.getState();
+          const updatedShape = newState.shapes.find(s => s.id === selectedShapeId);
           console.log(`📍 After update, shape.fillets.length: ${updatedShape?.fillets?.length || 0}`);
-          currentState.clearFilletFaces();
+          newState.clearFilletFaces();
           console.log('✅ Fillet faces cleared. Select 2 new faces for another fillet operation.');
         } catch (error) {
           console.error('❌ Failed to apply fillet:', error);
@@ -400,9 +401,6 @@ const Scene: React.FC = () => {
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
         const hasFillets = shape.fillets && shape.fillets.length > 0;
-        if (hasFillets) {
-          console.log(`📍 Scene: Shape ${shape.id} has ${shape.fillets.length} fillets`);
-        }
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -413,7 +411,6 @@ const Scene: React.FC = () => {
             />
             {hasFillets && !faceEditMode && (
               <>
-                {console.log(`📍 Scene render: FilletEdgeLines for ${shape.id}, geometry uuid: ${shape.geometry?.uuid}, fillets: ${shape.fillets.length}`)}
                 <FilletEdgeLines
                   key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}-${shape.fillets.length}`}
                   shape={shape}
