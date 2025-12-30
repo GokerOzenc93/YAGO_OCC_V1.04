@@ -164,7 +164,7 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
     } else {
       console.warn('🔷 FilletEdgeLines - groupRef not set or shape missing');
     }
-  }, [shape.position, shape.rotation, shape.scale, shape.id, shape.geometry?.uuid, shape.fillets?.length]);
+  }, [shape.position, shape.rotation, shape.scale, shape.id]);
 
   useFrame(() => {
     if (groupRef.current) {
@@ -178,24 +178,19 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   });
 
   const faces = useMemo(() => {
-    if (!shape.geometry) {
-      console.log('🔷 No geometry in shape');
-      return [];
-    }
+    if (!shape.geometry) return [];
     try {
       const extracted = extractFacesFromGeometry(shape.geometry);
       console.log(`🔷 FilletEdgeLines - Extracted ${extracted.length} faces from geometry uuid: ${shape.geometry.uuid}`);
       if (extracted.length > 0) {
-        const bbox = shape.geometry.boundingBox;
-        console.log('🔷 Geometry bounding box:', bbox);
-        console.log('🔷 First 3 face centers:', extracted.slice(0, 3).map((f, i) => `Face${i}: (${f.center.x.toFixed(1)},${f.center.y.toFixed(1)},${f.center.z.toFixed(1)})`).join(' | '));
+        console.log('🔷 First face center:', extracted[0].center);
       }
       return extracted;
     } catch (e) {
       console.error('🔷 Error extracting faces:', e);
       return [];
     }
-  }, [shape.geometry]);
+  }, [shape.geometry, shape.geometry?.uuid, shape.fillets?.length, shape.replicadShape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
 
   const faceGroups = useMemo(() => {
     if (faces.length === 0) return [];
@@ -208,19 +203,7 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
       return null;
     }
     const geom = createGroupBoundaryEdges(faces, faceGroups);
-    const positionAttr = geom.getAttribute('position');
-    const positions = positionAttr.array as Float32Array;
-    const min = new THREE.Vector3(Infinity, Infinity, Infinity);
-    const max = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
-    for (let i = 0; i < positions.length; i += 3) {
-      min.x = Math.min(min.x, positions[i]);
-      min.y = Math.min(min.y, positions[i + 1]);
-      min.z = Math.min(min.z, positions[i + 2]);
-      max.x = Math.max(max.x, positions[i]);
-      max.y = Math.max(max.y, positions[i + 1]);
-      max.z = Math.max(max.z, positions[i + 2]);
-    }
-    console.log('🔷 Created boundary edges geometry, faces:', faces.length, 'groups:', faceGroups.length, 'edge vertex range:', { min: min.toArray().map((v: number) => v.toFixed(1)), max: max.toArray().map((v: number) => v.toFixed(1)) });
+    console.log('🔷 Created boundary edges geometry, faces:', faces.length, 'groups:', faceGroups.length);
     return geom;
   }, [faces, faceGroups]);
 
