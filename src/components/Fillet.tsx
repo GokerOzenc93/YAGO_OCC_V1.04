@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   extractFacesFromGeometry,
@@ -147,6 +147,9 @@ interface FilletEdgeLinesProps {
 }
 
 export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
+  const { viewport } = useThree();
+  const linewidthScale = Math.max(0.4, Math.min(1, viewport.width / 25));
+
   const groupRef = useRef<THREE.Group>(null);
   const shapeRef = useRef(shape);
   shapeRef.current = shape;
@@ -216,7 +219,7 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   return (
     <group ref={groupRef}>
       <lineSegments geometry={boundaryEdgesGeometry}>
-        <lineBasicMaterial color={0x00ffff} linewidth={2} transparent opacity={0.8} />
+        <lineBasicMaterial color={0x00ffff} linewidth={2 * linewidthScale} transparent opacity={0.8} />
       </lineSegments>
     </group>
   );

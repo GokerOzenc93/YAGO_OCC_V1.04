@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { TransformControls } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore, Tool, ViewMode } from '../store';
 import { SubtractionMesh } from './SubtractionMesh';
@@ -31,6 +32,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedSubtractionIndex,
     setShowParametersPanel
   } = useAppStore();
+
+  const { viewport } = useThree();
+  const linewidthScale = Math.max(0.4, Math.min(1, viewport.width / 25));
 
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -287,7 +291,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-                linewidth={2.5}
+                linewidth={2.5 * linewidthScale}
                 opacity={1}
                 transparent={false}
                 depthTest={true}
@@ -310,7 +314,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? 3.5 : 2.5}
+                linewidth={(isSelected || shouldShowAsReference ? 3.5 : 2.5) * linewidthScale}
                 depthTest={true}
                 depthWrite={true}
               />
@@ -323,7 +327,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
-                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
+                linewidth={(isSelected || shouldShowAsReference ? 2 : 1.5) * linewidthScale}
                 transparent
                 opacity={0.4}
                 depthTest={true}
@@ -357,7 +361,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
-                linewidth={isSelected || shouldShowAsReference ? 3 : 2.5}
+                linewidth={(isSelected || shouldShowAsReference ? 3 : 2.5) * linewidthScale}
                 depthTest={true}
                 transparent={false}
                 opacity={1}

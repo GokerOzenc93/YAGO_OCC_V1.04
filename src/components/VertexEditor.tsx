@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import * as THREE from 'three';
+import { useThree } from '@react-three/fiber';
 import { getBoxVertices, getReplicadVertices } from './VertexEditorService';
 
 interface VertexEditorProps {
@@ -19,7 +20,8 @@ const VertexPoint: React.FC<{
   onContextMenu: (e: any) => void;
   onPointerOver: () => void;
   onPointerOut: () => void;
-}> = ({ position, index, isHovered, isSelected, onClick, onContextMenu, onPointerOver, onPointerOut }) => {
+  scale: number;
+}> = ({ position, index, isHovered, isSelected, onClick, onContextMenu, onPointerOver, onPointerOut, scale }) => {
   return (
     <mesh
       position={position}
@@ -34,7 +36,7 @@ const VertexPoint: React.FC<{
         onPointerOut();
       }}
     >
-      <sphereGeometry args={[isSelected ? 8 : 6, 16, 16]} />
+      <sphereGeometry args={[(isSelected ? 8 : 6) * scale, 16, 16]} />
       <meshBasicMaterial color={isHovered ? '#ef4444' : isSelected ? '#f97316' : '#1f2937'} />
     </mesh>
   );
@@ -43,7 +45,8 @@ const VertexPoint: React.FC<{
 const DirectionArrow: React.FC<{
   position: THREE.Vector3;
   direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
-}> = ({ position, direction }) => {
+  scale: number;
+}> = ({ position, direction, scale }) => {
   const getDirectionVector = (): THREE.Vector3 => {
     switch (direction) {
       case 'x+': return new THREE.Vector3(1, 0, 0);
@@ -56,7 +59,7 @@ const DirectionArrow: React.FC<{
   };
 
   const dirVector = getDirectionVector();
-  const arrowLength = 50;
+  const arrowLength = 50 * scale;
   const endPosition = position.clone().add(dirVector.clone().multiplyScalar(arrowLength));
 
   const getRotation = (): [number, number, number] => {
@@ -87,7 +90,7 @@ const DirectionArrow: React.FC<{
         <lineBasicMaterial color="#ef4444" linewidth={3} />
       </line>
       <mesh position={endPosition} rotation={getRotation()}>
-        <coneGeometry args={[4, 10, 8]} />
+        <coneGeometry args={[4 * scale, 10 * scale, 8]} />
         <meshBasicMaterial color="#ef4444" />
       </mesh>
     </group>
@@ -97,7 +100,8 @@ const DirectionArrow: React.FC<{
 const DirectionSelector: React.FC<{
   position: THREE.Vector3;
   onDirectionSelect: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
-}> = ({ position, onDirectionSelect }) => {
+  scale: number;
+}> = ({ position, onDirectionSelect, scale }) => {
   const directions: Array<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-'> = ['x+', 'x-', 'y+', 'y-', 'z+', 'z-'];
 
   const getDirectionVector = (dir: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-'): THREE.Vector3 => {
@@ -132,7 +136,7 @@ const DirectionSelector: React.FC<{
     <group>
       {directions.map((dir) => {
         const dirVector = getDirectionVector(dir);
-        const arrowLength = 60;
+        const arrowLength = 60 * scale;
         const endPosition = position.clone().add(dirVector.clone().multiplyScalar(arrowLength));
         const color = getColor(dir);
 
@@ -160,7 +164,7 @@ const DirectionSelector: React.FC<{
                 onDirectionSelect(dir);
               }}
             >
-              <coneGeometry args={[8, 16, 8]} />
+              <coneGeometry args={[8 * scale, 16 * scale, 8]} />
               <meshBasicMaterial color={color} />
             </mesh>
           </group>
@@ -177,6 +181,9 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
   onDirectionChange,
   onOffsetConfirm
 }) => {
+  const { viewport } = useThree();
+  const scaleFactor = Math.max(0.3, Math.min(1, viewport.width / 30));
+
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [currentDirection, setCurrentDirection] = useState<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null>(null);
@@ -340,6 +347,7 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
             onContextMenu={(e) => handleVertexRightClick(index, e)}
             onPointerOver={() => setHoveredIndex(index)}
             onPointerOut={() => setHoveredIndex(null)}
+            scale={scaleFactor}
           />
         );
       })}
@@ -347,12 +355,14 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
         <DirectionSelector
           position={modifiedVertices[selectedIndex]}
           onDirectionSelect={handleDirectionSelect}
+          scale={scaleFactor}
         />
       )}
       {currentDirection && selectedIndex !== null && !showDirectionSelector && (
         <DirectionArrow
           position={modifiedVertices[selectedIndex]}
           direction={currentDirection}
+          scale={scaleFactor}
         />
       )}
     </group>

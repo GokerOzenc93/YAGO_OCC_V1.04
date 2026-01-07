@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useAppStore } from '../store';
 
 export interface FaceData {
@@ -480,6 +480,9 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     addFilletFaceData
   } = useAppStore();
 
+  const { viewport } = useThree();
+  const linewidthScale = Math.max(0.4, Math.min(1, viewport.width / 25));
+
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
@@ -642,7 +645,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         <lineSegments
           geometry={boundaryEdgesGeometry}
         >
-          <lineBasicMaterial color={0x00ffff} linewidth={2} />
+          <lineBasicMaterial color={0x00ffff} linewidth={2 * linewidthScale} />
         </lineSegments>
       )}
     </group>
