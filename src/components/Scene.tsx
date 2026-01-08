@@ -7,7 +7,7 @@ import SaveDialog from './SaveDialog';
 import { catalogService } from './Database';
 import { VertexEditor } from './VertexEditor';
 import { FaceEditor } from './FaceEditor';
-import { FilletEdgeLines, applyFilletToShape } from './Fillet';
+import { applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
 
@@ -400,7 +400,6 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
-        const hasFillets = shape.fillets && shape.fillets.length > 0;
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -409,15 +408,6 @@ const Scene: React.FC = () => {
               orbitControlsRef={controlsRef}
               onContextMenu={handleContextMenu}
             />
-            {hasFillets && !faceEditMode && (
-              <>
-                <FilletEdgeLines
-                  key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}-${shape.fillets.length}`}
-                  shape={shape}
-                  isFilletMode={filletMode}
-                />
-              </>
-            )}
             {isSelected && vertexEditMode && (
               <VertexEditor
                 shape={shape}

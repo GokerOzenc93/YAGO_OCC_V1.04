@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useAppStore } from '../store';
-import { useResponsiveLineWidth } from '../hooks/useResponsiveLineWidth';
 
 export interface FaceData {
   faceIndex: number;
@@ -244,55 +243,6 @@ export function groupCoplanarFaces(
   return groups;
 }
 
-export function createGroupBoundaryEdges(
-  faces: FaceData[],
-  groups: CoplanarFaceGroup[]
-): THREE.BufferGeometry {
-  const edgeVertices: number[] = [];
-  const faceToGroup = new Map<number, number>();
-
-  groups.forEach((group, groupIdx) => {
-    group.faceIndices.forEach(faceIdx => {
-      faceToGroup.set(faceIdx, groupIdx);
-    });
-  });
-
-  const edgeMap = new Map<string, { v1: THREE.Vector3; v2: THREE.Vector3; faces: number[] }>();
-
-  faces.forEach((face) => {
-    const verts = face.vertices;
-    for (let i = 0; i < 3; i++) {
-      const v1 = verts[i];
-      const v2 = verts[(i + 1) % 3];
-
-      const key1 = `${v1.x.toFixed(4)},${v1.y.toFixed(4)},${v1.z.toFixed(4)}`;
-      const key2 = `${v2.x.toFixed(4)},${v2.y.toFixed(4)},${v2.z.toFixed(4)}`;
-      const edgeKey = key1 < key2 ? `${key1}-${key2}` : `${key2}-${key1}`;
-
-      if (!edgeMap.has(edgeKey)) {
-        edgeMap.set(edgeKey, { v1: v1.clone(), v2: v2.clone(), faces: [] });
-      }
-      edgeMap.get(edgeKey)!.faces.push(face.faceIndex);
-    }
-  });
-
-  edgeMap.forEach((edge) => {
-    if (edge.faces.length === 2) {
-      const group1 = faceToGroup.get(edge.faces[0]);
-      const group2 = faceToGroup.get(edge.faces[1]);
-
-      if (group1 !== undefined && group2 !== undefined && group1 !== group2) {
-        edgeVertices.push(edge.v1.x, edge.v1.y, edge.v1.z);
-        edgeVertices.push(edge.v2.x, edge.v2.y, edge.v2.z);
-      }
-    }
-  });
-
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(edgeVertices, 3));
-  return geometry;
-}
-
 export function findClosestFaceToRay(
   raycaster: THREE.Raycaster,
   mesh: THREE.Mesh,
@@ -470,7 +420,6 @@ interface FaceEditorProps {
 }
 
 export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
-  const lineWidths = useResponsiveLineWidth();
   const {
     hoveredFaceIndex,
     setHoveredFaceIndex,
@@ -589,11 +538,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     return createFaceHighlightGeometry(faces, group.faceIndices);
   }, [hoveredGroupIndex, faceGroups, faces]);
 
-  const boundaryEdgesGeometry = useMemo(() => {
-    if (faces.length === 0 || faceGroups.length === 0) return null;
-    return createGroupBoundaryEdges(faces, faceGroups);
-  }, [faces, faceGroups]);
-
   if (!isActive) return null;
 
   return (
@@ -638,19 +582,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
             polygonOffsetUnits={-1}
           />
         </mesh>
-      )}
-
-      {boundaryEdgesGeometry && (
-        <lineSegments
-          geometry={boundaryEdgesGeometry}
-        >
-          <lineBasicMaterial
-            color={filletMode ? 0x1e3a8a : 0x00ffff}
-            linewidth={filletMode ? lineWidths.thick : lineWidths.normal}
-            transparent={!filletMode}
-            opacity={filletMode ? 1 : 1}
-          />
-        </lineSegments>
       )}
     </group>
   );

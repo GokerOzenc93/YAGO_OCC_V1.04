@@ -1,15 +1,7 @@
-import React, { useRef, useEffect, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import {
-  extractFacesFromGeometry,
-  groupCoplanarFaces,
-  createGroupBoundaryEdges,
-  createFaceDescriptor
-} from './FaceEditor';
+import { createFaceDescriptor } from './FaceEditor';
 import { convertReplicadToThreeGeometry } from './ReplicadService';
 import { getReplicadVertices } from './VertexEditorService';
-import { useResponsiveLineWidth } from '../hooks/useResponsiveLineWidth';
 
 export interface FilletData {
   face1Descriptor: any;
@@ -142,90 +134,3 @@ export async function applyFilletToShape(
     filletData
   };
 }
-
-interface FilletEdgeLinesProps {
-  shape: any;
-  isFilletMode?: boolean;
-}
-
-export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape, isFilletMode = false }) => {
-  const lineWidths = useResponsiveLineWidth();
-  const groupRef = useRef<THREE.Group>(null);
-  const shapeRef = useRef(shape);
-  shapeRef.current = shape;
-
-  useEffect(() => {
-    console.log('🔷 FilletEdgeLines mounted/updated, shape.id:', shape.id, 'groupRef.current:', groupRef.current);
-  }, [shape.id]);
-
-  useEffect(() => {
-    if (groupRef.current && shape) {
-      console.log('🔷 FilletEdgeLines - Setting transform:', { position: shape.position, shape_id: shape.id });
-      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
-      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
-      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
-    } else {
-      console.warn('🔷 FilletEdgeLines - groupRef not set or shape missing');
-    }
-  }, [shape.position, shape.rotation, shape.scale, shape.id]);
-
-  useFrame(() => {
-    if (groupRef.current) {
-      const currentShape = shapeRef.current;
-      if (currentShape) {
-        groupRef.current.position.set(currentShape.position[0], currentShape.position[1], currentShape.position[2]);
-        groupRef.current.rotation.set(currentShape.rotation[0], currentShape.rotation[1], currentShape.rotation[2]);
-        groupRef.current.scale.set(currentShape.scale[0], currentShape.scale[1], currentShape.scale[2]);
-      }
-    }
-  });
-
-  const faces = useMemo(() => {
-    if (!shape.geometry) return [];
-    try {
-      const extracted = extractFacesFromGeometry(shape.geometry);
-      console.log(`🔷 FilletEdgeLines - Extracted ${extracted.length} faces from geometry uuid: ${shape.geometry.uuid}`);
-      if (extracted.length > 0) {
-        console.log('🔷 First face center:', extracted[0].center);
-      }
-      return extracted;
-    } catch (e) {
-      console.error('🔷 Error extracting faces:', e);
-      return [];
-    }
-  }, [shape.geometry, shape.geometry?.uuid, shape.fillets?.length, shape.replicadShape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
-
-  const faceGroups = useMemo(() => {
-    if (faces.length === 0) return [];
-    return groupCoplanarFaces(faces);
-  }, [faces]);
-
-  const boundaryEdgesGeometry = useMemo(() => {
-    if (faces.length === 0 || faceGroups.length === 0) {
-      console.warn('🔷 No boundary edges: faces.length=', faces.length, 'faceGroups.length=', faceGroups.length);
-      return null;
-    }
-    const geom = createGroupBoundaryEdges(faces, faceGroups);
-    console.log('🔷 Created boundary edges geometry, faces:', faces.length, 'groups:', faceGroups.length);
-    return geom;
-  }, [faces, faceGroups]);
-
-  if (!boundaryEdgesGeometry) {
-    console.warn('🔷 FilletEdgeLines - No boundaryEdgesGeometry, returning null');
-    return null;
-  }
-
-  console.log('🔷 FilletEdgeLines - Rendering group with geometry', shape.id);
-  return (
-    <group ref={groupRef}>
-      <lineSegments geometry={boundaryEdgesGeometry}>
-        <lineBasicMaterial
-          color={isFilletMode ? 0x1e3a8a : 0x00ffff}
-          linewidth={isFilletMode ? lineWidths.thick : lineWidths.normal}
-          transparent={!isFilletMode}
-          opacity={isFilletMode ? 1 : 0.8}
-        />
-      </lineSegments>
-    </group>
-  );
-};
