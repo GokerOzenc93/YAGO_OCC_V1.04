@@ -35,6 +35,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
 
   const { viewport } = useThree();
   const linewidthScale = Math.max(0.4, Math.min(1, viewport.width / 25));
+  const edgeThreshold = viewport.width < 15 ? 25 : viewport.width < 20 ? 20 : 15;
 
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -129,7 +130,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         }
 
         setLocalGeometry(geom);
-        const edges = new THREE.EdgesGeometry(geom, 15);
+        const edges = new THREE.EdgesGeometry(geom, edgeThreshold);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -144,7 +145,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         geom.computeBoundingSphere();
 
         setLocalGeometry(geom);
-        const edges = new THREE.EdgesGeometry(geom, 15);
+        const edges = new THREE.EdgesGeometry(geom, edgeThreshold);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -154,7 +155,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     };
 
     loadEdges();
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id, edgeThreshold]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
@@ -287,7 +288,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, edgeThreshold]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e3a8a' : '#0a0a0a'}
@@ -310,7 +311,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, edgeThreshold]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
@@ -323,7 +324,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, edgeThreshold]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
@@ -357,7 +358,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, edgeThreshold]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
