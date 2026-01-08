@@ -9,6 +9,7 @@ import {
 } from './FaceEditor';
 import { convertReplicadToThreeGeometry } from './ReplicadService';
 import { getReplicadVertices } from './VertexEditorService';
+import { useResponsiveLineWidth } from '../hooks/useResponsiveLineWidth';
 
 export interface FilletData {
   face1Descriptor: any;
@@ -147,6 +148,7 @@ interface FilletEdgeLinesProps {
 }
 
 export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
+  const lineWidths = useResponsiveLineWidth();
   const groupRef = useRef<THREE.Group>(null);
   const shapeRef = useRef(shape);
   shapeRef.current = shape;
@@ -216,7 +218,7 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   return (
     <group ref={groupRef}>
       <lineSegments geometry={boundaryEdgesGeometry}>
-        <lineBasicMaterial color={0x00ffff} linewidth={2} transparent opacity={0.8} />
+        <lineBasicMaterial color={0x00ffff} linewidth={lineWidths.normal} transparent opacity={0.8} />
       </lineSegments>
     </group>
   );

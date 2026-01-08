@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import { useAppStore } from '../store';
+import { useResponsiveLineWidth } from '../hooks/useResponsiveLineWidth';
 
 export interface FaceData {
   faceIndex: number;
@@ -469,6 +470,7 @@ interface FaceEditorProps {
 }
 
 export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
+  const lineWidths = useResponsiveLineWidth();
   const {
     hoveredFaceIndex,
     setHoveredFaceIndex,
@@ -642,7 +644,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         <lineSegments
           geometry={boundaryEdgesGeometry}
         >
-          <lineBasicMaterial color={0x00ffff} linewidth={2} />
+          <lineBasicMaterial color={0x00ffff} linewidth={lineWidths.normal} />
         </lineSegments>
       )}
     </group>
