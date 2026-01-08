@@ -608,6 +608,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         <div className="ml-auto flex items-center gap-2">
           <button
+            type="button"
             onClick={handleCameraToggle}
             className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-100 hover:bg-orange-200 transition-colors text-orange-800 font-medium"
             title={`Switch to ${cameraType === CameraType.PERSPECTIVE ? 'Orthographic' : 'Perspective'} Camera (C)`}
@@ -623,6 +624,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           </button>
 
           <button
+            type="button"
             onClick={() => {
               const { cycleViewMode } = useAppStore.getState();
               cycleViewMode();
@@ -638,6 +640,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           </button>
 
           <button
+            type="button"
             onClick={handleOrthoModeToggle}
             className={`flex items-center gap-1 px-2 py-1 rounded-md transition-colors font-medium ${
               orthoMode === OrthoMode.ON
@@ -655,6 +658,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           <div className="w-px h-6 bg-stone-300"></div>
 
           <button
+            type="button"
             onClick={onOpenCatalog}
             className="flex items-center gap-1 px-2 py-1 rounded-md bg-orange-600 hover:bg-orange-700 transition-colors text-white font-medium shadow-md"
             title="Open Geometry Catalog"
@@ -671,10 +675,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
               className="w-40 h-8 pl-10 pr-3 text-sm bg-white rounded-lg border border-stone-300 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400 transition-colors placeholder-stone-500 text-slate-800"
             />
           </div>
-          <button className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+          <button type="button" className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
             <Settings size={14} className="text-stone-600 hover:text-slate-800" />
           </button>
-          <button className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
+          <button type="button" className="p-1.5 hover:bg-white/20 rounded-lg transition-colors">
             <HelpCircle size={14} className="text-stone-600 hover:text-slate-800" />
           </button>
         </div>
@@ -685,6 +689,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           {menus.map((menu) => (
             <div key={menu.label} className="relative h-full">
               <button
+                type="button"
                 className={`h-full px-3 text-xs font-medium hover:bg-stone-100 transition-colors flex items-center ${
                   activeMenu === menu.label ? 'bg-stone-100 text-slate-800' : 'text-slate-700'
                 }`}
@@ -703,6 +708,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
                       <div key={i} className="border-t border-stone-100 my-1"></div>
                     ) : (
                       <button
+                        type="button"
                         key={i}
                         className="flex items-center justify-between w-full h-8 px-3 text-sm hover:bg-stone-50 transition-colors text-slate-700 hover:text-slate-800"
                         onClick={() => {
@@ -733,6 +739,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         <div className="flex items-center gap-0.5 bg-white rounded-lg p-1 shadow-sm border border-stone-200">
           {quickAccessButtons.map((button, index) => (
             <button
+              type="button"
               key={index}
               className="p-1.5 rounded text-stone-600 hover:bg-stone-50 hover:text-slate-800 transition-colors"
               title={`${button.label} (${button.shortcut})`}
@@ -747,6 +754,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         <div className="flex items-center gap-0.5 bg-white rounded-lg p-1 shadow-sm border border-stone-200">
           {editButtons.map((button, index) => (
             <button
+              type="button"
               key={index}
               className="p-1.5 rounded text-stone-600 hover:bg-stone-50 hover:text-slate-800 transition-colors"
               title={`${button.label} (${button.shortcut})`}
@@ -763,6 +771,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             const isDisabled = (tool.id !== Tool.SELECT && !selectedShapeId) || (tool.disabledForBox && isBoxSelected);
             return (
               <button
+                type="button"
                 key={tool.id}
                 className={`p-1.5 rounded transition-all ${
                   activeTool === tool.id
@@ -795,6 +804,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
         <div className="flex items-center gap-0.5 bg-white rounded-lg p-1 shadow-sm border border-stone-200">
           <button
+            type="button"
             onClick={() => handleSnapToggle(SnapType.ENDPOINT)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.ENDPOINT]
@@ -806,6 +816,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Target size={11} />
           </button>
           <button
+            type="button"
             onClick={() => handleSnapToggle(SnapType.MIDPOINT)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.MIDPOINT]
@@ -817,6 +828,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Navigation size={11} />
           </button>
           <button
+            type="button"
             onClick={() => handleSnapToggle(SnapType.CENTER)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.CENTER]
@@ -828,6 +840,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Crosshair size={11} />
           </button>
           <button
+            type="button"
             onClick={() => handleSnapToggle(SnapType.PERPENDICULAR)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.PERPENDICULAR]
@@ -839,6 +852,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <ArrowDownUp size={11} />
           </button>
           <button
+            type="button"
             onClick={() => handleSnapToggle(SnapType.INTERSECTION)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.INTERSECTION]
@@ -850,6 +864,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Intersection size={11} />
           </button>
           <button
+            type="button"
             onClick={() => handleSnapToggle(SnapType.NEAREST)}
             className={`p-1.5 rounded transition-all ${
               snapSettings[SnapType.NEAREST]
@@ -867,6 +882,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
         <div className="flex items-center gap-0.5 bg-white rounded-lg p-1 shadow-sm border border-stone-200">
           {measurementTools.map((tool) => (
             <button
+              type="button"
               key={tool.id}
               className={`p-1.5 rounded transition-all ${
                 activeTool === tool.id
@@ -909,6 +925,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Cylinder size={11} />
           </button>
           <button
+            type="button"
             onClick={() => {
               if (selectedShapeId) {
                 setShowParametersPanel(!showParametersPanel);
@@ -927,6 +944,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Settings size={11} />
           </button>
           <button
+            type="button"
             onClick={handleSubtract}
             className={`p-1.5 rounded transition-all ${
               hasIntersectingShapes
@@ -947,6 +965,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <DivideCircle size={11} />
           </button>
           <button
+            type="button"
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
             title="Panel"
           >
@@ -964,6 +983,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           }}
         >
           <button
+            type="button"
             className="w-full px-3 py-2 text-left text-sm hover:bg-stone-50 flex items-center gap-2 text-slate-700 hover:text-slate-800"
             onClick={handlePolylineEdit}
           >
@@ -971,6 +991,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <span className="font-medium">Edit Polyline</span>
           </button>
           <button
+            type="button"
             className="w-full px-3 py-2 text-left text-sm hover:bg-stone-50 flex items-center gap-2 text-slate-700 hover:text-slate-800"
             onClick={() => {
               setActiveTool(Tool.POLYLINE);
