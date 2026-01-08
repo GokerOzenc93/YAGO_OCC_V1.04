@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
+import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
 import { useAppStore, CameraType } from '../store';
 import ContextMenu from './ContextMenu';
@@ -10,30 +10,6 @@ import { FaceEditor } from './FaceEditor';
 import { FilletEdgeLines, applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
-
-const ResponsiveGrid: React.FC = () => {
-  const { viewport } = useThree();
-  const cellThicknessScale = Math.max(0.5, Math.min(1, viewport.width / 30));
-  const sectionThicknessScale = Math.max(0.5, Math.min(1, viewport.width / 25));
-
-  return (
-    <group position={[-2500, -1, -2500]}>
-      <Grid
-        args={[50000, 50000]}
-        cellSize={50}
-        cellThickness={2 * cellThicknessScale}
-        cellColor="#d4d4d8"
-        sectionSize={250}
-        sectionThickness={3 * sectionThicknessScale}
-        sectionColor="#a1a1aa"
-        fadeDistance={Infinity}
-        fadeStrength={0}
-        followCamera={false}
-        infiniteGrid
-      />
-    </group>
-  );
-};
 
 const Scene: React.FC = () => {
   const controlsRef = useRef<any>(null);
@@ -406,7 +382,21 @@ const Scene: React.FC = () => {
         minDistance={50}
       />
 
-      <ResponsiveGrid />
+      <group position={[-2500, -1, -2500]}>
+        <Grid
+          args={[50000, 50000]}
+          cellSize={50}
+          cellThickness={2}
+          cellColor="#d4d4d8"
+          sectionSize={250}
+          sectionThickness={3}
+          sectionColor="#a1a1aa"
+          fadeDistance={Infinity}
+          fadeStrength={0}
+          followCamera={false}
+          infiniteGrid
+        />
+      </group>
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
