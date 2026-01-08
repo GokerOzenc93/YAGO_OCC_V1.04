@@ -269,21 +269,23 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           );
         })}
         {!isWireframe && !isXray && !shouldShowAsReference && (
-          <mesh
-            ref={meshRef}
-            geometry={localGeometry}
-            castShadow
-            receiveShadow
-          >
-            <meshStandardMaterial
-              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
-              metalness={0.2}
-              roughness={0.5}
-              transparent
-              opacity={0.75}
-              side={THREE.DoubleSide}
-              depthWrite={false}
-            />
+          <>
+            <mesh
+              ref={meshRef}
+              geometry={localGeometry}
+              castShadow
+              receiveShadow
+            >
+              <meshStandardMaterial
+                color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
+                metalness={0.2}
+                roughness={0.5}
+                transparent
+                opacity={0.75}
+                side={THREE.DoubleSide}
+                depthWrite={false}
+              />
+            </mesh>
             <mesh>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
@@ -297,7 +299,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                 depthTest={true}
               />
             </mesh>
-          </mesh>
+          </>
         )}
         {isWireframe && (
           <>
@@ -314,21 +316,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                depthTest={true}
-                depthWrite={true}
-              />
-            </mesh>
-            <mesh>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, edgeThreshold]} />
-              )}
-              <lineBasicMaterial
-                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
-                transparent
-                opacity={0.4}
-                depthTest={true}
+                depthTest={false}
+                linewidth={2}
               />
             </mesh>
           </>
@@ -359,7 +348,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
-                depthTest={true}
+                depthTest={false}
                 transparent={false}
                 opacity={1}
               />
