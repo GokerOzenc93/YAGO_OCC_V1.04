@@ -145,9 +145,10 @@ export async function applyFilletToShape(
 
 interface FilletEdgeLinesProps {
   shape: any;
+  isFilletMode?: boolean;
 }
 
-export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
+export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape, isFilletMode = false }) => {
   const lineWidths = useResponsiveLineWidth();
   const groupRef = useRef<THREE.Group>(null);
   const shapeRef = useRef(shape);
@@ -218,7 +219,12 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   return (
     <group ref={groupRef}>
       <lineSegments geometry={boundaryEdgesGeometry}>
-        <lineBasicMaterial color={0x00ffff} linewidth={lineWidths.normal} transparent opacity={0.8} />
+        <lineBasicMaterial
+          color={isFilletMode ? 0x1e3a8a : 0x00ffff}
+          linewidth={isFilletMode ? lineWidths.thick : lineWidths.normal}
+          transparent={!isFilletMode}
+          opacity={isFilletMode ? 1 : 0.8}
+        />
       </lineSegments>
     </group>
   );

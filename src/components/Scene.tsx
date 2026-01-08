@@ -414,6 +414,7 @@ const Scene: React.FC = () => {
                 <FilletEdgeLines
                   key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}-${shape.fillets.length}`}
                   shape={shape}
+                  isFilletMode={filletMode}
                 />
               </>
             )}

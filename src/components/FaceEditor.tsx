@@ -644,7 +644,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         <lineSegments
           geometry={boundaryEdgesGeometry}
         >
-          <lineBasicMaterial color={0x00ffff} linewidth={lineWidths.normal} />
+          <lineBasicMaterial
+            color={filletMode ? 0x1e3a8a : 0x00ffff}
+            linewidth={filletMode ? lineWidths.thick : lineWidths.normal}
+            transparent={!filletMode}
+            opacity={filletMode ? 1 : 1}
+          />
         </lineSegments>
       )}
     </group>
