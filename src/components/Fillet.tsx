@@ -218,9 +218,10 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
   console.log('🔷 FilletEdgeLines - Rendering group with geometry', shape.id);
   return (
     <group ref={groupRef}>
-      <lineSegments geometry={boundaryEdgesGeometry}>
-        <lineBasicMaterial color={0x00ffff} linewidth={2 * linewidthScale} transparent opacity={0.8} />
-      </lineSegments>
+      <mesh>
+        <edgesGeometry args={[boundaryEdgesGeometry]} />
+        <lineBasicMaterial color={0x00ffff} transparent opacity={0.8} />
+      </mesh>
     </group>
   );
 };

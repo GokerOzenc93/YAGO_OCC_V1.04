@@ -73,22 +73,13 @@ const DirectionArrow: React.FC<{
     }
   };
 
+  const curve = new THREE.LineCurve3(position, endPosition);
   return (
     <group>
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={2}
-            array={new Float32Array([
-              position.x, position.y, position.z,
-              endPosition.x, endPosition.y, endPosition.z
-            ])}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial color="#ef4444" linewidth={3} />
-      </line>
+      <mesh>
+        <tubeGeometry args={[curve, 8, 3 * scale, 4]} />
+        <meshBasicMaterial color="#ef4444" />
+      </mesh>
       <mesh position={endPosition} rotation={getRotation()}>
         <coneGeometry args={[4 * scale, 10 * scale, 8]} />
         <meshBasicMaterial color="#ef4444" />
@@ -140,22 +131,13 @@ const DirectionSelector: React.FC<{
         const endPosition = position.clone().add(dirVector.clone().multiplyScalar(arrowLength));
         const color = getColor(dir);
 
+        const curve = new THREE.LineCurve3(position, endPosition);
         return (
           <group key={dir}>
-            <line>
-              <bufferGeometry>
-                <bufferAttribute
-                  attach="attributes-position"
-                  count={2}
-                  array={new Float32Array([
-                    position.x, position.y, position.z,
-                    endPosition.x, endPosition.y, endPosition.z
-                  ])}
-                  itemSize={3}
-                />
-              </bufferGeometry>
-              <lineBasicMaterial color={color} linewidth={3} transparent opacity={0.8} />
-            </line>
+            <mesh>
+              <tubeGeometry args={[curve, 8, 3 * scale, 4]} />
+              <meshBasicMaterial color={color} transparent opacity={0.8} />
+            </mesh>
             <mesh
               position={endPosition}
               rotation={getRotation(dir)}

@@ -284,7 +284,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               side={THREE.DoubleSide}
               depthWrite={false}
             />
-            <lineSegments>
+            <mesh>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
@@ -292,12 +292,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-                linewidth={2.5 * linewidthScale}
                 opacity={1}
                 transparent={false}
                 depthTest={true}
               />
-            </lineSegments>
+            </mesh>
           </mesh>
         )}
         {isWireframe && (
@@ -307,7 +306,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               geometry={localGeometry}
               visible={false}
             />
-            <lineSegments>
+            <mesh>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
@@ -315,12 +314,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={(isSelected || shouldShowAsReference ? 3.5 : 2.5) * linewidthScale}
                 depthTest={true}
                 depthWrite={true}
               />
-            </lineSegments>
-            <lineSegments>
+            </mesh>
+            <mesh>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
@@ -328,12 +326,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
-                linewidth={(isSelected || shouldShowAsReference ? 2 : 1.5) * linewidthScale}
                 transparent
                 opacity={0.4}
                 depthTest={true}
               />
-            </lineSegments>
+            </mesh>
           </>
         )}
         {(isXray || shouldShowAsReference) && (
@@ -354,7 +351,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                 depthWrite={false}
               />
             </mesh>
-            <lineSegments>
+            <mesh>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
@@ -362,12 +359,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
-                linewidth={(isSelected || shouldShowAsReference ? 3 : 2.5) * linewidthScale}
                 depthTest={true}
                 transparent={false}
                 opacity={1}
               />
-            </lineSegments>
+            </mesh>
           </>
         )}
       </group>
