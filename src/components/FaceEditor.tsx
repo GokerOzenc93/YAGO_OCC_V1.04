@@ -1,6 +1,5 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
-import { useFrame, useThree } from '@react-three/fiber';
 import { useAppStore } from '../store';
 
 export interface FaceData {
@@ -480,26 +479,9 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     addFilletFaceData
   } = useAppStore();
 
-  const { viewport } = useThree();
-  const linewidthScale = Math.max(0.4, Math.min(1, viewport.width / 25));
-
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
-  const groupRef = useRef<THREE.Group>(null);
-  const shapeRef = useRef(shape);
-  shapeRef.current = shape;
-
-  useFrame(() => {
-    if (groupRef.current) {
-      const currentShape = shapeRef.current;
-      if (currentShape) {
-        groupRef.current.position.set(currentShape.position[0], currentShape.position[1], currentShape.position[2]);
-        groupRef.current.rotation.set(currentShape.rotation[0], currentShape.rotation[1], currentShape.rotation[2]);
-        groupRef.current.scale.set(currentShape.scale[0], currentShape.scale[1], currentShape.scale[2]);
-      }
-    }
-  });
 
   const geometryUuid = shape.geometry?.uuid || '';
 
@@ -598,7 +580,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   if (!isActive) return null;
 
   return (
-    <group ref={groupRef}>
+    <>
       <mesh
         geometry={shape.geometry}
         visible={false}
@@ -642,11 +624,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       )}
 
       {boundaryEdgesGeometry && (
-        <mesh>
-          <bufferGeometry {...boundaryEdgesGeometry} />
-          <lineBasicMaterial color={0x00ffff} />
-        </mesh>
+        <lineSegments
+          geometry={boundaryEdgesGeometry}
+        >
+          <lineBasicMaterial color={0x00ffff} linewidth={2} />
+        </lineSegments>
       )}
-    </group>
+    </>
   );
 };

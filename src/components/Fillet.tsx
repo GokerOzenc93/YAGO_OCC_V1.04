@@ -1,5 +1,4 @@
-import React, { useRef, useEffect, useMemo } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
+import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import {
   extractFacesFromGeometry,
@@ -144,84 +143,28 @@ export async function applyFilletToShape(
 
 interface FilletEdgeLinesProps {
   shape: any;
+  isSelected: boolean;
 }
 
-export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
-  const { viewport } = useThree();
-  const linewidthScale = Math.max(0.4, Math.min(1, viewport.width / 25));
-
-  const groupRef = useRef<THREE.Group>(null);
-  const shapeRef = useRef(shape);
-  shapeRef.current = shape;
-
-  useEffect(() => {
-    console.log('🔷 FilletEdgeLines mounted/updated, shape.id:', shape.id, 'groupRef.current:', groupRef.current);
-  }, [shape.id]);
-
-  useEffect(() => {
-    if (groupRef.current && shape) {
-      console.log('🔷 FilletEdgeLines - Setting transform:', { position: shape.position, shape_id: shape.id });
-      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
-      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
-      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
-    } else {
-      console.warn('🔷 FilletEdgeLines - groupRef not set or shape missing');
-    }
-  }, [shape.position, shape.rotation, shape.scale, shape.id]);
-
-  useFrame(() => {
-    if (groupRef.current) {
-      const currentShape = shapeRef.current;
-      if (currentShape) {
-        groupRef.current.position.set(currentShape.position[0], currentShape.position[1], currentShape.position[2]);
-        groupRef.current.rotation.set(currentShape.rotation[0], currentShape.rotation[1], currentShape.rotation[2]);
-        groupRef.current.scale.set(currentShape.scale[0], currentShape.scale[1], currentShape.scale[2]);
-      }
-    }
-  });
-
-  const faces = useMemo(() => {
-    if (!shape.geometry) return [];
-    try {
-      const extracted = extractFacesFromGeometry(shape.geometry);
-      console.log(`🔷 FilletEdgeLines - Extracted ${extracted.length} faces from geometry uuid: ${shape.geometry.uuid}`);
-      if (extracted.length > 0) {
-        console.log('🔷 First face center:', extracted[0].center);
-      }
-      return extracted;
-    } catch (e) {
-      console.error('🔷 Error extracting faces:', e);
-      return [];
-    }
-  }, [shape.geometry, shape.geometry?.uuid, shape.fillets?.length, shape.replicadShape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
-
-  const faceGroups = useMemo(() => {
-    if (faces.length === 0) return [];
-    return groupCoplanarFaces(faces);
-  }, [faces]);
-
+export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape, isSelected }) => {
   const boundaryEdgesGeometry = useMemo(() => {
-    if (faces.length === 0 || faceGroups.length === 0) {
-      console.warn('🔷 No boundary edges: faces.length=', faces.length, 'faceGroups.length=', faceGroups.length);
-      return null;
-    }
-    const geom = createGroupBoundaryEdges(faces, faceGroups);
-    console.log('🔷 Created boundary edges geometry, faces:', faces.length, 'groups:', faceGroups.length);
-    return geom;
-  }, [faces, faceGroups]);
+    if (!shape.geometry) return null;
+    const faces = extractFacesFromGeometry(shape.geometry);
+    const groups = groupCoplanarFaces(faces);
+    return createGroupBoundaryEdges(faces, groups);
+  }, [shape.geometry]);
 
-  if (!boundaryEdgesGeometry) {
-    console.warn('🔷 FilletEdgeLines - No boundaryEdgesGeometry, returning null');
-    return null;
-  }
+  if (!boundaryEdgesGeometry) return null;
 
-  console.log('🔷 FilletEdgeLines - Rendering group with geometry', shape.id);
   return (
-    <group ref={groupRef}>
-      <mesh>
-        <edgesGeometry args={[boundaryEdgesGeometry]} />
-        <lineBasicMaterial color={0x00ffff} transparent opacity={0.8} />
-      </mesh>
-    </group>
+    <lineSegments geometry={boundaryEdgesGeometry}>
+      <lineBasicMaterial
+        color={isSelected ? '#1e3a8a' : '#0a0a0a'}
+        linewidth={2.5}
+        opacity={1}
+        transparent={false}
+        depthTest={true}
+      />
+    </lineSegments>
   );
 };
