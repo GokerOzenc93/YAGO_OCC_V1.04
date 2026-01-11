@@ -368,7 +368,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     if (dimension === 'depth') setDepth(value);
   };
 
-  const handleSubParamChange = (param: string, expression: string) => {
+  const handleSubParamChange = async (param: string, expression: string) => {
     const evalContext = {
       W: width,
       H: height,
@@ -378,10 +378,43 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
     const result = evaluateExpression(expression, evalContext);
 
-    setSubParams(prev => ({
-      ...prev,
+    const updatedSubParams = {
+      ...subParams,
       [param]: { expression, result }
-    }));
+    };
+
+    setSubParams(updatedSubParams);
+
+    const currentState = useAppStore.getState();
+    const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
+    if (!currentShape) return;
+
+    console.log('📍 Sub Param Change - Current shape position:', currentShape.position);
+
+    await applyShapeChanges({
+      selectedShape: currentShape,
+      width,
+      height,
+      depth,
+      rotX,
+      rotY,
+      rotZ,
+      customParameters,
+      vertexModifications,
+      filletRadii,
+      selectedSubtractionIndex,
+      subWidth: updatedSubParams.width.result,
+      subHeight: updatedSubParams.height.result,
+      subDepth: updatedSubParams.depth.result,
+      subPosX: updatedSubParams.posX.result,
+      subPosY: updatedSubParams.posY.result,
+      subPosZ: updatedSubParams.posZ.result,
+      subRotX: updatedSubParams.rotX.result,
+      subRotY: updatedSubParams.rotY.result,
+      subRotZ: updatedSubParams.rotZ.result,
+      subParams: updatedSubParams,
+      updateShape
+    });
   };
 
   const addCustomParameter = () => {
@@ -600,9 +633,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       updateShape(currentShape.id, {
         geometry: finalGeometry,
         replicadShape: finalShape,
-        position: currentShape.position,
-        rotation: currentShape.rotation,
-        scale: currentShape.scale,
         fillets: updatedFillets,
         parameters: {
           ...currentShape.parameters,
@@ -768,10 +798,39 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       <ParameterRow
                         label={`F${idx + 1}`}
                         value={radius}
-                        onChange={(newRadius) => {
+                        onChange={async (newRadius) => {
                           const newRadii = [...filletRadii];
                           newRadii[idx] = newRadius;
                           setFilletRadii(newRadii);
+
+                          const currentState = useAppStore.getState();
+                          const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
+                          if (!currentShape) return;
+
+                          await applyShapeChanges({
+                            selectedShape: currentShape,
+                            width,
+                            height,
+                            depth,
+                            rotX,
+                            rotY,
+                            rotZ,
+                            customParameters,
+                            vertexModifications,
+                            filletRadii: newRadii,
+                            selectedSubtractionIndex,
+                            subWidth: subParams.width.result,
+                            subHeight: subParams.height.result,
+                            subDepth: subParams.depth.result,
+                            subPosX: subParams.posX.result,
+                            subPosY: subParams.posY.result,
+                            subPosZ: subParams.posZ.result,
+                            subRotX: subParams.rotX.result,
+                            subRotY: subParams.rotY.result,
+                            subRotZ: subParams.rotZ.result,
+                            subParams,
+                            updateShape
+                          });
                         }}
                         description={`Fillet ${idx + 1} Radius`}
                         step={0.1}
