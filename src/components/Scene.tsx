@@ -210,12 +210,21 @@ const Scene: React.FC = () => {
           console.log('📍 Center AFTER adding fillet:', newCenter);
 
           const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-          console.log('📍 Center offset:', centerOffset);
+          console.log('📍 Center offset (local):', centerOffset);
+
+          const rotatedOffset = centerOffset.clone();
+          if (shape.rotation[0] !== 0 || shape.rotation[1] !== 0 || shape.rotation[2] !== 0) {
+            const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
+              new THREE.Euler(shape.rotation[0], shape.rotation[1], shape.rotation[2], 'XYZ')
+            );
+            rotatedOffset.applyMatrix4(rotationMatrix);
+            console.log('📍 Center offset (rotated):', rotatedOffset);
+          }
 
           const finalPosition: [number, number, number] = [
-            shape.position[0] - centerOffset.x,
-            shape.position[1] - centerOffset.y,
-            shape.position[2] - centerOffset.z
+            shape.position[0] - rotatedOffset.x,
+            shape.position[1] - rotatedOffset.y,
+            shape.position[2] - rotatedOffset.z
           ];
 
           console.log('🎯 AFTER FILLET - Adjusted position from', shape.position, 'to', finalPosition);

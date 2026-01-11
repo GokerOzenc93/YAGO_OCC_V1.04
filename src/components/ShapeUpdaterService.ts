@@ -419,12 +419,21 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         console.log('📍 Center AFTER fillet (subtraction change):', newCenter);
 
         const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-        console.log('📍 Center offset:', centerOffset);
+        console.log('📍 Center offset (local):', centerOffset);
+
+        const rotatedOffset = centerOffset.clone();
+        if (baseUpdate.rotation[0] !== 0 || baseUpdate.rotation[1] !== 0 || baseUpdate.rotation[2] !== 0) {
+          const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
+            new THREE.Euler(baseUpdate.rotation[0], baseUpdate.rotation[1], baseUpdate.rotation[2], 'XYZ')
+          );
+          rotatedOffset.applyMatrix4(rotationMatrix);
+          console.log('📍 Center offset (rotated):', rotatedOffset);
+        }
 
         finalPosition = [
-          baseUpdate.position[0] - centerOffset.x,
-          baseUpdate.position[1] - centerOffset.y,
-          baseUpdate.position[2] - centerOffset.z
+          baseUpdate.position[0] - rotatedOffset.x,
+          baseUpdate.position[1] - rotatedOffset.y,
+          baseUpdate.position[2] - rotatedOffset.z
         ] as [number, number, number];
 
         console.log('🎯 SUBTRACTION CHANGE + FILLET - Adjusted position from', baseUpdate.position, 'to', finalPosition);
@@ -527,12 +536,21 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           console.log('📍 Center AFTER fillet:', newCenter);
 
           const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-          console.log('📍 Center offset:', centerOffset);
+          console.log('📍 Center offset (local):', centerOffset);
+
+          const rotatedOffset = centerOffset.clone();
+          if (baseUpdate.rotation[0] !== 0 || baseUpdate.rotation[1] !== 0 || baseUpdate.rotation[2] !== 0) {
+            const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
+              new THREE.Euler(baseUpdate.rotation[0], baseUpdate.rotation[1], baseUpdate.rotation[2], 'XYZ')
+            );
+            rotatedOffset.applyMatrix4(rotationMatrix);
+            console.log('📍 Center offset (rotated):', rotatedOffset);
+          }
 
           finalPosition = [
-            baseUpdate.position[0] - centerOffset.x,
-            baseUpdate.position[1] - centerOffset.y,
-            baseUpdate.position[2] - centerOffset.z
+            baseUpdate.position[0] - rotatedOffset.x,
+            baseUpdate.position[1] - rotatedOffset.y,
+            baseUpdate.position[2] - rotatedOffset.z
           ] as [number, number, number];
 
           console.log('🎯 DIMENSION CHANGE + FILLET - Adjusted position from', baseUpdate.position, 'to', finalPosition);
@@ -616,12 +634,21 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           console.log('📍 Center AFTER fillet radius change:', newCenter);
 
           const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-          console.log('📍 Center offset:', centerOffset);
+          console.log('📍 Center offset (local):', centerOffset);
+
+          const rotatedOffset = centerOffset.clone();
+          if (baseUpdate.rotation[0] !== 0 || baseUpdate.rotation[1] !== 0 || baseUpdate.rotation[2] !== 0) {
+            const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
+              new THREE.Euler(baseUpdate.rotation[0], baseUpdate.rotation[1], baseUpdate.rotation[2], 'XYZ')
+            );
+            rotatedOffset.applyMatrix4(rotationMatrix);
+            console.log('📍 Center offset (rotated):', rotatedOffset);
+          }
 
           const finalPosition: [number, number, number] = [
-            baseUpdate.position[0] - centerOffset.x,
-            baseUpdate.position[1] - centerOffset.y,
-            baseUpdate.position[2] - centerOffset.z
+            baseUpdate.position[0] - rotatedOffset.x,
+            baseUpdate.position[1] - rotatedOffset.y,
+            baseUpdate.position[2] - rotatedOffset.z
           ];
 
           console.log('🎯 FILLET RADIUS CHANGE - Adjusted position from', baseUpdate.position, 'to', finalPosition);
