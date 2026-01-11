@@ -143,9 +143,10 @@ export async function applyFilletToShape(
 
 interface FilletEdgeLinesProps {
   shape: any;
+  isSelected: boolean;
 }
 
-export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
+export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape, isSelected }) => {
   const boundaryEdgesGeometry = useMemo(() => {
     if (!shape.geometry) return null;
     const faces = extractFacesFromGeometry(shape.geometry);
@@ -157,7 +158,13 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
 
   return (
     <lineSegments geometry={boundaryEdgesGeometry}>
-      <lineBasicMaterial color={0x00ffff} linewidth={2} transparent opacity={0.8} />
+      <lineBasicMaterial
+        color={isSelected ? '#1e3a8a' : '#0a0a0a'}
+        linewidth={2.5}
+        opacity={1}
+        transparent={false}
+        depthTest={true}
+      />
     </lineSegments>
   );
 };

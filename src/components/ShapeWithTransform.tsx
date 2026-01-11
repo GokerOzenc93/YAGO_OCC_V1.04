@@ -217,6 +217,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const hasFillets = shape.fillets && shape.fillets.length > 0;
   const {
     faceEditMode,
+    filletMode,
     setSelectedVertexIndex,
     setVertexDirection
   } = useAppStore();
@@ -373,8 +374,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             </lineSegments>
           </>
         )}
-        {hasFillets && !faceEditMode && (
-          <FilletEdgeLines shape={shape} />
+        {hasFillets && filletMode && (
+          <FilletEdgeLines shape={shape} isSelected={isSelected} />
         )}
         {isSelected && faceEditMode && (
           <FaceEditor
