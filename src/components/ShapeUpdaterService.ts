@@ -703,14 +703,6 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
   if (updatedFillets.length > 0) {
     console.log('🔄 Updating fillet centers after subtraction change...');
 
-    const oldCenter = new THREE.Vector3();
-    if (currentShape.geometry && currentShape.geometry.boundingBox) {
-      currentShape.geometry.boundingBox.getCenter(oldCenter);
-    } else if (currentShape.geometry) {
-      const box = new THREE.Box3().setFromBufferAttribute(currentShape.geometry.getAttribute('position'));
-      box.getCenter(oldCenter);
-    }
-
     const shapeSize = {
       width: currentShape.parameters.width || 1,
       height: currentShape.parameters.height || 1,
@@ -723,24 +715,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     const finalGeometry = convertReplicadToThreeGeometry(resultShape);
     const finalBaseVertices = await getReplicadVertices(resultShape);
 
-    const newCenter = new THREE.Vector3();
-    const newBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
-    newBox.getCenter(newCenter);
-
-    const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-
-    const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-      new THREE.Euler(currentShape.rotation[0], currentShape.rotation[1], currentShape.rotation[2])
-    );
-    centerOffset.applyMatrix4(rotationMatrix);
-    centerOffset.multiply(new THREE.Vector3(currentShape.scale[0], currentShape.scale[1], currentShape.scale[2]));
-
-    const newPosition: [number, number, number] = [
-      currentShape.position[0] - centerOffset.x,
-      currentShape.position[1] - centerOffset.y,
-      currentShape.position[2] - centerOffset.z
-    ];
-
+    console.log('🎯 DELETE SUBTRACTION - Keeping position:', currentShape.position);
     console.log('✅ Subtraction complete with fillets');
 
     updateShape(currentShape.id, {
@@ -748,7 +723,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: updatedFillets,
-      position: newPosition,
+      position: currentShape.position,
       rotation: currentShape.rotation,
       scale: currentShape.scale,
       parameters: {
