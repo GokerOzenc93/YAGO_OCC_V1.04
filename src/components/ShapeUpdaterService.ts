@@ -400,12 +400,8 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         console.log('🔄 Updating fillet centers after subtraction change...');
 
         const oldCenter = new THREE.Vector3();
-        if (selectedShape.geometry && selectedShape.geometry.boundingBox) {
-          selectedShape.geometry.boundingBox.getCenter(oldCenter);
-        } else if (selectedShape.geometry) {
-          const box = new THREE.Box3().setFromBufferAttribute(selectedShape.geometry.getAttribute('position'));
-          box.getCenter(oldCenter);
-        }
+        const oldBox = new THREE.Box3().setFromBufferAttribute(newGeometry.getAttribute('position'));
+        oldBox.getCenter(oldCenter);
 
         updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, { width, height, depth });
 
@@ -461,14 +457,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       if (dimensionsChanged) {
         console.log('🔄 Dimensions changed, recreating replicad shape with new dimensions...');
 
-        const oldCenter = new THREE.Vector3();
-        if (selectedShape.geometry && selectedShape.geometry.boundingBox) {
-          selectedShape.geometry.boundingBox.getCenter(oldCenter);
-        } else if (selectedShape.geometry) {
-          const box = new THREE.Box3().setFromBufferAttribute(selectedShape.geometry.getAttribute('position'));
-          box.getCenter(oldCenter);
-        }
-
         let newReplicadShape = await createReplicadBox({
           width,
           height,
@@ -518,6 +506,10 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         let newPosition = selectedShape.position;
 
         if (updatedFillets.length > 0) {
+          const oldCenter = new THREE.Vector3();
+          const oldBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
+          oldBox.getCenter(oldCenter);
+
           console.log('🔄 Updating fillet centers after dimension change...');
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
@@ -565,14 +557,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         if (filletsChanged && selectedShape.replicadShape) {
           console.log('🔄 Fillet radii changed without dimension change, reapplying fillets...');
 
-          const oldCenter = new THREE.Vector3();
-          if (selectedShape.geometry && selectedShape.geometry.boundingBox) {
-            selectedShape.geometry.boundingBox.getCenter(oldCenter);
-          } else if (selectedShape.geometry) {
-            const box = new THREE.Box3().setFromBufferAttribute(selectedShape.geometry.getAttribute('position'));
-            box.getCenter(oldCenter);
-          }
-
           let updatedFillets = selectedShape.fillets || [];
           updatedFillets = updatedFillets.map((fillet: FilletInfo, idx: number) => ({
             ...fillet,
@@ -612,6 +596,10 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
           let finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           let finalBaseVertices = await getReplicadVertices(newReplicadShape);
+
+          const oldCenter = new THREE.Vector3();
+          const oldBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
+          oldBox.getCenter(oldCenter);
 
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
