@@ -391,9 +391,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
     console.log('🔄 Sub Param Change START');
     console.log('   Current shape position:', currentShape.position);
+    console.log('   Current shape has geometry:', !!currentShape.geometry);
+    console.log('   Current shape geometry type:', currentShape.geometry?.type);
     console.log('   Subtraction index:', selectedSubtractionIndex);
-    console.log('   New params:', { subWidth: updatedSubParams.width.result, subHeight: updatedSubParams.height.result, subDepth: updatedSubParams.depth.result });
-    console.log('   New position:', { subPosX: updatedSubParams.posX.result, subPosY: updatedSubParams.posY.result, subPosZ: updatedSubParams.posZ.result });
+    console.log('   New subtraction params:', { subWidth: updatedSubParams.width.result, subHeight: updatedSubParams.height.result, subDepth: updatedSubParams.depth.result });
+    console.log('   New subtraction position:', { subPosX: updatedSubParams.posX.result, subPosY: updatedSubParams.posY.result, subPosZ: updatedSubParams.posZ.result });
 
     await applyShapeChanges({
       selectedShape: currentShape,

@@ -332,14 +332,26 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
     if (hasSubtractionChanges) {
       console.log('🔄 Recalculating subtraction with updated dimensions...');
+      console.log('📍 Current shape position before update:', selectedShape.position);
 
       const oldGeometryCenter = new THREE.Vector3();
+      let hasOldGeometry = false;
       if (selectedShape.geometry) {
-        const oldBox = new THREE.Box3().setFromBufferAttribute(
-          selectedShape.geometry.getAttribute('position')
-        );
-        oldBox.getCenter(oldGeometryCenter);
-        console.log('📍 Old geometry center:', oldGeometryCenter.toArray());
+        try {
+          const posAttr = selectedShape.geometry.getAttribute('position');
+          if (posAttr) {
+            const oldBox = new THREE.Box3().setFromBufferAttribute(posAttr);
+            oldBox.getCenter(oldGeometryCenter);
+            hasOldGeometry = true;
+            console.log('📍 Old geometry center:', oldGeometryCenter.toArray());
+          }
+        } catch (e) {
+          console.warn('⚠️ Failed to get old geometry center:', e);
+        }
+      }
+
+      if (!hasOldGeometry) {
+        console.warn('⚠️ No old geometry available - position will be preserved without center adjustment');
       }
 
       const updatedSubtraction = {
@@ -410,15 +422,22 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       newBox.getCenter(newGeometryCenter);
       console.log('📍 New geometry center:', newGeometryCenter.toArray());
 
-      const centerDelta = new THREE.Vector3().subVectors(oldGeometryCenter, newGeometryCenter);
-      const newPosition: [number, number, number] = [
-        selectedShape.position[0] + centerDelta.x,
-        selectedShape.position[1] + centerDelta.y,
-        selectedShape.position[2] + centerDelta.z
-      ];
-      console.log('📍 Position adjustment for geometry center change:', centerDelta.toArray());
-      console.log('📍 Old position:', selectedShape.position);
-      console.log('📍 New position to preserve world position:', newPosition);
+      let newPosition: [number, number, number];
+
+      if (hasOldGeometry) {
+        const centerDelta = new THREE.Vector3().subVectors(oldGeometryCenter, newGeometryCenter);
+        newPosition = [
+          selectedShape.position[0] + centerDelta.x,
+          selectedShape.position[1] + centerDelta.y,
+          selectedShape.position[2] + centerDelta.z
+        ];
+        console.log('📍 Position adjustment for geometry center change:', centerDelta.toArray());
+        console.log('📍 Old position:', selectedShape.position);
+        console.log('📍 New position to preserve world position:', newPosition);
+      } else {
+        newPosition = [...selectedShape.position] as [number, number, number];
+        console.log('📍 Preserving current position (no old geometry):', newPosition);
+      }
       console.log('📍 Position will be updated in store');
 
       let updatedFillets = selectedShape.fillets || [];
@@ -439,13 +458,19 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         );
         finalBox.getCenter(finalGeometryCenter);
 
-        const finalCenterDelta = new THREE.Vector3().subVectors(oldGeometryCenter, finalGeometryCenter);
-        const finalPosition: [number, number, number] = [
-          selectedShape.position[0] + finalCenterDelta.x,
-          selectedShape.position[1] + finalCenterDelta.y,
-          selectedShape.position[2] + finalCenterDelta.z
-        ];
-        console.log('📍 Final position after fillets:', finalPosition);
+        let finalPosition: [number, number, number];
+        if (hasOldGeometry) {
+          const finalCenterDelta = new THREE.Vector3().subVectors(oldGeometryCenter, finalGeometryCenter);
+          finalPosition = [
+            selectedShape.position[0] + finalCenterDelta.x,
+            selectedShape.position[1] + finalCenterDelta.y,
+            selectedShape.position[2] + finalCenterDelta.z
+          ];
+          console.log('📍 Final position after fillets:', finalPosition);
+        } else {
+          finalPosition = [...selectedShape.position] as [number, number, number];
+          console.log('📍 Preserving current position (no old geometry) after fillets:', finalPosition);
+        }
 
         console.log('🎯 SUBTRACTION CHANGE + FILLET - Preserving current position');
 
