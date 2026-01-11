@@ -1,15 +1,39 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
-import * as THREE from 'three';
 import { useAppStore, CameraType } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from './Database';
 import { VertexEditor } from './VertexEditor';
-import { applyFilletToShape } from './Fillet';
+import { FaceEditor } from './FaceEditor';
+import { FilletEdgeLines, applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
+
+const ResponsiveGrid: React.FC = () => {
+  const { viewport } = useThree();
+  const cellThicknessScale = Math.max(0.5, Math.min(1, viewport.width / 30));
+  const sectionThicknessScale = Math.max(0.5, Math.min(1, viewport.width / 25));
+
+  return (
+    <group position={[-2500, -1, -2500]}>
+      <Grid
+        args={[50000, 50000]}
+        cellSize={50}
+        cellThickness={2 * cellThicknessScale}
+        cellColor="#d4d4d8"
+        sectionSize={250}
+        sectionThickness={3 * sectionThicknessScale}
+        sectionColor="#a1a1aa"
+        fadeDistance={Infinity}
+        fadeStrength={0}
+        followCamera={false}
+        infiniteGrid
+      />
+    </group>
+  );
+};
 
 const Scene: React.FC = () => {
   const controlsRef = useRef<any>(null);
@@ -186,15 +210,6 @@ const Scene: React.FC = () => {
         }
 
         try {
-          console.log('🎯 BEFORE FILLET - Shape position:', shape.position);
-
-          const oldCenter = new THREE.Vector3();
-          if (shape.geometry) {
-            const oldBox = new THREE.Box3().setFromBufferAttribute(shape.geometry.getAttribute('position'));
-            oldBox.getCenter(oldCenter);
-            console.log('📍 Center BEFORE adding fillet:', oldCenter);
-          }
-
           const result = await applyFilletToShape(
             shape,
             currentSelectedFilletFaces,
@@ -204,35 +219,10 @@ const Scene: React.FC = () => {
 
           const newBaseVertices = await getReplicadVertices(result.replicadShape);
 
-          const newCenter = new THREE.Vector3();
-          const newBox = new THREE.Box3().setFromBufferAttribute(result.geometry.getAttribute('position'));
-          newBox.getCenter(newCenter);
-          console.log('📍 Center AFTER adding fillet:', newCenter);
-
-          const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-          console.log('📍 Center offset (local):', centerOffset);
-
-          const rotatedOffset = centerOffset.clone();
-          if (shape.rotation[0] !== 0 || shape.rotation[1] !== 0 || shape.rotation[2] !== 0) {
-            const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-              new THREE.Euler(shape.rotation[0], shape.rotation[1], shape.rotation[2], 'XYZ')
-            );
-            rotatedOffset.applyMatrix4(rotationMatrix);
-            console.log('📍 Center offset (rotated):', rotatedOffset);
-          }
-
-          const finalPosition: [number, number, number] = [
-            shape.position[0] - rotatedOffset.x,
-            shape.position[1] - rotatedOffset.y,
-            shape.position[2] - rotatedOffset.z
-          ];
-
-          console.log('🎯 AFTER FILLET - Adjusted position from', shape.position, 'to', finalPosition);
-
           currentState.updateShape(currentSelectedShapeId, {
             geometry: result.geometry,
             replicadShape: result.replicadShape,
-            position: finalPosition,
+            position: shape.position,
             rotation: shape.rotation,
             scale: shape.scale,
             parameters: {
@@ -416,24 +406,11 @@ const Scene: React.FC = () => {
         minDistance={50}
       />
 
-      <group position={[-2500, -1, -2500]}>
-        <Grid
-          args={[50000, 50000]}
-          cellSize={50}
-          cellThickness={2}
-          cellColor="#d4d4d8"
-          sectionSize={250}
-          sectionThickness={3}
-          sectionColor="#a1a1aa"
-          fadeDistance={Infinity}
-          fadeStrength={0}
-          followCamera={false}
-          infiniteGrid
-        />
-      </group>
+      <ResponsiveGrid />
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
+        const hasFillets = shape.fillets && shape.fillets.length > 0;
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -442,6 +419,14 @@ const Scene: React.FC = () => {
               orbitControlsRef={controlsRef}
               onContextMenu={handleContextMenu}
             />
+            {hasFillets && !faceEditMode && (
+              <>
+                <FilletEdgeLines
+                  key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}-${shape.fillets.length}`}
+                  shape={shape}
+                />
+              </>
+            )}
             {isSelected && vertexEditMode && (
               <VertexEditor
                 shape={shape}
@@ -451,6 +436,13 @@ const Scene: React.FC = () => {
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
+              />
+            )}
+            {isSelected && faceEditMode && (
+              <FaceEditor
+                key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
+                shape={shape}
+                isActive={true}
               />
             )}
           </React.Fragment>

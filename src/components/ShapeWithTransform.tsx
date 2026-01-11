@@ -1,10 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { TransformControls } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore, Tool, ViewMode } from '../store';
 import { SubtractionMesh } from './SubtractionMesh';
-import { FilletEdgeLines } from './Fillet';
-import { FaceEditor } from './FaceEditor';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -33,6 +32,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedSubtractionIndex,
     setShowParametersPanel
   } = useAppStore();
+
+  const { viewport } = useThree();
+  const linewidthScale = Math.max(0.4, Math.min(1, viewport.width / 25));
+  const edgeThreshold = viewport.width < 15 ? 25 : viewport.width < 20 ? 20 : 15;
 
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -127,7 +130,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         }
 
         setLocalGeometry(geom);
-        const edges = new THREE.EdgesGeometry(geom, 15);
+        const edges = new THREE.EdgesGeometry(geom, edgeThreshold);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -142,7 +145,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         geom.computeBoundingSphere();
 
         setLocalGeometry(geom);
-        const edges = new THREE.EdgesGeometry(geom, 15);
+        const edges = new THREE.EdgesGeometry(geom, edgeThreshold);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -152,7 +155,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     };
 
     loadEdges();
-  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id, edgeThreshold]);
 
   useEffect(() => {
     if (!groupRef.current || isUpdatingRef.current) return;
@@ -214,13 +217,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
-  const hasFillets = shape.fillets && shape.fillets.length > 0;
-  const {
-    faceEditMode,
-    filletMode,
-    setSelectedVertexIndex,
-    setVertexDirection
-  } = useAppStore();
 
   if (shape.isolated === false) {
     return null;
@@ -273,36 +269,37 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           );
         })}
         {!isWireframe && !isXray && !shouldShowAsReference && (
-          <mesh
-            ref={meshRef}
-            geometry={localGeometry}
-            castShadow
-            receiveShadow
-          >
-            <meshStandardMaterial
-              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
-              metalness={0.2}
-              roughness={0.5}
-              transparent
-              opacity={0.75}
-              side={THREE.DoubleSide}
-              depthWrite={false}
-            />
-            <lineSegments>
+          <>
+            <mesh
+              ref={meshRef}
+              geometry={localGeometry}
+              castShadow
+              receiveShadow
+            >
+              <meshStandardMaterial
+                color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
+                metalness={0.2}
+                roughness={0.5}
+                transparent
+                opacity={0.75}
+                side={THREE.DoubleSide}
+                depthWrite={false}
+              />
+            </mesh>
+            <mesh>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, edgeThreshold]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-                linewidth={2.5}
                 opacity={1}
                 transparent={false}
                 depthTest={true}
               />
-            </lineSegments>
-          </mesh>
+            </mesh>
+          </>
         )}
         {isWireframe && (
           <>
@@ -311,33 +308,18 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               geometry={localGeometry}
               visible={false}
             />
-            <lineSegments>
+            <mesh>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, edgeThreshold]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? 3.5 : 2.5}
-                depthTest={true}
-                depthWrite={true}
+                depthTest={false}
+                linewidth={2}
               />
-            </lineSegments>
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
-              )}
-              <lineBasicMaterial
-                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
-                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
-                transparent
-                opacity={0.4}
-                depthTest={true}
-              />
-            </lineSegments>
+            </mesh>
           </>
         )}
         {(isXray || shouldShowAsReference) && (
@@ -358,31 +340,20 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                 depthWrite={false}
               />
             </mesh>
-            <lineSegments>
+            <mesh>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, edgeThreshold]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
-                linewidth={isSelected || shouldShowAsReference ? 3 : 2.5}
-                depthTest={true}
+                depthTest={false}
                 transparent={false}
                 opacity={1}
               />
-            </lineSegments>
+            </mesh>
           </>
-        )}
-        {hasFillets && filletMode && (
-          <FilletEdgeLines shape={shape} isSelected={isSelected} />
-        )}
-        {isSelected && faceEditMode && (
-          <FaceEditor
-            key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
-            shape={shape}
-            isActive={true}
-          />
         )}
       </group>
 
