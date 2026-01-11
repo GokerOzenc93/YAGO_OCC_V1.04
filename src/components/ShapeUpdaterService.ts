@@ -522,6 +522,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           const oldBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
           oldBox.getCenter(oldCenter);
           console.log('📍 Center BEFORE fillet:', oldCenter);
+          alert(`[DIMENSION] CENTER BEFORE: (${oldCenter.x.toFixed(2)}, ${oldCenter.y.toFixed(2)}, ${oldCenter.z.toFixed(2)})`);
 
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
@@ -534,9 +535,11 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           const newBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
           newBox.getCenter(newCenter);
           console.log('📍 Center AFTER fillet:', newCenter);
+          alert(`[DIMENSION] CENTER AFTER: (${newCenter.x.toFixed(2)}, ${newCenter.y.toFixed(2)}, ${newCenter.z.toFixed(2)})`);
 
           const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
           console.log('📍 Center offset (local):', centerOffset);
+          alert(`[DIMENSION] OFFSET: (${centerOffset.x.toFixed(2)}, ${centerOffset.y.toFixed(2)}, ${centerOffset.z.toFixed(2)})`);
 
           const rotatedOffset = centerOffset.clone();
           if (baseUpdate.rotation[0] !== 0 || baseUpdate.rotation[1] !== 0 || baseUpdate.rotation[2] !== 0) {
