@@ -326,21 +326,13 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         scaledBaseVertices: newBaseVertices.length > 0 ? newBaseVertices.map(v => [v.x, v.y, v.z]) : selectedShape.parameters.scaledBaseVertices
       },
       vertexModifications: updatedVertexMods,
+      position: selectedShape.position,
       rotation: newRotation,
       scale: selectedShape.scale
     };
 
     if (hasSubtractionChanges) {
       console.log('🔄 Recalculating subtraction with updated dimensions...');
-
-      const oldGeometryCenter = new THREE.Vector3();
-      if (selectedShape.geometry) {
-        const oldBox = new THREE.Box3().setFromBufferAttribute(
-          selectedShape.geometry.getAttribute('position')
-        );
-        oldBox.getCenter(oldGeometryCenter);
-        console.log('📍 Old geometry center:', oldGeometryCenter.toArray());
-      }
 
       const updatedSubtraction = {
         ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
@@ -403,27 +395,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
 
-      const newGeometryCenter = new THREE.Vector3();
-      const newBox = new THREE.Box3().setFromBufferAttribute(
-        newGeometry.getAttribute('position')
-      );
-      newBox.getCenter(newGeometryCenter);
-      console.log('📍 New geometry center:', newGeometryCenter.toArray());
-
-      const centerDelta = new THREE.Vector3().subVectors(oldGeometryCenter, newGeometryCenter);
-      const newPosition: [number, number, number] = [
-        selectedShape.position[0] + centerDelta.x,
-        selectedShape.position[1] + centerDelta.y,
-        selectedShape.position[2] + centerDelta.z
-      ];
-      console.log('📍 Position adjustment for geometry center change:', centerDelta.toArray());
-      console.log('📍 New position to preserve world position:', newPosition);
-
       let updatedFillets = selectedShape.fillets || [];
-
       if (updatedFillets.length > 0) {
         console.log('🔄 Updating fillet centers after subtraction change...');
-
         updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, { width, height, depth });
 
         console.log('🔵 Reapplying fillets with updated centers...');
@@ -431,31 +405,12 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         const finalGeometry = convertReplicadToThreeGeometry(resultShape);
         const finalBaseVertices = await getReplicadVertices(resultShape);
 
-        const finalGeometryCenter = new THREE.Vector3();
-        const finalBox = new THREE.Box3().setFromBufferAttribute(
-          finalGeometry.getAttribute('position')
-        );
-        finalBox.getCenter(finalGeometryCenter);
-
-        const finalCenterDelta = new THREE.Vector3().subVectors(oldGeometryCenter, finalGeometryCenter);
-        const finalPosition: [number, number, number] = [
-          selectedShape.position[0] + finalCenterDelta.x,
-          selectedShape.position[1] + finalCenterDelta.y,
-          selectedShape.position[2] + finalCenterDelta.z
-        ];
-        console.log('📍 Final position after fillets:', finalPosition);
-
-        console.log('🎯 SUBTRACTION CHANGE + FILLET - Preserving current position');
-
         updateShape(selectedShape.id, {
+          ...baseUpdate,
           geometry: finalGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: updatedFillets,
-          position: finalPosition,
-          rotation: baseUpdate.rotation,
-          scale: baseUpdate.scale,
-          vertexModifications: baseUpdate.vertexModifications,
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -463,14 +418,11 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         });
       } else {
         updateShape(selectedShape.id, {
+          ...baseUpdate,
           geometry: newGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: [],
-          position: newPosition,
-          rotation: baseUpdate.rotation,
-          scale: baseUpdate.scale,
-          vertexModifications: baseUpdate.vertexModifications,
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
@@ -529,24 +481,19 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
         if (updatedFillets.length > 0) {
           console.log('🔄 Updating fillet centers after dimension change...');
-
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
           console.log('🔵 Reapplying fillets with updated centers and radii...');
           newReplicadShape = await applyFillets(newReplicadShape, updatedFillets, { width, height, depth });
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
-
-          console.log('🎯 DIMENSION CHANGE + FILLET - Preserving current position');
         }
 
         updateShape(selectedShape.id, {
+          ...baseUpdate,
           geometry: finalGeometry,
           replicadShape: newReplicadShape,
           fillets: updatedFillets,
-          rotation: baseUpdate.rotation,
-          scale: baseUpdate.scale,
-          vertexModifications: baseUpdate.vertexModifications,
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -608,15 +555,11 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
 
-          console.log('🎯 FILLET RADIUS CHANGE - Preserving current position');
-
           updateShape(selectedShape.id, {
+            ...baseUpdate,
             geometry: finalGeometry,
             replicadShape: newReplicadShape,
             fillets: updatedFillets,
-            rotation: baseUpdate.rotation,
-            scale: baseUpdate.scale,
-            vertexModifications: baseUpdate.vertexModifications,
             parameters: {
               ...baseUpdate.parameters,
               scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -625,12 +568,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
           console.log('✅ Fillets reapplied with new radii');
         } else {
-          updateShape(selectedShape.id, {
-            rotation: baseUpdate.rotation,
-            scale: baseUpdate.scale,
-            vertexModifications: baseUpdate.vertexModifications,
-            parameters: baseUpdate.parameters
-          });
+          updateShape(selectedShape.id, baseUpdate);
         }
       }
     }
@@ -640,7 +578,10 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     console.error('❌ Failed to update parameters:', error);
     updateShape(selectedShape.id, {
       parameters: { ...selectedShape.parameters, width, height, depth, customParameters },
-      vertexModifications: []
+      vertexModifications: [],
+      position: selectedShape.position,
+      rotation: selectedShape.rotation,
+      scale: selectedShape.scale
     });
   }
 }
@@ -760,7 +701,6 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
   let updatedFillets = currentShape.fillets || [];
   if (updatedFillets.length > 0) {
     console.log('🔄 Updating fillet centers after subtraction change...');
-
     const shapeSize = {
       width: currentShape.parameters.width || 1,
       height: currentShape.parameters.height || 1,
@@ -773,7 +713,6 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     const finalGeometry = convertReplicadToThreeGeometry(resultShape);
     const finalBaseVertices = await getReplicadVertices(resultShape);
 
-    console.log('🎯 SUBTRACTION CHANGE - Preserving current position');
     console.log('✅ Subtraction complete with fillets');
 
     updateShape(currentShape.id, {
@@ -781,6 +720,9 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: updatedFillets,
+      position: currentShape.position,
+      rotation: currentShape.rotation,
+      scale: currentShape.scale,
       parameters: {
         ...currentShape.parameters,
         scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -794,6 +736,9 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: [],
+      position: currentShape.position,
+      rotation: currentShape.rotation,
+      scale: currentShape.scale,
       parameters: {
         ...currentShape.parameters,
         scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])

@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import {
   extractFacesFromGeometry,
@@ -143,28 +144,65 @@ export async function applyFilletToShape(
 
 interface FilletEdgeLinesProps {
   shape: any;
-  isSelected: boolean;
 }
 
-export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape, isSelected }) => {
+export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const shapeRef = useRef(shape);
+  shapeRef.current = shape;
+
+  useEffect(() => {
+    if (groupRef.current && shape) {
+      console.log('🔷 FilletEdgeLines - Setting transform:', { position: shape.position, shape_id: shape.id });
+      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
+      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
+      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
+    }
+  }, [shape.position, shape.rotation, shape.scale, shape.id]);
+
+  useFrame(() => {
+    if (groupRef.current) {
+      const currentShape = shapeRef.current;
+      if (currentShape) {
+        groupRef.current.position.set(currentShape.position[0], currentShape.position[1], currentShape.position[2]);
+        groupRef.current.rotation.set(currentShape.rotation[0], currentShape.rotation[1], currentShape.rotation[2]);
+        groupRef.current.scale.set(currentShape.scale[0], currentShape.scale[1], currentShape.scale[2]);
+      }
+    }
+  });
+
+  const faces = useMemo(() => {
+    if (!shape.geometry) return [];
+    try {
+      const extracted = extractFacesFromGeometry(shape.geometry);
+      console.log(`🔷 FilletEdgeLines - Extracted ${extracted.length} faces from geometry uuid: ${shape.geometry.uuid}`);
+      if (extracted.length > 0) {
+        console.log('🔷 First face center:', extracted[0].center);
+      }
+      return extracted;
+    } catch (e) {
+      console.error('🔷 Error extracting faces:', e);
+      return [];
+    }
+  }, [shape.geometry, shape.geometry?.uuid, shape.fillets?.length, shape.replicadShape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
+
+  const faceGroups = useMemo(() => {
+    if (faces.length === 0) return [];
+    return groupCoplanarFaces(faces);
+  }, [faces]);
+
   const boundaryEdgesGeometry = useMemo(() => {
-    if (!shape.geometry) return null;
-    const faces = extractFacesFromGeometry(shape.geometry);
-    const groups = groupCoplanarFaces(faces);
-    return createGroupBoundaryEdges(faces, groups);
-  }, [shape.geometry]);
+    if (faces.length === 0 || faceGroups.length === 0) return null;
+    return createGroupBoundaryEdges(faces, faceGroups);
+  }, [faces, faceGroups]);
 
   if (!boundaryEdgesGeometry) return null;
 
   return (
-    <lineSegments geometry={boundaryEdgesGeometry}>
-      <lineBasicMaterial
-        color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-        linewidth={2.5}
-        opacity={1}
-        transparent={false}
-        depthTest={true}
-      />
-    </lineSegments>
+    <group ref={groupRef}>
+      <lineSegments geometry={boundaryEdgesGeometry}>
+        <lineBasicMaterial color={0x00ffff} linewidth={2} transparent opacity={0.8} />
+      </lineSegments>
+    </group>
   );
 };
