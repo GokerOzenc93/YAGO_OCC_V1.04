@@ -332,7 +332,27 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
     if (hasSubtractionChanges) {
       console.log('🔄 Recalculating subtraction with updated dimensions...');
-      console.log('📍 Current shape position (will be preserved):', selectedShape.position);
+
+      const oldGeometryCenter = new THREE.Vector3();
+      if (selectedShape.geometry) {
+        try {
+          const box = new THREE.Box3().setFromBufferAttribute(
+            selectedShape.geometry.getAttribute('position')
+          );
+          box.getCenter(oldGeometryCenter);
+        } catch (e) {
+          console.warn('Could not get old geometry center:', e);
+        }
+      }
+
+      const currentWorldPosition: [number, number, number] = [
+        selectedShape.position[0] + oldGeometryCenter.x,
+        selectedShape.position[1] + oldGeometryCenter.y,
+        selectedShape.position[2] + oldGeometryCenter.z
+      ];
+      console.log('📍 Old geometry center:', oldGeometryCenter.toArray());
+      console.log('📍 Shape position:', selectedShape.position);
+      console.log('📍 Current world position (shape.pos + geometry.center):', currentWorldPosition);
 
       const updatedSubtraction = {
         ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
@@ -395,8 +415,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       const newGeometry = convertReplicadToThreeGeometry(resultShape);
       const newBaseVertices = await getReplicadVertices(resultShape);
 
-      console.log('📍 Subtraction change - preserving current shape position (not modifying position)');
-      console.log('📍 Current shape position will be kept:', selectedShape.position);
+      newGeometry.translate(currentWorldPosition[0], currentWorldPosition[1], currentWorldPosition[2]);
+      console.log('📍 Baked world position into geometry:', currentWorldPosition);
+      console.log('📍 Shape position will be reset to [0, 0, 0]');
 
       let updatedFillets = selectedShape.fillets || [];
 
@@ -410,13 +431,15 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         const finalGeometry = convertReplicadToThreeGeometry(resultShape);
         const finalBaseVertices = await getReplicadVertices(resultShape);
 
-        console.log('🎯 SUBTRACTION CHANGE + FILLET - Position NOT modified (preserving user position)');
+        finalGeometry.translate(currentWorldPosition[0], currentWorldPosition[1], currentWorldPosition[2]);
+        console.log('🎯 SUBTRACTION CHANGE + FILLET - World position baked into geometry');
 
         updateShape(selectedShape.id, {
           geometry: finalGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: updatedFillets,
+          position: [0, 0, 0] as [number, number, number],
           rotation: baseUpdate.rotation,
           scale: baseUpdate.scale,
           vertexModifications: baseUpdate.vertexModifications,
@@ -426,13 +449,14 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }
         });
       } else {
-        console.log('🎯 SUBTRACTION CHANGE - Position NOT modified (preserving user position)');
+        console.log('🎯 SUBTRACTION CHANGE - World position baked into geometry');
 
         updateShape(selectedShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: [],
+          position: [0, 0, 0] as [number, number, number],
           rotation: baseUpdate.rotation,
           scale: baseUpdate.scale,
           vertexModifications: baseUpdate.vertexModifications,
@@ -442,7 +466,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }
         });
 
-        console.log('✅ Shape geometry updated, position preserved');
+        console.log('✅ Shape geometry updated with baked position, shape position reset to [0,0,0]');
       }
     } else {
       if (dimensionsChanged) {
