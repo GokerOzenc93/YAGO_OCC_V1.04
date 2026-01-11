@@ -513,7 +513,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }));
         }
 
-        let finalPosition = baseUpdate.position;
+        let finalPosition = existingShape.position;
 
         if (updatedFillets.length > 0) {
           console.log('🔄 Updating fillet centers after dimension change...');
@@ -522,7 +522,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           const oldBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
           oldBox.getCenter(oldCenter);
           console.log('📍 Center BEFORE fillet:', oldCenter);
-          alert(`[DIMENSION] CENTER BEFORE: (${oldCenter.x.toFixed(2)}, ${oldCenter.y.toFixed(2)}, ${oldCenter.z.toFixed(2)})`);
 
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
@@ -535,11 +534,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           const newBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
           newBox.getCenter(newCenter);
           console.log('📍 Center AFTER fillet:', newCenter);
-          alert(`[DIMENSION] CENTER AFTER: (${newCenter.x.toFixed(2)}, ${newCenter.y.toFixed(2)}, ${newCenter.z.toFixed(2)})`);
 
           const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
           console.log('📍 Center offset (local):', centerOffset);
-          alert(`[DIMENSION] OFFSET: (${centerOffset.x.toFixed(2)}, ${centerOffset.y.toFixed(2)}, ${centerOffset.z.toFixed(2)})`);
 
           const rotatedOffset = centerOffset.clone();
           if (baseUpdate.rotation[0] !== 0 || baseUpdate.rotation[1] !== 0 || baseUpdate.rotation[2] !== 0) {
@@ -551,12 +548,12 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }
 
           finalPosition = [
-            baseUpdate.position[0] - rotatedOffset.x,
-            baseUpdate.position[1] - rotatedOffset.y,
-            baseUpdate.position[2] - rotatedOffset.z
+            existingShape.position[0] - rotatedOffset.x,
+            existingShape.position[1] - rotatedOffset.y,
+            existingShape.position[2] - rotatedOffset.z
           ] as [number, number, number];
 
-          console.log('🎯 DIMENSION CHANGE + FILLET - Adjusted position from', baseUpdate.position, 'to', finalPosition);
+          console.log('🎯 DIMENSION CHANGE + FILLET - Adjusted position from', existingShape.position, 'to', finalPosition);
         }
 
         updateShape(selectedShape.id, {
@@ -623,7 +620,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           const oldBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
           oldBox.getCenter(oldCenter);
           console.log('📍 Center BEFORE fillet radius change:', oldCenter);
-          alert(`CENTER BEFORE: (${oldCenter.x.toFixed(2)}, ${oldCenter.y.toFixed(2)}, ${oldCenter.z.toFixed(2)})`);
 
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
@@ -636,30 +632,26 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           const newBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
           newBox.getCenter(newCenter);
           console.log('📍 Center AFTER fillet radius change:', newCenter);
-          alert(`CENTER AFTER: (${newCenter.x.toFixed(2)}, ${newCenter.y.toFixed(2)}, ${newCenter.z.toFixed(2)})`);
 
           const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
           console.log('📍 Center offset (local):', centerOffset);
-          alert(`OFFSET: (${centerOffset.x.toFixed(2)}, ${centerOffset.y.toFixed(2)}, ${centerOffset.z.toFixed(2)})`);
 
           const rotatedOffset = centerOffset.clone();
-          if (baseUpdate.rotation[0] !== 0 || baseUpdate.rotation[1] !== 0 || baseUpdate.rotation[2] !== 0) {
+          if (existingShape.rotation[0] !== 0 || existingShape.rotation[1] !== 0 || existingShape.rotation[2] !== 0) {
             const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-              new THREE.Euler(baseUpdate.rotation[0], baseUpdate.rotation[1], baseUpdate.rotation[2], 'XYZ')
+              new THREE.Euler(existingShape.rotation[0], existingShape.rotation[1], existingShape.rotation[2], 'XYZ')
             );
             rotatedOffset.applyMatrix4(rotationMatrix);
             console.log('📍 Center offset (rotated):', rotatedOffset);
           }
 
           const finalPosition: [number, number, number] = [
-            baseUpdate.position[0] - rotatedOffset.x,
-            baseUpdate.position[1] - rotatedOffset.y,
-            baseUpdate.position[2] - rotatedOffset.z
+            existingShape.position[0] - rotatedOffset.x,
+            existingShape.position[1] - rotatedOffset.y,
+            existingShape.position[2] - rotatedOffset.z
           ];
 
-          console.log('🎯 FILLET RADIUS CHANGE - Adjusted position from', baseUpdate.position, 'to', finalPosition);
-          alert(`BASE POSITION: [${baseUpdate.position[0].toFixed(2)}, ${baseUpdate.position[1].toFixed(2)}, ${baseUpdate.position[2].toFixed(2)}]`);
-          alert(`FINAL POSITION: [${finalPosition[0].toFixed(2)}, ${finalPosition[1].toFixed(2)}, ${finalPosition[2].toFixed(2)}]`);
+          console.log('🎯 FILLET RADIUS CHANGE - Adjusted position from', existingShape.position, 'to', finalPosition);
 
           updateShape(selectedShape.id, {
             ...baseUpdate,
