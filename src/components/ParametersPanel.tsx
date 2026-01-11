@@ -600,9 +600,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       updateShape(currentShape.id, {
         geometry: finalGeometry,
         replicadShape: finalShape,
-        position: currentShape.position,
-        rotation: currentShape.rotation,
-        scale: currentShape.scale,
         fillets: updatedFillets,
         parameters: {
           ...currentShape.parameters,

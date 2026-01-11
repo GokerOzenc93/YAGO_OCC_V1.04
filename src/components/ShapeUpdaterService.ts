@@ -326,7 +326,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         scaledBaseVertices: newBaseVertices.length > 0 ? newBaseVertices.map(v => [v.x, v.y, v.z]) : selectedShape.parameters.scaledBaseVertices
       },
       vertexModifications: updatedVertexMods,
-      position: selectedShape.position,
       rotation: newRotation,
       scale: selectedShape.scale
     };
@@ -407,15 +406,16 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         const finalGeometry = convertReplicadToThreeGeometry(resultShape);
         const finalBaseVertices = await getReplicadVertices(resultShape);
 
-        console.log('🎯 SUBTRACTION CHANGE + FILLET - Keeping original position:', selectedShape.position);
+        console.log('🎯 SUBTRACTION CHANGE + FILLET - Preserving current position');
 
         updateShape(selectedShape.id, {
-          ...baseUpdate,
           geometry: finalGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: updatedFillets,
-          position: selectedShape.position,
+          rotation: baseUpdate.rotation,
+          scale: baseUpdate.scale,
+          vertexModifications: baseUpdate.vertexModifications,
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -423,12 +423,13 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         });
       } else {
         updateShape(selectedShape.id, {
-          ...baseUpdate,
           geometry: newGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: [],
-          position: selectedShape.position,
+          rotation: baseUpdate.rotation,
+          scale: baseUpdate.scale,
+          vertexModifications: baseUpdate.vertexModifications,
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
@@ -495,15 +496,16 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
 
-          console.log('🎯 DIMENSION CHANGE + FILLET - Keeping original position:', selectedShape.position);
+          console.log('🎯 DIMENSION CHANGE + FILLET - Preserving current position');
         }
 
         updateShape(selectedShape.id, {
-          ...baseUpdate,
           geometry: finalGeometry,
           replicadShape: newReplicadShape,
           fillets: updatedFillets,
-          position: selectedShape.position,
+          rotation: baseUpdate.rotation,
+          scale: baseUpdate.scale,
+          vertexModifications: baseUpdate.vertexModifications,
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -565,14 +567,15 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
 
-          console.log('🎯 FILLET RADIUS CHANGE - Keeping original position:', selectedShape.position);
+          console.log('🎯 FILLET RADIUS CHANGE - Preserving current position');
 
           updateShape(selectedShape.id, {
-            ...baseUpdate,
             geometry: finalGeometry,
             replicadShape: newReplicadShape,
             fillets: updatedFillets,
-            position: selectedShape.position,
+            rotation: baseUpdate.rotation,
+            scale: baseUpdate.scale,
+            vertexModifications: baseUpdate.vertexModifications,
             parameters: {
               ...baseUpdate.parameters,
               scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -581,7 +584,12 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
           console.log('✅ Fillets reapplied with new radii');
         } else {
-          updateShape(selectedShape.id, baseUpdate);
+          updateShape(selectedShape.id, {
+            rotation: baseUpdate.rotation,
+            scale: baseUpdate.scale,
+            vertexModifications: baseUpdate.vertexModifications,
+            parameters: baseUpdate.parameters
+          });
         }
       }
     }
@@ -727,7 +735,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     const finalGeometry = convertReplicadToThreeGeometry(resultShape);
     const finalBaseVertices = await getReplicadVertices(resultShape);
 
-    console.log('🎯 DELETE SUBTRACTION - Keeping position:', currentShape.position);
+    console.log('🎯 SUBTRACTION CHANGE - Preserving current position');
     console.log('✅ Subtraction complete with fillets');
 
     updateShape(currentShape.id, {
@@ -735,9 +743,6 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: updatedFillets,
-      position: currentShape.position,
-      rotation: currentShape.rotation,
-      scale: currentShape.scale,
       parameters: {
         ...currentShape.parameters,
         scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -751,9 +756,6 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: [],
-      position: currentShape.position,
-      rotation: currentShape.rotation,
-      scale: currentShape.scale,
       parameters: {
         ...currentShape.parameters,
         scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
