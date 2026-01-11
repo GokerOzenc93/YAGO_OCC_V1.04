@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { getBoxVertices, getReplicadVertices } from './VertexEditorService';
-import { useResponsiveLineWidth } from '../hooks/useResponsiveLineWidth';
 
 interface VertexEditorProps {
   shape: any;
@@ -44,8 +43,7 @@ const VertexPoint: React.FC<{
 const DirectionArrow: React.FC<{
   position: THREE.Vector3;
   direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
-  lineWidthValue: number;
-}> = ({ position, direction, lineWidthValue }) => {
+}> = ({ position, direction }) => {
   const getDirectionVector = (): THREE.Vector3 => {
     switch (direction) {
       case 'x+': return new THREE.Vector3(1, 0, 0);
@@ -86,7 +84,7 @@ const DirectionArrow: React.FC<{
             itemSize={3}
           />
         </bufferGeometry>
-        <lineBasicMaterial color="#ef4444" linewidth={lineWidthValue} />
+        <lineBasicMaterial color="#ef4444" linewidth={3} />
       </line>
       <mesh position={endPosition} rotation={getRotation()}>
         <coneGeometry args={[4, 10, 8]} />
@@ -99,8 +97,7 @@ const DirectionArrow: React.FC<{
 const DirectionSelector: React.FC<{
   position: THREE.Vector3;
   onDirectionSelect: (direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-') => void;
-  lineWidthValue: number;
-}> = ({ position, onDirectionSelect, lineWidthValue }) => {
+}> = ({ position, onDirectionSelect }) => {
   const directions: Array<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-'> = ['x+', 'x-', 'y+', 'y-', 'z+', 'z-'];
 
   const getDirectionVector = (dir: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-'): THREE.Vector3 => {
@@ -153,7 +150,7 @@ const DirectionSelector: React.FC<{
                   itemSize={3}
                 />
               </bufferGeometry>
-              <lineBasicMaterial color={color} linewidth={lineWidthValue} transparent opacity={0.8} />
+              <lineBasicMaterial color={color} linewidth={3} transparent opacity={0.8} />
             </line>
             <mesh
               position={endPosition}
@@ -180,7 +177,6 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
   onDirectionChange,
   onOffsetConfirm
 }) => {
-  const lineWidths = useResponsiveLineWidth();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [currentDirection, setCurrentDirection] = useState<'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-' | null>(null);
@@ -351,14 +347,12 @@ export const VertexEditor: React.FC<VertexEditorProps> = ({
         <DirectionSelector
           position={modifiedVertices[selectedIndex]}
           onDirectionSelect={handleDirectionSelect}
-          lineWidthValue={lineWidths.medium}
         />
       )}
       {currentDirection && selectedIndex !== null && !showDirectionSelector && (
         <DirectionArrow
           position={modifiedVertices[selectedIndex]}
           direction={currentDirection}
-          lineWidthValue={lineWidths.medium}
         />
       )}
     </group>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
-import { useAppStore, Tool } from '../store';
+import { useAppStore } from '../store';
 import * as THREE from 'three';
 import { evaluateExpression } from './Expression';
 import { applyShapeChanges, applySubtractionChanges } from './ShapeUpdaterService';
@@ -136,8 +136,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setFaceEditMode,
     selectedFilletFaces,
     clearFilletFaces,
-    clearFilletFaceData,
-    setActiveTool
+    clearFilletFaceData
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -685,7 +684,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               if (newFilletMode) {
                 setVertexEditMode(false);
                 setSubtractionViewMode(false);
-                setActiveTool(Tool.SELECT);
               }
               console.log(`🔄 Fillet mode: ${newFilletMode ? 'ON' : 'OFF'}`);
             }}

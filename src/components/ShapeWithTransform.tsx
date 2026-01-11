@@ -3,7 +3,6 @@ import { TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, Tool, ViewMode } from '../store';
 import { SubtractionMesh } from './SubtractionMesh';
-import { useResponsiveLineWidth } from '../hooks/useResponsiveLineWidth';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -18,7 +17,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   orbitControlsRef,
   onContextMenu
 }) => {
-  const lineWidths = useResponsiveLineWidth();
   const {
     selectShape,
     selectSecondaryShape,
@@ -289,7 +287,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-                linewidth={lineWidths.normal}
+                linewidth={2.5}
                 opacity={1}
                 transparent={false}
                 depthTest={true}
@@ -312,7 +310,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? lineWidths.thick : lineWidths.normal}
+                linewidth={isSelected || shouldShowAsReference ? 3.5 : 2.5}
                 depthTest={true}
                 depthWrite={true}
               />
@@ -325,7 +323,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
-                linewidth={isSelected || shouldShowAsReference ? lineWidths.normal : lineWidths.thin}
+                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
                 transparent
                 opacity={0.4}
                 depthTest={true}
@@ -359,7 +357,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
-                linewidth={isSelected || shouldShowAsReference ? lineWidths.medium : lineWidths.normal}
+                linewidth={isSelected || shouldShowAsReference ? 3 : 2.5}
                 depthTest={true}
                 transparent={false}
                 opacity={1}
