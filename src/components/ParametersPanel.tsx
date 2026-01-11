@@ -368,7 +368,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     if (dimension === 'depth') setDepth(value);
   };
 
-  const handleSubParamChange = (param: string, expression: string) => {
+  const handleSubParamChange = async (param: string, expression: string) => {
     const evalContext = {
       W: width,
       H: height,
@@ -378,10 +378,43 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
     const result = evaluateExpression(expression, evalContext);
 
-    setSubParams(prev => ({
-      ...prev,
+    const updatedSubParams = {
+      ...subParams,
       [param]: { expression, result }
-    }));
+    };
+
+    setSubParams(updatedSubParams);
+
+    const currentState = useAppStore.getState();
+    const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
+    if (!currentShape) return;
+
+    console.log('📍 Sub Param Change - Current shape position:', currentShape.position);
+
+    await applyShapeChanges({
+      selectedShape: currentShape,
+      width,
+      height,
+      depth,
+      rotX,
+      rotY,
+      rotZ,
+      customParameters,
+      vertexModifications,
+      filletRadii,
+      selectedSubtractionIndex,
+      subWidth: updatedSubParams.width.result,
+      subHeight: updatedSubParams.height.result,
+      subDepth: updatedSubParams.depth.result,
+      subPosX: updatedSubParams.posX.result,
+      subPosY: updatedSubParams.posY.result,
+      subPosZ: updatedSubParams.posZ.result,
+      subRotX: updatedSubParams.rotX.result,
+      subRotY: updatedSubParams.rotY.result,
+      subRotZ: updatedSubParams.rotZ.result,
+      subParams: updatedSubParams,
+      updateShape
+    });
   };
 
   const addCustomParameter = () => {

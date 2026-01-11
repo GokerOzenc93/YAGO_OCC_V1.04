@@ -599,10 +599,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     console.error('❌ Failed to update parameters:', error);
     updateShape(selectedShape.id, {
       parameters: { ...selectedShape.parameters, width, height, depth, customParameters },
-      vertexModifications: [],
-      position: selectedShape.position,
-      rotation: selectedShape.rotation,
-      scale: selectedShape.scale
+      vertexModifications: []
     });
   }
 }
