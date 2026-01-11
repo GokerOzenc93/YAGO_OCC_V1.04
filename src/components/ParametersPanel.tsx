@@ -768,10 +768,39 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       <ParameterRow
                         label={`F${idx + 1}`}
                         value={radius}
-                        onChange={(newRadius) => {
+                        onChange={async (newRadius) => {
                           const newRadii = [...filletRadii];
                           newRadii[idx] = newRadius;
                           setFilletRadii(newRadii);
+
+                          const currentState = useAppStore.getState();
+                          const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
+                          if (!currentShape) return;
+
+                          await applyShapeChanges({
+                            selectedShape: currentShape,
+                            width,
+                            height,
+                            depth,
+                            rotX,
+                            rotY,
+                            rotZ,
+                            customParameters,
+                            vertexModifications,
+                            filletRadii: newRadii,
+                            selectedSubtractionIndex,
+                            subWidth: subParams.width.result,
+                            subHeight: subParams.height.result,
+                            subDepth: subParams.depth.result,
+                            subPosX: subParams.posX.result,
+                            subPosY: subParams.posY.result,
+                            subPosZ: subParams.posZ.result,
+                            subRotX: subParams.rotX.result,
+                            subRotY: subParams.rotY.result,
+                            subRotZ: subParams.rotZ.result,
+                            subParams,
+                            updateShape
+                          });
                         }}
                         description={`Fillet ${idx + 1} Radius`}
                         step={0.1}
