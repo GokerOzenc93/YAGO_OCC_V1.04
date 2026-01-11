@@ -389,7 +389,11 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
     if (!currentShape) return;
 
-    console.log('📍 Sub Param Change - Current shape position:', currentShape.position);
+    console.log('🔄 Sub Param Change START');
+    console.log('   Current shape position:', currentShape.position);
+    console.log('   Subtraction index:', selectedSubtractionIndex);
+    console.log('   New params:', { subWidth: updatedSubParams.width.result, subHeight: updatedSubParams.height.result, subDepth: updatedSubParams.depth.result });
+    console.log('   New position:', { subPosX: updatedSubParams.posX.result, subPosY: updatedSubParams.posY.result, subPosZ: updatedSubParams.posZ.result });
 
     await applyShapeChanges({
       selectedShape: currentShape,
@@ -415,6 +419,12 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       subParams: updatedSubParams,
       updateShape
     });
+
+    const updatedState = useAppStore.getState();
+    const updatedShape = updatedState.shapes.find(s => s.id === selectedShapeId);
+    console.log('🔄 Sub Param Change END');
+    console.log('   Updated shape position:', updatedShape?.position);
+    console.log('   Position changed:', JSON.stringify(currentShape.position) !== JSON.stringify(updatedShape?.position));
   };
 
   const addCustomParameter = () => {

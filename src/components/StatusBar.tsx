@@ -16,7 +16,7 @@ const StatusBar: React.FC = () => {
         </span>
         {selectedShape && (
           <span className="text-stone-400">
-            Pos: [{selectedShape.position.map(v => v.toFixed(0)).join(', ')}]
+            Pos: [{selectedShape.position.map(v => v.toFixed(1)).join(', ')}]
           </span>
         )}
         {vertexEditMode && (

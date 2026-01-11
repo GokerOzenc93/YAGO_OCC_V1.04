@@ -417,7 +417,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         selectedShape.position[2] + centerDelta.z
       ];
       console.log('📍 Position adjustment for geometry center change:', centerDelta.toArray());
+      console.log('📍 Old position:', selectedShape.position);
       console.log('📍 New position to preserve world position:', newPosition);
+      console.log('📍 Position will be updated in store');
 
       let updatedFillets = selectedShape.fillets || [];
 
@@ -462,6 +464,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }
         });
       } else {
+        console.log('🎯 SUBTRACTION CHANGE - Updating shape with new position');
+        console.log('   Position being saved:', newPosition);
+
         updateShape(selectedShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
@@ -476,6 +481,8 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
             scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
           }
         });
+
+        console.log('✅ Shape updated with position:', newPosition);
       }
     } else {
       if (dimensionsChanged) {
