@@ -427,9 +427,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         centerOffset.multiply(new THREE.Vector3(selectedShape.scale[0], selectedShape.scale[1], selectedShape.scale[2]));
 
         const newPosition: [number, number, number] = [
-          selectedShape.position[0] + centerOffset.x,
-          selectedShape.position[1] + centerOffset.y,
-          selectedShape.position[2] + centerOffset.z
+          selectedShape.position[0] - centerOffset.x,
+          selectedShape.position[1] - centerOffset.y,
+          selectedShape.position[2] - centerOffset.z
         ];
 
         updateShape(selectedShape.id, {
@@ -539,9 +539,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           centerOffset.multiply(new THREE.Vector3(selectedShape.scale[0], selectedShape.scale[1], selectedShape.scale[2]));
 
           newPosition = [
-            selectedShape.position[0] + centerOffset.x,
-            selectedShape.position[1] + centerOffset.y,
-            selectedShape.position[2] + centerOffset.z
+            selectedShape.position[0] - centerOffset.x,
+            selectedShape.position[1] - centerOffset.y,
+            selectedShape.position[2] - centerOffset.z
           ];
         }
 
@@ -633,9 +633,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           centerOffset.multiply(new THREE.Vector3(selectedShape.scale[0], selectedShape.scale[1], selectedShape.scale[2]));
 
           const newPosition: [number, number, number] = [
-            selectedShape.position[0] + centerOffset.x,
-            selectedShape.position[1] + centerOffset.y,
-            selectedShape.position[2] + centerOffset.z
+            selectedShape.position[0] - centerOffset.x,
+            selectedShape.position[1] - centerOffset.y,
+            selectedShape.position[2] - centerOffset.z
           ];
 
           updateShape(selectedShape.id, {
@@ -819,9 +819,9 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     centerOffset.multiply(new THREE.Vector3(currentShape.scale[0], currentShape.scale[1], currentShape.scale[2]));
 
     const newPosition: [number, number, number] = [
-      currentShape.position[0] + centerOffset.x,
-      currentShape.position[1] + centerOffset.y,
-      currentShape.position[2] + centerOffset.z
+      currentShape.position[0] - centerOffset.x,
+      currentShape.position[1] - centerOffset.y,
+      currentShape.position[2] - centerOffset.z
     ];
 
     console.log('✅ Subtraction complete with fillets');
