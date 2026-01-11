@@ -2,33 +2,8 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { createGeometryFromType } from '../services/geometry';
 import * as THREE from 'three';
-
-const createGeometryFromType = (type: string, parameters: any): THREE.BufferGeometry => {
-  switch (type) {
-    case 'box':
-      return new THREE.BoxGeometry(
-        parameters.width || 100,
-        parameters.height || 100,
-        parameters.depth || 100
-      );
-    case 'cylinder':
-      return new THREE.CylinderGeometry(
-        parameters.radius || 50,
-        parameters.radius || 50,
-        parameters.height || 100,
-        parameters.segments || 32
-      );
-    case 'sphere':
-      return new THREE.SphereGeometry(
-        parameters.radius || 50,
-        parameters.widthSegments || 32,
-        parameters.heightSegments || 32
-      );
-    default:
-      return new THREE.BoxGeometry(100, 100, 100);
-  }
-};
 
 interface CatalogItem {
   id: string;

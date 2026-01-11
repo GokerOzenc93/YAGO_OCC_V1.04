@@ -1,15 +1,535 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
-import * as THREE from 'three';
-import { useAppStore, CameraType } from '../store';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, TransformControls } from '@react-three/drei';
+import { useAppStore, CameraType, Tool, ViewMode } from '../store';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
-import { catalogService } from './Database';
+import { catalogService } from '../services/supabase';
 import { VertexEditor } from './VertexEditor';
-import { applyFilletToShape } from './Fillet';
-import { ShapeWithTransform } from './ShapeWithTransform';
-import { getReplicadVertices } from './VertexEditorService';
+import { FaceEditor } from './FaceEditor';
+import {
+  extractFacesFromGeometry,
+  groupCoplanarFaces,
+  createGroupBoundaryEdges
+} from '../services/faceEditor';
+import * as THREE from 'three';
+
+const SubtractionMesh: React.FC<{
+  subtraction: any;
+  index: number;
+  isHovered: boolean;
+  isSubtractionSelected: boolean;
+  isSelected: boolean;
+  setHoveredSubtractionIndex: (index: number | null) => void;
+  setSelectedSubtractionIndex: (index: number | null) => void;
+}> = React.memo(({
+  subtraction,
+  index,
+  isHovered,
+  isSubtractionSelected,
+  isSelected,
+  setHoveredSubtractionIndex,
+  setSelectedSubtractionIndex
+}) => {
+  const geometryInfo = useMemo(() => {
+    const box = new THREE.Box3().setFromBufferAttribute(
+      subtraction.geometry.attributes.position as THREE.BufferAttribute
+    );
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+
+    const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
+    const meshOffset: [number, number, number] = isCentered
+      ? [size.x / 2, size.y / 2, size.z / 2]
+      : [0, 0, 0];
+
+    return { meshOffset };
+  }, [subtraction.geometry]);
+
+  return (
+    <group
+      position={subtraction.relativeOffset}
+      rotation={subtraction.relativeRotation}
+    >
+      <mesh
+        geometry={subtraction.geometry}
+        position={geometryInfo.meshOffset}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          if (isSelected) {
+            setHoveredSubtractionIndex(index);
+          }
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          setHoveredSubtractionIndex(null);
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (isSelected) {
+            setSelectedSubtractionIndex(isSubtractionSelected ? null : index);
+          }
+        }}
+      >
+        <meshStandardMaterial
+          color={(isHovered || isSubtractionSelected) ? 0xff0000 : 0xffff00}
+          transparent
+          opacity={0.35}
+          depthWrite={false}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+    </group>
+  );
+});
+
+SubtractionMesh.displayName = 'SubtractionMesh';
+
+const FilletEdgeLines: React.FC<{
+  shape: any;
+}> = ({ shape }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const shapeRef = useRef(shape);
+
+  useEffect(() => {
+    shapeRef.current = shape;
+  }, [shape]);
+
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.position.set(shape.position[0], shape.position[1], shape.position[2]);
+      groupRef.current.rotation.set(shape.rotation[0], shape.rotation[1], shape.rotation[2]);
+      groupRef.current.scale.set(shape.scale[0], shape.scale[1], shape.scale[2]);
+    }
+  }, [shape.position, shape.rotation, shape.scale]);
+
+  useFrame(() => {
+    if (groupRef.current) {
+      const s = shapeRef.current;
+      groupRef.current.position.set(s.position[0], s.position[1], s.position[2]);
+      groupRef.current.rotation.set(s.rotation[0], s.rotation[1], s.rotation[2]);
+      groupRef.current.scale.set(s.scale[0], s.scale[1], s.scale[2]);
+    }
+  });
+
+  const boundaryEdgesGeometry = useMemo(() => {
+    if (!shape.geometry) return null;
+    try {
+      const faces = extractFacesFromGeometry(shape.geometry);
+      if (faces.length === 0) return null;
+      const faceGroups = groupCoplanarFaces(faces);
+      if (faceGroups.length === 0) return null;
+      return createGroupBoundaryEdges(faces, faceGroups);
+    } catch (e) {
+      return null;
+    }
+  }, [shape.geometry, shape.geometry?.uuid, shape.fillets?.length, shape.replicadShape, shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth]);
+
+  if (!boundaryEdgesGeometry) return null;
+
+  return (
+    <group ref={groupRef}>
+      <lineSegments geometry={boundaryEdgesGeometry}>
+        <lineBasicMaterial color={0x00ffff} linewidth={2} transparent opacity={0.8} />
+      </lineSegments>
+    </group>
+  );
+};
+
+FilletEdgeLines.displayName = 'FilletEdgeLines';
+
+const ShapeWithTransform: React.FC<{
+  shape: any;
+  isSelected: boolean;
+  orbitControlsRef: any;
+  onContextMenu: (e: any, shapeId: string) => void;
+}> = React.memo(({
+  shape,
+  isSelected,
+  orbitControlsRef,
+  onContextMenu
+}) => {
+  const {
+    selectShape,
+    selectSecondaryShape,
+    secondarySelectedShapeId,
+    updateShape,
+    activeTool,
+    viewMode,
+    createGroup,
+    subtractionViewMode,
+    hoveredSubtractionIndex,
+    setHoveredSubtractionIndex,
+    selectedSubtractionIndex,
+    setSelectedSubtractionIndex
+  } = useAppStore();
+  const transformRef = useRef<any>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const isUpdatingRef = useRef(false);
+  const [localGeometry, setLocalGeometry] = useState(shape.geometry);
+  const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
+  const [geometryKey, setGeometryKey] = useState(0);
+  const vertexModsString = JSON.stringify(shape.vertexModifications || []);
+
+  useEffect(() => {
+    const loadEdges = async () => {
+      const hasVertexMods = shape.vertexModifications && shape.vertexModifications.length > 0;
+      const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods;
+
+      if (shouldUpdate && shape.geometry) {
+        console.log(`🔄 Geometry update for shape ${shape.id}`, { hasVertexMods, vertexModCount: shape.vertexModifications?.length || 0 });
+
+        let geom = shape.geometry.clone();
+
+        if (hasVertexMods) {
+          console.log(`🔧 Applying ${shape.vertexModifications.length} vertex modifications to geometry`);
+
+          const positionAttribute = geom.getAttribute('position');
+          const positions = positionAttribute.array as Float32Array;
+
+          const vertexMap = new Map<string, number[]>();
+          for (let i = 0; i < positions.length; i += 3) {
+            const x = Math.round(positions[i] * 100) / 100;
+            const y = Math.round(positions[i + 1] * 100) / 100;
+            const z = Math.round(positions[i + 2] * 100) / 100;
+            const key = `${x},${y},${z}`;
+
+            if (!vertexMap.has(key)) {
+              vertexMap.set(key, []);
+            }
+            vertexMap.get(key)!.push(i);
+          }
+
+          const { getBoxVertices, getReplicadVertices } = await import('../services/vertexEditor');
+          let baseVertices: THREE.Vector3[] = [];
+
+          if (shape.parameters?.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
+            console.log('📍 Using pre-computed scaled base vertices for vertex modifications...');
+            baseVertices = shape.parameters.scaledBaseVertices.map((v: number[]) =>
+              new THREE.Vector3(v[0], v[1], v[2])
+            );
+            console.log(`✅ Loaded ${baseVertices.length} scaled base vertices for modifications`);
+          } else if (shape.replicadShape) {
+            console.log('📍 Loading base vertices from replicadShape...');
+            baseVertices = await getReplicadVertices(shape.replicadShape);
+          } else if (shape.type === 'box' && shape.parameters) {
+            console.log('📦 Loading base vertices from box parameters...');
+            baseVertices = getBoxVertices(
+              shape.parameters.width,
+              shape.parameters.height,
+              shape.parameters.depth
+            );
+          }
+
+          shape.vertexModifications.forEach((mod: any) => {
+            const baseVertex = baseVertices[mod.vertexIndex];
+            if (!baseVertex) {
+              console.warn(`⚠️ Base vertex ${mod.vertexIndex} not found`);
+              return;
+            }
+
+            const key = `${Math.round(baseVertex.x * 100) / 100},${Math.round(baseVertex.y * 100) / 100},${Math.round(baseVertex.z * 100) / 100}`;
+            const indices = vertexMap.get(key);
+
+            if (indices) {
+              console.log(`✅ Applying modification to vertex ${mod.vertexIndex}:`, {
+                baseVertexPos: [baseVertex.x.toFixed(1), baseVertex.y.toFixed(1), baseVertex.z.toFixed(1)],
+                targetPos: [mod.newPosition[0].toFixed(1), mod.newPosition[1].toFixed(1), mod.newPosition[2].toFixed(1)],
+                affectedMeshVertices: indices.length
+              });
+
+              indices.forEach(idx => {
+                positions[idx] = mod.newPosition[0];
+                positions[idx + 1] = mod.newPosition[1];
+                positions[idx + 2] = mod.newPosition[2];
+              });
+            } else {
+              console.warn(`⚠️ No mesh vertices found for base vertex ${mod.vertexIndex} at position [${baseVertex.x.toFixed(1)}, ${baseVertex.y.toFixed(1)}, ${baseVertex.z.toFixed(1)}] (key: ${key})`);
+              console.log('Available vertex keys:', Array.from(vertexMap.keys()).slice(0, 10));
+            }
+          });
+
+          positionAttribute.needsUpdate = true;
+          geom.computeVertexNormals();
+          geom.computeBoundingBox();
+          geom.computeBoundingSphere();
+        }
+
+        setLocalGeometry(geom);
+
+        const edges = new THREE.EdgesGeometry(geom, 15);
+        setEdgeGeometry(edges);
+        setGeometryKey(prev => prev + 1);
+        return;
+      }
+
+      if (shape.parameters?.modified && shape.geometry) {
+        console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
+        let geom = shape.geometry.clone();
+
+        geom.computeVertexNormals();
+        geom.computeBoundingBox();
+        geom.computeBoundingSphere();
+
+        setLocalGeometry(geom);
+
+        const edges = new THREE.EdgesGeometry(geom, 15);
+        setEdgeGeometry(edges);
+        setGeometryKey(prev => prev + 1);
+        return;
+      }
+
+      setEdgeGeometry(null);
+    };
+
+    loadEdges();
+  }, [shape.parameters?.width, shape.parameters?.height, shape.parameters?.depth, vertexModsString, shape.parameters?.modified, shape.geometry, shape.id]);
+
+  useEffect(() => {
+    if (!groupRef.current || isUpdatingRef.current) return;
+
+    groupRef.current.position.set(
+      shape.position[0],
+      shape.position[1],
+      shape.position[2]
+    );
+    groupRef.current.rotation.set(
+      shape.rotation[0],
+      shape.rotation[1],
+      shape.rotation[2]
+    );
+    groupRef.current.scale.set(
+      shape.scale[0],
+      shape.scale[1],
+      shape.scale[2]
+    );
+  }, [shape.position, shape.rotation, shape.scale]);
+
+  useEffect(() => {
+    if (transformRef.current && isSelected && groupRef.current) {
+      const controls = transformRef.current;
+
+      const onDraggingChanged = (event: any) => {
+        if (orbitControlsRef.current) {
+          orbitControlsRef.current.enabled = !event.value;
+        }
+      };
+
+      const onChange = () => {
+        if (groupRef.current) {
+          isUpdatingRef.current = true;
+          updateShape(shape.id, {
+            position: groupRef.current.position.toArray() as [number, number, number],
+            rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
+            scale: groupRef.current.scale.toArray() as [number, number, number]
+          });
+          setTimeout(() => {
+            isUpdatingRef.current = false;
+          }, 0);
+        }
+      };
+
+      controls.addEventListener('dragging-changed', onDraggingChanged);
+      controls.addEventListener('change', onChange);
+
+      return () => {
+        controls.removeEventListener('dragging-changed', onDraggingChanged);
+        controls.removeEventListener('change', onChange);
+      };
+    }
+  }, [isSelected, shape.id, updateShape, orbitControlsRef]);
+
+  const getTransformMode = () => {
+    switch (activeTool) {
+      case Tool.MOVE:
+        return 'translate';
+      case Tool.ROTATE:
+        return 'rotate';
+      case Tool.SCALE:
+        return 'scale';
+      default:
+        return 'translate';
+    }
+  };
+
+  const isWireframe = viewMode === ViewMode.WIREFRAME;
+  const isXray = viewMode === ViewMode.XRAY;
+  const isSecondarySelected = shape.id === secondarySelectedShapeId;
+  const isReferenceBox = shape.isReferenceBox;
+  const shouldShowAsReference = isReferenceBox || isSecondarySelected;
+
+  if (shape.isolated === false) {
+    return null;
+  }
+
+  return (
+    <>
+      <group
+        ref={groupRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
+            if (shape.id === secondarySelectedShapeId) {
+              selectSecondaryShape(null);
+            } else {
+              selectSecondaryShape(shape.id);
+            }
+          } else {
+            selectShape(shape.id);
+            selectSecondaryShape(null);
+          }
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          selectShape(shape.id);
+          const { setShowParametersPanel } = useAppStore.getState();
+          setShowParametersPanel(true);
+        }}
+        onContextMenu={(e) => {
+          e.stopPropagation();
+          onContextMenu(e, shape.id);
+        }}
+      >
+        {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
+          if (!subtraction) return null;
+
+          const isHovered = hoveredSubtractionIndex === index && isSelected;
+          const isSubtractionSelected = selectedSubtractionIndex === index && isSelected;
+
+          return (
+            <SubtractionMesh
+              key={`${shape.id}-subtraction-${index}`}
+              subtraction={subtraction}
+              index={index}
+              isHovered={isHovered}
+              isSubtractionSelected={isSubtractionSelected}
+              isSelected={isSelected}
+              setHoveredSubtractionIndex={setHoveredSubtractionIndex}
+              setSelectedSubtractionIndex={setSelectedSubtractionIndex}
+            />
+          );
+        })}
+        {!isWireframe && !isXray && !shouldShowAsReference && (
+          <mesh
+            ref={meshRef}
+            geometry={localGeometry}
+            castShadow
+            receiveShadow
+          >
+            <meshStandardMaterial
+              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
+              metalness={0.2}
+              roughness={0.5}
+              transparent
+              opacity={0.75}
+              side={THREE.DoubleSide}
+              depthWrite={false}
+            />
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 15]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#1e3a8a' : '#0a0a0a'}
+                linewidth={2.5}
+                opacity={1}
+                transparent={false}
+                depthTest={true}
+              />
+            </lineSegments>
+          </mesh>
+        )}
+        {isWireframe && (
+          <>
+            <mesh
+              ref={meshRef}
+              geometry={localGeometry}
+              visible={false}
+            />
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 15]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
+                linewidth={isSelected || shouldShowAsReference ? 3.5 : 2.5}
+                depthTest={true}
+                depthWrite={true}
+              />
+            </lineSegments>
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 15]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
+                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
+                transparent
+                opacity={0.4}
+                depthTest={true}
+              />
+            </lineSegments>
+          </>
+        )}
+        {(isXray || shouldShowAsReference) && (
+          <>
+            <mesh
+              ref={meshRef}
+              geometry={localGeometry}
+              castShadow
+              receiveShadow
+            >
+              <meshStandardMaterial
+                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
+                metalness={0.2}
+                roughness={0.5}
+                transparent
+                opacity={0.25}
+                side={THREE.DoubleSide}
+                depthWrite={false}
+              />
+            </mesh>
+            <lineSegments>
+              {edgeGeometry ? (
+                <bufferGeometry {...edgeGeometry} />
+              ) : (
+                <edgesGeometry args={[localGeometry, 15]} />
+              )}
+              <lineBasicMaterial
+                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
+                linewidth={isSelected || shouldShowAsReference ? 3 : 2.5}
+                depthTest={true}
+                transparent={false}
+                opacity={1}
+              />
+            </lineSegments>
+          </>
+        )}
+      </group>
+
+      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
+        <TransformControls
+          key={geometryKey}
+          ref={transformRef}
+          object={groupRef.current}
+          mode={getTransformMode()}
+          size={0.8}
+        />
+      )}
+    </>
+  );
+});
+
+ShapeWithTransform.displayName = 'ShapeWithTransform';
 
 const Scene: React.FC = () => {
   const controlsRef = useRef<any>(null);
@@ -95,12 +615,12 @@ const Scene: React.FC = () => {
             console.log(`✅ Using ${baseVertices.length} scaled base vertices`);
           } else if (shape.replicadShape) {
             console.log('🔍 Getting vertices from Replicad shape for offset calculation...');
-            const { getReplicadVertices } = await import('./VertexEditorService');
+            const { getReplicadVertices } = await import('../services/vertexEditor');
             const verts = await getReplicadVertices(shape.replicadShape);
             baseVertices = verts.map(v => [v.x, v.y, v.z]);
             console.log(`✅ Got ${baseVertices.length} vertices from Replicad`);
           } else if (shape.type === 'box') {
-            const { getBoxVertices } = await import('./VertexEditorService');
+            const { getBoxVertices } = await import('../services/vertexEditor');
             const verts = getBoxVertices(
               shape.parameters.width,
               shape.parameters.height,
@@ -179,60 +699,106 @@ const Scene: React.FC = () => {
       const currentSelectedFilletFaceData = currentState.selectedFilletFaceData;
 
       if (currentSelectedShapeId && currentFilletMode && currentSelectedFilletFaces.length === 2 && currentSelectedFilletFaceData.length === 2) {
+        console.log(`🔵 Applying fillet with radius ${radius} to faces:`, currentSelectedFilletFaces);
+
         const shape = currentState.shapes.find(s => s.id === currentSelectedShapeId);
         if (!shape || !shape.replicadShape) {
           console.error('❌ Shape or replicadShape not found');
           return;
         }
 
+        console.log('📍 Fillet - Current shape position:', shape.position);
+
         try {
-          console.log('🎯 BEFORE FILLET - Shape position:', shape.position);
+          const { convertReplicadToThreeGeometry } = await import('../services/replicad');
+          const { getReplicadVertices } = await import('../services/vertexEditor');
+          const { extractFacesFromGeometry, createFaceDescriptor, groupCoplanarFaces } = await import('../services/faceEditor');
 
-          const oldCenter = new THREE.Vector3();
-          if (shape.geometry) {
-            const oldBox = new THREE.Box3().setFromBufferAttribute(shape.geometry.getAttribute('position'));
-            oldBox.getCenter(oldCenter);
-            console.log('📍 Center BEFORE adding fillet:', oldCenter);
+          console.log('📐 Face 1 - Normal:', currentSelectedFilletFaceData[0].normal, 'Center:', currentSelectedFilletFaceData[0].center);
+          console.log('📐 Face 2 - Normal:', currentSelectedFilletFaceData[1].normal, 'Center:', currentSelectedFilletFaceData[1].center);
+
+          const face1Center = new THREE.Vector3(...currentSelectedFilletFaceData[0].center);
+          const face2Center = new THREE.Vector3(...currentSelectedFilletFaceData[1].center);
+          const face1Normal = new THREE.Vector3(...currentSelectedFilletFaceData[0].normal);
+          const face2Normal = new THREE.Vector3(...currentSelectedFilletFaceData[1].normal);
+
+          const faces = extractFacesFromGeometry(shape.geometry);
+          const faceGroups = groupCoplanarFaces(faces);
+          const group1 = faceGroups[currentSelectedFilletFaces[0]];
+          const group2 = faceGroups[currentSelectedFilletFaces[1]];
+
+          const face1Data = faces.find(f => group1.faceIndices.includes(f.faceIndex));
+          const face2Data = faces.find(f => group2.faceIndices.includes(f.faceIndex));
+
+          if (!face1Data || !face2Data) {
+            console.error('❌ Could not find face data for descriptors');
+            return;
           }
 
-          const result = await applyFilletToShape(
-            shape,
-            currentSelectedFilletFaces,
-            currentSelectedFilletFaceData,
-            radius
-          );
+          const face1Descriptor = createFaceDescriptor(face1Data, shape.geometry);
+          const face2Descriptor = createFaceDescriptor(face2Data, shape.geometry);
 
-          const newBaseVertices = await getReplicadVertices(result.replicadShape);
+          console.log('🆔 Face 1 Descriptor:', face1Descriptor);
+          console.log('🆔 Face 2 Descriptor:', face2Descriptor);
 
-          const newCenter = new THREE.Vector3();
-          const newBox = new THREE.Box3().setFromBufferAttribute(result.geometry.getAttribute('position'));
-          newBox.getCenter(newCenter);
-          console.log('📍 Center AFTER adding fillet:', newCenter);
+          let replicadShape = shape.replicadShape;
 
-          const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-          console.log('📍 Center offset (local):', centerOffset);
+          let edgeCount = 0;
+          let foundEdgeCount = 0;
+          const filletedShape = replicadShape.fillet((edge: any) => {
+            edgeCount++;
+            try {
+              const start = edge.startPoint;
+              const end = edge.endPoint;
 
-          const rotatedOffset = centerOffset.clone();
-          if (shape.rotation[0] !== 0 || shape.rotation[1] !== 0 || shape.rotation[2] !== 0) {
-            const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-              new THREE.Euler(shape.rotation[0], shape.rotation[1], shape.rotation[2], 'XYZ')
-            );
-            rotatedOffset.applyMatrix4(rotationMatrix);
-            console.log('📍 Center offset (rotated):', rotatedOffset);
-          }
+              if (!start || !end) return null;
 
-          const finalPosition: [number, number, number] = [
-            shape.position[0] - rotatedOffset.x,
-            shape.position[1] - rotatedOffset.y,
-            shape.position[2] - rotatedOffset.z
-          ];
+              const startVec = new THREE.Vector3(start.x, start.y, start.z);
+              const endVec = new THREE.Vector3(end.x, end.y, end.z);
+              const centerVec = new THREE.Vector3(
+                (start.x + end.x) / 2,
+                (start.y + end.y) / 2,
+                (start.z + end.z) / 2
+              );
 
-          console.log('🎯 AFTER FILLET - Adjusted position from', shape.position, 'to', finalPosition);
+              const maxDimension = Math.max(shape.parameters.width || 1, shape.parameters.height || 1, shape.parameters.depth || 1);
+              const tolerance = maxDimension * 0.05;
+
+              const startDistFace1 = Math.abs(startVec.clone().sub(face1Center).dot(face1Normal));
+              const startDistFace2 = Math.abs(startVec.clone().sub(face2Center).dot(face2Normal));
+              const endDistFace1 = Math.abs(endVec.clone().sub(face1Center).dot(face1Normal));
+              const endDistFace2 = Math.abs(endVec.clone().sub(face2Center).dot(face2Normal));
+              const centerDistFace1 = Math.abs(centerVec.clone().sub(face1Center).dot(face1Normal));
+              const centerDistFace2 = Math.abs(centerVec.clone().sub(face2Center).dot(face2Normal));
+
+              const allPointsOnFace1 = startDistFace1 < tolerance && endDistFace1 < tolerance && centerDistFace1 < tolerance;
+              const allPointsOnFace2 = startDistFace2 < tolerance && endDistFace2 < tolerance && centerDistFace2 < tolerance;
+
+              if (allPointsOnFace1 && allPointsOnFace2) {
+                foundEdgeCount++;
+                console.log('Found shared edge #' + foundEdgeCount + ' - applying fillet radius:', radius);
+                console.log(`  Start: (${startVec.x.toFixed(2)}, ${startVec.y.toFixed(2)}, ${startVec.z.toFixed(2)})`);
+                console.log(`  End: (${endVec.x.toFixed(2)}, ${endVec.y.toFixed(2)}, ${endVec.z.toFixed(2)})`);
+                return radius;
+              }
+
+              return null;
+            } catch (e) {
+              console.error('Error checking edge:', e);
+              return null;
+            }
+          });
+
+          console.log('🔢 Total edges checked:', edgeCount);
+          console.log('🔢 Edges selected for fillet:', foundEdgeCount);
+
+          const newGeometry = convertReplicadToThreeGeometry(filletedShape);
+          const newBaseVertices = await getReplicadVertices(filletedShape);
 
           currentState.updateShape(currentSelectedShapeId, {
-            geometry: result.geometry,
-            replicadShape: result.replicadShape,
-            position: finalPosition,
+            geometry: newGeometry,
+            replicadShape: filletedShape,
+            position: shape.position,
             rotation: shape.rotation,
             scale: shape.scale,
             parameters: {
@@ -244,15 +810,23 @@ const Scene: React.FC = () => {
             },
             fillets: [
               ...(shape.fillets || []),
-              result.filletData
+              {
+                face1Descriptor,
+                face2Descriptor,
+                face1Data: currentSelectedFilletFaceData[0],
+                face2Data: currentSelectedFilletFaceData[1],
+                radius,
+                originalSize: {
+                  width: shape.parameters.width || 1,
+                  height: shape.parameters.height || 1,
+                  depth: shape.parameters.depth || 1
+                }
+              }
             ]
           });
 
           console.log(`✅ Fillet with radius ${radius} applied successfully and saved to shape.fillets!`);
-          const newState = useAppStore.getState();
-          const updatedShape = newState.shapes.find(s => s.id === selectedShapeId);
-          console.log(`📍 After update, shape.fillets.length: ${updatedShape?.fillets?.length || 0}`);
-          newState.clearFilletFaces();
+          currentState.clearFilletFaces();
           console.log('✅ Fillet faces cleared. Select 2 new faces for another fillet operation.');
         } catch (error) {
           console.error('❌ Failed to apply fillet:', error);
@@ -434,6 +1008,7 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
+        const hasFillets = shape.fillets && shape.fillets.length > 0;
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform
@@ -442,6 +1017,12 @@ const Scene: React.FC = () => {
               orbitControlsRef={controlsRef}
               onContextMenu={handleContextMenu}
             />
+            {hasFillets && !faceEditMode && (
+              <FilletEdgeLines
+                key={`fillet-edges-${shape.id}-${shape.geometry?.uuid || ''}-${shape.fillets.length}`}
+                shape={shape}
+              />
+            )}
             {isSelected && vertexEditMode && (
               <VertexEditor
                 shape={shape}
@@ -451,6 +1032,13 @@ const Scene: React.FC = () => {
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
+              />
+            )}
+            {isSelected && faceEditMode && (
+              <FaceEditor
+                key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
+                shape={shape}
+                isActive={true}
               />
             )}
           </React.Fragment>

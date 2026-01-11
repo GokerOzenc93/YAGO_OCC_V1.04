@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import * as THREE from 'three';
-import { evaluateExpression } from './Expression';
-import { applyShapeChanges, applySubtractionChanges } from './ShapeUpdaterService';
+import { evaluateExpression } from '../utils/expression';
+import { applyShapeChanges, applySubtractionChanges } from '../services/shapeUpdater';
 
 interface CustomParameter {
   id: string;
@@ -368,7 +368,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     if (dimension === 'depth') setDepth(value);
   };
 
-  const handleSubParamChange = async (param: string, expression: string) => {
+  const handleSubParamChange = (param: string, expression: string) => {
     const evalContext = {
       W: width,
       H: height,
@@ -378,43 +378,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
     const result = evaluateExpression(expression, evalContext);
 
-    const updatedSubParams = {
-      ...subParams,
+    setSubParams(prev => ({
+      ...prev,
       [param]: { expression, result }
-    };
-
-    setSubParams(updatedSubParams);
-
-    const currentState = useAppStore.getState();
-    const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
-    if (!currentShape) return;
-
-    console.log('📍 Sub Param Change - Current shape position:', currentShape.position);
-
-    await applyShapeChanges({
-      selectedShape: currentShape,
-      width,
-      height,
-      depth,
-      rotX,
-      rotY,
-      rotZ,
-      customParameters,
-      vertexModifications,
-      filletRadii,
-      selectedSubtractionIndex,
-      subWidth: updatedSubParams.width.result,
-      subHeight: updatedSubParams.height.result,
-      subDepth: updatedSubParams.depth.result,
-      subPosX: updatedSubParams.posX.result,
-      subPosY: updatedSubParams.posY.result,
-      subPosZ: updatedSubParams.posZ.result,
-      subRotX: updatedSubParams.rotX.result,
-      subRotY: updatedSubParams.rotY.result,
-      subRotZ: updatedSubParams.rotZ.result,
-      subParams: updatedSubParams,
-      updateShape
-    });
+    }));
   };
 
   const addCustomParameter = () => {
@@ -573,9 +540,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const newFilletRadii = filletRadii.filter((_, idx) => idx !== filletIndex);
 
     try {
-      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-      const { getReplicadVertices } = await import('./VertexEditorService');
-      const { applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
+      const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { getReplicadVertices } = await import('../services/vertexEditor');
+      const { applyFillets, updateFilletCentersForNewGeometry } = await import('../services/shapeUpdater');
 
       let baseShape = await createReplicadBox({
         width,
@@ -633,6 +600,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       updateShape(currentShape.id, {
         geometry: finalGeometry,
         replicadShape: finalShape,
+        position: currentShape.position,
+        rotation: currentShape.rotation,
+        scale: currentShape.scale,
         fillets: updatedFillets,
         parameters: {
           ...currentShape.parameters,
@@ -798,39 +768,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       <ParameterRow
                         label={`F${idx + 1}`}
                         value={radius}
-                        onChange={async (newRadius) => {
+                        onChange={(newRadius) => {
                           const newRadii = [...filletRadii];
                           newRadii[idx] = newRadius;
                           setFilletRadii(newRadii);
-
-                          const currentState = useAppStore.getState();
-                          const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
-                          if (!currentShape) return;
-
-                          await applyShapeChanges({
-                            selectedShape: currentShape,
-                            width,
-                            height,
-                            depth,
-                            rotX,
-                            rotY,
-                            rotZ,
-                            customParameters,
-                            vertexModifications,
-                            filletRadii: newRadii,
-                            selectedSubtractionIndex,
-                            subWidth: subParams.width.result,
-                            subHeight: subParams.height.result,
-                            subDepth: subParams.depth.result,
-                            subPosX: subParams.posX.result,
-                            subPosY: subParams.posY.result,
-                            subPosZ: subParams.posZ.result,
-                            subRotX: subParams.rotX.result,
-                            subRotY: subParams.rotY.result,
-                            subRotZ: subParams.rotZ.result,
-                            subParams,
-                            updateShape
-                          });
                         }}
                         description={`Fillet ${idx + 1} Radius`}
                         step={0.1}
