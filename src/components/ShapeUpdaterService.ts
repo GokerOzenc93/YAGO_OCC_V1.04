@@ -399,10 +399,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       if (updatedFillets.length > 0) {
         console.log('🔄 Updating fillet centers after subtraction change...');
 
-        const oldCenter = new THREE.Vector3();
-        const oldBox = new THREE.Box3().setFromBufferAttribute(newGeometry.getAttribute('position'));
-        oldBox.getCenter(oldCenter);
-
         updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, { width, height, depth });
 
         console.log('🔵 Reapplying fillets with updated centers...');
@@ -410,31 +406,12 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         const finalGeometry = convertReplicadToThreeGeometry(resultShape);
         const finalBaseVertices = await getReplicadVertices(resultShape);
 
-        const newCenter = new THREE.Vector3();
-        const newBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
-        newBox.getCenter(newCenter);
-
-        const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-
-        const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-          new THREE.Euler(selectedShape.rotation[0], selectedShape.rotation[1], selectedShape.rotation[2])
-        );
-        centerOffset.applyMatrix4(rotationMatrix);
-        centerOffset.multiply(new THREE.Vector3(selectedShape.scale[0], selectedShape.scale[1], selectedShape.scale[2]));
-
-        const newPosition: [number, number, number] = [
-          selectedShape.position[0] - centerOffset.x,
-          selectedShape.position[1] - centerOffset.y,
-          selectedShape.position[2] - centerOffset.z
-        ];
-
         updateShape(selectedShape.id, {
           ...baseUpdate,
           geometry: finalGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: updatedFillets,
-          position: newPosition,
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -503,13 +480,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }));
         }
 
-        let newPosition = selectedShape.position;
-
         if (updatedFillets.length > 0) {
-          const oldCenter = new THREE.Vector3();
-          const oldBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
-          oldBox.getCenter(oldCenter);
-
           console.log('🔄 Updating fillet centers after dimension change...');
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
@@ -517,24 +488,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           newReplicadShape = await applyFillets(newReplicadShape, updatedFillets, { width, height, depth });
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
-
-          const newCenter = new THREE.Vector3();
-          const newBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
-          newBox.getCenter(newCenter);
-
-          const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-
-          const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-            new THREE.Euler(selectedShape.rotation[0], selectedShape.rotation[1], selectedShape.rotation[2])
-          );
-          centerOffset.applyMatrix4(rotationMatrix);
-          centerOffset.multiply(new THREE.Vector3(selectedShape.scale[0], selectedShape.scale[1], selectedShape.scale[2]));
-
-          newPosition = [
-            selectedShape.position[0] - centerOffset.x,
-            selectedShape.position[1] - centerOffset.y,
-            selectedShape.position[2] - centerOffset.z
-          ];
         }
 
         updateShape(selectedShape.id, {
@@ -542,7 +495,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           geometry: finalGeometry,
           replicadShape: newReplicadShape,
           fillets: updatedFillets,
-          position: newPosition,
           parameters: {
             ...baseUpdate.parameters,
             scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -597,10 +549,6 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           let finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           let finalBaseVertices = await getReplicadVertices(newReplicadShape);
 
-          const oldCenter = new THREE.Vector3();
-          const oldBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
-          oldBox.getCenter(oldCenter);
-
           updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
 
           console.log('🔵 Reapplying fillets with new radii...');
@@ -608,30 +556,11 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
 
-          const newCenter = new THREE.Vector3();
-          const newBox = new THREE.Box3().setFromBufferAttribute(finalGeometry.getAttribute('position'));
-          newBox.getCenter(newCenter);
-
-          const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-
-          const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-            new THREE.Euler(selectedShape.rotation[0], selectedShape.rotation[1], selectedShape.rotation[2])
-          );
-          centerOffset.applyMatrix4(rotationMatrix);
-          centerOffset.multiply(new THREE.Vector3(selectedShape.scale[0], selectedShape.scale[1], selectedShape.scale[2]));
-
-          const newPosition: [number, number, number] = [
-            selectedShape.position[0] - centerOffset.x,
-            selectedShape.position[1] - centerOffset.y,
-            selectedShape.position[2] - centerOffset.z
-          ];
-
           updateShape(selectedShape.id, {
             ...baseUpdate,
             geometry: finalGeometry,
             replicadShape: newReplicadShape,
             fillets: updatedFillets,
-            position: newPosition,
             parameters: {
               ...baseUpdate.parameters,
               scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
