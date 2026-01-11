@@ -3,6 +3,7 @@ import { TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, Tool, ViewMode } from '../store';
 import { SubtractionMesh } from './SubtractionMesh';
+import { FilletEdgeLines } from './Fillet';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -212,6 +213,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
+  const hasFillets = shape.fillets && shape.fillets.length > 0;
+  const { faceEditMode } = useAppStore();
 
   if (shape.isolated === false) {
     return null;
@@ -364,6 +367,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               />
             </lineSegments>
           </>
+        )}
+        {hasFillets && !faceEditMode && (
+          <FilletEdgeLines shape={shape} />
         )}
       </group>
 
