@@ -188,6 +188,13 @@ const Scene: React.FC = () => {
         try {
           console.log('🎯 BEFORE FILLET - Shape position:', shape.position);
 
+          const oldCenter = new THREE.Vector3();
+          if (shape.geometry) {
+            const oldBox = new THREE.Box3().setFromBufferAttribute(shape.geometry.getAttribute('position'));
+            oldBox.getCenter(oldCenter);
+            console.log('📍 Center BEFORE adding fillet:', oldCenter);
+          }
+
           const result = await applyFilletToShape(
             shape,
             currentSelectedFilletFaces,
@@ -197,12 +204,26 @@ const Scene: React.FC = () => {
 
           const newBaseVertices = await getReplicadVertices(result.replicadShape);
 
-          console.log('🎯 AFTER FILLET - Keeping position:', shape.position);
+          const newCenter = new THREE.Vector3();
+          const newBox = new THREE.Box3().setFromBufferAttribute(result.geometry.getAttribute('position'));
+          newBox.getCenter(newCenter);
+          console.log('📍 Center AFTER adding fillet:', newCenter);
+
+          const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
+          console.log('📍 Center offset:', centerOffset);
+
+          const finalPosition: [number, number, number] = [
+            shape.position[0] - centerOffset.x,
+            shape.position[1] - centerOffset.y,
+            shape.position[2] - centerOffset.z
+          ];
+
+          console.log('🎯 AFTER FILLET - Adjusted position from', shape.position, 'to', finalPosition);
 
           currentState.updateShape(currentSelectedShapeId, {
             geometry: result.geometry,
             replicadShape: result.replicadShape,
-            position: shape.position,
+            position: finalPosition,
             rotation: shape.rotation,
             scale: shape.scale,
             parameters: {
