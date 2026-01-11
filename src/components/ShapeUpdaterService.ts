@@ -513,7 +513,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }));
         }
 
-        let finalPosition = existingShape.position;
+        let finalPosition = selectedShape.position;
 
         if (updatedFillets.length > 0) {
           console.log('🔄 Updating fillet centers after dimension change...');
@@ -539,21 +539,21 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           console.log('📍 Center offset (local):', centerOffset);
 
           const rotatedOffset = centerOffset.clone();
-          if (baseUpdate.rotation[0] !== 0 || baseUpdate.rotation[1] !== 0 || baseUpdate.rotation[2] !== 0) {
+          if (selectedShape.rotation[0] !== 0 || selectedShape.rotation[1] !== 0 || selectedShape.rotation[2] !== 0) {
             const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-              new THREE.Euler(baseUpdate.rotation[0], baseUpdate.rotation[1], baseUpdate.rotation[2], 'XYZ')
+              new THREE.Euler(selectedShape.rotation[0], selectedShape.rotation[1], selectedShape.rotation[2], 'XYZ')
             );
             rotatedOffset.applyMatrix4(rotationMatrix);
             console.log('📍 Center offset (rotated):', rotatedOffset);
           }
 
           finalPosition = [
-            existingShape.position[0] - rotatedOffset.x,
-            existingShape.position[1] - rotatedOffset.y,
-            existingShape.position[2] - rotatedOffset.z
+            selectedShape.position[0] - rotatedOffset.x,
+            selectedShape.position[1] - rotatedOffset.y,
+            selectedShape.position[2] - rotatedOffset.z
           ] as [number, number, number];
 
-          console.log('🎯 DIMENSION CHANGE + FILLET - Adjusted position from', existingShape.position, 'to', finalPosition);
+          console.log('🎯 DIMENSION CHANGE + FILLET - Adjusted position from', selectedShape.position, 'to', finalPosition);
         }
 
         updateShape(selectedShape.id, {
@@ -637,21 +637,21 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           console.log('📍 Center offset (local):', centerOffset);
 
           const rotatedOffset = centerOffset.clone();
-          if (existingShape.rotation[0] !== 0 || existingShape.rotation[1] !== 0 || existingShape.rotation[2] !== 0) {
+          if (selectedShape.rotation[0] !== 0 || selectedShape.rotation[1] !== 0 || selectedShape.rotation[2] !== 0) {
             const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-              new THREE.Euler(existingShape.rotation[0], existingShape.rotation[1], existingShape.rotation[2], 'XYZ')
+              new THREE.Euler(selectedShape.rotation[0], selectedShape.rotation[1], selectedShape.rotation[2], 'XYZ')
             );
             rotatedOffset.applyMatrix4(rotationMatrix);
             console.log('📍 Center offset (rotated):', rotatedOffset);
           }
 
           const finalPosition: [number, number, number] = [
-            existingShape.position[0] - rotatedOffset.x,
-            existingShape.position[1] - rotatedOffset.y,
-            existingShape.position[2] - rotatedOffset.z
+            selectedShape.position[0] - rotatedOffset.x,
+            selectedShape.position[1] - rotatedOffset.y,
+            selectedShape.position[2] - rotatedOffset.z
           ];
 
-          console.log('🎯 FILLET RADIUS CHANGE - Adjusted position from', existingShape.position, 'to', finalPosition);
+          console.log('🎯 FILLET RADIUS CHANGE - Adjusted position from', selectedShape.position, 'to', finalPosition);
 
           updateShape(selectedShape.id, {
             ...baseUpdate,
