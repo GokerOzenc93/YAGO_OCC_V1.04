@@ -186,13 +186,7 @@ const Scene: React.FC = () => {
         }
 
         try {
-          const oldCenter = new THREE.Vector3();
-          if (shape.geometry && shape.geometry.boundingBox) {
-            shape.geometry.boundingBox.getCenter(oldCenter);
-          } else if (shape.geometry) {
-            const box = new THREE.Box3().setFromBufferAttribute(shape.geometry.getAttribute('position'));
-            box.getCenter(oldCenter);
-          }
+          console.log('🎯 BEFORE FILLET - Shape position:', shape.position);
 
           const result = await applyFilletToShape(
             shape,
@@ -201,30 +195,14 @@ const Scene: React.FC = () => {
             radius
           );
 
-          const newCenter = new THREE.Vector3();
-          const newBox = new THREE.Box3().setFromBufferAttribute(result.geometry.getAttribute('position'));
-          newBox.getCenter(newCenter);
-
-          const centerOffset = new THREE.Vector3().subVectors(newCenter, oldCenter);
-
-          const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(
-            new THREE.Euler(shape.rotation[0], shape.rotation[1], shape.rotation[2])
-          );
-          centerOffset.applyMatrix4(rotationMatrix);
-          centerOffset.multiply(new THREE.Vector3(shape.scale[0], shape.scale[1], shape.scale[2]));
-
-          const newPosition: [number, number, number] = [
-            shape.position[0] + centerOffset.x,
-            shape.position[1] + centerOffset.y,
-            shape.position[2] + centerOffset.z
-          ];
-
           const newBaseVertices = await getReplicadVertices(result.replicadShape);
+
+          console.log('🎯 AFTER FILLET - Keeping position:', shape.position);
 
           currentState.updateShape(currentSelectedShapeId, {
             geometry: result.geometry,
             replicadShape: result.replicadShape,
-            position: newPosition,
+            position: shape.position,
             rotation: shape.rotation,
             scale: shape.scale,
             parameters: {
