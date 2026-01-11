@@ -5,7 +5,7 @@ import Terminal from './components/Terminal';
 import StatusBar from './components/StatusBar';
 import CatalogPanel from './components/CatalogPanel';
 import { useAppStore } from './store';
-import { catalogService, CatalogItem } from './services/supabase';
+import { catalogService, CatalogItem } from './components/Database';
 
 function App() {
   const { opencascadeLoading } = useAppStore();

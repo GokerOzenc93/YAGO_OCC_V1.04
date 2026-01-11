@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as THREE from 'three';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid2x2 as Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, CreditCard as Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, CreditCard as Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, Minus } from 'lucide-react';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid2x2 as Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, CreditCard as Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, CreditCard as Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, ArrowDownUp, Divide, DivideCircle } from 'lucide-react';
 import { ParametersPanel } from './ParametersPanel';
 
 interface ToolbarProps {
@@ -205,7 +205,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   const transformTools = [
     { id: Tool.SELECT, icon: <MousePointer2 size={11} />, label: 'Select', shortcut: 'V' },
     { id: Tool.MOVE, icon: <Move size={11} />, label: 'Move', shortcut: 'M' },
-    { id: Tool.POINT_TO_POINT_MOVE, icon: <Navigation size={11} />, label: 'Point to Point', shortcut: 'P2P' },
+    { id: Tool.POINT_TO_POINT_MOVE, icon: <ArrowDownUp size={11} />, label: 'Point to Point', shortcut: 'P2P' },
     { id: Tool.ROTATE, icon: <RotateCcw size={11} />, label: 'Rotate', shortcut: 'Ro' },
     { id: Tool.SCALE, icon: <Maximize size={11} />, label: 'Scale', shortcut: 'S', disabledForBox: true },
   ];
@@ -379,7 +379,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     console.log('📦 Adding box geometry with Replicad...');
 
     try {
-      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
       const w = 600, h = 600, d = 600;
       const replicadShape = await createReplicadBox({ width: w, height: h, depth: d });
@@ -412,7 +412,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     console.log('🛢️ Adding cylinder geometry with Replicad...');
 
     try {
-      const { createReplicadCylinder, convertReplicadToThreeGeometry } = await import('../services/replicad');
+      const { createReplicadCylinder, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
       const radius = 300, height = 600;
       const replicadShape = await createReplicadCylinder({ radius, height });
@@ -492,8 +492,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
 
       console.log(`🔪 Found ${intersectingShapes.length} intersecting shape(s) that will keep the result`);
 
-      const { performBooleanCut, convertReplicadToThreeGeometry } = await import('../services/replicad');
-      const { getReplicadVertices } = await import('../services/vertexEditor');
+      const { performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { getReplicadVertices } = await import('./VertexEditorService');
 
       for (const targetShape of intersectingShapes) {
         if (!targetShape.replicadShape) {
@@ -836,7 +836,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             }`}
             title="Perpendicular Snap"
           >
-            <Zap size={11} />
+            <ArrowDownUp size={11} />
           </button>
           <button
             onClick={() => handleSnapToggle(SnapType.INTERSECTION)}
@@ -944,7 +944,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             }
             disabled={!selectedShapeId}
           >
-            <Minus size={11} />
+            <DivideCircle size={11} />
           </button>
           <button
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
