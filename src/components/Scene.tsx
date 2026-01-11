@@ -6,7 +6,6 @@ import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from './Database';
 import { VertexEditor } from './VertexEditor';
-import { FaceEditor } from './FaceEditor';
 import { applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
@@ -417,13 +416,6 @@ const Scene: React.FC = () => {
                 onOffsetConfirm={(vertexIndex, direction, offset) => {
                   console.log('Offset confirmed:', { vertexIndex, direction, offset });
                 }}
-              />
-            )}
-            {isSelected && faceEditMode && (
-              <FaceEditor
-                key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
-                shape={shape}
-                isActive={true}
               />
             )}
           </React.Fragment>
