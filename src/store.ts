@@ -698,17 +698,6 @@ export const useAppStore = create<AppState>((set, get) => ({
             let newGeometry = convertReplicadToThreeGeometry(resultShape);
             let newBaseVertices = await getReplicadVertices(resultShape);
 
-            newGeometry.computeBoundingBox();
-            let geometryCenter = new THREE.Vector3();
-            newGeometry.boundingBox!.getCenter(geometryCenter);
-            if (geometryCenter.length() > 0.001) {
-              console.log('📍 Centering geometry after boolean cut (was offset by:', geometryCenter.toArray(), ')');
-              newGeometry.translate(-geometryCenter.x, -geometryCenter.y, -geometryCenter.z);
-              newBaseVertices = newBaseVertices.map(v =>
-                new THREE.Vector3(v.x - geometryCenter.x, v.y - geometryCenter.y, v.z - geometryCenter.z)
-              );
-            }
-
             let updatedFillets = shape1.fillets || [];
             let finalResultShape = resultShape;
 
@@ -730,17 +719,6 @@ export const useAppStore = create<AppState>((set, get) => ({
               });
               newGeometry = convertReplicadToThreeGeometry(finalResultShape);
               newBaseVertices = await getReplicadVertices(finalResultShape);
-
-              newGeometry.computeBoundingBox();
-              geometryCenter = new THREE.Vector3();
-              newGeometry.boundingBox!.getCenter(geometryCenter);
-              if (geometryCenter.length() > 0.001) {
-                console.log('📍 Centering final geometry after fillets (was offset by:', geometryCenter.toArray(), ')');
-                newGeometry.translate(-geometryCenter.x, -geometryCenter.y, -geometryCenter.z);
-                newBaseVertices = newBaseVertices.map(v =>
-                  new THREE.Vector3(v.x - geometryCenter.x, v.y - geometryCenter.y, v.z - geometryCenter.z)
-                );
-              }
             }
 
             // --- 4. Kesilen Parçayı Hafızaya Al (History) ---
@@ -895,19 +873,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         );
       }
 
-      let newGeometry = convertReplicadToThreeGeometry(baseShape);
-      let newBaseVertices = await getReplicadVertices(baseShape);
-
-      newGeometry.computeBoundingBox();
-      let geometryCenter = new THREE.Vector3();
-      newGeometry.boundingBox!.getCenter(geometryCenter);
-      if (geometryCenter.length() > 0.001) {
-        console.log('📍 Centering geometry after subtraction deletion (was offset by:', geometryCenter.toArray(), ')');
-        newGeometry.translate(-geometryCenter.x, -geometryCenter.y, -geometryCenter.z);
-        newBaseVertices = newBaseVertices.map(v =>
-          new THREE.Vector3(v.x - geometryCenter.x, v.y - geometryCenter.y, v.z - geometryCenter.z)
-        );
-      }
+      const newGeometry = convertReplicadToThreeGeometry(baseShape);
+      const newBaseVertices = await getReplicadVertices(baseShape);
 
       let updatedFillets = shape.fillets || [];
       let finalShape = baseShape;
@@ -932,17 +899,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         });
         finalGeometry = convertReplicadToThreeGeometry(finalShape);
         finalBaseVertices = await getReplicadVertices(finalShape);
-
-        finalGeometry.computeBoundingBox();
-        geometryCenter = new THREE.Vector3();
-        finalGeometry.boundingBox!.getCenter(geometryCenter);
-        if (geometryCenter.length() > 0.001) {
-          console.log('📍 Centering final geometry after fillets (was offset by:', geometryCenter.toArray(), ')');
-          finalGeometry.translate(-geometryCenter.x, -geometryCenter.y, -geometryCenter.z);
-          finalBaseVertices = finalBaseVertices.map(v =>
-            new THREE.Vector3(v.x - geometryCenter.x, v.y - geometryCenter.y, v.z - geometryCenter.z)
-          );
-        }
       }
 
       set((state) => ({
