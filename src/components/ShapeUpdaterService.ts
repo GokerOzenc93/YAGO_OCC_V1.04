@@ -518,7 +518,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           geometry: finalGeometry,
           replicadShape: newReplicadShape,
           fillets: updatedFillets,
-          position: preservedPositionForDimChange,
+          position: 200,
           rotation: baseUpdate.rotation,
           scale: baseUpdate.scale,
           vertexModifications: baseUpdate.vertexModifications,
