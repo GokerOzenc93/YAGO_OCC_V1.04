@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { TransformControls } from '@react-three/drei';
+import { TransformControls, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, Tool, ViewMode } from '../store';
 import { SubtractionMesh } from './SubtractionMesh';
@@ -253,6 +253,21 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           onContextMenu(e, shape.id);
         }}
       >
+        {isSelected && (
+          <Text
+            position={[0, (shape.parameters?.height || 1) / 2 + 15, 0]}
+            fontSize={8}
+            color="#00ff00"
+            anchorX="center"
+            anchorY="middle"
+            outlineWidth={1}
+            outlineColor="#000000"
+            depthTest={false}
+            renderOrder={999}
+          >
+            {`Pos: [${shape.position[0].toFixed(1)}, ${shape.position[1].toFixed(1)}, ${shape.position[2].toFixed(1)}]`}
+          </Text>
+        )}
         {shape.subtractionGeometries && subtractionViewMode && shape.subtractionGeometries.map((subtraction, index) => {
           if (!subtraction) return null;
 
