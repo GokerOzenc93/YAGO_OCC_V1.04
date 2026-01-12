@@ -334,9 +334,16 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
       console.log('🔄 Recalculating subtraction with updated dimensions...');
       console.log('📍 Current shape position (will be preserved):', selectedShape.position);
 
+      const subReplicadShape = await createReplicadBox({
+        width: subWidth,
+        height: subHeight,
+        depth: subDepth
+      });
+      const subReplicadGeometry = convertReplicadToThreeGeometry(subReplicadShape);
+
       const updatedSubtraction = {
         ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
-        geometry: new THREE.BoxGeometry(subWidth, subHeight, subDepth),
+        geometry: subReplicadGeometry,
         relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
         relativeRotation: [
           subRotX * (Math.PI / 180),
@@ -379,6 +386,8 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           height: subSize.y,
           depth: subSize.z
         });
+
+        console.log(`🔍 Applying subtraction #${i} with relativeOffset:`, subtraction.relativeOffset);
 
         resultShape = await performBooleanCut(
           resultShape,
@@ -669,7 +678,12 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
   const { getReplicadVertices } = await import('./VertexEditorService');
   const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-  const newSubGeometry = new THREE.BoxGeometry(subWidth, subHeight, subDepth);
+  const subReplicadShape = await createReplicadBox({
+    width: subWidth,
+    height: subHeight,
+    depth: subDepth
+  });
+  const newSubGeometry = convertReplicadToThreeGeometry(subReplicadShape);
   const currentSubtraction = currentShape.subtractionGeometries[selectedSubtractionIndex];
 
   const updatedSubtraction = {
