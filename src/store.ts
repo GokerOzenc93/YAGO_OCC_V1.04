@@ -291,22 +291,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (!shape) return state;
 
       if ('position' in updates) {
-        console.log('');
-        console.log('═══════════════════════════════════════════════════════');
-        console.log('🔄 STORE updateShape - POSITION UPDATE');
-        console.log('═══════════════════════════════════════════════════════');
+        console.log('🔄 STORE updateShape - Position update');
         console.log('   Shape ID:', id.slice(0, 8));
-        console.log('   OLD Position:', `[${shape.position[0].toFixed(2)}, ${shape.position[1].toFixed(2)}, ${shape.position[2].toFixed(2)}]`);
-        console.log('   NEW Position:', `[${updates.position[0].toFixed(2)}, ${updates.position[1].toFixed(2)}, ${updates.position[2].toFixed(2)}]`);
-        console.log('   Position Changed:',
-          shape.position[0] !== updates.position[0] ||
-          shape.position[1] !== updates.position[1] ||
-          shape.position[2] !== updates.position[2]
-        );
-        console.log('   Stack trace:');
-        console.trace();
-        console.log('═══════════════════════════════════════════════════════');
-        console.log('');
+        console.log('   Old position:', shape.position);
+        console.log('   New position:', updates.position);
       }
 
       const updatedShapes = state.shapes.map((s) => {
