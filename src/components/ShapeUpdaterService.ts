@@ -518,7 +518,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           geometry: finalGeometry,
           replicadShape: newReplicadShape,
           fillets: updatedFillets,
-          position: 200,
+          position: preservedPositionForDimChange,
           rotation: baseUpdate.rotation,
           scale: baseUpdate.scale,
           vertexModifications: baseUpdate.vertexModifications,
@@ -753,7 +753,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     const finalGeometry = convertReplicadToThreeGeometry(resultShape);
     const finalBaseVertices = await getReplicadVertices(resultShape);
 
-    console.log('🎯 SUBTRACTION CHANGE - Explicitly preserving position:', preservedPosition);
+    console.log('🎯 SUBTRACTION CHANGE - Explicitly preserving position:', preservedPosition+100);
     console.log('✅ Subtraction complete with fillets');
 
     updateShape(currentShape.id, {
