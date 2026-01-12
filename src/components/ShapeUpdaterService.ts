@@ -400,6 +400,9 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
       let updatedFillets = selectedShape.fillets || [];
 
+      const preservedPosition = selectedShape.position as [number, number, number];
+      console.log('📍 Preserving position:', preservedPosition);
+
       if (updatedFillets.length > 0) {
         console.log('🔄 Updating fillet centers after subtraction change...');
 
@@ -410,13 +413,14 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         const finalGeometry = convertReplicadToThreeGeometry(resultShape);
         const finalBaseVertices = await getReplicadVertices(resultShape);
 
-        console.log('🎯 SUBTRACTION CHANGE + FILLET - Position NOT modified (preserving user position)');
+        console.log('🎯 SUBTRACTION CHANGE + FILLET - Explicitly preserving position:', preservedPosition);
 
         updateShape(selectedShape.id, {
           geometry: finalGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: updatedFillets,
+          position: preservedPosition,
           rotation: baseUpdate.rotation,
           scale: baseUpdate.scale,
           vertexModifications: baseUpdate.vertexModifications,
@@ -426,13 +430,14 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }
         });
       } else {
-        console.log('🎯 SUBTRACTION CHANGE - Position NOT modified (preserving user position)');
+        console.log('🎯 SUBTRACTION CHANGE - Explicitly preserving position:', preservedPosition);
 
         updateShape(selectedShape.id, {
           geometry: newGeometry,
           replicadShape: resultShape,
           subtractionGeometries: allSubtractions,
           fillets: [],
+          position: preservedPosition,
           rotation: baseUpdate.rotation,
           scale: baseUpdate.scale,
           vertexModifications: baseUpdate.vertexModifications,
@@ -442,7 +447,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }
         });
 
-        console.log('✅ Shape geometry updated, position preserved');
+        console.log('✅ Shape geometry updated, position explicitly preserved');
       }
     } else {
       if (dimensionsChanged) {
@@ -494,6 +499,8 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }));
         }
 
+        const preservedPositionForDimChange = selectedShape.position as [number, number, number];
+
         if (updatedFillets.length > 0) {
           console.log('🔄 Updating fillet centers after dimension change...');
 
@@ -504,13 +511,14 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
 
-          console.log('🎯 DIMENSION CHANGE + FILLET - Preserving current position');
+          console.log('🎯 DIMENSION CHANGE + FILLET - Explicitly preserving position:', preservedPositionForDimChange);
         }
 
         updateShape(selectedShape.id, {
           geometry: finalGeometry,
           replicadShape: newReplicadShape,
           fillets: updatedFillets,
+          position: preservedPositionForDimChange,
           rotation: baseUpdate.rotation,
           scale: baseUpdate.scale,
           vertexModifications: baseUpdate.vertexModifications,
@@ -520,7 +528,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }
         });
 
-        console.log('✓ Replicad shape recreated with dimensions:', { width, height, depth });
+        console.log('✓ Replicad shape recreated with dimensions, position preserved:', { width, height, depth, position: preservedPositionForDimChange });
       } else {
         const filletsChanged = filletRadii && filletRadii.length > 0 &&
           filletRadii.some((r, idx) => (selectedShape.fillets?.[idx]?.radius || 0) !== r);
@@ -575,12 +583,14 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
 
-          console.log('🎯 FILLET RADIUS CHANGE - Preserving current position');
+          const preservedPositionForFillet = selectedShape.position as [number, number, number];
+          console.log('🎯 FILLET RADIUS CHANGE - Explicitly preserving position:', preservedPositionForFillet);
 
           updateShape(selectedShape.id, {
             geometry: finalGeometry,
             replicadShape: newReplicadShape,
             fillets: updatedFillets,
+            position: preservedPositionForFillet,
             rotation: baseUpdate.rotation,
             scale: baseUpdate.scale,
             vertexModifications: baseUpdate.vertexModifications,
@@ -590,7 +600,7 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
             }
           });
 
-          console.log('✅ Fillets reapplied with new radii');
+          console.log('✅ Fillets reapplied with new radii, position preserved');
         } else {
           updateShape(selectedShape.id, {
             rotation: baseUpdate.rotation,
@@ -724,6 +734,9 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
   const newGeometry = convertReplicadToThreeGeometry(resultShape);
   const newBaseVertices = await getReplicadVertices(resultShape);
 
+  const preservedPosition = currentShape.position as [number, number, number];
+  console.log('📍 Preserving position in applySubtractionChanges:', preservedPosition);
+
   let updatedFillets = currentShape.fillets || [];
   if (updatedFillets.length > 0) {
     console.log('🔄 Updating fillet centers after subtraction change...');
@@ -740,7 +753,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     const finalGeometry = convertReplicadToThreeGeometry(resultShape);
     const finalBaseVertices = await getReplicadVertices(resultShape);
 
-    console.log('🎯 SUBTRACTION CHANGE - Preserving current position');
+    console.log('🎯 SUBTRACTION CHANGE - Explicitly preserving position:', preservedPosition);
     console.log('✅ Subtraction complete with fillets');
 
     updateShape(currentShape.id, {
@@ -748,12 +761,14 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: updatedFillets,
+      position: preservedPosition,
       parameters: {
         ...currentShape.parameters,
         scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
       }
     });
   } else {
+    console.log('🎯 SUBTRACTION CHANGE - Explicitly preserving position:', preservedPosition);
     console.log('✅ Subtraction complete');
 
     updateShape(currentShape.id, {
@@ -761,6 +776,7 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
       replicadShape: resultShape,
       subtractionGeometries: allSubtractions,
       fillets: [],
+      position: preservedPosition,
       parameters: {
         ...currentShape.parameters,
         scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
