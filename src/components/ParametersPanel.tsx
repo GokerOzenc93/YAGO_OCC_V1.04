@@ -306,9 +306,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
           const w = round(size.x);
           const h = round(size.y);
           const d = round(size.z);
-          const px = round(subtraction.relativeOffset[0]);
-          const py = round(subtraction.relativeOffset[1]);
-          const pz = round(subtraction.relativeOffset[2]);
+          const localPx = round(subtraction.relativeOffset[0]);
+          const localPy = round(subtraction.relativeOffset[1]);
+          const localPz = round(subtraction.relativeOffset[2]);
           const rx = round((subtraction.relativeRotation?.[0] || 0) * (180 / Math.PI));
           const ry = round((subtraction.relativeRotation?.[1] || 0) * (180 / Math.PI));
           const rz = round((subtraction.relativeRotation?.[2] || 0) * (180 / Math.PI));
@@ -317,9 +317,9 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             width: { expression: String(w), result: w },
             height: { expression: String(h), result: h },
             depth: { expression: String(d), result: d },
-            posX: { expression: String(px), result: px },
-            posY: { expression: String(py), result: py },
-            posZ: { expression: String(pz), result: pz },
+            posX: { expression: String(localPx), result: localPx },
+            posY: { expression: String(localPy), result: localPy },
+            posZ: { expression: String(localPz), result: localPz },
             rotX: { expression: String(rx), result: rx },
             rotY: { expression: String(ry), result: ry },
             rotZ: { expression: String(rz), result: rz }

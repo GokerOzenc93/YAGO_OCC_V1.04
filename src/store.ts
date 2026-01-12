@@ -732,22 +732,38 @@ export const useAppStore = create<AppState>((set, get) => ({
             // Shape2'nin geometrisini kopyala
             const subtractedGeometry = shape2.geometry.clone();
 
-            // Shape2'nin geometrisi merkezde mi kontrol et (Three.js boxlar genelde merkezdedir)
+            const isShape1Centered = Math.abs(center1Local.x) < 0.01 &&
+                                     Math.abs(center1Local.y) < 0.01 &&
+                                     Math.abs(center1Local.z) < 0.01;
+
             const isShape2Centered = Math.abs(center2Local.x) < 0.01 &&
                                      Math.abs(center2Local.y) < 0.01 &&
                                      Math.abs(center2Local.z) < 0.01;
 
-            // Eğer merkezdeyse, pozisyonu (Center) temsil eder. Bizim (Corner) offsete ihtiyacımız var.
-            // O yüzden yarım boy (size2 / 2) ÇIKARIYORUZ.
-            const offsetAdjustmentX = isShape2Centered ? size2.x / 2 : 0;
-            const offsetAdjustmentY = isShape2Centered ? size2.y / 2 : 0;
-            const offsetAdjustmentZ = isShape2Centered ? size2.z / 2 : 0;
+            const shape1OffsetX = isShape1Centered ? size1.x / 2 : 0;
+            const shape1OffsetY = isShape1Centered ? size1.y / 2 : 0;
+            const shape1OffsetZ = isShape1Centered ? size1.z / 2 : 0;
 
-            // Shape2'nin Shape1'e göre bağıl konumunu hesapla (Sol-alt-arka köşe bazlı)
+            const shape2OffsetX = isShape2Centered ? size2.x / 2 : 0;
+            const shape2OffsetY = isShape2Centered ? size2.y / 2 : 0;
+            const shape2OffsetZ = isShape2Centered ? size2.z / 2 : 0;
+
+            const shape1Corner = [
+              shape1.position[0] - shape1OffsetX,
+              shape1.position[1] - shape1OffsetY,
+              shape1.position[2] - shape1OffsetZ
+            ] as [number, number, number];
+
+            const shape2Corner = [
+              shape2.position[0] - shape2OffsetX,
+              shape2.position[1] - shape2OffsetY,
+              shape2.position[2] - shape2OffsetZ
+            ] as [number, number, number];
+
             const relativeOffset = [
-              (shape2.position[0] - offsetAdjustmentX) - shape1.position[0],
-              (shape2.position[1] - offsetAdjustmentY) - shape1.position[1],
-              (shape2.position[2] - offsetAdjustmentZ) - shape1.position[2]
+              shape2Corner[0] - shape1Corner[0],
+              shape2Corner[1] - shape1Corner[1],
+              shape2Corner[2] - shape1Corner[2]
             ] as [number, number, number];
 
             const relativeRotation = [
@@ -756,15 +772,14 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
 
-            console.log('🔍 Capturing subtracted geometry with corrected offset:', {
+            console.log('🔍 Capturing subtracted geometry with local offset:', {
               shape2Id: shape2.id,
+              isShape1Centered,
               isShape2Centered,
-              shape2Size,
-              offsetAdjustment: [offsetAdjustmentX, offsetAdjustmentY, offsetAdjustmentZ],
-              shape2Position: shape2.position,
-              shape1Position: shape1.position,
+              shape1Corner,
+              shape2Corner,
               relativeOffset,
-              note: 'relativeOffset is now corner-based (bottom-left-back), Scene.tsx will handle centering'
+              note: 'relativeOffset is LOCAL space (relative to shape1 corner)'
             });
 
             // --- 5. State'i Güncelle ---
