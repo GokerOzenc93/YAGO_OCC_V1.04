@@ -409,8 +409,12 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
 
       let updatedFillets = selectedShape.fillets || [];
 
-      const preservedPosition = selectedShape.position as [number, number, number];
-      console.log('📍 Preserving position:', preservedPosition);
+      const preservedPosition: [number, number, number] = [
+        selectedShape.position[0],
+        selectedShape.position[1],
+        selectedShape.position[2]
+      ];
+      console.log('📍 Preserving position (new array):', preservedPosition);
 
       if (updatedFillets.length > 0) {
         console.log('🔄 Updating fillet centers after subtraction change...');
@@ -508,7 +512,11 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           }));
         }
 
-        const preservedPositionForDimChange = selectedShape.position as [number, number, number];
+        const preservedPositionForDimChange: [number, number, number] = [
+          selectedShape.position[0],
+          selectedShape.position[1],
+          selectedShape.position[2]
+        ];
 
         if (updatedFillets.length > 0) {
           console.log('🔄 Updating fillet centers after dimension change...');
@@ -592,7 +600,11 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
           finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
           finalBaseVertices = await getReplicadVertices(newReplicadShape);
 
-          const preservedPositionForFillet = selectedShape.position as [number, number, number];
+          const preservedPositionForFillet: [number, number, number] = [
+            selectedShape.position[0],
+            selectedShape.position[1],
+            selectedShape.position[2]
+          ];
           console.log('🎯 FILLET RADIUS CHANGE - Explicitly preserving position:', preservedPositionForFillet);
 
           updateShape(selectedShape.id, {
@@ -748,8 +760,12 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
   const newGeometry = convertReplicadToThreeGeometry(resultShape);
   const newBaseVertices = await getReplicadVertices(resultShape);
 
-  const preservedPosition = currentShape.position as [number, number, number];
-  console.log('📍 Preserving position in applySubtractionChanges:', preservedPosition);
+  const preservedPosition: [number, number, number] = [
+    currentShape.position[0],
+    currentShape.position[1],
+    currentShape.position[2]
+  ];
+  console.log('📍 Preserving position in applySubtractionChanges (new array):', preservedPosition);
 
   let updatedFillets = currentShape.fillets || [];
   if (updatedFillets.length > 0) {

@@ -642,10 +642,18 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
         finalBaseVertices = await getReplicadVertices(finalShape);
       }
 
+      const preservedPosition: [number, number, number] = [
+        currentShape.position[0],
+        currentShape.position[1],
+        currentShape.position[2]
+      ];
+      console.log('📍 Preserving position after fillet delete (new array):', preservedPosition);
+
       updateShape(currentShape.id, {
         geometry: finalGeometry,
         replicadShape: finalShape,
         fillets: updatedFillets,
+        position: preservedPosition,
         parameters: {
           ...currentShape.parameters,
           scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -654,7 +662,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
       setFilletRadii(newFilletRadii);
 
-      console.log('✅ Fillet deleted and shape updated');
+      console.log('✅ Fillet deleted and shape updated, position preserved');
     } catch (error) {
       console.error('❌ Failed to delete fillet:', error);
     }

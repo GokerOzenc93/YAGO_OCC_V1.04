@@ -898,6 +898,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       const newGeometry = convertReplicadToThreeGeometry(baseShape);
       const newBaseVertices = await getReplicadVertices(baseShape);
 
+      const preservedPosition: [number, number, number] = [shape.position[0], shape.position[1], shape.position[2]];
+      console.log('📍 Preserving position in deleteSubtraction:', preservedPosition);
+
       let updatedFillets = shape.fillets || [];
       let finalShape = baseShape;
       let finalGeometry = newGeometry;
@@ -932,6 +935,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               replicadShape: finalShape,
               subtractionGeometries: newSubtractionGeometries,
               fillets: updatedFillets,
+              position: preservedPosition,
               parameters: {
                 ...s.parameters,
                 scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
@@ -943,7 +947,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         selectedSubtractionIndex: null
       }));
 
-      console.log('✅ Subtraction deleted and shape updated');
+      console.log('✅ Subtraction deleted, shape updated, position preserved:', preservedPosition);
     } catch (error) {
       console.error('❌ Failed to delete subtraction:', error);
     }
