@@ -1,16 +1,96 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send } from 'lucide-react';
-import { useAppStore } from '../store';
+import { Send, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAppStore, Tool } from '../store';
+
+interface LogMessage {
+  id: number;
+  message: string;
+  timestamp: Date;
+  type: 'info' | 'warn' | 'error';
+}
 
 const Terminal: React.FC = () => {
   const [commandInput, setCommandInput] = useState('');
-  const { activeTool } = useAppStore();
+  const { activeTool, selectedShapeId, shapes } = useAppStore();
   const inputRef = useRef<HTMLInputElement>(null);
+  const logPanelRef = useRef<HTMLDivElement>(null);
   const [polylineStatus, setPolylineStatus] = useState<{
     distance: number;
     angle?: number;
     unit: string;
   } | null>(null);
+  const [logs, setLogs] = useState<LogMessage[]>([]);
+  const [showLogs, setShowLogs] = useState(true);
+  const logIdRef = useRef(0);
+
+  const isTransformMode = activeTool === Tool.MOVE || activeTool === Tool.ROTATE || activeTool === Tool.SCALE;
+
+  useEffect(() => {
+    const originalConsoleLog = console.log;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleError = console.error;
+
+    const addLog = (message: string, type: 'info' | 'warn' | 'error') => {
+      const transformKeywords = [
+        'Transform', 'STORE updateShape', 'Position update',
+        'Shape ID', 'Old position', 'New position', 'position',
+        'dragging', 'Final position', 'COMPLETED'
+      ];
+
+      const isTransformLog = transformKeywords.some(keyword =>
+        message.toLowerCase().includes(keyword.toLowerCase())
+      );
+
+      if (isTransformLog) {
+        setLogs(prev => {
+          const newLog: LogMessage = {
+            id: logIdRef.current++,
+            message,
+            timestamp: new Date(),
+            type
+          };
+          const updated = [...prev, newLog].slice(-50);
+          return updated;
+        });
+      }
+    };
+
+    console.log = (...args: any[]) => {
+      originalConsoleLog.apply(console, args);
+      const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      addLog(message, 'info');
+    };
+
+    console.warn = (...args: any[]) => {
+      originalConsoleWarn.apply(console, args);
+      const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      addLog(message, 'warn');
+    };
+
+    console.error = (...args: any[]) => {
+      originalConsoleError.apply(console, args);
+      const message = args.map(arg =>
+        typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+      ).join(' ');
+      addLog(message, 'error');
+    };
+
+    return () => {
+      console.log = originalConsoleLog;
+      console.warn = originalConsoleWarn;
+      console.error = originalConsoleError;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (logPanelRef.current) {
+      logPanelRef.current.scrollTop = logPanelRef.current.scrollHeight;
+    }
+  }, [logs]);
 
   useEffect(() => {
     (window as any).terminalInputRef = inputRef;
@@ -135,8 +215,78 @@ const Terminal: React.FC = () => {
     }
   };
 
+  const selectedShape = shapes.find(s => s.id === selectedShapeId);
+
   return (
     <>
+      {isTransformMode && showLogs && (
+        <div className="fixed bottom-20 right-4 w-96 bg-stone-900/95 backdrop-blur-sm rounded-lg shadow-xl border border-stone-700 z-40 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-2 bg-stone-800 border-b border-stone-700">
+            <span className="text-xs font-medium text-stone-300">Transform Logs</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setLogs([])}
+                className="text-stone-400 hover:text-stone-200 text-xs"
+              >
+                Clear
+              </button>
+              <button
+                onClick={() => setShowLogs(false)}
+                className="text-stone-400 hover:text-stone-200"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+          <div
+            ref={logPanelRef}
+            className="max-h-48 overflow-y-auto p-2 font-mono text-xs"
+          >
+            {logs.length === 0 ? (
+              <div className="text-stone-500 text-center py-4">
+                No transform logs yet. Move a shape to see logs.
+              </div>
+            ) : (
+              logs.map(log => (
+                <div
+                  key={log.id}
+                  className={`py-1 px-2 rounded mb-1 ${
+                    log.type === 'error' ? 'bg-red-900/50 text-red-300' :
+                    log.type === 'warn' ? 'bg-yellow-900/50 text-yellow-300' :
+                    'bg-stone-800/50 text-stone-300'
+                  }`}
+                >
+                  <span className="text-stone-500 mr-2">
+                    {log.timestamp.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                  </span>
+                  <span className="whitespace-pre-wrap break-all">{log.message}</span>
+                </div>
+              ))
+            )}
+          </div>
+          {selectedShape && (
+            <div className="px-3 py-2 bg-stone-800/50 border-t border-stone-700 text-xs">
+              <div className="text-stone-400">
+                <span className="text-stone-500">Position: </span>
+                <span className="text-blue-400 font-mono">
+                  [{selectedShape.position.map(p => p.toFixed(1)).join(', ')}]
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {isTransformMode && !showLogs && (
+        <button
+          onClick={() => setShowLogs(true)}
+          className="fixed bottom-20 right-4 bg-stone-800 text-stone-300 px-3 py-2 rounded-lg shadow-lg z-40 flex items-center gap-2 text-xs hover:bg-stone-700"
+        >
+          <ChevronUp className="w-3 h-3" />
+          Show Logs
+        </button>
+      )}
+
       {polylineStatus && (
         <div className="fixed bottom-5 left-0 right-0 bg-stone-100/95 backdrop-blur-sm border-t border-stone-300 z-20" style={{ height: '4mm' }}>
           <div className="flex items-center justify-between h-full px-3">
