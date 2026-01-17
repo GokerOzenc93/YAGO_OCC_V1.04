@@ -212,7 +212,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         controls.removeEventListener('change', onChange);
       };
     }
-  }, [isSelected, shape.id, updateShape, orbitControlsRef]);
+  }, [isSelected, shape.id, updateShape, orbitControlsRef, geometryKey]);
 
   const getTransformMode = () => {
     switch (activeTool) {
