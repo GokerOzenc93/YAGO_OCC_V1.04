@@ -11,6 +11,68 @@ import { applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
 
+const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
+  const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>(null);
+  const savedStateRef = useRef<{ position: THREE.Vector3; target: THREE.Vector3; zoom: number } | null>(null);
+  const prevCameraTypeRef = useRef<CameraType>(cameraType);
+
+  useEffect(() => {
+    if (prevCameraTypeRef.current !== cameraType && savedStateRef.current && cameraRef.current && controlsRef.current) {
+      cameraRef.current.position.copy(savedStateRef.current.position);
+      controlsRef.current.target.copy(savedStateRef.current.target);
+
+      if (cameraType === CameraType.ORTHOGRAPHIC && cameraRef.current instanceof THREE.OrthographicCamera) {
+        const distance = savedStateRef.current.position.distanceTo(savedStateRef.current.target);
+        cameraRef.current.zoom = 500 / distance;
+        cameraRef.current.updateProjectionMatrix();
+      }
+
+      controlsRef.current.update();
+      console.log('📷 Camera state restored after type change');
+    }
+    prevCameraTypeRef.current = cameraType;
+  }, [cameraType, controlsRef]);
+
+  useEffect(() => {
+    const saveState = () => {
+      if (cameraRef.current && controlsRef.current) {
+        savedStateRef.current = {
+          position: cameraRef.current.position.clone(),
+          target: controlsRef.current.target.clone(),
+          zoom: cameraRef.current instanceof THREE.OrthographicCamera ? cameraRef.current.zoom : 1
+        };
+      }
+    };
+
+    const interval = setInterval(saveState, 100);
+    return () => clearInterval(interval);
+  }, [controlsRef]);
+
+  if (cameraType === CameraType.PERSPECTIVE) {
+    return (
+      <PerspectiveCamera
+        ref={cameraRef as React.RefObject<THREE.PerspectiveCamera>}
+        makeDefault
+        position={savedStateRef.current?.position.toArray() || [2000, 2000, 2000]}
+        fov={45}
+        near={1}
+        far={50000}
+      />
+    );
+  }
+
+  return (
+    <OrthographicCamera
+      ref={cameraRef as React.RefObject<THREE.OrthographicCamera>}
+      makeDefault
+      position={savedStateRef.current?.position.toArray() || [2000, 2000, 2000]}
+      zoom={0.25}
+      near={-50000}
+      far={50000}
+    />
+  );
+};
+
 const Scene: React.FC = () => {
   const controlsRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -375,23 +437,7 @@ const Scene: React.FC = () => {
       >
         <color attach="background" args={['#f5f5f4']} />
 
-      {cameraType === CameraType.PERSPECTIVE ? (
-        <PerspectiveCamera
-          makeDefault
-          position={[2000, 2000, 2000]}
-          fov={45}
-          near={1}
-          far={50000}
-        />
-      ) : (
-        <OrthographicCamera
-          makeDefault
-          position={[2000, 2000, 2000]}
-          zoom={0.25}
-          near={-50000}
-          far={50000}
-        />
-      )}
+      <CameraController controlsRef={controlsRef} cameraType={cameraType} />
 
       <ambientLight intensity={0.6} />
       <directionalLight
