@@ -13,7 +13,7 @@ import { getReplicadVertices } from './VertexEditorService';
 
 const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>(null);
-  const savedStateRef = useRef<{ position: THREE.Vector3; target: THREE.Vector3; zoom: number } | null>(null);
+  const savedStateRef = useRef<{ position: THREE.Vector3; target: THREE.Vector3; zoom: number; perspectiveFov: number } | null>(null);
   const prevCameraTypeRef = useRef<CameraType>(cameraType);
 
   useEffect(() => {
@@ -23,7 +23,9 @@ const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType
 
       if (cameraType === CameraType.ORTHOGRAPHIC && cameraRef.current instanceof THREE.OrthographicCamera) {
         const distance = savedStateRef.current.position.distanceTo(savedStateRef.current.target);
-        cameraRef.current.zoom = 500 / distance;
+        const fovRad = (savedStateRef.current.perspectiveFov || 45) * Math.PI / 180;
+        const visibleHeight = 2 * distance * Math.tan(fovRad / 2);
+        cameraRef.current.zoom = window.innerHeight / visibleHeight;
         cameraRef.current.updateProjectionMatrix();
       }
 
@@ -39,7 +41,8 @@ const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType
         savedStateRef.current = {
           position: cameraRef.current.position.clone(),
           target: controlsRef.current.target.clone(),
-          zoom: cameraRef.current instanceof THREE.OrthographicCamera ? cameraRef.current.zoom : 1
+          zoom: cameraRef.current instanceof THREE.OrthographicCamera ? cameraRef.current.zoom : 1,
+          perspectiveFov: cameraRef.current instanceof THREE.PerspectiveCamera ? cameraRef.current.fov : 45
         };
       }
     };
