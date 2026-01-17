@@ -165,24 +165,42 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   useEffect(() => {
     if (transformRef.current && isSelected && groupRef.current) {
       const controls = transformRef.current;
+      let isDragging = false;
 
       const onDraggingChanged = (event: any) => {
+        isDragging = event.value;
         if (orbitControlsRef.current) {
           orbitControlsRef.current.enabled = !event.value;
+        }
+
+        if (!event.value && groupRef.current) {
+          const finalPosition = groupRef.current.position.toArray() as [number, number, number];
+          const finalRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
+          const finalScale = groupRef.current.scale.toArray() as [number, number, number];
+
+          console.log('🎯 Transform COMPLETED - Final position:', finalPosition);
+
+          isUpdatingRef.current = true;
+          updateShape(shape.id, {
+            position: finalPosition,
+            rotation: finalRotation,
+            scale: finalScale
+          });
+
+          requestAnimationFrame(() => {
+            isUpdatingRef.current = false;
+          });
         }
       };
 
       const onChange = () => {
-        if (groupRef.current) {
+        if (groupRef.current && isDragging) {
           isUpdatingRef.current = true;
           updateShape(shape.id, {
             position: groupRef.current.position.toArray() as [number, number, number],
             rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
             scale: groupRef.current.scale.toArray() as [number, number, number]
           });
-          setTimeout(() => {
-            isUpdatingRef.current = false;
-          }, 0);
         }
       };
 
