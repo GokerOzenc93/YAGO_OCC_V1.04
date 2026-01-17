@@ -646,92 +646,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             const shape1Size = [size1.x, size1.y, size1.z] as [number, number, number];
             const shape2Size = [size2.x, size2.y, size2.z] as [number, number, number];
 
-            // DÜZELTME: Merkez hesaplamasına Scale ve Rotation eklendi
-            // Eğer objeler döndürülmüşse veya köşeden scale edilmişse,
-            // sadece yerel merkezi pozisyona eklemek yanlış olur.
-            // Yerel merkezi de döndürüp scale etmemiz gerekir.
-
-            // Shape 1 için Merkez Hesabı
-            const center1Vec = center1Local.clone();
-            center1Vec.multiply(new THREE.Vector3(...shape1.scale)); // Scale uygula
-            center1Vec.applyEuler(new THREE.Euler(...shape1.rotation)); // Rotasyon uygula
-            const shape1Center = [
-              shape1.position[0] + center1Vec.x,
-              shape1.position[1] + center1Vec.y,
-              shape1.position[2] + center1Vec.z
-            ] as [number, number, number];
-
-            // Shape 2 için Merkez Hesabı
-            const center2Vec = center2Local.clone();
-            center2Vec.multiply(new THREE.Vector3(...shape2.scale)); // Scale uygula
-            center2Vec.applyEuler(new THREE.Euler(...shape2.rotation)); // Rotasyon uygula
-            const shape2Center = [
-              shape2.position[0] + center2Vec.x,
-              shape2.position[1] + center2Vec.y,
-              shape2.position[2] + center2Vec.z
-            ] as [number, number, number];
-
-            // Debug log
-            console.log('📏 Using actual geometry data (Corrected Center):', {
-               shape1: { id: shape1.id, center: shape1Center },
-               shape2: { id: shape2.id, center: shape2Center }
-            });
-
-            // --- 2. CAD Şekillerini Oluştur ---
-            const shape1Replicad = await createReplicadBox({
-              width: shape1Size[0], height: shape1Size[1], depth: shape1Size[2]
-            });
-
-            const shape2Replicad = await createReplicadBox({
-              width: shape2Size[0], height: shape2Size[1], depth: shape2Size[2]
-            });
-
-            // --- 3. Boolean Cut İşlemi ---
-            // Shape1'den Shape2'yi çıkar
-            let resultShape = await performBooleanCut(
-              shape1Replicad,
-              shape2Replicad,
-              shape1Center as [number, number, number],
-              shape2Center as [number, number, number],
-              shape1.rotation,
-              shape2.rotation,
-              shape1.scale,
-              shape2.scale,
-              shape1Size,
-              shape2Size
-            );
-
-            // Sonucu Three.js geometrisine çevir
-            let newGeometry = convertReplicadToThreeGeometry(resultShape);
-            let newBaseVertices = await getReplicadVertices(resultShape);
-
-            let updatedFillets = shape1.fillets || [];
-            let finalResultShape = resultShape;
-
-            if (updatedFillets.length > 0) {
-              console.log('🔄 Updating fillet centers after boolean cut...');
-              const { updateFilletCentersForNewGeometry, applyFillets } = await import('./components/ShapeUpdaterService');
-
-              updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, {
-                width: shape1Size[0],
-                height: shape1Size[1],
-                depth: shape1Size[2]
-              });
-
-              console.log('🔵 Reapplying fillets with updated centers...');
-              finalResultShape = await applyFillets(finalResultShape, updatedFillets, {
-                width: shape1Size[0],
-                height: shape1Size[1],
-                depth: shape1Size[2]
-              });
-              newGeometry = convertReplicadToThreeGeometry(finalResultShape);
-              newBaseVertices = await getReplicadVertices(finalResultShape);
-            }
-
-            // --- 4. Kesilen Parçayı Hafızaya Al (History) ---
-            // Shape2'nin geometrisini kopyala
-            const subtractedGeometry = shape2.geometry.clone();
-
+            // Geometrilerin merkezde mi yoksa köşede mi olduğunu belirle
             const isShape1Centered = Math.abs(center1Local.x) < 0.01 &&
                                      Math.abs(center1Local.y) < 0.01 &&
                                      Math.abs(center1Local.z) < 0.01;
@@ -771,6 +686,67 @@ export const useAppStore = create<AppState>((set, get) => ({
               shape2.rotation[1] - shape1.rotation[1],
               shape2.rotation[2] - shape1.rotation[2]
             ] as [number, number, number];
+
+            console.log('📍 CRITICAL: Using RELATIVE offset for boolean cut (same as stored):', {
+              shape1Corner,
+              shape2Corner,
+              relativeOffset,
+              relativeRotation,
+              note: 'This ensures consistency between initial cut and subsequent updates'
+            });
+
+            // --- 2. CAD Şekillerini Oluştur ---
+            const shape1Replicad = await createReplicadBox({
+              width: shape1Size[0], height: shape1Size[1], depth: shape1Size[2]
+            });
+
+            const shape2Replicad = await createReplicadBox({
+              width: shape2Size[0], height: shape2Size[1], depth: shape2Size[2]
+            });
+
+            // --- 3. Boolean Cut İşlemi ---
+            // Shape1'den Shape2'yi çıkar - RELATIVE offset kullan (world koordinatları DEĞİL!)
+            let resultShape = await performBooleanCut(
+              shape1Replicad,
+              shape2Replicad,
+              undefined,
+              relativeOffset,
+              undefined,
+              relativeRotation,
+              undefined,
+              shape2.scale
+            );
+
+            // Sonucu Three.js geometrisine çevir
+            let newGeometry = convertReplicadToThreeGeometry(resultShape);
+            let newBaseVertices = await getReplicadVertices(resultShape);
+
+            let updatedFillets = shape1.fillets || [];
+            let finalResultShape = resultShape;
+
+            if (updatedFillets.length > 0) {
+              console.log('🔄 Updating fillet centers after boolean cut...');
+              const { updateFilletCentersForNewGeometry, applyFillets } = await import('./components/ShapeUpdaterService');
+
+              updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, {
+                width: shape1Size[0],
+                height: shape1Size[1],
+                depth: shape1Size[2]
+              });
+
+              console.log('🔵 Reapplying fillets with updated centers...');
+              finalResultShape = await applyFillets(finalResultShape, updatedFillets, {
+                width: shape1Size[0],
+                height: shape1Size[1],
+                depth: shape1Size[2]
+              });
+              newGeometry = convertReplicadToThreeGeometry(finalResultShape);
+              newBaseVertices = await getReplicadVertices(finalResultShape);
+            }
+
+            // --- 4. Kesilen Parçayı Hafızaya Al (History) ---
+            // Shape2'nin geometrisini kopyala
+            const subtractedGeometry = shape2.geometry.clone();
 
             console.log('🔍 Capturing subtracted geometry with local offset:', {
               shape2Id: shape2.id,
@@ -853,34 +829,44 @@ export const useAppStore = create<AppState>((set, get) => ({
       const { performBooleanCut, convertReplicadToThreeGeometry, createReplicadBox } = await import('./components/ReplicadService');
       const { getReplicadVertices } = await import('./components/VertexEditorService');
 
-      const box = new THREE.Box3().setFromBufferAttribute(
-        shape.geometry.getAttribute('position')
-      );
-      const size = new THREE.Vector3();
-      const center = new THREE.Vector3();
-      box.getSize(size);
-      box.getCenter(center);
+      const baseWidth = shape.parameters?.width || 1;
+      const baseHeight = shape.parameters?.height || 1;
+      const baseDepth = shape.parameters?.depth || 1;
+
+      const preservedPosition: [number, number, number] = [shape.position[0], shape.position[1], shape.position[2]];
+      console.log('📍 deleteSubtraction - Using stored parameters:', { baseWidth, baseHeight, baseDepth });
+      console.log('📍 deleteSubtraction - Preserving position:', preservedPosition);
 
       let baseShape = await createReplicadBox({
-        width: size.x,
-        height: size.y,
-        depth: size.z
+        width: baseWidth,
+        height: baseHeight,
+        depth: baseDepth
       });
 
       for (let i = 0; i < newSubtractionGeometries.length; i++) {
         const subtraction = newSubtractionGeometries[i];
         if (!subtraction) continue;
 
-        const subBox = new THREE.Box3().setFromBufferAttribute(
-          subtraction.geometry.getAttribute('position')
-        );
-        const subSize = new THREE.Vector3();
-        subBox.getSize(subSize);
+        let subWidth, subHeight, subDepth;
+        if (subtraction.parameters) {
+          subWidth = parseFloat(subtraction.parameters.width) || 1;
+          subHeight = parseFloat(subtraction.parameters.height) || 1;
+          subDepth = parseFloat(subtraction.parameters.depth) || 1;
+        } else {
+          const subBox = new THREE.Box3().setFromBufferAttribute(
+            subtraction.geometry.getAttribute('position')
+          );
+          const subSize = new THREE.Vector3();
+          subBox.getSize(subSize);
+          subWidth = subSize.x;
+          subHeight = subSize.y;
+          subDepth = subSize.z;
+        }
 
         const subShape = await createReplicadBox({
-          width: subSize.x,
-          height: subSize.y,
-          depth: subSize.z
+          width: subWidth,
+          height: subHeight,
+          depth: subDepth
         });
 
         baseShape = await performBooleanCut(
@@ -898,9 +884,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       const newGeometry = convertReplicadToThreeGeometry(baseShape);
       const newBaseVertices = await getReplicadVertices(baseShape);
 
-      const preservedPosition: [number, number, number] = [shape.position[0], shape.position[1], shape.position[2]];
-      console.log('📍 Preserving position in deleteSubtraction:', preservedPosition);
-
       let updatedFillets = shape.fillets || [];
       let finalShape = baseShape;
       let finalGeometry = newGeometry;
@@ -911,16 +894,16 @@ export const useAppStore = create<AppState>((set, get) => ({
         const { updateFilletCentersForNewGeometry, applyFillets } = await import('./components/ShapeUpdaterService');
 
         updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, {
-          width: size.x,
-          height: size.y,
-          depth: size.z
+          width: baseWidth,
+          height: baseHeight,
+          depth: baseDepth
         });
 
         console.log('🔵 Reapplying fillets with updated centers...');
         finalShape = await applyFillets(finalShape, updatedFillets, {
-          width: size.x,
-          height: size.y,
-          depth: size.z
+          width: baseWidth,
+          height: baseHeight,
+          depth: baseDepth
         });
         finalGeometry = convertReplicadToThreeGeometry(finalShape);
         finalBaseVertices = await getReplicadVertices(finalShape);
