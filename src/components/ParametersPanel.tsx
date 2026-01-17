@@ -368,7 +368,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     if (dimension === 'depth') setDepth(value);
   };
 
-  const handleSubParamChange = async (param: string, expression: string) => {
+  const handleSubParamChange = (param: string, expression: string) => {
     const evalContext = {
       W: width,
       H: height,
@@ -378,55 +378,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
 
     const result = evaluateExpression(expression, evalContext);
 
-    const updatedSubParams = {
-      ...subParams,
+    setSubParams(prev => ({
+      ...prev,
       [param]: { expression, result }
-    };
-
-    setSubParams(updatedSubParams);
-
-    const currentState = useAppStore.getState();
-    const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
-    if (!currentShape) return;
-
-    console.log('🔄 Sub Param Change START');
-    console.log('   Current shape position:', currentShape.position);
-    console.log('   Current shape has geometry:', !!currentShape.geometry);
-    console.log('   Current shape geometry type:', currentShape.geometry?.type);
-    console.log('   Subtraction index:', selectedSubtractionIndex);
-    console.log('   New subtraction params:', { subWidth: updatedSubParams.width.result, subHeight: updatedSubParams.height.result, subDepth: updatedSubParams.depth.result });
-    console.log('   New subtraction position:', { subPosX: updatedSubParams.posX.result, subPosY: updatedSubParams.posY.result, subPosZ: updatedSubParams.posZ.result });
-
-    await applyShapeChanges({
-      selectedShape: currentShape,
-      width,
-      height,
-      depth,
-      rotX,
-      rotY,
-      rotZ,
-      customParameters,
-      vertexModifications,
-      filletRadii,
-      selectedSubtractionIndex,
-      subWidth: updatedSubParams.width.result,
-      subHeight: updatedSubParams.height.result,
-      subDepth: updatedSubParams.depth.result,
-      subPosX: updatedSubParams.posX.result,
-      subPosY: updatedSubParams.posY.result,
-      subPosZ: updatedSubParams.posZ.result,
-      subRotX: updatedSubParams.rotX.result,
-      subRotY: updatedSubParams.rotY.result,
-      subRotZ: updatedSubParams.rotZ.result,
-      subParams: updatedSubParams,
-      updateShape
-    });
-
-    const updatedState = useAppStore.getState();
-    const updatedShape = updatedState.shapes.find(s => s.id === selectedShapeId);
-    console.log('🔄 Sub Param Change END');
-    console.log('   Updated shape position:', updatedShape?.position);
-    console.log('   Position changed:', JSON.stringify(currentShape.position) !== JSON.stringify(updatedShape?.position));
+    }));
   };
 
   const addCustomParameter = () => {
@@ -527,10 +482,36 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
     if (!currentShape) return;
 
-    console.log('📍 Apply Changes - Current shape position:', currentShape.position);
+    const currentPosition: [number, number, number] = [
+      currentShape.position[0],
+      currentShape.position[1],
+      currentShape.position[2]
+    ];
+
+    console.log('📍 Apply Changes - Reading CURRENT position from store:', currentPosition);
+    console.log('📍 Shape ID:', currentShape.id);
+
+    const evalContext = {
+      W: width,
+      H: height,
+      D: depth,
+      ...customParameters.reduce((acc, p) => ({ ...acc, [p.name]: p.result }), {})
+    };
+
+    const evaluatedSubParams = {
+      width: { expression: subParams.width.expression, result: evaluateExpression(subParams.width.expression, evalContext) },
+      height: { expression: subParams.height.expression, result: evaluateExpression(subParams.height.expression, evalContext) },
+      depth: { expression: subParams.depth.expression, result: evaluateExpression(subParams.depth.expression, evalContext) },
+      posX: { expression: subParams.posX.expression, result: evaluateExpression(subParams.posX.expression, evalContext) },
+      posY: { expression: subParams.posY.expression, result: evaluateExpression(subParams.posY.expression, evalContext) },
+      posZ: { expression: subParams.posZ.expression, result: evaluateExpression(subParams.posZ.expression, evalContext) },
+      rotX: { expression: subParams.rotX.expression, result: evaluateExpression(subParams.rotX.expression, evalContext) },
+      rotY: { expression: subParams.rotY.expression, result: evaluateExpression(subParams.rotY.expression, evalContext) },
+      rotZ: { expression: subParams.rotZ.expression, result: evaluateExpression(subParams.rotZ.expression, evalContext) }
+    };
 
     await applyShapeChanges({
-      selectedShape: currentShape,
+      selectedShape: { ...currentShape, position: currentPosition },
       width,
       height,
       depth,
@@ -541,18 +522,20 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       vertexModifications,
       filletRadii,
       selectedSubtractionIndex,
-      subWidth: subParams.width.result,
-      subHeight: subParams.height.result,
-      subDepth: subParams.depth.result,
-      subPosX: subParams.posX.result,
-      subPosY: subParams.posY.result,
-      subPosZ: subParams.posZ.result,
-      subRotX: subParams.rotX.result,
-      subRotY: subParams.rotY.result,
-      subRotZ: subParams.rotZ.result,
-      subParams,
+      subWidth: evaluatedSubParams.width.result,
+      subHeight: evaluatedSubParams.height.result,
+      subDepth: evaluatedSubParams.depth.result,
+      subPosX: evaluatedSubParams.posX.result,
+      subPosY: evaluatedSubParams.posY.result,
+      subPosZ: evaluatedSubParams.posZ.result,
+      subRotX: evaluatedSubParams.rotX.result,
+      subRotY: evaluatedSubParams.rotY.result,
+      subRotZ: evaluatedSubParams.rotZ.result,
+      subParams: evaluatedSubParams,
       updateShape
     });
+
+    console.log('✅ Apply Changes completed');
   };
 
   const handleApplySubtractionChanges = async (shapeOverride?: any) => {
@@ -818,39 +801,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                       <ParameterRow
                         label={`F${idx + 1}`}
                         value={radius}
-                        onChange={async (newRadius) => {
+                        onChange={(newRadius) => {
                           const newRadii = [...filletRadii];
                           newRadii[idx] = newRadius;
                           setFilletRadii(newRadii);
-
-                          const currentState = useAppStore.getState();
-                          const currentShape = currentState.shapes.find(s => s.id === selectedShapeId);
-                          if (!currentShape) return;
-
-                          await applyShapeChanges({
-                            selectedShape: currentShape,
-                            width,
-                            height,
-                            depth,
-                            rotX,
-                            rotY,
-                            rotZ,
-                            customParameters,
-                            vertexModifications,
-                            filletRadii: newRadii,
-                            selectedSubtractionIndex,
-                            subWidth: subParams.width.result,
-                            subHeight: subParams.height.result,
-                            subDepth: subParams.depth.result,
-                            subPosX: subParams.posX.result,
-                            subPosY: subParams.posY.result,
-                            subPosZ: subParams.posZ.result,
-                            subRotX: subParams.rotX.result,
-                            subRotY: subParams.rotY.result,
-                            subRotZ: subParams.rotZ.result,
-                            subParams,
-                            updateShape
-                          });
                         }}
                         description={`Fillet ${idx + 1} Radius`}
                         step={0.1}
