@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 import * as THREE from 'three';
 import { evaluateExpression } from './Expression';
 import { applyShapeChanges, applySubtractionChanges } from './ShapeUpdaterService';
+import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
 
 interface CustomParameter {
   id: string;
@@ -850,21 +851,19 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               </div>
             )}
 
-            {roleEditMode && selectedShape && (
-              <div className="space-y-2 pt-2 border-t border-stone-300">
-                <div className="text-xs font-semibold text-purple-700 mb-1">Face Roles</div>
-                {(() => {
-                  const geometry = selectedShape.geometry;
-                  if (!geometry) return null;
+            {roleEditMode && selectedShape && (() => {
+              const geometry = selectedShape.geometry;
+              if (!geometry) return null;
 
-                  const faceCount = geometry.index
-                    ? geometry.index.count / 3
-                    : geometry.attributes.position.count / 3;
+              const faces = extractFacesFromGeometry(geometry);
+              const faceGroups = groupCoplanarFaces(faces);
+              const faceRoles = selectedShape.faceRoles || {};
+              const roleOptions: FaceRole[] = ['left', 'right', 'top', 'bottom', 'back', 'door'];
 
-                  const faceRoles = selectedShape.faceRoles || {};
-                  const roleOptions: FaceRole[] = ['left', 'right', 'top', 'bottom', 'back', 'door'];
-
-                  return Array.from({ length: Math.floor(faceCount) }, (_, i) => (
+              return (
+                <div className="space-y-2 pt-2 border-t border-stone-300">
+                  <div className="text-xs font-semibold text-purple-700 mb-1">Face Roles ({faceGroups.length} faces)</div>
+                  {faceGroups.map((group, i) => (
                     <div key={`face-${i}`} className="flex gap-2 items-center">
                       <span className="text-xs font-mono text-gray-700 w-16">Face {i}</span>
                       <select
@@ -881,10 +880,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                         ))}
                       </select>
                     </div>
-                  ));
-                })()}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
 
             {customParameters.length > 0 && (
               <div className="space-y-1">
