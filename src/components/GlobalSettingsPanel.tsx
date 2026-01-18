@@ -155,7 +155,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
       </div>
 
       <div className="flex h-[calc(100%-44px)]">
-        <div className="w-32 border-r border-stone-200 bg-white p-2 space-y-1">
+        <div className="w-48 border-r border-stone-200 bg-white p-2 space-y-1">
           {profiles.map((profile) => (
             <div
               key={profile.id}
@@ -163,12 +163,12 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
               onDoubleClick={() => handleStartEditing(profile.id)}
               onMouseEnter={() => setHoveredProfile(profile.id)}
               onMouseLeave={() => setHoveredProfile(null)}
-              className={`text-xs px-2 py-0.5 border rounded cursor-pointer transition-colors ${
+              className={`relative text-xs px-2 py-0.5 bg-white border border-stone-200 rounded cursor-pointer transition-all ${
                 selectedProfile === profile.id
-                  ? 'text-orange-800 bg-orange-100 border-orange-300'
+                  ? 'text-slate-700 border-l-4 border-l-orange-500'
                   : hoveredProfile === profile.id
-                  ? 'text-orange-800 bg-orange-50 border-orange-300'
-                  : 'text-slate-700 bg-white border-stone-200 hover:bg-stone-50'
+                  ? 'text-slate-700 border-l-4 border-l-orange-300'
+                  : 'text-slate-700'
               }`}
             >
               {profile.isEditing ? (
@@ -198,10 +198,10 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             <button
               key={option.id}
               onClick={() => setSelectedOption(option.id)}
-              className={`w-full text-xs text-left px-2 py-0.5 rounded transition-colors ${
+              className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
                 selectedOption === option.id
-                  ? 'bg-orange-100 text-orange-800 border border-orange-300'
-                  : 'bg-white text-slate-700 border border-stone-200 hover:bg-stone-50'
+                  ? 'text-slate-700 border-l-4 border-l-orange-500'
+                  : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
               }`}
             >
               {option.label}
