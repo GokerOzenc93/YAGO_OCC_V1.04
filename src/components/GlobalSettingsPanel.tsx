@@ -212,7 +212,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
 
         <div className="flex-1 bg-white p-4">
           {selectedOption === 'panel_joint' ? (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b border-stone-200">
                 Panel Birleşim Ayarları
               </h3>
@@ -230,6 +230,68 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                   <option value="yanlar arada">Yanlar Arada</option>
                   <option value="ayaklı">Ayaklı</option>
                 </select>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-stone-200">
+                <p className="text-xs text-slate-600 mb-3">Ön Görünüm</p>
+                <div className="flex justify-center">
+                  <svg width="200" height="240" viewBox="0 0 200 240" className="border border-stone-300 bg-stone-50 rounded">
+                    {altPanelType === 'bazalı' && (
+                      <>
+                        <rect x="40" y="20" width="120" height="15" fill="#8B7355" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="40" y="35" width="8" height="170" fill="#A0826D" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="152" y="35" width="8" height="170" fill="#A0826D" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="30" y="205" width="140" height="15" fill="#8B7355" stroke="#6B5345" strokeWidth="1.5" />
+                        <line x1="48" y1="35" x2="48" y2="205" stroke="#6B5345" strokeWidth="0.5" opacity="0.3" />
+                        <line x1="152" y1="35" x2="152" y2="205" stroke="#6B5345" strokeWidth="0.5" opacity="0.3" />
+                      </>
+                    )}
+
+                    {altPanelType === 'alt arada' && (
+                      <>
+                        <rect x="40" y="20" width="120" height="15" fill="#8B7355" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="40" y="35" width="8" height="185" fill="#A0826D" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="152" y="35" width="8" height="185" fill="#A0826D" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="48" y="205" width="104" height="15" fill="#8B7355" stroke="#6B5345" strokeWidth="1.5" />
+                        <line x1="48" y1="35" x2="48" y2="205" stroke="#6B5345" strokeWidth="0.5" opacity="0.3" />
+                        <line x1="152" y1="35" x2="152" y2="205" stroke="#6B5345" strokeWidth="0.5" opacity="0.3" />
+                      </>
+                    )}
+
+                    {altPanelType === 'yanlar arada' && (
+                      <>
+                        <rect x="40" y="20" width="120" height="15" fill="#8B7355" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="30" y="205" width="140" height="15" fill="#8B7355" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="40" y="50" width="8" height="155" fill="#A0826D" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="152" y="50" width="8" height="155" fill="#A0826D" stroke="#6B5345" strokeWidth="1.5" />
+                        <line x1="48" y1="50" x2="48" y2="205" stroke="#6B5345" strokeWidth="0.5" opacity="0.3" />
+                        <line x1="152" y1="50" x2="152" y2="205" stroke="#6B5345" strokeWidth="0.5" opacity="0.3" />
+                      </>
+                    )}
+
+                    {altPanelType === 'ayaklı' && (
+                      <>
+                        <rect x="40" y="20" width="120" height="15" fill="#8B7355" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="40" y="35" width="8" height="170" fill="#A0826D" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="152" y="35" width="8" height="170" fill="#A0826D" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="48" y="205" width="104" height="8" fill="#8B7355" stroke="#6B5345" strokeWidth="1.5" />
+                        <rect x="55" y="213" width="8" height="20" fill="#6B5345" stroke="#4A3A2A" strokeWidth="1.5" />
+                        <rect x="96" y="213" width="8" height="20" fill="#6B5345" stroke="#4A3A2A" strokeWidth="1.5" />
+                        <rect x="137" y="213" width="8" height="20" fill="#6B5345" stroke="#4A3A2A" strokeWidth="1.5" />
+                        <line x1="48" y1="35" x2="48" y2="205" stroke="#6B5345" strokeWidth="0.5" opacity="0.3" />
+                        <line x1="152" y1="35" x2="152" y2="205" stroke="#6B5345" strokeWidth="0.5" opacity="0.3" />
+                      </>
+                    )}
+
+                    <rect x="48" y="35" width="104" height="170" fill="none" stroke="#D4A574" strokeWidth="1" strokeDasharray="3,3" opacity="0.4" />
+                  </svg>
+                </div>
+                <p className="text-xs text-slate-500 text-center mt-3">
+                  {altPanelType === 'bazalı' && 'Alt panel yan panellerin altında'}
+                  {altPanelType === 'alt arada' && 'Alt panel yan paneller arasında'}
+                  {altPanelType === 'yanlar arada' && 'Yan paneller alt panelin üzerinde'}
+                  {altPanelType === 'ayaklı' && 'Alt panelde ayaklar mevcut'}
+                </p>
               </div>
             </div>
           ) : selectedOption === 'backrest' ? (
