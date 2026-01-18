@@ -226,6 +226,17 @@ interface AppState {
   showGlobalSettingsPanel: boolean;
   setShowGlobalSettingsPanel: (show: boolean) => void;
 
+  // Panel Birleşim Ayarları
+  panelJointSettings: {
+    topJoint: number;
+    bottomJoint: number;
+    plinthFoot1: number;
+    plinthFoot2: number;
+    plinthFootEnabled: boolean;
+    plinthFootHeight: number;
+  };
+  setPanelJointSetting: (key: string, value: number | boolean) => void;
+
   // Face (Yüzey) Düzenleme Modu
   faceEditMode: boolean;
   setFaceEditMode: (enabled: boolean) => void;
@@ -264,6 +275,22 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   showGlobalSettingsPanel: false,
   setShowGlobalSettingsPanel: (show) => set({ showGlobalSettingsPanel: show }),
+
+  panelJointSettings: {
+    topJoint: 0,
+    bottomJoint: 0,
+    plinthFoot1: 0,
+    plinthFoot2: 0,
+    plinthFootEnabled: true,
+    plinthFootHeight: 10
+  },
+  setPanelJointSetting: (key, value) =>
+    set((state) => ({
+      panelJointSettings: {
+        ...state.panelJointSettings,
+        [key]: value
+      }
+    })),
 
   // Face (Yüzey) Düzenleme
   faceEditMode: false,

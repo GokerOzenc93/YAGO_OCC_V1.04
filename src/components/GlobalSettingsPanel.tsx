@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { X, GripVertical, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { useAppStore } from '../store';
 
 interface GlobalSettingsPanelProps {
   isOpen: boolean;
@@ -32,6 +33,9 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   ]);
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
   const [hoveredProfile, setHoveredProfile] = useState<string | null>(null);
+
+  const panelJointSettings = useAppStore((state) => state.panelJointSettings);
+  const setPanelJointSetting = useAppStore((state) => state.setPanelJointSetting);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -209,13 +213,233 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
           ))}
         </div>
 
-        <div className="flex-1 bg-white p-4">
-          {selectedOption ? (
-            <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              {selectedOption === 'panel_joint' && 'Panel Birleşim Tipleri İçeriği'}
-              {selectedOption === 'backrest' && 'Arkalık Ayarları İçeriği'}
+        <div className="flex-1 bg-white p-4 overflow-y-auto">
+          {selectedOption === 'panel_joint' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-orange-500 text-sm font-semibold mb-3">Üst Birleşim</h3>
+                <div className="flex gap-3">
+                  {[0, 1, 2].map((index) => (
+                    <div
+                      key={index}
+                      onClick={() => setPanelJointSetting('topJoint', index)}
+                      className={`relative cursor-pointer border-2 rounded-lg p-2 transition-all ${
+                        panelJointSettings.topJoint === index
+                          ? 'border-orange-500'
+                          : 'border-stone-200 hover:border-stone-300'
+                      }`}
+                    >
+                      <div className="absolute top-1 left-1">
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          panelJointSettings.topJoint === index
+                            ? 'border-orange-500 bg-white'
+                            : 'border-stone-300 bg-white'
+                        }`}>
+                          {panelJointSettings.topJoint === index && (
+                            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-24 h-20 bg-stone-100 rounded flex items-start justify-start p-1">
+                        <div className="relative">
+                          <div className="w-8 h-12 bg-orange-300 border-r-4 border-orange-600"></div>
+                          <div className="absolute top-0 left-8 w-16 h-8 bg-amber-100 border-l border-t border-stone-300"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-orange-500 text-sm font-semibold mb-3">Alt Birleşim</h3>
+                <div className="flex gap-3">
+                  {[0, 1, 2].map((index) => (
+                    <div
+                      key={index}
+                      onClick={() => setPanelJointSetting('bottomJoint', index)}
+                      className={`relative cursor-pointer border-2 rounded-lg p-2 transition-all ${
+                        panelJointSettings.bottomJoint === index
+                          ? 'border-orange-500'
+                          : 'border-stone-200 hover:border-stone-300'
+                      }`}
+                    >
+                      <div className="absolute top-1 left-1">
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          panelJointSettings.bottomJoint === index
+                            ? 'border-orange-500 bg-white'
+                            : 'border-stone-300 bg-white'
+                        }`}>
+                          {panelJointSettings.bottomJoint === index && (
+                            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-24 h-20 bg-stone-100 rounded flex items-start justify-start p-1">
+                        <div className="relative">
+                          <div className="w-8 h-12 bg-orange-300 border-r-4 border-orange-600"></div>
+                          <div className="absolute top-0 left-8 w-16 h-8 bg-amber-100 border-l border-t border-stone-300"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-orange-500 text-sm font-semibold mb-3">Pl. ayak</h3>
+                <div className="flex gap-3">
+                  {[0, 1, 2].map((index) => (
+                    <div
+                      key={index}
+                      onClick={() => setPanelJointSetting('plinthFoot1', index)}
+                      className={`relative cursor-pointer border-2 rounded-lg p-2 transition-all ${
+                        panelJointSettings.plinthFoot1 === index
+                          ? 'border-orange-500'
+                          : 'border-stone-200 hover:border-stone-300'
+                      }`}
+                    >
+                      <div className="absolute top-1 left-1">
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                          panelJointSettings.plinthFoot1 === index
+                            ? 'border-orange-500 bg-white'
+                            : 'border-stone-300 bg-white'
+                        }`}>
+                          {panelJointSettings.plinthFoot1 === index && (
+                            <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="w-24 h-20 bg-stone-100 rounded flex items-start justify-start p-1">
+                        <div className="relative">
+                          <div className="w-8 h-12 bg-orange-300 border-r-4 border-orange-600"></div>
+                          {index === 0 && (
+                            <div className="absolute bottom-0 left-0 w-12 h-6 bg-amber-600 border-t-2 border-amber-800"></div>
+                          )}
+                          <div className="absolute top-0 left-8 w-16 h-8 bg-amber-100 border-l border-t border-stone-300"></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-orange-500 text-sm font-semibold mb-3">Pl. ayak</h3>
+                <div className="flex items-start gap-6">
+                  <div
+                    onClick={() => setPanelJointSetting('plinthFoot2', 0)}
+                    className={`relative cursor-pointer border-2 rounded-lg p-2 transition-all ${
+                      panelJointSettings.plinthFoot2 === 0
+                        ? 'border-orange-500'
+                        : 'border-stone-200 hover:border-stone-300'
+                    }`}
+                  >
+                    <div className="absolute top-1 left-1">
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                        panelJointSettings.plinthFoot2 === 0
+                          ? 'border-orange-500 bg-white'
+                          : 'border-stone-300 bg-white'
+                      }`}>
+                        {panelJointSettings.plinthFoot2 === 0 && (
+                          <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="w-24 h-20 bg-stone-100 rounded flex items-start justify-start p-1">
+                      <div className="relative">
+                        <div className="w-12 h-12 bg-orange-300 border-r-4 border-orange-600"></div>
+                        <div className="absolute bottom-0 left-0 w-12 h-6 bg-amber-600 border-t-2 border-amber-800"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 space-y-3">
+                    <div>
+                      <label className="text-xs font-medium text-slate-700 block mb-2">Var</label>
+                      <div className="flex gap-3">
+                        <div
+                          onClick={() => setPanelJointSetting('plinthFootEnabled', true)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            panelJointSettings.plinthFootEnabled
+                              ? 'border-orange-500 bg-white'
+                              : 'border-stone-300 bg-white'
+                          }`}>
+                            {panelJointSettings.plinthFootEnabled && (
+                              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                            )}
+                          </div>
+                          <span className="text-sm text-slate-700">Var</span>
+                        </div>
+                        <div
+                          onClick={() => setPanelJointSetting('plinthFootEnabled', false)}
+                          className="flex items-center gap-2 cursor-pointer"
+                        >
+                          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                            !panelJointSettings.plinthFootEnabled
+                              ? 'border-orange-500 bg-white'
+                              : 'border-stone-300 bg-white'
+                          }`}>
+                            {!panelJointSettings.plinthFootEnabled && (
+                              <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                            )}
+                          </div>
+                          <span className="text-sm text-slate-700">Yok</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-medium text-slate-700 block mb-2">Ayak Yüksekliği</label>
+                      <div className="flex items-center gap-1 w-32">
+                        <input
+                          type="number"
+                          value={panelJointSettings.plinthFootHeight}
+                          onChange={(e) => setPanelJointSetting('plinthFootHeight', parseFloat(e.target.value) || 0)}
+                          className="flex-1 px-2 py-1 text-sm border border-stone-300 rounded focus:outline-none focus:border-orange-500"
+                        />
+                        <div className="flex flex-col">
+                          <button
+                            onClick={() => setPanelJointSetting('plinthFootHeight', panelJointSettings.plinthFootHeight + 1)}
+                            className="p-0.5 hover:bg-stone-100 rounded"
+                          >
+                            <ChevronUp size={12} className="text-stone-600" />
+                          </button>
+                          <button
+                            onClick={() => setPanelJointSetting('plinthFootHeight', Math.max(0, panelJointSettings.plinthFootHeight - 1))}
+                            className="p-0.5 hover:bg-stone-100 rounded"
+                          >
+                            <ChevronDown size={12} className="text-stone-600" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-stone-200">
+                <button
+                  onClick={() => {
+                    console.log('Panel Birleşim Ayarları:', panelJointSettings);
+                  }}
+                  className="px-4 py-2 bg-orange-500 text-white text-sm rounded hover:bg-orange-600 transition-colors"
+                >
+                  Ayarları Konsola Yazdır
+                </button>
+              </div>
             </div>
-          ) : (
+          )}
+
+          {selectedOption === 'backrest' && (
+            <div className="flex items-center justify-center h-full text-stone-400 text-sm">
+              Arkalık Ayarları İçeriği
+            </div>
+          )}
+
+          {!selectedOption && (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
               Bir ayar seçin
             </div>
