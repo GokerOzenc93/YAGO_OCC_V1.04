@@ -5,6 +5,7 @@ import { useAppStore, Tool, ViewMode } from '../store';
 import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
+import { RoleLabels } from './RoleLabels';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -236,6 +237,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const {
     faceEditMode,
     filletMode,
+    roleEditMode,
     setSelectedVertexIndex,
     setVertexDirection
   } = useAppStore();
@@ -398,6 +400,13 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         {isSelected && faceEditMode && (
           <FaceEditor
             key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
+            shape={shape}
+            isActive={true}
+          />
+        )}
+        {isSelected && roleEditMode && (
+          <RoleLabels
+            key={`role-labels-${shape.id}-${shape.geometry?.uuid || ''}`}
             shape={shape}
             isActive={true}
           />
