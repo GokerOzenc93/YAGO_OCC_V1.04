@@ -21,6 +21,18 @@ interface SystemSetting {
   order: number;
 }
 
+interface CustomSetting {
+  id: string;
+  group_id: string;
+  name: string;
+  value: string;
+  type: string;
+  unit: string | null;
+  min_value: number | null;
+  max_value: number | null;
+  order: number;
+}
+
 interface GlobalSettingsProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,8 +41,10 @@ interface GlobalSettingsProps {
 const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
   const [customGroups, setCustomGroups] = useState<CustomSettingsGroup[]>([]);
   const [systemSettings, setSystemSettings] = useState<SystemSetting[]>([]);
+  const [customSettings, setCustomSettings] = useState<CustomSetting[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [newGroupName, setNewGroupName] = useState('');
+  const [newSettingName, setNewSettingName] = useState('');
   const [editingValues, setEditingValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +61,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [groupsRes, settingsRes] = await Promise.all([
+      const [groupsRes, settingsRes, customSettingsRes] = await Promise.all([
         supabase
           .from('custom_settings_groups')
           .select('*')
@@ -56,6 +70,10 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
           .from('system_settings')
           .select('*')
           .order('category', { ascending: true })
+          .order('order', { ascending: true }),
+        supabase
+          .from('custom_settings')
+          .select('*')
           .order('order', { ascending: true })
       ]);
 
@@ -67,6 +85,14 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
           initialValues[setting.id] = setting.value || '';
         });
         setEditingValues(initialValues);
+      }
+      if (customSettingsRes.data) {
+        setCustomSettings(customSettingsRes.data);
+        const customValues: Record<string, string> = {};
+        customSettingsRes.data.forEach(setting => {
+          customValues[setting.id] = setting.value || '';
+        });
+        setEditingValues(prev => ({ ...prev, ...customValues }));
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -120,21 +146,77 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
     }));
   };
 
-  const handleSaveSetting = async (setting: SystemSetting) => {
+  const handleSaveSetting = async (setting: SystemSetting | CustomSetting) => {
     const newValue = editingValues[setting.id];
     if (newValue === setting.value) return;
 
     try {
+      const isCustomSetting = 'group_id' in setting;
+      const tableName = isCustomSetting ? 'custom_settings' : 'system_settings';
+
       await supabase
-        .from('system_settings')
+        .from(tableName)
         .update({ value: newValue, updated_at: new Date().toISOString() })
         .eq('id', setting.id);
 
-      setSystemSettings(systemSettings.map(s =>
-        s.id === setting.id ? { ...s, value: newValue } : s
-      ));
+      if (isCustomSetting) {
+        setCustomSettings(customSettings.map(s =>
+          s.id === setting.id ? { ...s, value: newValue } : s
+        ));
+      } else {
+        setSystemSettings(systemSettings.map(s =>
+          s.id === setting.id ? { ...s, value: newValue } : s
+        ));
+      }
     } catch (error) {
       console.error('Error saving setting:', error);
+    }
+  };
+
+  const handleAddCustomSetting = async () => {
+    if (!newSettingName.trim() || !selectedGroup) return;
+
+    const group = customGroups.find(g => g.id === selectedGroup);
+    if (!group) return;
+
+    try {
+      const maxOrder = Math.max(
+        ...customSettings.filter(s => s.group_id === selectedGroup).map(s => s.order),
+        -1
+      );
+
+      const { data } = await supabase
+        .from('custom_settings')
+        .insert([{
+          group_id: selectedGroup,
+          name: newSettingName,
+          value: '',
+          type: 'text',
+          order: maxOrder + 1
+        }])
+        .select()
+        .single();
+
+      if (data) {
+        setCustomSettings([...customSettings, data]);
+        setEditingValues(prev => ({ ...prev, [data.id]: '' }));
+        setNewSettingName('');
+      }
+    } catch (error) {
+      console.error('Error adding custom setting:', error);
+    }
+  };
+
+  const handleDeleteCustomSetting = async (id: string) => {
+    try {
+      await supabase
+        .from('custom_settings')
+        .delete()
+        .eq('id', id);
+
+      setCustomSettings(customSettings.filter(s => s.id !== id));
+    } catch (error) {
+      console.error('Error deleting custom setting:', error);
     }
   };
 
@@ -146,7 +228,20 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
     return acc;
   }, {} as Record<string, SystemSetting[]>);
 
+  const groupedCustomSettings = customSettings.reduce((acc, setting) => {
+    if (!acc[setting.group_id]) {
+      acc[setting.group_id] = [];
+    }
+    acc[setting.group_id].push(setting);
+    return acc;
+  }, {} as Record<string, CustomSetting[]>);
+
   const categories = Object.keys(groupedSettings).sort();
+
+  const isCustomGroup = selectedGroup && customGroups.some(g => g.id === selectedGroup);
+  const currentSettings: (SystemSetting | CustomSetting)[] = isCustomGroup
+    ? groupedCustomSettings[selectedGroup] || []
+    : groupedSettings[selectedGroup] || [];
 
   if (!isOpen) return null;
 
@@ -231,76 +326,146 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
           </div>
 
           <div className="flex-1 overflow-y-auto p-6">
-            {loading ? (
+            {loading && (
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="w-12 h-12 border-4 border-stone-200 border-t-orange-600 rounded-full animate-spin mx-auto mb-3"></div>
                   <p className="text-sm text-stone-600">Loading...</p>
                 </div>
               </div>
-            ) : selectedGroup && groupedSettings[selectedGroup] ? (
+            )}
+
+            {!loading && selectedGroup && currentSettings.length > 0 && (
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-800 mb-4">{selectedGroup}</h2>
-                  <div className="space-y-3">
-                    {groupedSettings[selectedGroup].map(setting => (
-                      <div key={setting.id} className="flex items-end gap-3 pb-3 border-b border-stone-100">
-                        <div className="flex-1">
-                          <label className="block text-sm font-medium text-slate-700 mb-1">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-slate-800">
+                    {isCustomGroup
+                      ? customGroups.find(g => g.id === selectedGroup)?.name
+                      : selectedGroup}
+                  </h2>
+                  {isCustomGroup && (
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="New setting name..."
+                        value={newSettingName}
+                        onChange={e => setNewSettingName(e.target.value)}
+                        onKeyPress={e => e.key === 'Enter' && handleAddCustomSetting()}
+                        className="px-3 py-1.5 text-sm bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      />
+                      <button
+                        onClick={handleAddCustomSetting}
+                        disabled={!newSettingName.trim()}
+                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-3">
+                  {currentSettings.map((setting) => (
+                    <div key={setting.id} className="flex items-end gap-3 pb-3 border-b border-stone-100">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="block text-sm font-medium text-slate-700">
                             {setting.name}
                           </label>
-                          {setting.type === 'number' ? (
-                            <div className="flex gap-2">
-                              <input
-                                type="number"
-                                value={editingValues[setting.id] || ''}
-                                onChange={e => handleSettingChange(setting.id, e.target.value)}
-                                min={setting.min_value || undefined}
-                                max={setting.max_value || undefined}
-                                className="flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
-                              />
-                              {setting.unit && (
-                                <span className="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600">
-                                  {setting.unit}
-                                </span>
-                              )}
-                            </div>
-                          ) : setting.type === 'select' ? (
-                            <select
-                              value={editingValues[setting.id] || ''}
-                              onChange={e => handleSettingChange(setting.id, e.target.value)}
-                              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
+                          {isCustomGroup && (
+                            <button
+                              onClick={() => handleDeleteCustomSetting(setting.id)}
+                              className="p-1 hover:bg-red-100 rounded transition-colors"
+                              title="Delete setting"
                             >
-                              <option value="">Select...</option>
-                              <option value={editingValues[setting.id] || setting.value}>
-                                {editingValues[setting.id] || setting.value}
-                              </option>
-                            </select>
-                          ) : (
-                            <input
-                              type="text"
-                              value={editingValues[setting.id] || ''}
-                              onChange={e => handleSettingChange(setting.id, e.target.value)}
-                              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
-                            />
+                              <Trash2 size={12} className="text-red-600" />
+                            </button>
                           )}
                         </div>
-                        <button
-                          onClick={() => handleSaveSetting(setting)}
-                          disabled={editingValues[setting.id] === setting.value}
-                          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                        >
-                          Save
-                        </button>
+                        {setting.type === 'number' ? (
+                          <div className="flex gap-2">
+                            <input
+                              type="number"
+                              value={editingValues[setting.id] || ''}
+                              onChange={e => handleSettingChange(setting.id, e.target.value)}
+                              min={setting.min_value || undefined}
+                              max={setting.max_value || undefined}
+                              className="flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
+                            />
+                            {setting.unit && (
+                              <span className="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600">
+                                {setting.unit}
+                              </span>
+                            )}
+                          </div>
+                        ) : setting.type === 'select' ? (
+                          <select
+                            value={editingValues[setting.id] || ''}
+                            onChange={e => handleSettingChange(setting.id, e.target.value)}
+                            className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
+                          >
+                            <option value="">Select...</option>
+                            <option value={editingValues[setting.id] || setting.value}>
+                              {editingValues[setting.id] || setting.value}
+                            </option>
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            value={editingValues[setting.id] || ''}
+                            onChange={e => handleSettingChange(setting.id, e.target.value)}
+                            className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
+                          />
+                        )}
                       </div>
-                    ))}
-                  </div>
+                      <button
+                        onClick={() => handleSaveSetting(setting)}
+                        disabled={editingValues[setting.id] === setting.value}
+                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                      >
+                        Save
+                      </button>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ) : (
+            )}
+
+            {!loading && selectedGroup && isCustomGroup && currentSettings.length === 0 && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-slate-800">
+                    {customGroups.find(g => g.id === selectedGroup)?.name}
+                  </h2>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="New setting name..."
+                      value={newSettingName}
+                      onChange={e => setNewSettingName(e.target.value)}
+                      onKeyPress={e => e.key === 'Enter' && handleAddCustomSetting()}
+                      className="px-3 py-1.5 text-sm bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                    <button
+                      onClick={handleAddCustomSetting}
+                      disabled={!newSettingName.trim()}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center h-64">
+                  <p className="text-stone-600 text-center">
+                    No settings yet. Add your first setting above.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {!loading && !selectedGroup && (
               <div className="flex items-center justify-center h-full">
                 <p className="text-stone-600 text-center">
-                  {selectedGroup ? 'No settings found in this group.' : 'Select a category from the left panel.'}
+                  Select a category from the left panel.
                 </p>
               </div>
             )}
