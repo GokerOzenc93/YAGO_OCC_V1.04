@@ -4,7 +4,6 @@ import Toolbar from './components/Toolbar';
 import Terminal from './components/Terminal';
 import StatusBar from './components/StatusBar';
 import CatalogPanel from './components/CatalogPanel';
-import GlobalSettingsPanel from './components/GlobalSettingsPanel';
 import { useAppStore } from './store';
 import { catalogService, CatalogItem } from './components/Database';
 
@@ -34,7 +33,6 @@ function App() {
         <Terminal />
         <StatusBar />
       </div>
-      <GlobalSettingsPanel />
     </div>
   );
 }
