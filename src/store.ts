@@ -9,6 +9,13 @@ import { VertexModification } from './components/VertexEditorService';
  * ------------------------------------------------------------------
  */
 
+export type FaceRole = 'Sağ' | 'Sol' | 'Üst' | 'Alt' | 'Door' | 'Back';
+
+export interface FaceRoleAssignment {
+  faceIndex: number;
+  role: FaceRole;
+}
+
 export interface SubtractionParameters {
   width: string;
   height: string;
@@ -82,6 +89,7 @@ export interface Shape {
   isReferenceBox?: boolean;              // Boolean işleminde referans kutusu mu?
   subtractionGeometries?: SubtractedGeometry[]; // Bu şekilden çıkarılmış parçaların listesi
   fillets?: FilletInfo[];                // Parametrik fillet bilgileri
+  faceRoles?: FaceRoleAssignment[];      // Yüzey rol atamaları
 }
 
 /**
@@ -236,6 +244,16 @@ interface AppState {
   selectedFilletFaceData: Array<{ normal: [number, number, number]; center: [number, number, number] }>;
   addFilletFaceData: (data: { normal: [number, number, number]; center: [number, number, number] }) => void;
   clearFilletFaceData: () => void;
+
+  // Face Role Assignment
+  roleAssignmentMode: boolean;
+  setRoleAssignmentMode: (enabled: boolean) => void;
+  draggingRole: FaceRole | null;
+  setDraggingRole: (role: FaceRole | null) => void;
+  hoveredFaceForRoleIndex: number | null;
+  setHoveredFaceForRoleIndex: (index: number | null) => void;
+  assignFaceRole: (shapeId: string, faceIndex: number, role: FaceRole) => void;
+  removeFaceRole: (shapeId: string, faceIndex: number) => void;
 }
 
 /**
@@ -278,6 +296,41 @@ export const useAppStore = create<AppState>((set, get) => ({
     selectedFilletFaceData: [...state.selectedFilletFaceData, data]
   })),
   clearFilletFaceData: () => set({ selectedFilletFaceData: [] }),
+
+  // Face Role Assignment
+  roleAssignmentMode: false,
+  setRoleAssignmentMode: (enabled) => set({ roleAssignmentMode: enabled }),
+  draggingRole: null,
+  setDraggingRole: (role) => set({ draggingRole: role }),
+  hoveredFaceForRoleIndex: null,
+  setHoveredFaceForRoleIndex: (index) => set({ hoveredFaceForRoleIndex: index }),
+  assignFaceRole: (shapeId, faceIndex, role) => set((state) => ({
+    shapes: state.shapes.map((shape) => {
+      if (shape.id !== shapeId) return shape;
+
+      const existingRoles = shape.faceRoles || [];
+      const existingRoleIndex = existingRoles.findIndex(r => r.faceIndex === faceIndex);
+
+      let newRoles;
+      if (existingRoleIndex >= 0) {
+        newRoles = [...existingRoles];
+        newRoles[existingRoleIndex] = { faceIndex, role };
+      } else {
+        newRoles = [...existingRoles, { faceIndex, role }];
+      }
+
+      console.log(`✅ Assigned role "${role}" to face ${faceIndex} on shape ${shapeId}`);
+      return { ...shape, faceRoles: newRoles };
+    })
+  })),
+  removeFaceRole: (shapeId, faceIndex) => set((state) => ({
+    shapes: state.shapes.map((shape) => {
+      if (shape.id !== shapeId) return shape;
+      const newRoles = (shape.faceRoles || []).filter(r => r.faceIndex !== faceIndex);
+      console.log(`🗑️ Removed role from face ${faceIndex} on shape ${shapeId}`);
+      return { ...shape, faceRoles: newRoles };
+    })
+  })),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

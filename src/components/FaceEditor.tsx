@@ -467,6 +467,15 @@ interface FaceEditorProps {
   isActive: boolean;
 }
 
+const ROLE_COLORS: Record<string, number> = {
+  'Sağ': 0xef4444,
+  'Sol': 0x3b82f6,
+  'Üst': 0x10b981,
+  'Alt': 0xf59e0b,
+  'Door': 0x8b5cf6,
+  'Back': 0x6b7280
+};
+
 export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   const {
     hoveredFaceIndex,
@@ -476,7 +485,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     filletMode,
     selectedFilletFaces,
     addFilletFace,
-    addFilletFaceData
+    addFilletFaceData,
+    roleAssignmentMode,
+    draggingRole,
+    hoveredFaceForRoleIndex,
+    setHoveredFaceForRoleIndex,
+    assignFaceRole
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
@@ -537,6 +551,10 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       if (groupIndex !== -1) {
         setHoveredGroupIndex(groupIndex);
         setHoveredFaceIndex(faceIndex);
+
+        if (roleAssignmentMode && draggingRole) {
+          setHoveredFaceForRoleIndex(groupIndex);
+        }
       }
     }
   };
@@ -545,6 +563,23 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     e.stopPropagation();
     setHoveredGroupIndex(null);
     setHoveredFaceIndex(null);
+    setHoveredFaceForRoleIndex(null);
+  };
+
+  const handleDragOver = (e: any) => {
+    if (!roleAssignmentMode || !draggingRole) return;
+    e.stopPropagation();
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: any) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    if (!roleAssignmentMode || !draggingRole || hoveredGroupIndex === null) return;
+
+    assignFaceRole(shape.id, hoveredGroupIndex, draggingRole);
+    console.log(`✅ Assigned role "${draggingRole}" to face group ${hoveredGroupIndex} on shape ${shape.id}`);
   };
 
   const handlePointerDown = (e: any) => {
@@ -572,6 +607,27 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     return createFaceHighlightGeometry(faces, group.faceIndices);
   }, [hoveredGroupIndex, faceGroups, faces]);
 
+  const getHighlightColor = (): number => {
+    if (roleAssignmentMode && draggingRole) {
+      return ROLE_COLORS[draggingRole] || 0xff0000;
+    }
+    return 0xff0000;
+  };
+
+  const assignedRoleGeometries = useMemo(() => {
+    if (!shape.faceRoles || shape.faceRoles.length === 0) return [];
+
+    return shape.faceRoles.map(roleAssignment => {
+      const group = faceGroups[roleAssignment.faceIndex];
+      if (!group) return null;
+      return {
+        geometry: createFaceHighlightGeometry(faces, group.faceIndices),
+        color: ROLE_COLORS[roleAssignment.role] || 0xcccccc,
+        role: roleAssignment.role
+      };
+    }).filter(g => g !== null);
+  }, [shape.faceRoles, faceGroups, faces]);
+
   const boundaryEdgesGeometry = useMemo(() => {
     if (faces.length === 0 || faceGroups.length === 0) return null;
     return createGroupBoundaryEdges(faces, faceGroups);
@@ -587,8 +643,27 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
         onPointerDown={handlePointerDown}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         onContextMenu={(e) => e.stopPropagation()}
       />
+
+      {assignedRoleGeometries.map((item: any, idx: number) => (
+        <mesh
+          key={`role-${idx}`}
+          geometry={item.geometry}
+        >
+          <meshBasicMaterial
+            color={item.color}
+            transparent
+            opacity={0.7}
+            side={THREE.DoubleSide}
+            polygonOffset
+            polygonOffsetFactor={-2}
+            polygonOffsetUnits={-2}
+          />
+        </mesh>
+      ))}
 
       {selectedFilletGeometries.map((geom, idx) => (
         <mesh
@@ -612,9 +687,9 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
           geometry={highlightGeometry}
         >
           <meshBasicMaterial
-            color={0xff0000}
+            color={getHighlightColor()}
             transparent
-            opacity={0.5}
+            opacity={roleAssignmentMode && draggingRole ? 0.7 : 0.5}
             side={THREE.DoubleSide}
             polygonOffset
             polygonOffsetFactor={-1}
