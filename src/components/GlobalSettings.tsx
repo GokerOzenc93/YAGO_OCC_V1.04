@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, ChevronRight } from 'lucide-react';
+import { X, Minus, Square } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
 interface CustomSettingsGroup {
@@ -246,227 +246,261 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-stone-900/50 flex items-center justify-center z-40" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-2xl w-11/12 h-5/6 max-w-4xl flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between h-14 px-6 border-b border-stone-200">
-          <h1 className="text-lg font-semibold text-slate-800">Global Settings</h1>
-          <button
-            onClick={onClose}
-            className="p-1 hover:bg-stone-100 rounded-lg transition-colors"
-          >
-            <X size={20} className="text-stone-600" />
-          </button>
+    <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-40" onClick={onClose}>
+      <div className="bg-white w-[800px] h-[600px] flex flex-col shadow-lg" onClick={e => e.stopPropagation()}>
+        {/* Windows-style title bar */}
+        <div className="flex items-center justify-between h-8 px-3 bg-white border-b border-gray-300">
+          <h1 className="text-xs font-normal text-gray-800">Global Settings</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="w-6 h-5 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              title="Minimize"
+            >
+              <Minus size={12} className="text-gray-700" />
+            </button>
+            <button
+              onClick={onClose}
+              className="w-6 h-5 flex items-center justify-center hover:bg-gray-200 transition-colors"
+              title="Maximize"
+            >
+              <Square size={9} className="text-gray-700" />
+            </button>
+            <button
+              onClick={onClose}
+              className="w-6 h-5 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+              title="Close"
+            >
+              <X size={12} className="text-gray-700 hover:text-white" />
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-hidden flex">
-          <div className="w-56 border-r border-stone-200 bg-stone-50 flex flex-col">
-            <div className="flex-1 overflow-y-auto">
-              <div className="p-3 space-y-2">
-                <h3 className="text-xs font-semibold text-stone-600 px-2 mb-3">SYSTEM SETTINGS</h3>
-                {categories.map(category => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedGroup(category)}
-                    className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between group ${
-                      selectedGroup === category
-                        ? 'bg-orange-100 text-orange-900 font-medium'
-                        : 'text-slate-700 hover:bg-stone-100'
-                    }`}
-                  >
-                    <span className="truncate">{category}</span>
-                    <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
-              </div>
+          {/* Left Panel - Settings List */}
+          <div className="w-[220px] border-r border-gray-300 bg-gray-50 flex flex-col">
+            {/* System Settings Header */}
+            <div className="h-7 px-2 bg-white border-b border-gray-300 flex items-center">
+              <h3 className="text-xs font-normal text-gray-700">System Settings</h3>
             </div>
 
-            <div className="border-t border-stone-200 p-3 bg-white space-y-2">
-              <h3 className="text-xs font-semibold text-stone-600 px-2 mb-2">CUSTOM SETTINGS</h3>
-              {customGroups.map(group => (
-                <button
-                  key={group.id}
-                  onClick={() => setSelectedGroup(group.id)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between group ${
-                    selectedGroup === group.id
-                      ? 'bg-blue-100 text-blue-900 font-medium'
-                      : 'text-slate-700 hover:bg-stone-100'
+            {/* System Settings List */}
+            <div className="flex-1 overflow-y-auto bg-white">
+              {categories.map(category => (
+                <div
+                  key={category}
+                  onClick={() => setSelectedGroup(category)}
+                  className={`h-7 px-2 flex items-center cursor-pointer border-b border-gray-100 ${
+                    selectedGroup === category && !isCustomGroup
+                      ? 'bg-blue-500 text-white'
+                      : 'hover:bg-gray-100 text-gray-800'
                   }`}
                 >
-                  <span className="truncate">{group.name}</span>
-                  <button
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleDeleteGroup(group.id);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-red-100 rounded"
-                  >
-                    <Trash2 size={14} className="text-red-600" />
-                  </button>
-                </button>
+                  <span className="text-xs font-normal truncate">{category}</span>
+                </div>
               ))}
+            </div>
 
-              <div className="flex gap-2 mt-3">
+            {/* Custom Settings Section */}
+            <div className="border-t border-gray-300">
+              {/* Custom Settings Header */}
+              <div className="h-7 px-2 bg-white border-b border-gray-300 flex items-center">
+                <h3 className="text-xs font-normal text-gray-700">Custom Settings</h3>
+              </div>
+
+              {/* Custom Settings List */}
+              <div className="max-h-40 overflow-y-auto bg-white">
+                {customGroups.map(group => (
+                  <div
+                    key={group.id}
+                    onClick={() => setSelectedGroup(group.id)}
+                    className={`h-7 px-2 flex items-center cursor-pointer border-b border-gray-100 ${
+                      selectedGroup === group.id
+                        ? 'bg-blue-500 text-white'
+                        : 'hover:bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    <span className="text-xs font-normal truncate flex-1">{group.name}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add Group Input */}
+              <div className="h-9 px-2 py-1.5 bg-white border-t border-gray-200 flex gap-1">
                 <input
                   type="text"
-                  placeholder="New group name..."
+                  placeholder="New group..."
                   value={newGroupName}
                   onChange={e => setNewGroupName(e.target.value)}
                   onKeyPress={e => e.key === 'Enter' && handleAddGroup()}
-                  className="flex-1 px-2 py-1.5 text-xs bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="flex-1 px-1.5 py-0.5 text-xs bg-white border border-gray-300 focus:outline-none focus:border-blue-500"
                 />
                 <button
                   onClick={handleAddGroup}
                   disabled={!newGroupName.trim()}
-                  className="p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-2 text-xs bg-gray-200 hover:bg-gray-300 disabled:opacity-50 border border-gray-300"
                 >
-                  <Plus size={14} />
+                  Add
                 </button>
               </div>
+
+              {/* Delete Selected Group Button */}
+              {selectedGroup && isCustomGroup && (
+                <div className="h-8 px-2 bg-gray-50 border-t border-gray-300 flex items-center">
+                  <button
+                    onClick={() => handleDeleteGroup(selectedGroup)}
+                    className="text-xs text-gray-700 hover:text-red-600 font-normal"
+                  >
+                    Seçilen Seti Sil
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6">
-            {loading && (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center">
-                  <div className="w-12 h-12 border-4 border-stone-200 border-t-orange-600 rounded-full animate-spin mx-auto mb-3"></div>
-                  <p className="text-sm text-stone-600">Loading...</p>
+          {/* Right Panel - Settings Details */}
+          <div className="flex-1 flex flex-col">
+            {/* Header */}
+            <div className="h-7 px-2 bg-white border-b border-gray-300 flex items-center justify-between">
+              <h3 className="text-xs font-normal text-gray-700">
+                {selectedGroup && (isCustomGroup
+                  ? customGroups.find(g => g.id === selectedGroup)?.name
+                  : selectedGroup)}
+              </h3>
+              {isCustomGroup && selectedGroup && (
+                <div className="flex gap-1">
+                  <input
+                    type="text"
+                    placeholder="Setting name..."
+                    value={newSettingName}
+                    onChange={e => setNewSettingName(e.target.value)}
+                    onKeyPress={e => e.key === 'Enter' && handleAddCustomSetting()}
+                    className="w-32 px-1.5 py-0.5 text-xs bg-white border border-gray-300 focus:outline-none focus:border-blue-500"
+                  />
+                  <button
+                    onClick={handleAddCustomSetting}
+                    disabled={!newSettingName.trim()}
+                    className="px-2 text-xs bg-gray-200 hover:bg-gray-300 disabled:opacity-50 border border-gray-300"
+                  >
+                    Add
+                  </button>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {!loading && selectedGroup && currentSettings.length > 0 && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-slate-800">
-                    {isCustomGroup
-                      ? customGroups.find(g => g.id === selectedGroup)?.name
-                      : selectedGroup}
-                  </h2>
-                  {isCustomGroup && (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="New setting name..."
-                        value={newSettingName}
-                        onChange={e => setNewSettingName(e.target.value)}
-                        onKeyPress={e => e.key === 'Enter' && handleAddCustomSetting()}
-                        className="px-3 py-1.5 text-sm bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
-                      />
-                      <button
-                        onClick={handleAddCustomSetting}
-                        disabled={!newSettingName.trim()}
-                        className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                      >
-                        <Plus size={14} />
-                      </button>
-                    </div>
-                  )}
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto bg-white">
+              {loading && (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-xs text-gray-500">Loading...</p>
                 </div>
-                <div className="space-y-3">
-                  {currentSettings.map((setting) => (
-                    <div key={setting.id} className="flex items-end gap-3 pb-3 border-b border-stone-100">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <label className="block text-sm font-medium text-slate-700">
-                            {setting.name}
-                          </label>
-                          {isCustomGroup && (
-                            <button
-                              onClick={() => handleDeleteCustomSetting(setting.id)}
-                              className="p-1 hover:bg-red-100 rounded transition-colors"
-                              title="Delete setting"
-                            >
-                              <Trash2 size={12} className="text-red-600" />
-                            </button>
-                          )}
-                        </div>
-                        {setting.type === 'number' ? (
-                          <div className="flex gap-2">
-                            <input
-                              type="number"
-                              value={editingValues[setting.id] || ''}
-                              onChange={e => handleSettingChange(setting.id, e.target.value)}
-                              min={setting.min_value || undefined}
-                              max={setting.max_value || undefined}
-                              className="flex-1 px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
-                            />
-                            {setting.unit && (
-                              <span className="px-3 py-2 bg-stone-100 rounded-lg text-sm text-stone-600">
-                                {setting.unit}
-                              </span>
+              )}
+
+              {!loading && selectedGroup && currentSettings.length > 0 && (
+                <div className="p-3">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-gray-300">
+                        <th className="text-left py-1.5 px-2 text-xs font-normal text-gray-700 bg-gray-50">Setting</th>
+                        <th className="text-left py-1.5 px-2 text-xs font-normal text-gray-700 bg-gray-50">Value</th>
+                        <th className="text-left py-1.5 px-2 text-xs font-normal text-gray-700 bg-gray-50">Unit</th>
+                        <th className="w-16 py-1.5 px-2 text-xs font-normal text-gray-700 bg-gray-50"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {currentSettings.map((setting) => (
+                        <tr key={setting.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-1.5 px-2">
+                            <span className="text-xs text-gray-800">{setting.name}</span>
+                          </td>
+                          <td className="py-1.5 px-2">
+                            {setting.type === 'number' ? (
+                              <input
+                                type="number"
+                                value={editingValues[setting.id] || ''}
+                                onChange={e => handleSettingChange(setting.id, e.target.value)}
+                                min={setting.min_value || undefined}
+                                max={setting.max_value || undefined}
+                                className="w-20 px-1.5 py-0.5 text-xs border border-gray-300 focus:outline-none focus:border-blue-500"
+                              />
+                            ) : setting.type === 'select' ? (
+                              <select
+                                value={editingValues[setting.id] || ''}
+                                onChange={e => handleSettingChange(setting.id, e.target.value)}
+                                className="w-32 px-1.5 py-0.5 text-xs border border-gray-300 focus:outline-none focus:border-blue-500"
+                              >
+                                <option value="">Select...</option>
+                                <option value={editingValues[setting.id] || setting.value}>
+                                  {editingValues[setting.id] || setting.value}
+                                </option>
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                value={editingValues[setting.id] || ''}
+                                onChange={e => handleSettingChange(setting.id, e.target.value)}
+                                className="w-32 px-1.5 py-0.5 text-xs border border-gray-300 focus:outline-none focus:border-blue-500"
+                              />
                             )}
-                          </div>
-                        ) : setting.type === 'select' ? (
-                          <select
-                            value={editingValues[setting.id] || ''}
-                            onChange={e => handleSettingChange(setting.id, e.target.value)}
-                            className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
-                          >
-                            <option value="">Select...</option>
-                            <option value={editingValues[setting.id] || setting.value}>
-                              {editingValues[setting.id] || setting.value}
-                            </option>
-                          </select>
-                        ) : (
-                          <input
-                            type="text"
-                            value={editingValues[setting.id] || ''}
-                            onChange={e => handleSettingChange(setting.id, e.target.value)}
-                            className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
-                          />
-                        )}
-                      </div>
-                      <button
-                        onClick={() => handleSaveSetting(setting)}
-                        disabled={editingValues[setting.id] === setting.value}
-                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                      >
-                        Save
-                      </button>
-                    </div>
-                  ))}
+                          </td>
+                          <td className="py-1.5 px-2">
+                            {setting.unit && (
+                              <span className="text-xs text-gray-600">{setting.unit}</span>
+                            )}
+                          </td>
+                          <td className="py-1.5 px-2 text-right">
+                            <button
+                              onClick={() => handleSaveSetting(setting)}
+                              disabled={editingValues[setting.id] === setting.value}
+                              className="px-2 py-0.5 text-xs bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed border border-gray-300"
+                            >
+                              Save
+                            </button>
+                            {isCustomGroup && (
+                              <button
+                                onClick={() => handleDeleteCustomSetting(setting.id)}
+                                className="ml-1 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 border border-gray-300"
+                                title="Delete"
+                              >
+                                Del
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            )}
+              )}
 
-            {!loading && selectedGroup && isCustomGroup && currentSettings.length === 0 && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-slate-800">
-                    {customGroups.find(g => g.id === selectedGroup)?.name}
-                  </h2>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="New setting name..."
-                      value={newSettingName}
-                      onChange={e => setNewSettingName(e.target.value)}
-                      onKeyPress={e => e.key === 'Enter' && handleAddCustomSetting()}
-                      className="px-3 py-1.5 text-sm bg-white border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
-                    />
-                    <button
-                      onClick={handleAddCustomSetting}
-                      disabled={!newSettingName.trim()}
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                    >
-                      <Plus size={14} />
-                    </button>
-                  </div>
+              {!loading && selectedGroup && currentSettings.length === 0 && (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-xs text-gray-500">No settings available</p>
                 </div>
-                <div className="flex items-center justify-center h-64">
-                  <p className="text-stone-600 text-center">
-                    No settings yet. Add your first setting above.
-                  </p>
-                </div>
-              </div>
-            )}
+              )}
 
-            {!loading && !selectedGroup && (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-stone-600 text-center">
-                  Select a category from the left panel.
-                </p>
+              {!loading && !selectedGroup && (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-xs text-gray-500">Select a category from the left</p>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Button */}
+            {selectedGroup && isCustomGroup && currentSettings.length > 0 && (
+              <div className="h-8 px-2 bg-gray-50 border-t border-gray-300 flex items-center">
+                <button
+                  onClick={() => {
+                    if (selectedGroup) {
+                      currentSettings.forEach(setting => {
+                        handleDeleteCustomSetting(setting.id);
+                      });
+                    }
+                  }}
+                  className="text-xs text-gray-700 hover:text-red-600 font-normal"
+                >
+                  Seçilen Reçeteyi Sil
+                </button>
               </div>
             )}
           </div>
