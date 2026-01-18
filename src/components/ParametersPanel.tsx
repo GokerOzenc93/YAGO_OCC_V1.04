@@ -859,7 +859,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               const faceGroups = groupCoplanarFaces(faces);
               const faceRoles = selectedShape.faceRoles || {};
               const faceDescriptions = selectedShape.faceDescriptions || {};
-              const roleOptions: FaceRole[] = ['left', 'right', 'top', 'bottom', 'back', 'door'];
+              const roleOptions: FaceRole[] = ['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'];
 
               return (
                 <div className="space-y-2 pt-2 border-t border-stone-300">

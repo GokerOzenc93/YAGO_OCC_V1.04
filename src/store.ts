@@ -61,7 +61,7 @@ export interface SubtractedGeometry {
   parameters?: SubtractionParameters;    // Parametrik ifadeler
 }
 
-export type FaceRole = 'left' | 'right' | 'top' | 'bottom' | 'back' | 'door' | null;
+export type FaceRole = 'Left' | 'Right' | 'Top' | 'Bottom' | 'Back' | 'Door' | null;
 
 /**
  * Shape:
