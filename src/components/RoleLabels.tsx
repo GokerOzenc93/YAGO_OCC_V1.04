@@ -22,7 +22,7 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
 
       const offsetPosition = new THREE.Vector3()
         .copy(group.center)
-        .add(group.normal.clone().multiplyScalar(0.15));
+        .add(group.normal.clone().multiplyScalar(0.01));
 
       return {
         position: offsetPosition,
@@ -43,6 +43,7 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
           position={[item.position.x, item.position.y, item.position.z]}
           center
           occlude={false}
+          zIndexRange={[0, 0]}
           style={{
             pointerEvents: 'none',
             userSelect: 'none'
@@ -50,17 +51,15 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
         >
           <div
             style={{
-              background: item.hasRole ? '#059669' : '#374151',
+              background: item.hasRole ? 'rgba(5, 150, 105, 0.85)' : 'rgba(0, 0, 0, 0.7)',
               color: 'white',
-              padding: '4px 8px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: '700',
+              padding: '2px 6px',
+              borderRadius: '4px',
+              fontSize: '11px',
+              fontWeight: '600',
               fontFamily: 'system-ui, sans-serif',
               whiteSpace: 'nowrap',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
-              border: '2px solid rgba(255,255,255,0.5)',
-              textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+              border: '1px solid rgba(255,255,255,0.3)'
             }}
           >
             {item.label}
