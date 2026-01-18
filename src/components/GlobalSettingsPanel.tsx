@@ -234,20 +234,20 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                           <div className="relative w-full h-full">
                             {index === 0 && (
                               <>
-                                <div className="absolute top-0 left-0 w-2.5 h-12 bg-amber-800 rounded-sm"></div>
-                                <div className="absolute top-0 left-0 w-12 h-2.5 bg-lime-600 rounded-sm"></div>
+                                <div className="absolute top-0 left-0 w-12 h-2.5 bg-lime-600 rounded-sm z-0"></div>
+                                <div className="absolute top-0 left-0 w-2.5 h-12 bg-amber-800 rounded-sm z-10"></div>
                               </>
                             )}
                             {index === 1 && (
                               <>
-                                <div className="absolute top-0 left-0 w-3 h-11 bg-amber-800 rounded-sm"></div>
-                                <div className="absolute top-0 left-0 w-11 h-3 bg-lime-600 rounded-sm"></div>
+                                <div className="absolute top-0 left-0 w-11 h-3 bg-lime-600 rounded-sm z-0"></div>
+                                <div className="absolute top-0 left-0 w-3 h-11 bg-amber-800 rounded-sm z-0"></div>
                               </>
                             )}
                             {index === 2 && (
                               <>
-                                <div className="absolute top-0 left-0 w-3.5 h-10 bg-amber-800 rounded-sm"></div>
-                                <div className="absolute top-0 left-0 w-10 h-3.5 bg-lime-600 rounded-sm"></div>
+                                <div className="absolute top-0 left-0 w-3.5 h-10 bg-amber-800 rounded-sm z-10"></div>
+                                <div className="absolute top-0 left-0 w-10 h-3.5 bg-lime-600 rounded-sm z-0"></div>
                               </>
                             )}
                           </div>
