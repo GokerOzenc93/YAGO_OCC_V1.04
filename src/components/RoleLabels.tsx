@@ -18,7 +18,7 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
 
     return faceGroups.map((group, index) => {
       const role = faceRoles[index];
-      const label = role ? `${index + 1} (${role})` : `${index + 1}`;
+      const label = `${index + 1}`;
 
       const offsetPosition = new THREE.Vector3()
         .copy(group.center)
@@ -51,15 +51,18 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
         >
           <div
             style={{
-              background: item.hasRole ? 'rgba(5, 150, 105, 0.85)' : 'rgba(0, 0, 0, 0.7)',
-              color: 'white',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: '600',
+              background: item.hasRole ? 'rgba(5, 150, 105, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+              color: item.hasRole ? 'white' : '#000',
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              fontSize: '9px',
+              fontWeight: '700',
               fontFamily: 'system-ui, sans-serif',
-              whiteSpace: 'nowrap',
-              border: '1px solid rgba(255,255,255,0.3)'
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              border: item.hasRole ? '1px solid rgba(255,255,255,0.5)' : '1px solid rgba(0,0,0,0.3)'
             }}
           >
             {item.label}
