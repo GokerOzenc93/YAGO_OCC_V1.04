@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
 import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid2x2 as Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, CreditCard as Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, CreditCard as Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, ArrowDownUp, Divide, DivideCircle } from 'lucide-react';
 import { ParametersPanel } from './ParametersPanel';
+import { PanelEditor } from './PanelEditor';
 
 interface ToolbarProps {
   onOpenCatalog: () => void;
@@ -38,6 +39,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   const [showPolylineMenu, setShowPolylineMenu] = useState(false);
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const [polylineMenuPosition, setPolylineMenuPosition] = useState({ x: 0, y: 0 });
+  const [showPanelEditor, setShowPanelEditor] = useState(false);
 
   const hasIntersectingShapes = React.useMemo(() => {
     if (!selectedShapeId) return false;
@@ -912,8 +914,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <DivideCircle size={11} />
           </button>
           <button
+            onClick={() => setShowPanelEditor(!showPanelEditor)}
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
-            title="Panel"
+            title="Panel Editor"
           >
             <PanelLeft size={11} />
           </button>
@@ -951,6 +954,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       <ParametersPanel
         isOpen={showParametersPanel}
         onClose={() => setShowParametersPanel(false)}
+      />
+
+      <PanelEditor
+        isOpen={showPanelEditor}
+        onClose={() => setShowPanelEditor(false)}
       />
     </div>
   );
