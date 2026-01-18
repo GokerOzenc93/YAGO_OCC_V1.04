@@ -187,21 +187,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                <div className="flex items-center justify-between">
-                  <span className="select-none">{profile.name}</span>
-                  {hoveredProfile === profile.id && profiles.length > 1 && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteProfile(profile.id);
-                      }}
-                      className="p-0.5 hover:bg-red-100 rounded transition-colors"
-                      title="Delete Profile"
-                    >
-                      <Trash2 size={10} className="text-red-600" />
-                    </button>
-                  )}
-                </div>
+                <span className="select-none">{profile.name}</span>
               )}
             </div>
           ))}
