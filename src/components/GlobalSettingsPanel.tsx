@@ -212,7 +212,10 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
 
         <div className="flex-1 bg-white p-4">
           {selectedOption === 'panel_joint' ? (
-            <div className="space-y-1">
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b border-stone-200">
+                Panel Birleşim Ayarları
+              </h3>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-slate-700 w-32 px-2">
                   Alt Panel
@@ -225,12 +228,18 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                   <option value="bazalı">Bazalı</option>
                   <option value="alt arada">Alt Arada</option>
                   <option value="yanlar arada">Yanlar Arada</option>
+                  <option value="ayaklı">Ayaklı</option>
                 </select>
               </div>
             </div>
           ) : selectedOption === 'backrest' ? (
-            <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              Arkalık Ayarları İçeriği
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-800 pb-2 border-b border-stone-200">
+                Arkalık Ayarları
+              </h3>
+              <div className="flex items-center justify-center h-full text-stone-400 text-sm">
+                İçerik yakında eklenecek
+              </div>
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
