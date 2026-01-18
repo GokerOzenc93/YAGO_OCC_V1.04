@@ -165,7 +165,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
               onMouseLeave={() => setHoveredProfile(null)}
               className={`text-xs font-medium px-2 py-1.5 border rounded cursor-pointer transition-colors ${
                 selectedProfile === profile.id
-                  ? 'text-slate-800 bg-stone-50 border-stone-300'
+                  ? 'text-orange-800 bg-orange-100 border-orange-300'
                   : hoveredProfile === profile.id
                   ? 'text-orange-800 bg-orange-50 border-orange-300'
                   : 'text-slate-700 bg-white border-stone-200 hover:bg-stone-50'
