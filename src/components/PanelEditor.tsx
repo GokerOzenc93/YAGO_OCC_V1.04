@@ -1,30 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus } from 'lucide-react';
-import { useAppStore, FaceRole } from '../store';
 
 interface PanelEditorProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const ROLE_COLORS: Record<FaceRole, string> = {
-  'Sağ': '#ef4444',
-  'Sol': '#3b82f6',
-  'Üst': '#10b981',
-  'Alt': '#f59e0b',
-  'Door': '#8b5cf6',
-  'Back': '#6b7280'
-};
-
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const {
-    roleAssignmentMode,
-    setRoleAssignmentMode,
-    draggingRole,
-    setDraggingRole,
-    selectedShapeId
-  } = useAppStore();
-
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -62,19 +44,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     };
   }, [isDragging, dragOffset]);
 
-  const handleRoleClick = (role: FaceRole) => {
-    if (draggingRole === role) {
-      setDraggingRole(null);
-      console.log(`🎯 Deselected role: ${role}`);
-    } else {
-      setDraggingRole(role);
-      console.log(`🎯 Selected role for assignment: ${role}`);
-    }
-  };
-
   if (!isOpen) return null;
-
-  const roles: FaceRole[] = ['Sağ', 'Sol', 'Üst', 'Alt', 'Door', 'Back'];
 
   return (
     <div
@@ -95,21 +65,10 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => {
-              const newMode = !roleAssignmentMode;
-              setRoleAssignmentMode(newMode);
-              if (!newMode) {
-                setDraggingRole(null);
-              }
-            }}
-            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
-              roleAssignmentMode
-                ? 'bg-purple-600 text-white'
-                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
-            }`}
-            title="Role Assignment Mode"
+            className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-stone-200 text-slate-700 hover:bg-stone-300"
+            title="Add Panel"
           >
-            ROLE
+            ADD
           </button>
           <button
             onClick={onClose}
@@ -121,46 +80,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       </div>
 
       <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-        {roleAssignmentMode ? (
-          <div className="space-y-2">
-            {!selectedShapeId ? (
-              <div className="text-center text-stone-500 text-xs py-4">
-                No shape selected
-              </div>
-            ) : (
-              <>
-                <div className="text-xs font-semibold text-stone-600 mb-2">
-                  {draggingRole ? `Click on a face to assign "${draggingRole}"` : 'Select a role to assign'}
-                </div>
-                <div className="space-y-1">
-                  {roles.map((role) => (
-                    <button
-                      key={role}
-                      onClick={() => handleRoleClick(role)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded cursor-pointer transition-all ${
-                        draggingRole === role
-                          ? 'ring-2 ring-white ring-offset-2 scale-105'
-                          : 'hover:scale-[1.02]'
-                      }`}
-                      style={{ backgroundColor: ROLE_COLORS[role] }}
-                    >
-                      <div className="flex-1 text-sm font-medium text-white text-left">
-                        {role}
-                      </div>
-                      {draggingRole === role && (
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        ) : (
+        <div className="space-y-2">
           <div className="text-center text-stone-500 text-xs py-8">
-            Click ROLE to start assigning roles to faces
+            Panel editor interface
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

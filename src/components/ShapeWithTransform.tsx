@@ -237,8 +237,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     faceEditMode,
     filletMode,
     setSelectedVertexIndex,
-    setVertexDirection,
-    roleAssignmentMode
+    setVertexDirection
   } = useAppStore();
 
   if (shape.isolated === false) {
@@ -396,9 +395,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         {hasFillets && filletMode && (
           <FilletEdgeLines shape={shape} isSelected={isSelected} />
         )}
-        {isSelected && (faceEditMode || roleAssignmentMode) && (
+        {isSelected && faceEditMode && (
           <FaceEditor
-            key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}-${(shape.faceRoles || []).length}`}
+            key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
             shape={shape}
             isActive={true}
           />
