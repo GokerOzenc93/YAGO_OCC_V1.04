@@ -405,39 +405,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     }
   };
 
-  const handleAddCylinder = async (e?: React.MouseEvent) => {
-    e?.preventDefault();
-    e?.stopPropagation();
-
-    console.log('🛢️ Adding cylinder geometry with Replicad...');
-
-    try {
-      const { createReplicadCylinder, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-
-      const radius = 300, height = 600;
-      const replicadShape = await createReplicadCylinder({ radius, height });
-      const geometry = convertReplicadToThreeGeometry(replicadShape);
-
-      const newShape = {
-        id: `cylinder-${Date.now()}`,
-        type: 'cylinder',
-        geometry,
-        replicadShape,
-        position: [0, 0, 0] as [number, number, number],
-        rotation: [0, 0, 0] as [number, number, number],
-        scale: [1, 1, 1] as [number, number, number],
-        color: '#2563eb',
-        parameters: { radius, height }
-      };
-
-      addShape(newShape);
-      console.log('✅ Cylinder geometry added');
-    } catch (error) {
-      console.error('❌ Failed to add cylinder:', error);
-      alert(`Failed to add cylinder: ${(error as Error).message}`);
-    }
-  };
-
 
   const handleSubtract = async () => {
     if (!selectedShapeId || !hasIntersectingShapes) {
@@ -901,12 +868,10 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Box size={11} />
           </button>
           <button
-            type="button"
-            onClick={handleAddCylinder}
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
-            title="Add Cylinder (C)"
+            title="Global Settings"
           >
-            <Cylinder size={11} />
+            <Cog size={11} />
           </button>
           <button
             onClick={() => {
