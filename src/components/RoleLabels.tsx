@@ -2,7 +2,6 @@ import React, { useMemo } from 'react';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
-import { useAppStore } from '../store';
 
 interface RoleLabelsProps {
   shape: any;
@@ -10,8 +9,6 @@ interface RoleLabelsProps {
 }
 
 export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
-  const { roleEditMode } = useAppStore();
-
   const faceLabels = useMemo(() => {
     if (!isActive || !shape.geometry) return [];
 
@@ -23,8 +20,12 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
       const role = faceRoles[index];
       const label = role ? `${index + 1} (${role})` : `${index + 1}`;
 
+      const offsetPosition = new THREE.Vector3()
+        .copy(group.center)
+        .add(group.normal.clone().multiplyScalar(0.15));
+
       return {
-        position: group.center,
+        position: offsetPosition,
         label,
         index,
         hasRole: !!role
@@ -32,7 +33,7 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
     });
   }, [shape.geometry, shape.faceRoles, isActive, shape.id]);
 
-  if (!isActive || !roleEditMode) return null;
+  if (!isActive || faceLabels.length === 0) return null;
 
   return (
     <>
@@ -41,7 +42,7 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
           key={`label-${item.index}`}
           position={[item.position.x, item.position.y, item.position.z]}
           center
-          distanceFactor={8}
+          occlude={false}
           style={{
             pointerEvents: 'none',
             userSelect: 'none'
@@ -49,16 +50,17 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
         >
           <div
             style={{
-              background: item.hasRole ? '#9333ea' : '#6b7280',
+              background: item.hasRole ? '#059669' : '#374151',
               color: 'white',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              fontSize: '11px',
-              fontWeight: '600',
-              fontFamily: 'monospace',
+              padding: '4px 8px',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: '700',
+              fontFamily: 'system-ui, sans-serif',
               whiteSpace: 'nowrap',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-              border: '1px solid rgba(255,255,255,0.3)'
+              boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+              border: '2px solid rgba(255,255,255,0.5)',
+              textShadow: '0 1px 2px rgba(0,0,0,0.5)'
             }}
           >
             {item.label}
