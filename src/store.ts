@@ -230,12 +230,8 @@ interface AppState {
   panelJointSettings: {
     topJoint: number;
     bottomJoint: number;
-    plinthFoot1: number;
-    plinthFoot2: number;
-    plinthFootEnabled: boolean;
-    plinthFootHeight: number;
   };
-  setPanelJointSetting: (key: string, value: number | boolean) => void;
+  setPanelJointSetting: (key: string, value: number) => void;
 
   // Face (Yüzey) Düzenleme Modu
   faceEditMode: boolean;
@@ -278,11 +274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   panelJointSettings: {
     topJoint: 0,
-    bottomJoint: 0,
-    plinthFoot1: 0,
-    plinthFoot2: 0,
-    plinthFootEnabled: true,
-    plinthFootHeight: 10
+    bottomJoint: 0
   },
   setPanelJointSetting: (key, value) =>
     set((state) => ({
