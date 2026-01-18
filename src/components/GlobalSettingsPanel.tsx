@@ -163,7 +163,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
               onDoubleClick={() => handleStartEditing(profile.id)}
               onMouseEnter={() => setHoveredProfile(profile.id)}
               onMouseLeave={() => setHoveredProfile(null)}
-              className={`text-xs font-medium px-2 py-1.5 border rounded cursor-pointer transition-colors ${
+              className={`text-xs px-2 py-0.5 border rounded cursor-pointer transition-colors ${
                 selectedProfile === profile.id
                   ? 'text-orange-800 bg-orange-100 border-orange-300'
                   : hoveredProfile === profile.id
@@ -183,7 +183,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                     }
                   }}
                   autoFocus
-                  className="w-full bg-transparent border-none outline-none text-xs font-medium"
+                  className="w-full bg-transparent border-none outline-none text-xs"
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
@@ -198,7 +198,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             <button
               key={option.id}
               onClick={() => setSelectedOption(option.id)}
-              className={`w-full text-xs font-medium text-left px-2 py-1.5 rounded transition-colors ${
+              className={`w-full text-xs text-left px-2 py-0.5 rounded transition-colors ${
                 selectedOption === option.id
                   ? 'bg-orange-100 text-orange-800 border border-orange-300'
                   : 'bg-white text-slate-700 border border-stone-200 hover:bg-stone-50'
