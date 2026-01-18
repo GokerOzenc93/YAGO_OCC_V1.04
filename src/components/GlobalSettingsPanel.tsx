@@ -32,6 +32,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   ]);
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
   const [hoveredProfile, setHoveredProfile] = useState<string | null>(null);
+  const [altPanelType, setAltPanelType] = useState<string>('bazalı');
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -210,10 +211,26 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
         </div>
 
         <div className="flex-1 bg-white p-4">
-          {selectedOption ? (
+          {selectedOption === 'panel_joint' ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium text-slate-700 w-32">
+                  Alt Panel
+                </label>
+                <select
+                  value={altPanelType}
+                  onChange={(e) => setAltPanelType(e.target.value)}
+                  className="flex-1 text-sm px-3 py-1.5 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="bazalı">Bazalı</option>
+                  <option value="alt arada">Alt Arada</option>
+                  <option value="yanlar arada">Yanlar Arada</option>
+                </select>
+              </div>
+            </div>
+          ) : selectedOption === 'backrest' ? (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              {selectedOption === 'panel_joint' && 'Panel Birleşim Tipleri İçeriği'}
-              {selectedOption === 'backrest' && 'Arkalık Ayarları İçeriği'}
+              Arkalık Ayarları İçeriği
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
