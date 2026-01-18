@@ -14,6 +14,7 @@ interface SettingOption {
 interface Profile {
   id: string;
   name: string;
+  isEditing?: boolean;
 }
 
 const settingOptions: SettingOption[] = [
@@ -67,10 +68,29 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   const handleAddProfile = () => {
     const newProfile: Profile = {
       id: `profile-${Date.now()}`,
-      name: `Profile ${profiles.length}`
+      name: `Default ${profiles.length + 1}`,
+      isEditing: false
     };
     setProfiles([...profiles, newProfile]);
     setSelectedProfile(newProfile.id);
+  };
+
+  const handleProfileNameChange = (profileId: string, newName: string) => {
+    setProfiles(profiles.map(p =>
+      p.id === profileId ? { ...p, name: newName } : p
+    ));
+  };
+
+  const handleStartEditing = (profileId: string) => {
+    setProfiles(profiles.map(p =>
+      p.id === profileId ? { ...p, isEditing: true } : { ...p, isEditing: false }
+    ));
+  };
+
+  const handleStopEditing = (profileId: string) => {
+    setProfiles(profiles.map(p =>
+      p.id === profileId ? { ...p, isEditing: false } : p
+    ));
   };
 
   if (!isOpen) return null;
@@ -116,13 +136,31 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             <div
               key={profile.id}
               onClick={() => setSelectedProfile(profile.id)}
+              onDoubleClick={() => handleStartEditing(profile.id)}
               className={`text-xs font-medium px-2 py-1.5 border rounded cursor-pointer transition-colors ${
                 selectedProfile === profile.id
                   ? 'text-slate-800 bg-stone-50 border-stone-300'
                   : 'text-slate-700 bg-white border-stone-200 hover:bg-stone-50'
               }`}
             >
-              {profile.name}
+              {profile.isEditing ? (
+                <input
+                  type="text"
+                  value={profile.name}
+                  onChange={(e) => handleProfileNameChange(profile.id, e.target.value)}
+                  onBlur={() => handleStopEditing(profile.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleStopEditing(profile.id);
+                    }
+                  }}
+                  autoFocus
+                  className="w-full bg-transparent border-none outline-none text-xs font-medium"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                profile.name
+              )}
             </div>
           ))}
         </div>
