@@ -218,18 +218,42 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             <div className="space-y-4">
               <div>
                 <h3 className="text-orange-500 text-sm font-semibold mb-2">Üst Birleşim</h3>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   {[0, 1, 2].map((index) => (
                     <div
                       key={index}
                       onClick={() => setPanelJointSetting('topJoint', index)}
-                      className={`relative cursor-pointer border-2 rounded p-1.5 transition-all ${
+                      className="cursor-pointer"
+                    >
+                      <div className={`border-2 rounded p-1.5 transition-all ${
                         panelJointSettings.topJoint === index
                           ? 'border-orange-500'
                           : 'border-stone-200 hover:border-stone-300'
-                      }`}
-                    >
-                      <div className="absolute top-0.5 left-0.5">
+                      }`}>
+                        <div className="w-16 h-14 bg-stone-100 rounded flex items-start justify-start p-0.5">
+                          <div className="relative w-full h-full">
+                            {index === 0 && (
+                              <>
+                                <div className="absolute top-0 left-0 w-5 h-8 bg-orange-300 border-r-2 border-orange-600"></div>
+                                <div className="absolute top-0 left-5 w-10 h-5 bg-amber-100 border-l border-t border-stone-300"></div>
+                              </>
+                            )}
+                            {index === 1 && (
+                              <>
+                                <div className="absolute top-0 left-0 w-5 h-10 bg-orange-300 border-r-2 border-orange-600"></div>
+                                <div className="absolute top-0 left-5 w-10 h-6 bg-amber-100 border-l border-t border-stone-300"></div>
+                              </>
+                            )}
+                            {index === 2 && (
+                              <>
+                                <div className="absolute top-0 left-0 w-5 h-12 bg-orange-300 border-r-2 border-orange-600"></div>
+                                <div className="absolute top-0 left-5 w-10 h-8 bg-amber-100 border-l border-t border-stone-300"></div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center mt-1">
                         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                           panelJointSettings.topJoint === index
                             ? 'border-orange-500 bg-white'
@@ -240,12 +264,6 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                           )}
                         </div>
                       </div>
-                      <div className="w-16 h-14 bg-stone-100 rounded flex items-start justify-start p-0.5">
-                        <div className="relative">
-                          <div className="w-5 h-8 bg-orange-300 border-r-2 border-orange-600"></div>
-                          <div className="absolute top-0 left-5 w-10 h-5 bg-amber-100 border-l border-t border-stone-300"></div>
-                        </div>
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -253,18 +271,42 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
 
               <div>
                 <h3 className="text-orange-500 text-sm font-semibold mb-2">Alt Birleşim</h3>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   {[0, 1, 2].map((index) => (
                     <div
                       key={index}
                       onClick={() => setPanelJointSetting('bottomJoint', index)}
-                      className={`relative cursor-pointer border-2 rounded p-1.5 transition-all ${
+                      className="cursor-pointer"
+                    >
+                      <div className={`border-2 rounded p-1.5 transition-all ${
                         panelJointSettings.bottomJoint === index
                           ? 'border-orange-500'
                           : 'border-stone-200 hover:border-stone-300'
-                      }`}
-                    >
-                      <div className="absolute top-0.5 left-0.5">
+                      }`}>
+                        <div className="w-16 h-14 bg-stone-100 rounded flex items-end justify-start p-0.5">
+                          <div className="relative w-full h-full">
+                            {index === 0 && (
+                              <>
+                                <div className="absolute bottom-0 left-0 w-5 h-8 bg-orange-300 border-r-2 border-orange-600"></div>
+                                <div className="absolute bottom-0 left-5 w-10 h-5 bg-amber-100 border-l border-b border-stone-300"></div>
+                              </>
+                            )}
+                            {index === 1 && (
+                              <>
+                                <div className="absolute bottom-0 left-0 w-5 h-10 bg-orange-300 border-r-2 border-orange-600"></div>
+                                <div className="absolute bottom-0 left-5 w-10 h-6 bg-amber-100 border-l border-b border-stone-300"></div>
+                              </>
+                            )}
+                            {index === 2 && (
+                              <>
+                                <div className="absolute bottom-0 left-0 w-5 h-12 bg-orange-300 border-r-2 border-orange-600"></div>
+                                <div className="absolute bottom-0 left-5 w-10 h-8 bg-amber-100 border-l border-b border-stone-300"></div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-center mt-1">
                         <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
                           panelJointSettings.bottomJoint === index
                             ? 'border-orange-500 bg-white'
@@ -273,12 +315,6 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                           {panelJointSettings.bottomJoint === index && (
                             <div className="w-2 h-2 rounded-full bg-orange-500"></div>
                           )}
-                        </div>
-                      </div>
-                      <div className="w-16 h-14 bg-stone-100 rounded flex items-start justify-start p-0.5">
-                        <div className="relative">
-                          <div className="w-5 h-8 bg-orange-300 border-r-2 border-orange-600"></div>
-                          <div className="absolute top-0 left-5 w-10 h-5 bg-amber-100 border-l border-t border-stone-300"></div>
                         </div>
                       </div>
                     </div>
