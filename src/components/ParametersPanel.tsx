@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Check, Trash2 } from 'lucide-react';
 import { useAppStore } from '../store';
+import type { FaceRole } from '../store';
 import * as THREE from 'three';
 import { evaluateExpression } from './Expression';
 import { applyShapeChanges, applySubtractionChanges } from './ShapeUpdaterService';
@@ -136,7 +137,10 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setFaceEditMode,
     selectedFilletFaces,
     clearFilletFaces,
-    clearFilletFaceData
+    clearFilletFaceData,
+    roleEditMode,
+    setRoleEditMode,
+    updateFaceRole
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -189,6 +193,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     setVertexEditMode(false);
     setFilletMode(false);
     setFaceEditMode(false);
+    setRoleEditMode(false);
     clearFilletFaces();
     clearFilletFaceData();
     setSelectedSubtractionIndex(null);
@@ -677,6 +682,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               if (!vertexEditMode) {
                 setFilletMode(false);
                 setFaceEditMode(false);
+                setRoleEditMode(false);
               }
             }}
             className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
@@ -687,6 +693,24 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
             title="Edit Vertices"
           >
             VERTEX
+          </button>
+          <button
+            onClick={() => {
+              setRoleEditMode(!roleEditMode);
+              if (!roleEditMode) {
+                setVertexEditMode(false);
+                setFilletMode(false);
+                setFaceEditMode(false);
+              }
+            }}
+            className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
+              roleEditMode
+                ? 'bg-purple-600 text-white'
+                : 'bg-stone-200 text-slate-700 hover:bg-stone-300'
+            }`}
+            title="Assign Face Roles"
+          >
+            ROLE
           </button>
           {selectedShape?.subtractionGeometries && selectedShape.subtractionGeometries.filter(s => s !== null).length > 0 && (
             <button
@@ -823,6 +847,42 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                     </button>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {roleEditMode && selectedShape && (
+              <div className="space-y-2 pt-2 border-t border-stone-300">
+                <div className="text-xs font-semibold text-purple-700 mb-1">Face Roles</div>
+                {(() => {
+                  const geometry = selectedShape.geometry;
+                  if (!geometry) return null;
+
+                  const faceCount = geometry.index
+                    ? geometry.index.count / 3
+                    : geometry.attributes.position.count / 3;
+
+                  const faceRoles = selectedShape.faceRoles || {};
+                  const roleOptions: FaceRole[] = ['left', 'right', 'top', 'bottom', 'back', 'door'];
+
+                  return Array.from({ length: Math.floor(faceCount) }, (_, i) => (
+                    <div key={`face-${i}`} className="flex gap-2 items-center">
+                      <span className="text-xs font-mono text-gray-700 w-16">Face {i}</span>
+                      <select
+                        value={faceRoles[i] || ''}
+                        onChange={(e) => {
+                          const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
+                          updateFaceRole(selectedShape.id, i, newRole);
+                        }}
+                        className="flex-1 px-2 py-1 text-xs bg-white text-gray-800 border border-gray-300 rounded"
+                      >
+                        <option value="">None</option>
+                        {roleOptions.map(role => (
+                          <option key={role} value={role}>{role}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ));
+                })()}
               </div>
             )}
 

@@ -61,6 +61,8 @@ export interface SubtractedGeometry {
   parameters?: SubtractionParameters;    // Parametrik ifadeler
 }
 
+export type FaceRole = 'left' | 'right' | 'top' | 'bottom' | 'back' | 'door' | null;
+
 /**
  * Shape:
  * Sahnedeki her bir 3D nesnenin ana veri yapısı.
@@ -82,6 +84,7 @@ export interface Shape {
   isReferenceBox?: boolean;              // Boolean işleminde referans kutusu mu?
   subtractionGeometries?: SubtractedGeometry[]; // Bu şekilden çıkarılmış parçaların listesi
   fillets?: FilletInfo[];                // Parametrik fillet bilgileri
+  faceRoles?: Record<number, FaceRole>;  // Yüzey rolleri (indeks -> rol)
 }
 
 /**
@@ -236,6 +239,11 @@ interface AppState {
   selectedFilletFaceData: Array<{ normal: [number, number, number]; center: [number, number, number] }>;
   addFilletFaceData: (data: { normal: [number, number, number]; center: [number, number, number] }) => void;
   clearFilletFaceData: () => void;
+
+  // Role Edit Modu
+  roleEditMode: boolean;
+  setRoleEditMode: (enabled: boolean) => void;
+  updateFaceRole: (shapeId: string, faceIndex: number, role: FaceRole) => void;
 }
 
 /**
@@ -278,6 +286,23 @@ export const useAppStore = create<AppState>((set, get) => ({
     selectedFilletFaceData: [...state.selectedFilletFaceData, data]
   })),
   clearFilletFaceData: () => set({ selectedFilletFaceData: [] }),
+
+  // Role Edit Modu
+  roleEditMode: false,
+  setRoleEditMode: (enabled) => set({ roleEditMode: enabled }),
+  updateFaceRole: (shapeId, faceIndex, role) => set((state) => ({
+    shapes: state.shapes.map((shape) => {
+      if (shape.id !== shapeId) return shape;
+      const existingRoles = shape.faceRoles || {};
+      return {
+        ...shape,
+        faceRoles: {
+          ...existingRoles,
+          [faceIndex]: role
+        }
+      };
+    })
+  })),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
