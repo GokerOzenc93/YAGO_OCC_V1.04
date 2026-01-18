@@ -212,15 +212,15 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
 
         <div className="flex-1 bg-white p-4">
           {selectedOption === 'panel_joint' ? (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium text-slate-700 w-32">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-700 w-32 px-2">
                   Alt Panel
                 </label>
                 <select
                   value={altPanelType}
                   onChange={(e) => setAltPanelType(e.target.value)}
-                  className="flex-1 text-sm px-3 py-1.5 border border-stone-300 rounded focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  className="flex-1 text-xs px-2 py-0.5 bg-white border border-stone-200 rounded focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
                   <option value="bazalı">Bazalı</option>
                   <option value="alt arada">Alt Arada</option>
