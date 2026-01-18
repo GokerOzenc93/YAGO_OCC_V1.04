@@ -167,7 +167,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
           <div className="w-56 border-r border-stone-200 bg-stone-50 flex flex-col">
             <div className="flex-1 overflow-y-auto">
               <div className="p-3 space-y-2">
-                <h3 className="text-xs font-semibold text-stone-600 px-2 mb-3">SİSTEM AYARLARI</h3>
+                <h3 className="text-xs font-semibold text-stone-600 px-2 mb-3">SYSTEM SETTINGS</h3>
                 {categories.map(category => (
                   <button
                     key={category}
@@ -186,7 +186,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
             </div>
 
             <div className="border-t border-stone-200 p-3 bg-white space-y-2">
-              <h3 className="text-xs font-semibold text-stone-600 px-2 mb-2">ÖZEL AYARLAR</h3>
+              <h3 className="text-xs font-semibold text-stone-600 px-2 mb-2">CUSTOM SETTINGS</h3>
               {customGroups.map(group => (
                 <button
                   key={group.id}
@@ -213,7 +213,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
               <div className="flex gap-2 mt-3">
                 <input
                   type="text"
-                  placeholder="Yeni grup adı..."
+                  placeholder="New group name..."
                   value={newGroupName}
                   onChange={e => setNewGroupName(e.target.value)}
                   onKeyPress={e => e.key === 'Enter' && handleAddGroup()}
@@ -235,7 +235,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <div className="w-12 h-12 border-4 border-stone-200 border-t-orange-600 rounded-full animate-spin mx-auto mb-3"></div>
-                  <p className="text-sm text-stone-600">Yükleniyor...</p>
+                  <p className="text-sm text-stone-600">Loading...</p>
                 </div>
               </div>
             ) : selectedGroup && groupedSettings[selectedGroup] ? (
@@ -271,7 +271,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
                               onChange={e => handleSettingChange(setting.id, e.target.value)}
                               className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-orange-400 text-sm"
                             >
-                              <option value="">Seçin...</option>
+                              <option value="">Select...</option>
                               <option value={editingValues[setting.id] || setting.value}>
                                 {editingValues[setting.id] || setting.value}
                               </option>
@@ -290,7 +290,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
                           disabled={editingValues[setting.id] === setting.value}
                           className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                         >
-                          Kaydet
+                          Save
                         </button>
                       </div>
                     ))}
@@ -300,7 +300,7 @@ const GlobalSettings: React.FC<GlobalSettingsProps> = ({ isOpen, onClose }) => {
             ) : (
               <div className="flex items-center justify-center h-full">
                 <p className="text-stone-600 text-center">
-                  {selectedGroup ? 'Bu grupta ayar bulunmamaktadır.' : 'Soldan bir kategori seçiniz.'}
+                  {selectedGroup ? 'No settings found in this group.' : 'Select a category from the left panel.'}
                 </p>
               </div>
             )}
