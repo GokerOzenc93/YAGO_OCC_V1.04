@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, GripVertical } from 'lucide-react';
+import { X, GripVertical, Plus } from 'lucide-react';
 
 interface GlobalSettingsPanelProps {
   isOpen: boolean;
@@ -9,6 +9,11 @@ interface GlobalSettingsPanelProps {
 interface SettingOption {
   id: string;
   label: string;
+}
+
+interface Profile {
+  id: string;
+  name: string;
 }
 
 const settingOptions: SettingOption[] = [
@@ -21,6 +26,10 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<Profile[]>([
+    { id: 'default', name: 'Default' }
+  ]);
+  const [selectedProfile, setSelectedProfile] = useState<string>('default');
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -55,6 +64,15 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
     };
   }, [isDragging, dragOffset]);
 
+  const handleAddProfile = () => {
+    const newProfile: Profile = {
+      id: `profile-${Date.now()}`,
+      name: `Profile ${profiles.length}`
+    };
+    setProfiles([...profiles, newProfile]);
+    setSelectedProfile(newProfile.id);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -75,19 +93,38 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
           <GripVertical size={14} className="text-stone-400" />
           <span className="text-sm font-semibold text-slate-800">Global Settings</span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-0.5 hover:bg-stone-200 rounded transition-colors"
-        >
-          <X size={14} className="text-stone-600" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleAddProfile}
+            className="p-0.5 hover:bg-stone-200 rounded transition-colors"
+            title="Add Profile"
+          >
+            <Plus size={14} className="text-stone-600" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-0.5 hover:bg-stone-200 rounded transition-colors"
+          >
+            <X size={14} className="text-stone-600" />
+          </button>
+        </div>
       </div>
 
       <div className="flex h-[calc(100%-44px)]">
-        <div className="w-32 border-r border-stone-200 bg-white p-2">
-          <div className="text-xs font-medium text-slate-800 px-2 py-1.5 bg-stone-50 border border-stone-200 rounded">
-            Default
-          </div>
+        <div className="w-32 border-r border-stone-200 bg-white p-2 space-y-1">
+          {profiles.map((profile) => (
+            <div
+              key={profile.id}
+              onClick={() => setSelectedProfile(profile.id)}
+              className={`text-xs font-medium px-2 py-1.5 border rounded cursor-pointer transition-colors ${
+                selectedProfile === profile.id
+                  ? 'text-slate-800 bg-stone-50 border-stone-300'
+                  : 'text-slate-700 bg-white border-stone-200 hover:bg-stone-50'
+              }`}
+            >
+              {profile.name}
+            </div>
+          ))}
         </div>
 
         <div className="w-48 border-r border-stone-200 bg-white p-2 space-y-1">
