@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Trash2 } from 'lucide-react';
-import { useAppStore } from '../store';
 
 interface GlobalSettingsPanelProps {
   isOpen: boolean;
@@ -33,9 +32,6 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   ]);
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
   const [hoveredProfile, setHoveredProfile] = useState<string | null>(null);
-
-  const panelJointSettings = useAppStore((state) => state.panelJointSettings);
-  const setPanelJointSetting = useAppStore((state) => state.setPanelJointSetting);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -213,135 +209,13 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
           ))}
         </div>
 
-        <div className="flex-1 bg-white p-4 overflow-y-auto">
-          {selectedOption === 'panel_joint' && (
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-orange-500 text-sm font-semibold mb-2">Üst Birleşim</h3>
-                <div className="flex gap-3">
-                  {[0, 1, 2].map((index) => (
-                    <div
-                      key={index}
-                      onClick={() => setPanelJointSetting('topJoint', index)}
-                      className="cursor-pointer"
-                    >
-                      <div className={`border-2 rounded p-2 transition-all ${
-                        panelJointSettings.topJoint === index
-                          ? 'border-orange-500'
-                          : 'border-stone-200 hover:border-stone-300'
-                      }`}>
-                        <div className="w-16 h-16 bg-stone-50 rounded flex items-start justify-start">
-                          <div className="relative w-full h-full">
-                            {index === 0 && (
-                              <>
-                                <div className="absolute top-0 left-0 w-12 h-2.5 bg-lime-600 rounded-sm z-0"></div>
-                                <div className="absolute top-0 left-0 w-2.5 h-12 bg-amber-800 rounded-sm z-10"></div>
-                              </>
-                            )}
-                            {index === 1 && (
-                              <>
-                                <div className="absolute top-0 left-0 w-11 h-3 bg-lime-600 rounded-sm z-0"></div>
-                                <div className="absolute top-0 left-0 w-3 h-11 bg-amber-800 rounded-sm z-0"></div>
-                              </>
-                            )}
-                            {index === 2 && (
-                              <>
-                                <div className="absolute top-0 left-0 w-3.5 h-10 bg-amber-800 rounded-sm z-10"></div>
-                                <div className="absolute top-0 left-0 w-10 h-3.5 bg-lime-600 rounded-sm z-0"></div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center mt-1">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                          panelJointSettings.topJoint === index
-                            ? 'border-orange-500 bg-white'
-                            : 'border-stone-300 bg-white'
-                        }`}>
-                          {panelJointSettings.topJoint === index && (
-                            <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-orange-500 text-sm font-semibold mb-2">Alt Birleşim</h3>
-                <div className="flex gap-3">
-                  {[0, 1, 2].map((index) => (
-                    <div
-                      key={index}
-                      onClick={() => setPanelJointSetting('bottomJoint', index)}
-                      className="cursor-pointer"
-                    >
-                      <div className={`border-2 rounded p-2 transition-all ${
-                        panelJointSettings.bottomJoint === index
-                          ? 'border-orange-500'
-                          : 'border-stone-200 hover:border-stone-300'
-                      }`}>
-                        <div className="w-16 h-16 bg-stone-50 rounded flex items-end justify-start">
-                          <div className="relative w-full h-full">
-                            {index === 0 && (
-                              <>
-                                <div className="absolute bottom-0 left-0 w-2.5 h-12 bg-amber-800 rounded-sm"></div>
-                                <div className="absolute bottom-0 left-0 w-12 h-2.5 bg-lime-600 rounded-sm"></div>
-                              </>
-                            )}
-                            {index === 1 && (
-                              <>
-                                <div className="absolute bottom-0 left-0 w-3 h-11 bg-amber-800 rounded-sm"></div>
-                                <div className="absolute bottom-0 left-0 w-11 h-3 bg-lime-600 rounded-sm"></div>
-                              </>
-                            )}
-                            {index === 2 && (
-                              <>
-                                <div className="absolute bottom-0 left-0 w-3.5 h-10 bg-amber-800 rounded-sm"></div>
-                                <div className="absolute bottom-0 left-0 w-10 h-3.5 bg-lime-600 rounded-sm"></div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-center mt-1">
-                        <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                          panelJointSettings.bottomJoint === index
-                            ? 'border-orange-500 bg-white'
-                            : 'border-stone-300 bg-white'
-                        }`}>
-                          {panelJointSettings.bottomJoint === index && (
-                            <div className="w-2 h-2 rounded-full bg-orange-500"></div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-stone-200">
-                <button
-                  onClick={() => {
-                    console.log('Panel Birleşim Ayarları:', panelJointSettings);
-                  }}
-                  className="px-3 py-1.5 bg-orange-500 text-white text-xs rounded hover:bg-orange-600 transition-colors"
-                >
-                  Ayarları Konsola Yazdır
-                </button>
-              </div>
-            </div>
-          )}
-
-          {selectedOption === 'backrest' && (
+        <div className="flex-1 bg-white p-4">
+          {selectedOption ? (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              Arkalık Ayarları İçeriği
+              {selectedOption === 'panel_joint' && 'Panel Birleşim Tipleri İçeriği'}
+              {selectedOption === 'backrest' && 'Arkalık Ayarları İçeriği'}
             </div>
-          )}
-
-          {!selectedOption && (
+          ) : (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
               Bir ayar seçin
             </div>
