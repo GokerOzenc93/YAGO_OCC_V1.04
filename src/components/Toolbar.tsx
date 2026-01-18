@@ -4,6 +4,7 @@ import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, Or
 import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid2x2 as Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, CreditCard as Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, CreditCard as Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, ArrowDownUp, Divide, DivideCircle } from 'lucide-react';
 import { ParametersPanel } from './ParametersPanel';
 import { PanelEditor } from './PanelEditor';
+import GlobalSettings from './GlobalSettings';
 
 interface ToolbarProps {
   onOpenCatalog: () => void;
@@ -40,6 +41,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const [polylineMenuPosition, setPolylineMenuPosition] = useState({ x: 0, y: 0 });
   const [showPanelEditor, setShowPanelEditor] = useState(false);
+  const [showGlobalSettings, setShowGlobalSettings] = useState(false);
 
   const hasIntersectingShapes = React.useMemo(() => {
     if (!selectedShapeId) return false;
@@ -870,6 +872,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Box size={11} />
           </button>
           <button
+            onClick={() => setShowGlobalSettings(true)}
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
             title="Global Settings"
           >
@@ -959,6 +962,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       <PanelEditor
         isOpen={showPanelEditor}
         onClose={() => setShowPanelEditor(false)}
+      />
+
+      <GlobalSettings
+        isOpen={showGlobalSettings}
+        onClose={() => setShowGlobalSettings(false)}
       />
     </div>
   );
