@@ -139,12 +139,6 @@ export enum OrthoMode {
   OFF = 'off'
 }
 
-export enum JoinType {
-  WITH_LEGS = 'with_legs',
-  WITHOUT_LEGS = 'without_legs',
-  WITH_BASE = 'with_base'
-}
-
 /**
  * ------------------------------------------------------------------
  * APP STATE (Uygulama Durumu)
@@ -255,10 +249,6 @@ interface AppState {
   roleEditMode: boolean;
   setRoleEditMode: (enabled: boolean) => void;
   updateFaceRole: (shapeId: string, faceIndex: number, role: FaceRole) => void;
-
-  // Panel Birleşim Tipi
-  joinType: JoinType;
-  setJoinType: (type: JoinType) => void;
 }
 
 /**
@@ -321,10 +311,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
     })
   })),
-
-  // Panel Birleşim Tipi
-  joinType: JoinType.WITHOUT_LEGS,
-  setJoinType: (type) => set({ joinType: type }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
