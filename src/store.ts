@@ -85,6 +85,7 @@ export interface Shape {
   subtractionGeometries?: SubtractedGeometry[]; // Bu şekilden çıkarılmış parçaların listesi
   fillets?: FilletInfo[];                // Parametrik fillet bilgileri
   faceRoles?: Record<number, FaceRole>;  // Yüzey rolleri (indeks -> rol)
+  faceDescriptions?: Record<number, string>; // Yüzey açıklamaları (indeks -> açıklama)
 }
 
 /**
