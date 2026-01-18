@@ -293,21 +293,23 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           );
         })}
         {!isWireframe && !isXray && !shouldShowAsReference && (
-          <mesh
-            ref={meshRef}
-            geometry={localGeometry}
-            castShadow
-            receiveShadow
-          >
-            <meshStandardMaterial
-              color={isSelected ? '#60a5fa' : shape.color || '#2563eb'}
-              metalness={0.2}
-              roughness={0.5}
-              transparent
-              opacity={0.75}
-              side={THREE.DoubleSide}
-              depthWrite={false}
-            />
+          <>
+            <mesh
+              ref={meshRef}
+              geometry={localGeometry}
+              castShadow
+              receiveShadow
+            >
+              <meshStandardMaterial
+                color="#94b8d9"
+                metalness={0.1}
+                roughness={0.6}
+                transparent
+                opacity={0.12}
+                side={THREE.DoubleSide}
+                depthWrite={false}
+              />
+            </mesh>
             <lineSegments>
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
@@ -315,14 +317,14 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                 <edgesGeometry args={[localGeometry, 15]} />
               )}
               <lineBasicMaterial
-                color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-                linewidth={2.5}
+                color="#000000"
+                linewidth={2}
                 opacity={1}
                 transparent={false}
                 depthTest={true}
               />
             </lineSegments>
-          </mesh>
+          </>
         )}
         {isWireframe && (
           <>

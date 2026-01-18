@@ -627,7 +627,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         <lineSegments
           geometry={boundaryEdgesGeometry}
         >
-          <lineBasicMaterial color={0x00ffff} linewidth={2} />
+          <lineBasicMaterial color={0x000000} linewidth={2} />
         </lineSegments>
       )}
     </>

@@ -159,8 +159,8 @@ export const FilletEdgeLines: React.FC<FilletEdgeLinesProps> = ({ shape, isSelec
   return (
     <lineSegments geometry={boundaryEdgesGeometry}>
       <lineBasicMaterial
-        color={isSelected ? '#1e3a8a' : '#0a0a0a'}
-        linewidth={2.5}
+        color="#000000"
+        linewidth={2}
         opacity={1}
         transparent={false}
         depthTest={true}
