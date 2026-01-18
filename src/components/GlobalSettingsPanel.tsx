@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, GripVertical, Plus } from 'lucide-react';
+import { X, GripVertical, Plus, Trash2 } from 'lucide-react';
 
 interface GlobalSettingsPanelProps {
   isOpen: boolean;
@@ -31,6 +31,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
     { id: 'default', name: 'Default' }
   ]);
   const [selectedProfile, setSelectedProfile] = useState<string>('default');
+  const [hoveredProfile, setHoveredProfile] = useState<string | null>(null);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -93,6 +94,19 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
     ));
   };
 
+  const handleDeleteProfile = (profileId: string) => {
+    if (profiles.length === 1) {
+      return;
+    }
+
+    const updatedProfiles = profiles.filter(p => p.id !== profileId);
+    setProfiles(updatedProfiles);
+
+    if (selectedProfile === profileId) {
+      setSelectedProfile(updatedProfiles[0].id);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -122,6 +136,16 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             <Plus size={14} className="text-stone-600" />
           </button>
           <button
+            onClick={() => handleDeleteProfile(selectedProfile)}
+            className={`p-0.5 hover:bg-red-100 rounded transition-colors ${
+              profiles.length === 1 ? 'opacity-30 cursor-not-allowed' : ''
+            }`}
+            title="Delete Selected Profile"
+            disabled={profiles.length === 1}
+          >
+            <Trash2 size={14} className="text-red-600" />
+          </button>
+          <button
             onClick={onClose}
             className="p-0.5 hover:bg-stone-200 rounded transition-colors"
           >
@@ -137,9 +161,13 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
               key={profile.id}
               onClick={() => setSelectedProfile(profile.id)}
               onDoubleClick={() => handleStartEditing(profile.id)}
+              onMouseEnter={() => setHoveredProfile(profile.id)}
+              onMouseLeave={() => setHoveredProfile(null)}
               className={`text-xs font-medium px-2 py-1.5 border rounded cursor-pointer transition-colors ${
                 selectedProfile === profile.id
                   ? 'text-slate-800 bg-stone-50 border-stone-300'
+                  : hoveredProfile === profile.id
+                  ? 'text-orange-800 bg-orange-50 border-orange-300'
                   : 'text-slate-700 bg-white border-stone-200 hover:bg-stone-50'
               }`}
             >
@@ -159,7 +187,21 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                   onClick={(e) => e.stopPropagation()}
                 />
               ) : (
-                profile.name
+                <div className="flex items-center justify-between">
+                  <span className="select-none">{profile.name}</span>
+                  {hoveredProfile === profile.id && profiles.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteProfile(profile.id);
+                      }}
+                      className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                      title="Delete Profile"
+                    >
+                      <Trash2 size={10} className="text-red-600" />
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           ))}
