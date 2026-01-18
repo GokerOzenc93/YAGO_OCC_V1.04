@@ -20,6 +20,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const {
     roleAssignmentMode,
     setRoleAssignmentMode,
+    draggingRole,
     setDraggingRole,
     selectedShapeId
   } = useAppStore();
@@ -61,14 +62,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     };
   }, [isDragging, dragOffset]);
 
-  const handleRoleDragStart = (role: FaceRole) => {
-    setDraggingRole(role);
-    console.log(`🎯 Started dragging role: ${role}`);
-  };
-
-  const handleRoleDragEnd = () => {
-    setDraggingRole(null);
-    console.log(`🎯 Ended dragging role`);
+  const handleRoleClick = (role: FaceRole) => {
+    if (draggingRole === role) {
+      setDraggingRole(null);
+      console.log(`🎯 Deselected role: ${role}`);
+    } else {
+      setDraggingRole(role);
+      console.log(`🎯 Selected role for assignment: ${role}`);
+    }
   };
 
   if (!isOpen) return null;
@@ -94,7 +95,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setRoleAssignmentMode(!roleAssignmentMode)}
+            onClick={() => {
+              const newMode = !roleAssignmentMode;
+              setRoleAssignmentMode(newMode);
+              if (!newMode) {
+                setDraggingRole(null);
+              }
+            }}
             className={`px-2 py-1 text-[10px] font-medium rounded transition-colors ${
               roleAssignmentMode
                 ? 'bg-purple-600 text-white'
@@ -123,23 +130,27 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             ) : (
               <>
                 <div className="text-xs font-semibold text-stone-600 mb-2">
-                  Drag roles to faces
+                  {draggingRole ? `Click on a face to assign "${draggingRole}"` : 'Select a role to assign'}
                 </div>
                 <div className="space-y-1">
                   {roles.map((role) => (
-                    <div
+                    <button
                       key={role}
-                      draggable
-                      onDragStart={() => handleRoleDragStart(role)}
-                      onDragEnd={handleRoleDragEnd}
-                      className="flex items-center gap-2 px-3 py-2 rounded cursor-move hover:opacity-80 transition-opacity"
+                      onClick={() => handleRoleClick(role)}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded cursor-pointer transition-all ${
+                        draggingRole === role
+                          ? 'ring-2 ring-white ring-offset-2 scale-105'
+                          : 'hover:scale-[1.02]'
+                      }`}
                       style={{ backgroundColor: ROLE_COLORS[role] }}
                     >
-                      <div className="flex-1 text-sm font-medium text-white">
+                      <div className="flex-1 text-sm font-medium text-white text-left">
                         {role}
                       </div>
-                      <GripVertical size={14} className="text-white opacity-60" />
-                    </div>
+                      {draggingRole === role && (
+                        <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                      )}
+                    </button>
                   ))}
                 </div>
               </>

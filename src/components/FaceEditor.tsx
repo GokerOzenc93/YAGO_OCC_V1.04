@@ -515,6 +515,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   }, [shape.geometry, shape.id, geometryUuid]);
 
   const handleFaceSelection = (groupIndex: number) => {
+    if (roleAssignmentMode && draggingRole) {
+      assignFaceRole(shape.id, groupIndex, draggingRole);
+      console.log(`✅ Assigned role "${draggingRole}" to face group ${groupIndex} on shape ${shape.id}`);
+      return;
+    }
+
     if (filletMode && selectedFilletFaces.length < 2) {
       const group = faceGroups[groupIndex];
       if (group) {
@@ -551,10 +557,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       if (groupIndex !== -1) {
         setHoveredGroupIndex(groupIndex);
         setHoveredFaceIndex(faceIndex);
-
-        if (roleAssignmentMode && draggingRole) {
-          setHoveredFaceForRoleIndex(groupIndex);
-        }
       }
     }
   };
@@ -563,30 +565,17 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     e.stopPropagation();
     setHoveredGroupIndex(null);
     setHoveredFaceIndex(null);
-    setHoveredFaceForRoleIndex(null);
-  };
-
-  const handleDragOver = (e: any) => {
-    if (!roleAssignmentMode || !draggingRole) return;
-    e.stopPropagation();
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: any) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    if (!roleAssignmentMode || !draggingRole || hoveredGroupIndex === null) return;
-
-    assignFaceRole(shape.id, hoveredGroupIndex, draggingRole);
-    console.log(`✅ Assigned role "${draggingRole}" to face group ${hoveredGroupIndex} on shape ${shape.id}`);
   };
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
 
-    if (e.button === 2 && hoveredGroupIndex !== null) {
-      handleFaceSelection(hoveredGroupIndex);
+    if (hoveredGroupIndex !== null) {
+      if (roleAssignmentMode && draggingRole && e.button === 0) {
+        handleFaceSelection(hoveredGroupIndex);
+      } else if (e.button === 2) {
+        handleFaceSelection(hoveredGroupIndex);
+      }
     }
   };
 
@@ -608,10 +597,20 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   }, [hoveredGroupIndex, faceGroups, faces]);
 
   const getHighlightColor = (): number => {
-    if (roleAssignmentMode && draggingRole) {
+    if (roleAssignmentMode && draggingRole && hoveredGroupIndex !== null) {
       return ROLE_COLORS[draggingRole] || 0xff0000;
     }
     return 0xff0000;
+  };
+
+  const shouldShowHighlight = () => {
+    if (filletMode) {
+      return hoveredGroupIndex !== null && !selectedFilletFaces.includes(hoveredGroupIndex);
+    }
+    if (roleAssignmentMode) {
+      return hoveredGroupIndex !== null && draggingRole !== null;
+    }
+    return hoveredGroupIndex !== null;
   };
 
   const assignedRoleGeometries = useMemo(() => {
@@ -643,8 +642,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
         onPointerDown={handlePointerDown}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
         onContextMenu={(e) => e.stopPropagation()}
       />
 
@@ -682,7 +679,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
         </mesh>
       ))}
 
-      {highlightGeometry && !selectedFilletFaces.includes(hoveredGroupIndex!) && (
+      {highlightGeometry && shouldShowHighlight() && (
         <mesh
           geometry={highlightGeometry}
         >
