@@ -225,29 +225,29 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                       onClick={() => setPanelJointSetting('topJoint', index)}
                       className="cursor-pointer"
                     >
-                      <div className={`border-2 rounded p-1.5 transition-all ${
+                      <div className={`border-2 rounded p-2 transition-all ${
                         panelJointSettings.topJoint === index
                           ? 'border-orange-500'
                           : 'border-stone-200 hover:border-stone-300'
                       }`}>
-                        <div className="w-16 h-14 bg-stone-100 rounded flex items-start justify-start p-0.5">
+                        <div className="w-16 h-16 bg-stone-50 rounded flex items-start justify-start">
                           <div className="relative w-full h-full">
                             {index === 0 && (
                               <>
-                                <div className="absolute top-0 left-0 w-5 h-8 bg-orange-300 border-r-2 border-orange-600"></div>
-                                <div className="absolute top-0 left-5 w-10 h-5 bg-amber-100 border-l border-t border-stone-300"></div>
+                                <div className="absolute top-0 left-0 w-2.5 h-12 bg-amber-800 rounded-sm"></div>
+                                <div className="absolute top-0 left-0 w-12 h-2.5 bg-lime-600 rounded-sm"></div>
                               </>
                             )}
                             {index === 1 && (
                               <>
-                                <div className="absolute top-0 left-0 w-5 h-10 bg-orange-300 border-r-2 border-orange-600"></div>
-                                <div className="absolute top-0 left-5 w-10 h-6 bg-amber-100 border-l border-t border-stone-300"></div>
+                                <div className="absolute top-0 left-0 w-3 h-11 bg-amber-800 rounded-sm"></div>
+                                <div className="absolute top-0 left-0 w-11 h-3 bg-lime-600 rounded-sm"></div>
                               </>
                             )}
                             {index === 2 && (
                               <>
-                                <div className="absolute top-0 left-0 w-5 h-12 bg-orange-300 border-r-2 border-orange-600"></div>
-                                <div className="absolute top-0 left-5 w-10 h-8 bg-amber-100 border-l border-t border-stone-300"></div>
+                                <div className="absolute top-0 left-0 w-3.5 h-10 bg-amber-800 rounded-sm"></div>
+                                <div className="absolute top-0 left-0 w-10 h-3.5 bg-lime-600 rounded-sm"></div>
                               </>
                             )}
                           </div>
@@ -278,29 +278,29 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
                       onClick={() => setPanelJointSetting('bottomJoint', index)}
                       className="cursor-pointer"
                     >
-                      <div className={`border-2 rounded p-1.5 transition-all ${
+                      <div className={`border-2 rounded p-2 transition-all ${
                         panelJointSettings.bottomJoint === index
                           ? 'border-orange-500'
                           : 'border-stone-200 hover:border-stone-300'
                       }`}>
-                        <div className="w-16 h-14 bg-stone-100 rounded flex items-end justify-start p-0.5">
+                        <div className="w-16 h-16 bg-stone-50 rounded flex items-end justify-start">
                           <div className="relative w-full h-full">
                             {index === 0 && (
                               <>
-                                <div className="absolute bottom-0 left-0 w-5 h-8 bg-orange-300 border-r-2 border-orange-600"></div>
-                                <div className="absolute bottom-0 left-5 w-10 h-5 bg-amber-100 border-l border-b border-stone-300"></div>
+                                <div className="absolute bottom-0 left-0 w-2.5 h-12 bg-amber-800 rounded-sm"></div>
+                                <div className="absolute bottom-0 left-0 w-12 h-2.5 bg-lime-600 rounded-sm"></div>
                               </>
                             )}
                             {index === 1 && (
                               <>
-                                <div className="absolute bottom-0 left-0 w-5 h-10 bg-orange-300 border-r-2 border-orange-600"></div>
-                                <div className="absolute bottom-0 left-5 w-10 h-6 bg-amber-100 border-l border-b border-stone-300"></div>
+                                <div className="absolute bottom-0 left-0 w-3 h-11 bg-amber-800 rounded-sm"></div>
+                                <div className="absolute bottom-0 left-0 w-11 h-3 bg-lime-600 rounded-sm"></div>
                               </>
                             )}
                             {index === 2 && (
                               <>
-                                <div className="absolute bottom-0 left-0 w-5 h-12 bg-orange-300 border-r-2 border-orange-600"></div>
-                                <div className="absolute bottom-0 left-5 w-10 h-8 bg-amber-100 border-l border-b border-stone-300"></div>
+                                <div className="absolute bottom-0 left-0 w-3.5 h-10 bg-amber-800 rounded-sm"></div>
+                                <div className="absolute bottom-0 left-0 w-10 h-3.5 bg-lime-600 rounded-sm"></div>
                               </>
                             )}
                           </div>
