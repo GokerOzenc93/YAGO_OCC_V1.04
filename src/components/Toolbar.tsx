@@ -32,7 +32,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     updateShape,
     deleteShape,
     showParametersPanel,
-    setShowParametersPanel
+    setShowParametersPanel,
+    showGlobalSettings,
+    setShowGlobalSettings
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -870,6 +872,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             <Box size={11} />
           </button>
           <button
+            onClick={() => setShowGlobalSettings(!showGlobalSettings)}
             className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
             title="Global Settings"
           >

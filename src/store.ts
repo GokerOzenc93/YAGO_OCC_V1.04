@@ -64,6 +64,25 @@ export interface SubtractedGeometry {
 export type FaceRole = 'Left' | 'Right' | 'Top' | 'Bottom' | 'Back' | 'Door' | null;
 
 /**
+ * PanelJoinType:
+ * Panel birleşim tiplerinin türleri.
+ */
+export type PanelJoinType = 'Dowel' | 'Pocket' | 'Slot' | 'Butt' | 'Mortise' | 'Dovetail';
+
+/**
+ * GlobalSetting:
+ * Belirli bir panel konfigürasyonunun ayarlarını saklayan veri yapısı.
+ */
+export interface GlobalSetting {
+  id: string;                                    // Benzersiz kimlik
+  name: string;                                  // Ayar adı (Default, Premium, vb.)
+  isDefault: boolean;                            // Varsayılan ayar mı?
+  panelJoinType: PanelJoinType;                  // Panel birleşim tipi
+  settings: Record<string, any>;                 // Tüm ayarlar (genişletilebilir)
+  createdAt: Date;
+}
+
+/**
  * Shape:
  * Sahnedeki her bir 3D nesnenin ana veri yapısı.
  */
@@ -245,6 +264,19 @@ interface AppState {
   roleEditMode: boolean;
   setRoleEditMode: (enabled: boolean) => void;
   updateFaceRole: (shapeId: string, faceIndex: number, role: FaceRole) => void;
+
+  // Global Settings
+  globalSettings: GlobalSetting[];
+  selectedSettingId: string | null;
+  showGlobalSettings: boolean;
+  setShowGlobalSettings: (show: boolean) => void;
+  addGlobalSetting: (setting: GlobalSetting) => void;
+  updateGlobalSetting: (id: string, updates: Partial<GlobalSetting>) => void;
+  deleteGlobalSetting: (id: string) => void;
+  selectGlobalSetting: (id: string | null) => void;
+  getSelectedSetting: () => GlobalSetting | null;
+  getDefaultSetting: () => GlobalSetting | null;
+  getSettingValue: (settingKey: string, roleOrDefault?: string | FaceRole) => any;
 }
 
 /**
@@ -960,5 +992,65 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error('❌ Failed to delete subtraction:', error);
     }
+  },
+
+  // Global Settings Implementation
+  globalSettings: [
+    {
+      id: 'default',
+      name: 'Default',
+      isDefault: true,
+      panelJoinType: 'Dowel',
+      settings: {
+        backPanelType: 'Solid',
+        adjustableShelves: false,
+        edgeBanding: 'PVC',
+        shelfThickness: 18
+      },
+      createdAt: new Date()
+    }
+  ],
+  selectedSettingId: 'default',
+  showGlobalSettings: false,
+  setShowGlobalSettings: (show) => set({ showGlobalSettings: show }),
+
+  addGlobalSetting: (setting) => set((state) => ({
+    globalSettings: [...state.globalSettings, setting]
+  })),
+
+  updateGlobalSetting: (id, updates) => set((state) => ({
+    globalSettings: state.globalSettings.map((s) =>
+      s.id === id ? { ...s, ...updates } : s
+    )
+  })),
+
+  deleteGlobalSetting: (id) => set((state) => ({
+    globalSettings: state.globalSettings.filter((s) => s.id !== id),
+    selectedSettingId: state.selectedSettingId === id ? 'default' : state.selectedSettingId
+  })),
+
+  selectGlobalSetting: (id) => set({ selectedSettingId: id }),
+
+  getSelectedSetting: () => {
+    return get().globalSettings.find((s) => s.id === get().selectedSettingId) || null;
+  },
+
+  getDefaultSetting: () => {
+    return get().globalSettings.find((s) => s.isDefault) || null;
+  },
+
+  getSettingValue: (settingKey, roleOrDefault) => {
+    const selectedSetting = get().getSelectedSetting();
+    const defaultSetting = get().getDefaultSetting();
+
+    if (selectedSetting && settingKey in selectedSetting.settings) {
+      return selectedSetting.settings[settingKey];
+    }
+
+    if (defaultSetting && settingKey in defaultSetting.settings) {
+      return defaultSetting.settings[settingKey];
+    }
+
+    return null;
   }
 }));
