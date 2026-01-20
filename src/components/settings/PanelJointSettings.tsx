@@ -1,6 +1,28 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import * as THREE from 'three';
+
+const Panel: React.FC<{
+  position: [number, number, number];
+  args: [number, number, number];
+}> = ({ position, args }) => {
+  const geometry = new THREE.BoxGeometry(...args);
+  const edges = new THREE.EdgesGeometry(geometry);
+
+  return (
+    <group position={position}>
+      <mesh>
+        <boxGeometry args={args} />
+        <meshStandardMaterial color="#d9a574" />
+      </mesh>
+      <lineSegments>
+        <edgesGeometry attach="geometry" args={[geometry]} />
+        <lineBasicMaterial attach="material" color="#8b5a2b" linewidth={2} />
+      </lineSegments>
+    </group>
+  );
+};
 
 const Cabinet3D: React.FC = () => {
   const cabinetWidth = 3;
@@ -10,35 +32,25 @@ const Cabinet3D: React.FC = () => {
 
   return (
     <group>
-      <mesh position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}>
-        <boxGeometry args={[panelThickness, cabinetHeight, cabinetDepth]} />
-        <meshStandardMaterial color="#9ca3af" />
-      </mesh>
+      <Panel
+        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}
+        args={[panelThickness, cabinetHeight, cabinetDepth]}
+      />
 
-      <mesh position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}>
-        <boxGeometry args={[panelThickness, cabinetHeight, cabinetDepth]} />
-        <meshStandardMaterial color="#9ca3af" />
-      </mesh>
+      <Panel
+        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}
+        args={[panelThickness, cabinetHeight, cabinetDepth]}
+      />
 
-      <mesh position={[0, cabinetHeight + panelThickness / 2, 0]}>
-        <boxGeometry args={[cabinetWidth, panelThickness, cabinetDepth]} />
-        <meshStandardMaterial color="#9ca3af" />
-      </mesh>
+      <Panel
+        position={[0, cabinetHeight + panelThickness / 2, 0]}
+        args={[cabinetWidth + 2 * panelThickness, panelThickness, cabinetDepth]}
+      />
 
-      <mesh position={[0, -panelThickness / 2, 0]}>
-        <boxGeometry args={[cabinetWidth, panelThickness, cabinetDepth]} />
-        <meshStandardMaterial color="#9ca3af" />
-      </mesh>
-
-      <mesh position={[0, cabinetHeight / 2, -cabinetDepth / 2 - panelThickness / 2]}>
-        <boxGeometry args={[cabinetWidth, cabinetHeight, panelThickness]} />
-        <meshStandardMaterial color="#9ca3af" />
-      </mesh>
-
-      <mesh position={[0, cabinetHeight / 2, cabinetDepth / 2 + panelThickness / 2]}>
-        <boxGeometry args={[cabinetWidth - 0.2, cabinetHeight - 0.2, panelThickness]} />
-        <meshStandardMaterial color="#9ca3af" />
-      </mesh>
+      <Panel
+        position={[0, -panelThickness / 2, 0]}
+        args={[cabinetWidth + 2 * panelThickness, panelThickness, cabinetDepth]}
+      />
 
       <ambientLight intensity={0.7} />
       <directionalLight position={[5, 5, 5]} intensity={0.6} />
