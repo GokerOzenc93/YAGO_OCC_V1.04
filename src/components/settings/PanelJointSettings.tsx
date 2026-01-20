@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
@@ -25,7 +25,67 @@ const Panel: React.FC<{
   );
 };
 
-const Cabinet3D: React.FC = () => {
+const CornerMarker: React.FC<{
+  position: [number, number, number];
+  onClick: () => void;
+}> = ({ position, onClick }) => {
+  const [hovered, setHovered] = useState(false);
+  const size = 0.15;
+
+  return (
+    <group position={position}>
+      <mesh
+        onClick={(e) => {
+          e.stopPropagation();
+          onClick();
+        }}
+        onPointerOver={() => setHovered(true)}
+        onPointerOut={() => setHovered(false)}
+      >
+        <sphereGeometry args={[0.08, 16, 16]} />
+        <meshBasicMaterial color={hovered ? '#ff0000' : '#cc0000'} transparent opacity={0.8} />
+      </mesh>
+
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={new Float32Array([-size, -size, 0, size, size, 0])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#ff0000" linewidth={2} />
+      </line>
+
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={new Float32Array([-size, size, 0, size, -size, 0])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#ff0000" linewidth={2} />
+      </line>
+    </group>
+  );
+};
+
+type JointType = 'duz' | 'zivanali' | 'laminatli';
+
+interface CornerJoints {
+  leftBottom: JointType;
+  rightBottom: JointType;
+  leftTop: JointType;
+  rightTop: JointType;
+}
+
+const Cabinet3D: React.FC<{
+  cornerJoints: CornerJoints;
+  onCornerClick: (corner: keyof CornerJoints) => void;
+}> = ({ cornerJoints, onCornerClick }) => {
   const cabinetWidth = 2.5;
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
@@ -57,6 +117,23 @@ const Cabinet3D: React.FC = () => {
         color="#ffffff"
       />
 
+      <CornerMarker
+        position={[-cabinetWidth / 2, 0, -cabinetDepth / 2]}
+        onClick={() => onCornerClick('leftBottom')}
+      />
+      <CornerMarker
+        position={[cabinetWidth / 2, 0, -cabinetDepth / 2]}
+        onClick={() => onCornerClick('rightBottom')}
+      />
+      <CornerMarker
+        position={[-cabinetWidth / 2, cabinetHeight, -cabinetDepth / 2]}
+        onClick={() => onCornerClick('leftTop')}
+      />
+      <CornerMarker
+        position={[cabinetWidth / 2, cabinetHeight, -cabinetDepth / 2]}
+        onClick={() => onCornerClick('rightTop')}
+      />
+
       <ambientLight intensity={0.7} />
       <directionalLight position={[5, 5, 5]} intensity={0.6} />
       <directionalLight position={[-5, 3, -5]} intensity={0.3} />
@@ -66,6 +143,27 @@ const Cabinet3D: React.FC = () => {
 
 export function PanelJointSettings() {
   const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>('ayaksiz');
+  const [cornerJoints, setCornerJoints] = useState<CornerJoints>({
+    leftBottom: 'duz',
+    rightBottom: 'duz',
+    leftTop: 'duz',
+    rightTop: 'duz',
+  });
+
+  const handleCornerClick = (corner: keyof CornerJoints) => {
+    setCornerJoints((prev) => {
+      const currentType = prev[corner];
+      const types: JointType[] = ['duz', 'zivanali', 'laminatli'];
+      const currentIndex = types.indexOf(currentType);
+      const nextIndex = (currentIndex + 1) % types.length;
+      const nextType = types[nextIndex];
+
+      return {
+        ...prev,
+        [corner]: nextType,
+      };
+    });
+  };
 
   return (
     <div className="border border-stone-200 rounded-lg p-3 bg-white">
@@ -80,7 +178,7 @@ export function PanelJointSettings() {
             maxDistance={12}
             target={[0, 1.75, 0]}
           />
-          <Cabinet3D />
+          <Cabinet3D cornerJoints={cornerJoints} onCornerClick={handleCornerClick} />
         </Canvas>
       </div>
 
