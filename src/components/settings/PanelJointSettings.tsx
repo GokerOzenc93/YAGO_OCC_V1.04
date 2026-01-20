@@ -157,12 +157,12 @@ export function PanelJointSettings() {
   };
 
   const handleShrinkPanel = (id: string, direction: 'left' | 'right') => {
-    const shrinkAmount = 0.018;
+    const growAmount = 0.18;
 
     if (id === 'top') {
-      setTopPanelWidth(prev => Math.max(0.1, prev - shrinkAmount));
+      setTopPanelWidth(prev => prev + growAmount);
     } else if (id === 'bottom') {
-      setBottomPanelWidth(prev => Math.max(0.1, prev - shrinkAmount));
+      setBottomPanelWidth(prev => prev + growAmount);
     }
   };
 
