@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
@@ -25,144 +25,36 @@ const Panel: React.FC<{
   );
 };
 
-const CornerMarker: React.FC<{
-  position: [number, number, number];
-  onClick: () => void;
-}> = ({ position, onClick }) => {
-  const [hovered, setHovered] = useState(false);
-  const size = 0.15;
-
-  return (
-    <group position={position}>
-      <mesh
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick();
-        }}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
-      >
-        <sphereGeometry args={[0.08, 16, 16]} />
-        <meshBasicMaterial color={hovered ? '#ff0000' : '#cc0000'} transparent opacity={0.8} />
-      </mesh>
-
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={2}
-            array={new Float32Array([-size, -size, 0, size, size, 0])}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial color="#ff0000" linewidth={2} />
-      </line>
-
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={2}
-            array={new Float32Array([-size, size, 0, size, -size, 0])}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial color="#ff0000" linewidth={2} />
-      </line>
-    </group>
-  );
-};
-
-type JointType = 'duz' | 'zivanali' | 'laminatli';
-
-interface CornerJoints {
-  leftBottom: JointType;
-  rightBottom: JointType;
-  leftTop: JointType;
-  rightTop: JointType;
-}
-
-const Cabinet3D: React.FC<{
-  cornerJoints: CornerJoints;
-  onCornerClick: (corner: keyof CornerJoints) => void;
-}> = ({ cornerJoints, onCornerClick }) => {
+const Cabinet3D: React.FC = () => {
   const cabinetWidth = 2.5;
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
   const panelThickness = 0.15;
-  const extension = 0.18;
-
-  const leftBottomOffset = cornerJoints.leftBottom === 'zivanali' ? extension : 0;
-  const rightBottomOffset = cornerJoints.rightBottom === 'zivanali' ? extension : 0;
-  const leftTopOffset = cornerJoints.leftTop === 'zivanali' ? extension : 0;
-  const rightTopOffset = cornerJoints.rightTop === 'zivanali' ? extension : 0;
-
-  const leftPanelBottomReduction = cornerJoints.leftBottom === 'zivanali' ? extension : 0;
-  const leftPanelTopReduction = cornerJoints.leftTop === 'zivanali' ? extension : 0;
-  const rightPanelBottomReduction = cornerJoints.rightBottom === 'zivanali' ? extension : 0;
-  const rightPanelTopReduction = cornerJoints.rightTop === 'zivanali' ? extension : 0;
-
-  const leftPanelHeight = cabinetHeight + 2 * panelThickness - leftPanelBottomReduction - leftPanelTopReduction;
-  const leftPanelYOffset = (leftPanelTopReduction - leftPanelBottomReduction) / 2;
-
-  const rightPanelHeight = cabinetHeight + 2 * panelThickness - rightPanelBottomReduction - rightPanelTopReduction;
-  const rightPanelYOffset = (rightPanelTopReduction - rightPanelBottomReduction) / 2;
-
-  const topPanelWidth = cabinetWidth + leftTopOffset + rightTopOffset;
-  const topPanelXOffset = (rightTopOffset - leftTopOffset) / 2;
-
-  const bottomPanelWidth = cabinetWidth + leftBottomOffset + rightBottomOffset;
-  const bottomPanelXOffset = (rightBottomOffset - leftBottomOffset) / 2;
-
-  console.log('Cabinet3D render:', {
-    cornerJoints,
-    leftPanelHeight,
-    rightPanelHeight,
-    topPanelWidth,
-    bottomPanelWidth,
-  });
 
   return (
     <group>
       <Panel
-        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2 + leftPanelYOffset, 0]}
-        args={[panelThickness, leftPanelHeight, cabinetDepth]}
+        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}
+        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2 + rightPanelYOffset, 0]}
-        args={[panelThickness, rightPanelHeight, cabinetDepth]}
+        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}
+        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[topPanelXOffset, cabinetHeight + panelThickness / 2, 0]}
-        args={[topPanelWidth, panelThickness, cabinetDepth]}
+        position={[0, cabinetHeight + panelThickness / 2, 0]}
+        args={[cabinetWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[bottomPanelXOffset, -panelThickness / 2, 0]}
-        args={[bottomPanelWidth, panelThickness, cabinetDepth]}
+        position={[0, -panelThickness / 2, 0]}
+        args={[cabinetWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
-      />
-
-      <CornerMarker
-        position={[-cabinetWidth / 2, 0, cabinetDepth / 2]}
-        onClick={() => onCornerClick('leftBottom')}
-      />
-      <CornerMarker
-        position={[cabinetWidth / 2, 0, cabinetDepth / 2]}
-        onClick={() => onCornerClick('rightBottom')}
-      />
-      <CornerMarker
-        position={[-cabinetWidth / 2, cabinetHeight, cabinetDepth / 2]}
-        onClick={() => onCornerClick('leftTop')}
-      />
-      <CornerMarker
-        position={[cabinetWidth / 2, cabinetHeight, cabinetDepth / 2]}
-        onClick={() => onCornerClick('rightTop')}
       />
 
       <ambientLight intensity={0.7} />
@@ -174,32 +66,6 @@ const Cabinet3D: React.FC<{
 
 export function PanelJointSettings() {
   const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>('ayaksiz');
-  const [cornerJoints, setCornerJoints] = useState<CornerJoints>({
-    leftBottom: 'duz',
-    rightBottom: 'duz',
-    leftTop: 'duz',
-    rightTop: 'duz',
-  });
-
-  const handleCornerClick = (corner: keyof CornerJoints) => {
-    setCornerJoints((prev) => {
-      const currentType = prev[corner];
-      const types: JointType[] = ['duz', 'zivanali', 'laminatli'];
-      const currentIndex = types.indexOf(currentType);
-      const nextIndex = (currentIndex + 1) % types.length;
-      const nextType = types[nextIndex];
-
-      const newJoints = {
-        ...prev,
-        [corner]: nextType,
-      };
-
-      console.log('Corner clicked:', corner, 'Old:', currentType, 'New:', nextType);
-      console.log('All joints:', newJoints);
-
-      return newJoints;
-    });
-  };
 
   return (
     <div className="border border-stone-200 rounded-lg p-3 bg-white">
@@ -214,7 +80,7 @@ export function PanelJointSettings() {
             maxDistance={12}
             target={[0, 1.75, 0]}
           />
-          <Cabinet3D cornerJoints={cornerJoints} onCornerClick={handleCornerClick} />
+          <Cabinet3D />
         </Canvas>
       </div>
 
