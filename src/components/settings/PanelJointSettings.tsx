@@ -84,10 +84,12 @@ const Panel: React.FC<{
 const Cabinet3D: React.FC<{
   topPanelWidth: number;
   bottomPanelWidth: number;
+  topPanelOffset: number;
+  bottomPanelOffset: number;
   selectedPanel: string | null;
   onSelectPanel: (id: string) => void;
   onShrinkPanel: (id: string, direction: 'left' | 'right') => void;
-}> = ({ topPanelWidth, bottomPanelWidth, selectedPanel, onSelectPanel, onShrinkPanel }) => {
+}> = ({ topPanelWidth, bottomPanelWidth, topPanelOffset, bottomPanelOffset, selectedPanel, onSelectPanel, onShrinkPanel }) => {
   const cabinetWidth = 2.5;
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
@@ -117,7 +119,7 @@ const Cabinet3D: React.FC<{
 
       <Panel
         id="top"
-        position={[0, cabinetHeight + panelThickness / 2, 0]}
+        position={[topPanelOffset, cabinetHeight + panelThickness / 2, 0]}
         args={[topPanelWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
         isSelected={selectedPanel === 'top'}
@@ -129,7 +131,7 @@ const Cabinet3D: React.FC<{
 
       <Panel
         id="bottom"
-        position={[0, -panelThickness / 2, 0]}
+        position={[bottomPanelOffset, -panelThickness / 2, 0]}
         args={[bottomPanelWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
         isSelected={selectedPanel === 'bottom'}
@@ -151,6 +153,8 @@ export function PanelJointSettings() {
   const [selectedPanel, setSelectedPanel] = React.useState<string | null>(null);
   const [topPanelWidth, setTopPanelWidth] = React.useState(2.5);
   const [bottomPanelWidth, setBottomPanelWidth] = React.useState(2.5);
+  const [topPanelOffset, setTopPanelOffset] = React.useState(0);
+  const [bottomPanelOffset, setBottomPanelOffset] = React.useState(0);
 
   const handleSelectPanel = (id: string) => {
     setSelectedPanel(selectedPanel === id ? null : id);
@@ -161,8 +165,18 @@ export function PanelJointSettings() {
 
     if (id === 'top') {
       setTopPanelWidth(prev => prev + growAmount);
+      if (direction === 'left') {
+        setTopPanelOffset(prev => prev - growAmount / 2);
+      } else {
+        setTopPanelOffset(prev => prev + growAmount / 2);
+      }
     } else if (id === 'bottom') {
       setBottomPanelWidth(prev => prev + growAmount);
+      if (direction === 'left') {
+        setBottomPanelOffset(prev => prev - growAmount / 2);
+      } else {
+        setBottomPanelOffset(prev => prev + growAmount / 2);
+      }
     }
   };
 
@@ -182,6 +196,8 @@ export function PanelJointSettings() {
           <Cabinet3D
             topPanelWidth={topPanelWidth}
             bottomPanelWidth={bottomPanelWidth}
+            topPanelOffset={topPanelOffset}
+            bottomPanelOffset={bottomPanelOffset}
             selectedPanel={selectedPanel}
             onSelectPanel={handleSelectPanel}
             onShrinkPanel={handleShrinkPanel}
