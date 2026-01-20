@@ -35,25 +35,25 @@ const Cabinet3D: React.FC = () => {
     <group>
       <Panel
         position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}
-        args={[panelThickness, cabinetHeight, cabinetDepth]}
+        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
         position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}
-        args={[panelThickness, cabinetHeight, cabinetDepth]}
+        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
         position={[0, cabinetHeight + panelThickness / 2, 0]}
-        args={[cabinetWidth + 2 * panelThickness, panelThickness, cabinetDepth]}
+        args={[cabinetWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
         position={[0, -panelThickness / 2, 0]}
-        args={[cabinetWidth + 2 * panelThickness, panelThickness, cabinetDepth]}
+        args={[cabinetWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
