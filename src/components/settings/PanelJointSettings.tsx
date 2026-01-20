@@ -64,7 +64,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkLeft && (
         <Arrow
-          position={[-args[0] / 2 - 0.3, 0, 0]}
+          position={[-args[0] / 2 - 0.3, args[1] / 2 + 0.4, 0]}
           direction="left"
           onClick={onShrinkLeft}
         />
@@ -72,7 +72,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkRight && (
         <Arrow
-          position={[args[0] / 2 + 0.3, 0, 0]}
+          position={[args[0] / 2 + 0.3, args[1] / 2 + 0.4, 0]}
           direction="right"
           onClick={onShrinkRight}
         />
@@ -86,10 +86,12 @@ const Cabinet3D: React.FC<{
   bottomPanelWidth: number;
   topPanelOffset: number;
   bottomPanelOffset: number;
+  leftPanelPosition: number;
+  rightPanelPosition: number;
   selectedPanel: string | null;
   onSelectPanel: (id: string) => void;
   onShrinkPanel: (id: string, direction: 'left' | 'right') => void;
-}> = ({ topPanelWidth, bottomPanelWidth, topPanelOffset, bottomPanelOffset, selectedPanel, onSelectPanel, onShrinkPanel }) => {
+}> = ({ topPanelWidth, bottomPanelWidth, topPanelOffset, bottomPanelOffset, leftPanelPosition, rightPanelPosition, selectedPanel, onSelectPanel, onShrinkPanel }) => {
   const cabinetWidth = 2.5;
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
@@ -99,7 +101,7 @@ const Cabinet3D: React.FC<{
     <group>
       <Panel
         id="left"
-        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}
+        position={[leftPanelPosition, cabinetHeight / 2, 0]}
         args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
         color="#ffffff"
         isSelected={false}
@@ -109,7 +111,7 @@ const Cabinet3D: React.FC<{
 
       <Panel
         id="right"
-        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}
+        position={[rightPanelPosition, cabinetHeight / 2, 0]}
         args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
         color="#ffffff"
         isSelected={false}
@@ -149,12 +151,17 @@ const Cabinet3D: React.FC<{
 };
 
 export function PanelJointSettings() {
+  const cabinetWidth = 2.5;
+  const panelThickness = 0.15;
+
   const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>('ayaksiz');
   const [selectedPanel, setSelectedPanel] = React.useState<string | null>(null);
   const [topPanelWidth, setTopPanelWidth] = React.useState(2.5);
   const [bottomPanelWidth, setBottomPanelWidth] = React.useState(2.5);
   const [topPanelOffset, setTopPanelOffset] = React.useState(0);
   const [bottomPanelOffset, setBottomPanelOffset] = React.useState(0);
+  const [leftPanelPosition, setLeftPanelPosition] = React.useState(-cabinetWidth / 2 - panelThickness / 2);
+  const [rightPanelPosition, setRightPanelPosition] = React.useState(cabinetWidth / 2 + panelThickness / 2);
 
   const handleSelectPanel = (id: string) => {
     setSelectedPanel(selectedPanel === id ? null : id);
@@ -167,15 +174,19 @@ export function PanelJointSettings() {
       setTopPanelWidth(prev => prev + growAmount);
       if (direction === 'left') {
         setTopPanelOffset(prev => prev - growAmount / 2);
+        setLeftPanelPosition(prev => prev + growAmount);
       } else {
         setTopPanelOffset(prev => prev + growAmount / 2);
+        setRightPanelPosition(prev => prev - growAmount);
       }
     } else if (id === 'bottom') {
       setBottomPanelWidth(prev => prev + growAmount);
       if (direction === 'left') {
         setBottomPanelOffset(prev => prev - growAmount / 2);
+        setLeftPanelPosition(prev => prev + growAmount);
       } else {
         setBottomPanelOffset(prev => prev + growAmount / 2);
+        setRightPanelPosition(prev => prev - growAmount);
       }
     }
   };
@@ -198,6 +209,8 @@ export function PanelJointSettings() {
             bottomPanelWidth={bottomPanelWidth}
             topPanelOffset={topPanelOffset}
             bottomPanelOffset={bottomPanelOffset}
+            leftPanelPosition={leftPanelPosition}
+            rightPanelPosition={rightPanelPosition}
             selectedPanel={selectedPanel}
             onSelectPanel={handleSelectPanel}
             onShrinkPanel={handleShrinkPanel}
