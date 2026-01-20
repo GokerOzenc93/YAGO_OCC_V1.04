@@ -26,10 +26,10 @@ const Panel: React.FC<{
 };
 
 const Cabinet3D: React.FC = () => {
-  const cabinetWidth = 3;
-  const cabinetHeight = 4;
-  const cabinetDepth = 2;
-  const panelThickness = 0.1;
+  const cabinetWidth = 4.5;
+  const cabinetHeight = 6;
+  const cabinetDepth = 4;
+  const panelThickness = 0.18;
 
   return (
     <group>
@@ -72,12 +72,13 @@ export function PanelJointSettings() {
       <div className="flex-1 border-2 border-stone-200 rounded-lg overflow-hidden">
         <Canvas>
           <color attach="background" args={['#ffffff']} />
-          <PerspectiveCamera makeDefault position={[6, 4, 6]} fov={45} />
+          <PerspectiveCamera makeDefault position={[8, 5, 8]} fov={50} />
           <OrbitControls
             enableDamping
             dampingFactor={0.05}
-            minDistance={3}
-            maxDistance={15}
+            minDistance={5}
+            maxDistance={20}
+            target={[0, 3, 0]}
           />
           <Cabinet3D />
         </Canvas>
