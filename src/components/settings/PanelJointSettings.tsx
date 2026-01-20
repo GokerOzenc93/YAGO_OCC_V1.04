@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
@@ -25,116 +25,36 @@ const Panel: React.FC<{
   );
 };
 
-const CornerPoint: React.FC<{
-  position: [number, number, number];
-  onClick: () => void;
-}> = ({ position, onClick }) => {
-  const [hovered, setHovered] = useState(false);
-
-  return (
-    <mesh
-      position={position}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
-    >
-      <sphereGeometry args={[0.15, 16, 16]} />
-      <meshStandardMaterial color={hovered ? '#ff6b6b' : '#ff0000'} />
-    </mesh>
-  );
-};
-
-interface CornerStates {
-  topLeft: boolean;
-  topRight: boolean;
-  bottomLeft: boolean;
-  bottomRight: boolean;
-}
-
 const Cabinet3D: React.FC = () => {
   const cabinetWidth = 4.5;
   const cabinetHeight = 6;
   const cabinetDepth = 4;
   const panelThickness = 0.18;
 
-  const [corners, setCorners] = useState<CornerStates>({
-    topLeft: false,
-    topRight: false,
-    bottomLeft: false,
-    bottomRight: false,
-  });
-
-  const toggleCorner = (corner: keyof CornerStates) => {
-    setCorners(prev => ({
-      ...prev,
-      [corner]: !prev[corner]
-    }));
-  };
-
-  const topPanelLeft = corners.topLeft ? -cabinetWidth / 2 - panelThickness : -cabinetWidth / 2;
-  const topPanelRight = corners.topRight ? cabinetWidth / 2 + panelThickness : cabinetWidth / 2;
-  const topPanelWidth = topPanelRight - topPanelLeft;
-  const topPanelX = (topPanelLeft + topPanelRight) / 2;
-
-  const bottomPanelLeft = corners.bottomLeft ? -cabinetWidth / 2 - panelThickness : -cabinetWidth / 2;
-  const bottomPanelRight = corners.bottomRight ? cabinetWidth / 2 + panelThickness : cabinetWidth / 2;
-  const bottomPanelWidth = bottomPanelRight - bottomPanelLeft;
-  const bottomPanelX = (bottomPanelLeft + bottomPanelRight) / 2;
-
-  const leftPanelBottom = corners.bottomLeft ? -panelThickness : 0;
-  const leftPanelTop = corners.topLeft ? cabinetHeight + panelThickness : cabinetHeight;
-  const leftPanelHeight = leftPanelTop - leftPanelBottom;
-  const leftPanelY = (leftPanelBottom + leftPanelTop) / 2;
-
-  const rightPanelBottom = corners.bottomRight ? -panelThickness : 0;
-  const rightPanelTop = corners.topRight ? cabinetHeight + panelThickness : cabinetHeight;
-  const rightPanelHeight = rightPanelTop - rightPanelBottom;
-  const rightPanelY = (rightPanelBottom + rightPanelTop) / 2;
-
   return (
     <group>
       <Panel
-        position={[-cabinetWidth / 2 - panelThickness / 2, leftPanelY, 0]}
-        args={[panelThickness, leftPanelHeight, cabinetDepth]}
+        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}
+        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[cabinetWidth / 2 + panelThickness / 2, rightPanelY, 0]}
-        args={[panelThickness, rightPanelHeight, cabinetDepth]}
+        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}
+        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[topPanelX, cabinetHeight + panelThickness / 2, 0]}
-        args={[topPanelWidth, panelThickness, cabinetDepth]}
+        position={[0, cabinetHeight + panelThickness / 2, 0]}
+        args={[cabinetWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[bottomPanelX, -panelThickness / 2, 0]}
-        args={[bottomPanelWidth, panelThickness, cabinetDepth]}
+        position={[0, -panelThickness / 2, 0]}
+        args={[cabinetWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
-      />
-
-      <CornerPoint
-        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight + panelThickness / 2, cabinetDepth / 2 + 0.1]}
-        onClick={() => toggleCorner('topLeft')}
-      />
-      <CornerPoint
-        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight + panelThickness / 2, cabinetDepth / 2 + 0.1]}
-        onClick={() => toggleCorner('topRight')}
-      />
-      <CornerPoint
-        position={[-cabinetWidth / 2 - panelThickness / 2, -panelThickness / 2, cabinetDepth / 2 + 0.1]}
-        onClick={() => toggleCorner('bottomLeft')}
-      />
-      <CornerPoint
-        position={[cabinetWidth / 2 + panelThickness / 2, -panelThickness / 2, cabinetDepth / 2 + 0.1]}
-        onClick={() => toggleCorner('bottomRight')}
       />
 
       <ambientLight intensity={0.7} />
