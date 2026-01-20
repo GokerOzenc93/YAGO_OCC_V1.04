@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Trash2 } from 'lucide-react';
+import { PanelJointSettings } from './settings/PanelJointSettings';
 
 interface GlobalSettingsPanelProps {
   isOpen: boolean;
@@ -209,11 +210,12 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
           ))}
         </div>
 
-        <div className="flex-1 bg-white p-4">
-          {selectedOption ? (
+        <div className="flex-1 bg-white p-4 overflow-auto">
+          {selectedOption === 'panel_joint' ? (
+            <PanelJointSettings />
+          ) : selectedOption === 'backrest' ? (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              {selectedOption === 'panel_joint' && 'Panel Birleşim Tipleri İçeriği'}
-              {selectedOption === 'backrest' && 'Arkalık Ayarları İçeriği'}
+              Arkalık Ayarları İçeriği
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
