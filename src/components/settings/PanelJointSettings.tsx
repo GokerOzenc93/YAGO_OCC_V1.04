@@ -72,7 +72,7 @@ export function PanelJointSettings() {
       <div className="flex-1 border-2 border-stone-200 rounded-lg overflow-hidden">
         <Canvas>
           <color attach="background" args={['#ffffff']} />
-          <PerspectiveCamera makeDefault position={[8, 5, 8]} fov={50} />
+          <PerspectiveCamera makeDefault position={[2.5, 4, 10]} fov={50} />
           <OrbitControls
             enableDamping
             dampingFactor={0.05}
