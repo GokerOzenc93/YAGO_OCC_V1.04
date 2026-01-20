@@ -65,7 +65,7 @@ const Cabinet3D: React.FC = () => {
 };
 
 export function PanelJointSettings() {
-  const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>(null);
+  const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>('ayaksiz');
 
   return (
     <div className="border border-stone-200 rounded-lg p-3 bg-white">
