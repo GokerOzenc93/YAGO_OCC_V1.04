@@ -90,47 +90,70 @@ const Cabinet3D: React.FC<{
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
   const panelThickness = 0.15;
+  const extension = 0.018;
+
+  const leftBottomOffset = cornerJoints.leftBottom === 'zivanali' ? extension : 0;
+  const rightBottomOffset = cornerJoints.rightBottom === 'zivanali' ? extension : 0;
+  const leftTopOffset = cornerJoints.leftTop === 'zivanali' ? extension : 0;
+  const rightTopOffset = cornerJoints.rightTop === 'zivanali' ? extension : 0;
+
+  const leftPanelBottomReduction = cornerJoints.leftBottom === 'zivanali' ? extension : 0;
+  const leftPanelTopReduction = cornerJoints.leftTop === 'zivanali' ? extension : 0;
+  const rightPanelBottomReduction = cornerJoints.rightBottom === 'zivanali' ? extension : 0;
+  const rightPanelTopReduction = cornerJoints.rightTop === 'zivanali' ? extension : 0;
+
+  const leftPanelHeight = cabinetHeight + 2 * panelThickness - leftPanelBottomReduction - leftPanelTopReduction;
+  const leftPanelYOffset = (leftPanelTopReduction - leftPanelBottomReduction) / 2;
+
+  const rightPanelHeight = cabinetHeight + 2 * panelThickness - rightPanelBottomReduction - rightPanelTopReduction;
+  const rightPanelYOffset = (rightPanelTopReduction - rightPanelBottomReduction) / 2;
+
+  const topPanelWidth = cabinetWidth + leftTopOffset + rightTopOffset;
+  const topPanelXOffset = (rightTopOffset - leftTopOffset) / 2;
+
+  const bottomPanelWidth = cabinetWidth + leftBottomOffset + rightBottomOffset;
+  const bottomPanelXOffset = (rightBottomOffset - leftBottomOffset) / 2;
 
   return (
     <group>
       <Panel
-        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}
-        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
+        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2 + leftPanelYOffset, 0]}
+        args={[panelThickness, leftPanelHeight, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}
-        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
+        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2 + rightPanelYOffset, 0]}
+        args={[panelThickness, rightPanelHeight, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[0, cabinetHeight + panelThickness / 2, 0]}
-        args={[cabinetWidth, panelThickness, cabinetDepth]}
+        position={[topPanelXOffset, cabinetHeight + panelThickness / 2, 0]}
+        args={[topPanelWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <Panel
-        position={[0, -panelThickness / 2, 0]}
-        args={[cabinetWidth, panelThickness, cabinetDepth]}
+        position={[bottomPanelXOffset, -panelThickness / 2, 0]}
+        args={[bottomPanelWidth, panelThickness, cabinetDepth]}
         color="#ffffff"
       />
 
       <CornerMarker
-        position={[-cabinetWidth / 2, 0, -cabinetDepth / 2]}
+        position={[-cabinetWidth / 2, 0, cabinetDepth / 2]}
         onClick={() => onCornerClick('leftBottom')}
       />
       <CornerMarker
-        position={[cabinetWidth / 2, 0, -cabinetDepth / 2]}
+        position={[cabinetWidth / 2, 0, cabinetDepth / 2]}
         onClick={() => onCornerClick('rightBottom')}
       />
       <CornerMarker
-        position={[-cabinetWidth / 2, cabinetHeight, -cabinetDepth / 2]}
+        position={[-cabinetWidth / 2, cabinetHeight, cabinetDepth / 2]}
         onClick={() => onCornerClick('leftTop')}
       />
       <CornerMarker
-        position={[cabinetWidth / 2, cabinetHeight, -cabinetDepth / 2]}
+        position={[cabinetWidth / 2, cabinetHeight, cabinetDepth / 2]}
         onClick={() => onCornerClick('rightTop')}
       />
 
