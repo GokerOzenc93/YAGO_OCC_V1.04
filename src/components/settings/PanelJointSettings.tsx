@@ -65,11 +65,11 @@ const Cabinet3D: React.FC = () => {
 };
 
 export function PanelJointSettings() {
-  return (
-    <div className="flex flex-col">
-      <h3 className="text-sm font-semibold text-slate-800 mb-2">Panel Birleşim Tipi</h3>
+  const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>(null);
 
-      <div className="h-56 border-2 border-stone-200 rounded-lg overflow-hidden mb-3">
+  return (
+    <div className="border border-stone-200 rounded-lg p-3 bg-white">
+      <div className="h-56 border border-stone-200 rounded overflow-hidden mb-3">
         <Canvas>
           <color attach="background" args={['#ffffff']} />
           <PerspectiveCamera makeDefault position={[1.5, 2.5, 6]} fov={45} />
@@ -84,17 +84,38 @@ export function PanelJointSettings() {
         </Canvas>
       </div>
 
-      <div className="mt-2">
-        <p className="text-xs text-slate-600 mb-2">Birleşim Seçenekleri:</p>
-        <div className="space-y-2">
-          <button className="w-full px-3 py-2 text-xs bg-white border border-stone-300 rounded hover:bg-stone-50 text-left">
-            Düz Birleşim
+      <div className="mt-3">
+        <p className="text-xs text-slate-600 mb-2">Ana Gövde Tipi</p>
+        <div className="space-y-1">
+          <button
+            onClick={() => setSelectedBodyType('ayakli')}
+            className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
+              selectedBodyType === 'ayakli'
+                ? 'text-slate-700 border-l-4 border-l-orange-500'
+                : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
+            }`}
+          >
+            Ayaklı
           </button>
-          <button className="w-full px-3 py-2 text-xs bg-white border border-stone-300 rounded hover:bg-stone-50 text-left">
-            Zıvanalı Birleşim
+          <button
+            onClick={() => setSelectedBodyType('ayaksiz')}
+            className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
+              selectedBodyType === 'ayaksiz'
+                ? 'text-slate-700 border-l-4 border-l-orange-500'
+                : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
+            }`}
+          >
+            Ayaksız
           </button>
-          <button className="w-full px-3 py-2 text-xs bg-white border border-stone-300 rounded hover:bg-stone-50 text-left">
-            Laminatlı Birleşim
+          <button
+            onClick={() => setSelectedBodyType('bazali')}
+            className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
+              selectedBodyType === 'bazali'
+                ? 'text-slate-700 border-l-4 border-l-orange-500'
+                : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
+            }`}
+          >
+            Bazalı
           </button>
         </div>
       </div>
