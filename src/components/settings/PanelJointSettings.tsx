@@ -90,7 +90,7 @@ const Cabinet3D: React.FC<{
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
   const panelThickness = 0.15;
-  const extension = 0.018;
+  const extension = 0.18;
 
   const leftBottomOffset = cornerJoints.leftBottom === 'zivanali' ? extension : 0;
   const rightBottomOffset = cornerJoints.rightBottom === 'zivanali' ? extension : 0;
@@ -113,6 +113,14 @@ const Cabinet3D: React.FC<{
 
   const bottomPanelWidth = cabinetWidth + leftBottomOffset + rightBottomOffset;
   const bottomPanelXOffset = (rightBottomOffset - leftBottomOffset) / 2;
+
+  console.log('Cabinet3D render:', {
+    cornerJoints,
+    leftPanelHeight,
+    rightPanelHeight,
+    topPanelWidth,
+    bottomPanelWidth,
+  });
 
   return (
     <group>
@@ -181,10 +189,15 @@ export function PanelJointSettings() {
       const nextIndex = (currentIndex + 1) % types.length;
       const nextType = types[nextIndex];
 
-      return {
+      const newJoints = {
         ...prev,
         [corner]: nextType,
       };
+
+      console.log('Corner clicked:', corner, 'Old:', currentType, 'New:', nextType);
+      console.log('All joints:', newJoints);
+
+      return newJoints;
     });
   };
 
