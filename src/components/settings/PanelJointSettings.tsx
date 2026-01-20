@@ -6,7 +6,8 @@ import * as THREE from 'three';
 const Panel: React.FC<{
   position: [number, number, number];
   args: [number, number, number];
-}> = ({ position, args }) => {
+  color: string;
+}> = ({ position, args, color }) => {
   const geometry = new THREE.BoxGeometry(...args);
   const edges = new THREE.EdgesGeometry(geometry);
 
@@ -14,11 +15,11 @@ const Panel: React.FC<{
     <group position={position}>
       <mesh>
         <boxGeometry args={args} />
-        <meshStandardMaterial color="#d9a574" />
+        <meshStandardMaterial color={color} />
       </mesh>
       <lineSegments>
         <edgesGeometry attach="geometry" args={[geometry]} />
-        <lineBasicMaterial attach="material" color="#8b5a2b" linewidth={2} />
+        <lineBasicMaterial attach="material" color="#000000" linewidth={3} />
       </lineSegments>
     </group>
   );
@@ -35,21 +36,25 @@ const Cabinet3D: React.FC = () => {
       <Panel
         position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}
         args={[panelThickness, cabinetHeight, cabinetDepth]}
+        color="#d9a574"
       />
 
       <Panel
         position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}
         args={[panelThickness, cabinetHeight, cabinetDepth]}
+        color="#d9a574"
       />
 
       <Panel
         position={[0, cabinetHeight + panelThickness / 2, 0]}
         args={[cabinetWidth + 2 * panelThickness, panelThickness, cabinetDepth]}
+        color="#c08a5a"
       />
 
       <Panel
         position={[0, -panelThickness / 2, 0]}
         args={[cabinetWidth + 2 * panelThickness, panelThickness, cabinetDepth]}
+        color="#c08a5a"
       />
 
       <ambientLight intensity={0.7} />
