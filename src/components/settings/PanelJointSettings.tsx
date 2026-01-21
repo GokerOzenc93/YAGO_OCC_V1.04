@@ -324,40 +324,17 @@ export function PanelJointSettings() {
         </Canvas>
       </div>
 
-      <div className="mt-3">
-        <p className="text-xs text-slate-600 mb-2">Ana Gövde Tipi</p>
-        <div className="space-y-1">
-          <button
-            onClick={() => setSelectedBodyType('ayakli')}
-            className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
-              selectedBodyType === 'ayakli'
-                ? 'text-slate-700 border-l-4 border-l-orange-500'
-                : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
-            }`}
-          >
-            Ayaklı
-          </button>
-          <button
-            onClick={() => setSelectedBodyType('ayaksiz')}
-            className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
-              selectedBodyType === 'ayaksiz'
-                ? 'text-slate-700 border-l-4 border-l-orange-500'
-                : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
-            }`}
-          >
-            Ayaksız
-          </button>
-          <button
-            onClick={() => setSelectedBodyType('bazali')}
-            className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
-              selectedBodyType === 'bazali'
-                ? 'text-slate-700 border-l-4 border-l-orange-500'
-                : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
-            }`}
-          >
-            Bazalı
-          </button>
-        </div>
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-xs text-slate-600">Ana Gövde Tipi</p>
+        <select
+          value={selectedBodyType || 'ayaksiz'}
+          onChange={(e) => setSelectedBodyType(e.target.value)}
+          className="text-xs px-2 py-1 bg-white border border-stone-300 rounded focus:outline-none focus:border-orange-500 cursor-pointer"
+        >
+          <option value="ayakli">Ayaklı</option>
+          <option value="ayaksiz">Ayaksız</option>
+          <option value="bazali">Bazalı</option>
+        </select>
       </div>
     </div>
   );
