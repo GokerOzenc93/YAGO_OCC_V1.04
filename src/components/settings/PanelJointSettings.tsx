@@ -33,7 +33,7 @@ const Arrow: React.FC<{
       }}
       onPointerOut={() => setHovered(false)}
     >
-      <coneGeometry args={[0.15, 0.3, 8]} />
+      <coneGeometry args={[0.025, 0.05, 8]} />
       <meshStandardMaterial color={hovered ? "#f97316" : "#3b82f6"} />
     </mesh>
   );
@@ -70,7 +70,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkLeft && (
         <Arrow
-          position={[-args[0] / 2 + 0.25, -args[1] / 2 + 0.5, 0]}
+          position={[-args[0] / 2 + 0.04, -args[1] / 2 + 0.08, 0]}
           direction="left"
           isReversed={isLeftExpanded || false}
           onClick={onShrinkLeft}
@@ -79,7 +79,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkRight && (
         <Arrow
-          position={[args[0] / 2 - 0.25, -args[1] / 2 + 0.5, 0]}
+          position={[args[0] / 2 - 0.04, -args[1] / 2 + 0.08, 0]}
           direction="right"
           isReversed={isRightExpanded || false}
           onClick={onShrinkRight}
@@ -195,7 +195,7 @@ export function PanelJointSettings() {
   };
 
   const handleShrinkPanel = (id: string, direction: 'left' | 'right') => {
-    const changeAmount = 0.018;
+    const changeAmount = 0.010;
 
     if (id === 'top') {
       if (direction === 'left') {
