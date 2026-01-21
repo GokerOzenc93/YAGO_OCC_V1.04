@@ -70,7 +70,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkLeft && (
         <Arrow
-          position={[-args[0] / 2 - 0.3, args[1] / 2 + 0.2, 0]}
+          position={[-args[0] / 2 - 0.3, -args[1] / 2 - 0.3, 0]}
           direction="left"
           isReversed={isLeftExpanded || false}
           onClick={onShrinkLeft}
@@ -79,7 +79,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkRight && (
         <Arrow
-          position={[args[0] / 2 + 0.3, args[1] / 2 + 0.2, 0]}
+          position={[args[0] / 2 + 0.3, -args[1] / 2 - 0.3, 0]}
           direction="right"
           isReversed={isRightExpanded || false}
           onClick={onShrinkRight}
@@ -101,7 +101,11 @@ const Cabinet3D: React.FC<{
   topRightExpanded: boolean;
   bottomLeftExpanded: boolean;
   bottomRightExpanded: boolean;
-}> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded }) => {
+  leftPanelHeight: number;
+  leftPanelPositionY: number;
+  rightPanelHeight: number;
+  rightPanelPositionY: number;
+}> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded, leftPanelHeight, leftPanelPositionY, rightPanelHeight, rightPanelPositionY }) => {
   const cabinetWidth = 2.5;
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
@@ -111,8 +115,8 @@ const Cabinet3D: React.FC<{
     <group>
       <Panel
         id="left"
-        position={[-cabinetWidth / 2 - panelThickness / 2, cabinetHeight / 2, 0]}
-        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
+        position={[-cabinetWidth / 2 - panelThickness / 2, leftPanelPositionY, 0]}
+        args={[panelThickness, leftPanelHeight, cabinetDepth]}
         color="#ffffff"
         isSelected={false}
         onSelect={() => {}}
@@ -121,8 +125,8 @@ const Cabinet3D: React.FC<{
 
       <Panel
         id="right"
-        position={[cabinetWidth / 2 + panelThickness / 2, cabinetHeight / 2, 0]}
-        args={[panelThickness, cabinetHeight + 2 * panelThickness, cabinetDepth]}
+        position={[cabinetWidth / 2 + panelThickness / 2, rightPanelPositionY, 0]}
+        args={[panelThickness, rightPanelHeight, cabinetDepth]}
         color="#ffffff"
         isSelected={false}
         onSelect={() => {}}
@@ -172,6 +176,15 @@ export function PanelJointSettings() {
   const [topPanelPositionX, setTopPanelPositionX] = React.useState(0);
   const [bottomPanelPositionX, setBottomPanelPositionX] = React.useState(0);
 
+  const cabinetHeight = 3.5;
+  const panelThickness = 0.15;
+  const initialSidePanelHeight = cabinetHeight + 2 * panelThickness;
+
+  const [leftPanelHeight, setLeftPanelHeight] = React.useState(initialSidePanelHeight);
+  const [leftPanelPositionY, setLeftPanelPositionY] = React.useState(cabinetHeight / 2);
+  const [rightPanelHeight, setRightPanelHeight] = React.useState(initialSidePanelHeight);
+  const [rightPanelPositionY, setRightPanelPositionY] = React.useState(cabinetHeight / 2);
+
   const [topLeftExpanded, setTopLeftExpanded] = React.useState(false);
   const [topRightExpanded, setTopRightExpanded] = React.useState(false);
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
@@ -190,20 +203,28 @@ export function PanelJointSettings() {
           setTopPanelWidth(prev => prev - changeAmount);
           setTopPanelPositionX(prev => prev + changeAmount / 2);
           setTopLeftExpanded(false);
+          setLeftPanelHeight(prev => prev + changeAmount);
+          setLeftPanelPositionY(prev => prev - changeAmount / 2);
         } else {
           setTopPanelWidth(prev => prev + changeAmount);
           setTopPanelPositionX(prev => prev - changeAmount / 2);
           setTopLeftExpanded(true);
+          setLeftPanelHeight(prev => prev - changeAmount);
+          setLeftPanelPositionY(prev => prev + changeAmount / 2);
         }
       } else {
         if (topRightExpanded) {
           setTopPanelWidth(prev => prev - changeAmount);
           setTopPanelPositionX(prev => prev - changeAmount / 2);
           setTopRightExpanded(false);
+          setRightPanelHeight(prev => prev + changeAmount);
+          setRightPanelPositionY(prev => prev - changeAmount / 2);
         } else {
           setTopPanelWidth(prev => prev + changeAmount);
           setTopPanelPositionX(prev => prev + changeAmount / 2);
           setTopRightExpanded(true);
+          setRightPanelHeight(prev => prev - changeAmount);
+          setRightPanelPositionY(prev => prev + changeAmount / 2);
         }
       }
     } else if (id === 'bottom') {
@@ -212,20 +233,28 @@ export function PanelJointSettings() {
           setBottomPanelWidth(prev => prev - changeAmount);
           setBottomPanelPositionX(prev => prev + changeAmount / 2);
           setBottomLeftExpanded(false);
+          setLeftPanelHeight(prev => prev + changeAmount);
+          setLeftPanelPositionY(prev => prev + changeAmount / 2);
         } else {
           setBottomPanelWidth(prev => prev + changeAmount);
           setBottomPanelPositionX(prev => prev - changeAmount / 2);
           setBottomLeftExpanded(true);
+          setLeftPanelHeight(prev => prev - changeAmount);
+          setLeftPanelPositionY(prev => prev - changeAmount / 2);
         }
       } else {
         if (bottomRightExpanded) {
           setBottomPanelWidth(prev => prev - changeAmount);
           setBottomPanelPositionX(prev => prev - changeAmount / 2);
           setBottomRightExpanded(false);
+          setRightPanelHeight(prev => prev + changeAmount);
+          setRightPanelPositionY(prev => prev + changeAmount / 2);
         } else {
           setBottomPanelWidth(prev => prev + changeAmount);
           setBottomPanelPositionX(prev => prev + changeAmount / 2);
           setBottomRightExpanded(true);
+          setRightPanelHeight(prev => prev - changeAmount);
+          setRightPanelPositionY(prev => prev - changeAmount / 2);
         }
       }
     }
@@ -256,6 +285,10 @@ export function PanelJointSettings() {
             topRightExpanded={topRightExpanded}
             bottomLeftExpanded={bottomLeftExpanded}
             bottomRightExpanded={bottomRightExpanded}
+            leftPanelHeight={leftPanelHeight}
+            leftPanelPositionY={leftPanelPositionY}
+            rightPanelHeight={rightPanelHeight}
+            rightPanelPositionY={rightPanelPositionY}
           />
         </Canvas>
       </div>
