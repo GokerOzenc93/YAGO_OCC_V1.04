@@ -109,7 +109,7 @@ const Cabinet3D: React.FC<{
   const cabinetWidth = 2.5;
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
-  const panelThickness = 0.15;
+  const panelThickness = 0.018;
 
   return (
     <group>
@@ -177,7 +177,7 @@ export function PanelJointSettings() {
   const [bottomPanelPositionX, setBottomPanelPositionX] = React.useState(0);
 
   const cabinetHeight = 3.5;
-  const panelThickness = 0.15;
+  const panelThickness = 0.018;
   const initialSidePanelHeight = cabinetHeight + 2 * panelThickness;
 
   const [leftPanelHeight, setLeftPanelHeight] = React.useState(initialSidePanelHeight);
@@ -195,7 +195,7 @@ export function PanelJointSettings() {
   };
 
   const handleShrinkPanel = (id: string, direction: 'left' | 'right') => {
-    const changeAmount = 0.18;
+    const changeAmount = 0.018;
 
     if (id === 'top') {
       if (direction === 'left') {
