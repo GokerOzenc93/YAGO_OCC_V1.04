@@ -71,7 +71,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkLeft && (
         <Arrow
-          position={[-args[0] / 2 + 0.04, -args[1] / 2 + 0.08, 0]}
+          position={[-args[0] / 2 + 0.055, -args[1] / 2 + 0.08, 0]}
           direction="left"
           isReversed={isLeftExpanded || false}
           onClick={onShrinkLeft}
@@ -80,7 +80,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkRight && (
         <Arrow
-          position={[args[0] / 2 - 0.04, -args[1] / 2 + 0.08, 0]}
+          position={[args[0] / 2 - 0.055, -args[1] / 2 + 0.08, 0]}
           direction="right"
           isReversed={isRightExpanded || false}
           onClick={onShrinkRight}
