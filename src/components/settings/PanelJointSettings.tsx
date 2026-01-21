@@ -324,12 +324,12 @@ export function PanelJointSettings() {
         </Canvas>
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-3 flex items-center gap-2">
         <p className="text-xs text-slate-600">Ana Gövde Tipi</p>
         <select
           value={selectedBodyType || 'ayaksiz'}
           onChange={(e) => setSelectedBodyType(e.target.value)}
-          className="text-xs px-2 py-1 bg-white border border-stone-300 rounded focus:outline-none focus:border-orange-500 cursor-pointer"
+          className="text-xs px-2 py-1 bg-transparent border-none focus:outline-none cursor-pointer text-slate-700"
         >
           <option value="ayakli">Ayaklı</option>
           <option value="ayaksiz">Ayaksız</option>
