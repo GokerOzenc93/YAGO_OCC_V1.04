@@ -195,7 +195,7 @@ export function PanelJointSettings() {
   };
 
   const handleShrinkPanel = (id: string, direction: 'left' | 'right') => {
-    const changeAmount = 0.010;
+    const changeAmount = 0.018;
 
     if (id === 'top') {
       if (direction === 'left') {
