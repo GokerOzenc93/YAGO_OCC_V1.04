@@ -106,9 +106,9 @@ const Cabinet3D: React.FC<{
   rightPanelHeight: number;
   rightPanelPositionY: number;
 }> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded, leftPanelHeight, leftPanelPositionY, rightPanelHeight, rightPanelPositionY }) => {
-  const cabinetWidth = 2.5;
-  const cabinetHeight = 3.5;
-  const cabinetDepth = 2;
+  const cabinetWidth = 0.45;
+  const cabinetHeight = 0.55;
+  const cabinetDepth = 0.25;
   const panelThickness = 0.018;
 
   return (
@@ -171,12 +171,12 @@ const Cabinet3D: React.FC<{
 export function PanelJointSettings() {
   const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>('ayaksiz');
   const [selectedPanel, setSelectedPanel] = React.useState<string | null>(null);
-  const [topPanelWidth, setTopPanelWidth] = React.useState(2.5);
-  const [bottomPanelWidth, setBottomPanelWidth] = React.useState(2.5);
+  const [topPanelWidth, setTopPanelWidth] = React.useState(0.45);
+  const [bottomPanelWidth, setBottomPanelWidth] = React.useState(0.45);
   const [topPanelPositionX, setTopPanelPositionX] = React.useState(0);
   const [bottomPanelPositionX, setBottomPanelPositionX] = React.useState(0);
 
-  const cabinetHeight = 3.5;
+  const cabinetHeight = 0.55;
   const panelThickness = 0.018;
   const initialSidePanelHeight = cabinetHeight + 2 * panelThickness;
 
@@ -265,13 +265,13 @@ export function PanelJointSettings() {
       <div className="h-56 border border-stone-200 rounded overflow-hidden mb-3">
         <Canvas>
           <color attach="background" args={['#ffffff']} />
-          <PerspectiveCamera makeDefault position={[1.5, 2.5, 6]} fov={45} />
+          <PerspectiveCamera makeDefault position={[0.3, 0.4, 1]} fov={45} />
           <OrbitControls
             enableDamping
             dampingFactor={0.05}
-            minDistance={3}
-            maxDistance={12}
-            target={[0, 1.75, 0]}
+            minDistance={0.5}
+            maxDistance={2}
+            target={[0, 0.275, 0]}
           />
           <Cabinet3D
             topPanelWidth={topPanelWidth}
