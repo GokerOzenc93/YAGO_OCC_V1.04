@@ -70,7 +70,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkLeft && (
         <Arrow
-          position={[-args[0] / 2 - 0.3, -args[1] / 2 - 0.3, 0]}
+          position={[-args[0] / 2 + 0.25, -args[1] / 2 + 0.15, 0]}
           direction="left"
           isReversed={isLeftExpanded || false}
           onClick={onShrinkLeft}
@@ -79,7 +79,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkRight && (
         <Arrow
-          position={[args[0] / 2 + 0.3, -args[1] / 2 - 0.3, 0]}
+          position={[args[0] / 2 - 0.25, -args[1] / 2 + 0.15, 0]}
           direction="right"
           isReversed={isRightExpanded || false}
           onClick={onShrinkRight}
@@ -117,7 +117,7 @@ const Cabinet3D: React.FC<{
         id="left"
         position={[-cabinetWidth / 2 - panelThickness / 2, leftPanelPositionY, 0]}
         args={[panelThickness, leftPanelHeight, cabinetDepth]}
-        color="#ffffff"
+        color="#f5f5f4"
         isSelected={false}
         onSelect={() => {}}
         showArrows={false}
@@ -127,7 +127,7 @@ const Cabinet3D: React.FC<{
         id="right"
         position={[cabinetWidth / 2 + panelThickness / 2, rightPanelPositionY, 0]}
         args={[panelThickness, rightPanelHeight, cabinetDepth]}
-        color="#ffffff"
+        color="#f5f5f4"
         isSelected={false}
         onSelect={() => {}}
         showArrows={false}
@@ -137,7 +137,7 @@ const Cabinet3D: React.FC<{
         id="top"
         position={[topPanelPositionX, cabinetHeight + panelThickness / 2, 0]}
         args={[topPanelWidth, panelThickness, cabinetDepth]}
-        color="#ffffff"
+        color="#fed7aa"
         isSelected={selectedPanel === 'top'}
         onSelect={() => onSelectPanel('top')}
         onShrinkLeft={() => onShrinkPanel('top', 'left')}
@@ -151,7 +151,7 @@ const Cabinet3D: React.FC<{
         id="bottom"
         position={[bottomPanelPositionX, -panelThickness / 2, 0]}
         args={[bottomPanelWidth, panelThickness, cabinetDepth]}
-        color="#ffffff"
+        color="#fed7aa"
         isSelected={selectedPanel === 'bottom'}
         onSelect={() => onSelectPanel('bottom')}
         onShrinkLeft={() => onShrinkPanel('bottom', 'left')}
