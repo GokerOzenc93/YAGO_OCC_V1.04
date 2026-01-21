@@ -323,9 +323,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Baza Ayarları
   bazaHeight: 100,
   setBazaHeight: (height) => set({ bazaHeight: height }),
-  frontBaseDistance: 50,
+  frontBaseDistance: 10,
   setFrontBaseDistance: (distance) => set({ frontBaseDistance: distance }),
-  backBaseDistance: 50,
+  backBaseDistance: 30,
   setBackBaseDistance: (distance) => set({ backBaseDistance: distance }),
 
   // Yeni şekil ekleme
