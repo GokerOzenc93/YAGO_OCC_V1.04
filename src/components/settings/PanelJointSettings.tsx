@@ -327,7 +327,7 @@ export function PanelJointSettings() {
       <div className="mt-3 flex items-center gap-2">
         <p className="text-xs text-slate-600">Ana Gövde Tipi:</p>
         <select
-          value={selectedBodyType || 'ayaksiz'}
+          value={selectedBodyType || 'Ayaksiz'}
           onChange={(e) => setSelectedBodyType(e.target.value)}
           className="text-xs px-2 py-1 bg-transparent border-none focus:outline-none cursor-pointer text-slate-700"
         >
