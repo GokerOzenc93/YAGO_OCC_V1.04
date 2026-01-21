@@ -105,11 +105,13 @@ const Cabinet3D: React.FC<{
   leftPanelPositionY: number;
   rightPanelHeight: number;
   rightPanelPositionY: number;
-}> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded, leftPanelHeight, leftPanelPositionY, rightPanelHeight, rightPanelPositionY }) => {
+  selectedBodyType: string | null;
+}> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded, leftPanelHeight, leftPanelPositionY, rightPanelHeight, rightPanelPositionY, selectedBodyType }) => {
   const cabinetWidth = 0.45;
   const cabinetHeight = 0.55;
   const cabinetDepth = 0.25;
   const panelThickness = 0.018;
+  const baseHeight = 0.10;
 
   return (
     <group>
@@ -161,6 +163,18 @@ const Cabinet3D: React.FC<{
         isRightExpanded={bottomRightExpanded}
       />
 
+      {selectedBodyType === 'bazali' && (
+        <Panel
+          id="base"
+          position={[0, -baseHeight / 2 - panelThickness, 0]}
+          args={[cabinetWidth + 2 * panelThickness, baseHeight, cabinetDepth]}
+          color="#a8a29e"
+          isSelected={false}
+          onSelect={() => {}}
+          showArrows={false}
+        />
+      )}
+
       <ambientLight intensity={0.7} />
       <directionalLight position={[5, 5, 5]} intensity={0.6} />
       <directionalLight position={[-5, 3, -5]} intensity={0.3} />
@@ -178,6 +192,7 @@ export function PanelJointSettings() {
 
   const cabinetHeight = 0.55;
   const panelThickness = 0.018;
+  const baseHeight = 0.10;
   const initialSidePanelHeight = cabinetHeight + 2 * panelThickness;
 
   const [leftPanelHeight, setLeftPanelHeight] = React.useState(initialSidePanelHeight);
@@ -189,6 +204,21 @@ export function PanelJointSettings() {
   const [topRightExpanded, setTopRightExpanded] = React.useState(false);
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
+
+  React.useEffect(() => {
+    if (selectedBodyType === 'bazali') {
+      const bazaliHeight = initialSidePanelHeight + baseHeight;
+      setLeftPanelHeight(bazaliHeight);
+      setLeftPanelPositionY(cabinetHeight / 2 - baseHeight / 2);
+      setRightPanelHeight(bazaliHeight);
+      setRightPanelPositionY(cabinetHeight / 2 - baseHeight / 2);
+    } else {
+      setLeftPanelHeight(initialSidePanelHeight);
+      setLeftPanelPositionY(cabinetHeight / 2);
+      setRightPanelHeight(initialSidePanelHeight);
+      setRightPanelPositionY(cabinetHeight / 2);
+    }
+  }, [selectedBodyType]);
 
   const handleSelectPanel = (id: string) => {
     setSelectedPanel(selectedPanel === id ? null : id);
@@ -289,6 +319,7 @@ export function PanelJointSettings() {
             leftPanelPositionY={leftPanelPositionY}
             rightPanelHeight={rightPanelHeight}
             rightPanelPositionY={rightPanelPositionY}
+            selectedBodyType={selectedBodyType}
           />
         </Canvas>
       </div>
