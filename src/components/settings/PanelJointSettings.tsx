@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useAppStore } from '../../store';
 
 const Arrow: React.FC<{
   position: [number, number, number];
@@ -106,12 +107,15 @@ const Cabinet3D: React.FC<{
   rightPanelHeight: number;
   rightPanelPositionY: number;
   selectedBodyType: string | null;
-}> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded, leftPanelHeight, leftPanelPositionY, rightPanelHeight, rightPanelPositionY, selectedBodyType }) => {
+  bazaHeight: number;
+  frontBaseDistance: number;
+  backBaseDistance: number;
+}> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded, leftPanelHeight, leftPanelPositionY, rightPanelHeight, rightPanelPositionY, selectedBodyType, bazaHeight, frontBaseDistance, backBaseDistance }) => {
   const cabinetWidth = 0.45;
   const cabinetHeight = 0.55;
   const cabinetDepth = 0.25;
   const panelThickness = 0.018;
-  const baseHeight = 0.10;
+  const baseHeightInMeters = bazaHeight / 1000;
 
   return (
     <group>
@@ -164,15 +168,26 @@ const Cabinet3D: React.FC<{
       />
 
       {selectedBodyType === 'bazali' && (
-        <Panel
-          id="base"
-          position={[0, -baseHeight / 2 - panelThickness, cabinetDepth / 2 - panelThickness / 2]}
-          args={[cabinetWidth, baseHeight, panelThickness]}
-          color="#78716c"
-          isSelected={false}
-          onSelect={() => {}}
-          showArrows={false}
-        />
+        <>
+          <Panel
+            id="base-front"
+            position={[0, -baseHeightInMeters / 2 - panelThickness, cabinetDepth / 2 - (frontBaseDistance / 1000)]}
+            args={[cabinetWidth, baseHeightInMeters, panelThickness]}
+            color="#78716c"
+            isSelected={false}
+            onSelect={() => {}}
+            showArrows={false}
+          />
+          <Panel
+            id="base-back"
+            position={[0, -baseHeightInMeters / 2 - panelThickness, -cabinetDepth / 2 + (backBaseDistance / 1000)]}
+            args={[cabinetWidth, baseHeightInMeters, panelThickness]}
+            color="#78716c"
+            isSelected={false}
+            onSelect={() => {}}
+            showArrows={false}
+          />
+        </>
       )}
 
       <ambientLight intensity={0.7} />
@@ -183,6 +198,8 @@ const Cabinet3D: React.FC<{
 };
 
 export function PanelJointSettings() {
+  const { bazaHeight, setBazaHeight, frontBaseDistance, setFrontBaseDistance, backBaseDistance, setBackBaseDistance } = useAppStore();
+
   const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>('ayaksiz');
   const [selectedPanel, setSelectedPanel] = React.useState<string | null>(null);
   const [topPanelWidth, setTopPanelWidth] = React.useState(0.45);
@@ -192,7 +209,7 @@ export function PanelJointSettings() {
 
   const cabinetHeight = 0.55;
   const panelThickness = 0.018;
-  const baseHeight = 0.10;
+  const baseHeightInMeters = bazaHeight / 1000;
   const initialSidePanelHeight = cabinetHeight + 2 * panelThickness;
 
   const [leftPanelHeight, setLeftPanelHeight] = React.useState(initialSidePanelHeight);
@@ -205,24 +222,20 @@ export function PanelJointSettings() {
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
 
-  const [bazaHeight, setBazaHeight] = React.useState(100);
-  const [frontBaseDistance, setFrontBaseDistance] = React.useState(50);
-  const [backBaseDistance, setBackBaseDistance] = React.useState(50);
-
   React.useEffect(() => {
     if (selectedBodyType === 'bazali') {
-      const bazaliHeight = initialSidePanelHeight + baseHeight;
+      const bazaliHeight = initialSidePanelHeight + baseHeightInMeters;
       setLeftPanelHeight(bazaliHeight);
-      setLeftPanelPositionY(cabinetHeight / 2 - baseHeight / 2);
+      setLeftPanelPositionY(cabinetHeight / 2 - baseHeightInMeters / 2);
       setRightPanelHeight(bazaliHeight);
-      setRightPanelPositionY(cabinetHeight / 2 - baseHeight / 2);
+      setRightPanelPositionY(cabinetHeight / 2 - baseHeightInMeters / 2);
     } else {
       setLeftPanelHeight(initialSidePanelHeight);
       setLeftPanelPositionY(cabinetHeight / 2);
       setRightPanelHeight(initialSidePanelHeight);
       setRightPanelPositionY(cabinetHeight / 2);
     }
-  }, [selectedBodyType]);
+  }, [selectedBodyType, bazaHeight]);
 
   const handleSelectPanel = (id: string) => {
     setSelectedPanel(selectedPanel === id ? null : id);
@@ -324,6 +337,9 @@ export function PanelJointSettings() {
             rightPanelHeight={rightPanelHeight}
             rightPanelPositionY={rightPanelPositionY}
             selectedBodyType={selectedBodyType}
+            bazaHeight={bazaHeight}
+            frontBaseDistance={frontBaseDistance}
+            backBaseDistance={backBaseDistance}
           />
         </Canvas>
       </div>

@@ -249,6 +249,14 @@ interface AppState {
   roleEditMode: boolean;
   setRoleEditMode: (enabled: boolean) => void;
   updateFaceRole: (shapeId: string, faceIndex: number, role: FaceRole) => void;
+
+  // Baza Ayarları
+  bazaHeight: number;
+  setBazaHeight: (height: number) => void;
+  frontBaseDistance: number;
+  setFrontBaseDistance: (distance: number) => void;
+  backBaseDistance: number;
+  setBackBaseDistance: (distance: number) => void;
 }
 
 /**
@@ -311,6 +319,14 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
     })
   })),
+
+  // Baza Ayarları
+  bazaHeight: 100,
+  setBazaHeight: (height) => set({ bazaHeight: height }),
+  frontBaseDistance: 50,
+  setFrontBaseDistance: (distance) => set({ frontBaseDistance: distance }),
+  backBaseDistance: 50,
+  setBackBaseDistance: (distance) => set({ backBaseDistance: distance }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
