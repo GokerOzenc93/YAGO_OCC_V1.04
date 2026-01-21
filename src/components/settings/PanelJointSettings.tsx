@@ -205,6 +205,10 @@ export function PanelJointSettings() {
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
 
+  const [bazaHeight, setBazaHeight] = React.useState(100);
+  const [frontBaseDistance, setFrontBaseDistance] = React.useState(50);
+  const [backBaseDistance, setBackBaseDistance] = React.useState(50);
+
   React.useEffect(() => {
     if (selectedBodyType === 'bazali') {
       const bazaliHeight = initialSidePanelHeight + baseHeight;
@@ -336,6 +340,38 @@ export function PanelJointSettings() {
           <option value="bazali">Bazalı</option>
         </select>
       </div>
+
+      {selectedBodyType === 'bazali' && (
+        <div className="mt-3 space-y-2 pt-2 border-t border-stone-200">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Baza Yüksekliği (mm)</label>
+            <input
+              type="number"
+              value={bazaHeight}
+              onChange={(e) => setBazaHeight(Number(e.target.value))}
+              className="text-xs px-2 py-1 w-20 border border-stone-300 rounded focus:outline-none focus:border-orange-500"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Ön Bazanın Önden Mesafesi (mm)</label>
+            <input
+              type="number"
+              value={frontBaseDistance}
+              onChange={(e) => setFrontBaseDistance(Number(e.target.value))}
+              className="text-xs px-2 py-1 w-20 border border-stone-300 rounded focus:outline-none focus:border-orange-500"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Arka Bazanın Arkadan Mesafesi (mm)</label>
+            <input
+              type="number"
+              value={backBaseDistance}
+              onChange={(e) => setBackBaseDistance(Number(e.target.value))}
+              className="text-xs px-2 py-1 w-20 border border-stone-300 rounded focus:outline-none focus:border-orange-500"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
