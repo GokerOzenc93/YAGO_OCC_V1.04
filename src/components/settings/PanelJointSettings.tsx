@@ -167,7 +167,7 @@ const Cabinet3D: React.FC<{
         <Panel
           id="base"
           position={[0, -baseHeight / 2 - panelThickness, 0]}
-          args={[cabinetWidth + 2 * panelThickness, baseHeight, cabinetDepth]}
+          args={[cabinetWidth, baseHeight, cabinetDepth]}
           color="#a8a29e"
           isSelected={false}
           onSelect={() => {}}
