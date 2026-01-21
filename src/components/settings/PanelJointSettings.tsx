@@ -159,10 +159,10 @@ const Cabinet3D: React.FC<{
         args={[bottomPanelWidth, panelThickness, cabinetDepth]}
         color="#fed7aa"
         isSelected={selectedPanel === 'bottom'}
-        onSelect={() => onSelectPanel('bottom')}
+        onSelect={() => selectedBodyType !== 'bazali' && onSelectPanel('bottom')}
         onShrinkLeft={() => onShrinkPanel('bottom', 'left')}
         onShrinkRight={() => onShrinkPanel('bottom', 'right')}
-        showArrows={true}
+        showArrows={selectedBodyType !== 'bazali'}
         isLeftExpanded={bottomLeftExpanded}
         isRightExpanded={bottomRightExpanded}
       />
@@ -229,6 +229,9 @@ export function PanelJointSettings() {
       setLeftPanelPositionY(cabinetHeight / 2 - baseHeightInMeters / 2);
       setRightPanelHeight(bazaliHeight);
       setRightPanelPositionY(cabinetHeight / 2 - baseHeightInMeters / 2);
+      if (selectedPanel === 'bottom') {
+        setSelectedPanel(null);
+      }
     } else {
       setLeftPanelHeight(initialSidePanelHeight);
       setLeftPanelPositionY(cabinetHeight / 2);
