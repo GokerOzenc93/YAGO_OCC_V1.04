@@ -344,30 +344,30 @@ export function PanelJointSettings() {
       {selectedBodyType === 'bazali' && (
         <div className="mt-3 space-y-2 pt-2 border-t border-stone-200">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Baza Yüksekliği (mm)</label>
+            <label className="text-xs text-slate-600">Baza Yüksekliği</label>
             <input
               type="number"
               value={bazaHeight}
               onChange={(e) => setBazaHeight(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-20 border border-stone-300 rounded focus:outline-none focus:border-orange-500"
+              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Ön Bazanın Önden Mesafesi (mm)</label>
+            <label className="text-xs text-slate-600">Ön Baza Mesafesi</label>
             <input
               type="number"
               value={frontBaseDistance}
               onChange={(e) => setFrontBaseDistance(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-20 border border-stone-300 rounded focus:outline-none focus:border-orange-500"
+              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Arka Bazanın Arkadan Mesafesi (mm)</label>
+            <label className="text-xs text-slate-600">Arka Baza Mesafesi</label>
             <input
               type="number"
               value={backBaseDistance}
               onChange={(e) => setBackBaseDistance(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-20 border border-stone-300 rounded focus:outline-none focus:border-orange-500"
+              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         </div>
