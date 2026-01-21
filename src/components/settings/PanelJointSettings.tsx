@@ -204,13 +204,13 @@ export function PanelJointSettings() {
           setTopPanelPositionX(prev => prev + changeAmount / 2);
           setTopLeftExpanded(false);
           setLeftPanelHeight(prev => prev + changeAmount);
-          setLeftPanelPositionY(prev => prev - changeAmount / 2);
+          setLeftPanelPositionY(prev => prev + changeAmount / 2);
         } else {
           setTopPanelWidth(prev => prev + changeAmount);
           setTopPanelPositionX(prev => prev - changeAmount / 2);
           setTopLeftExpanded(true);
           setLeftPanelHeight(prev => prev - changeAmount);
-          setLeftPanelPositionY(prev => prev + changeAmount / 2);
+          setLeftPanelPositionY(prev => prev - changeAmount / 2);
         }
       } else {
         if (topRightExpanded) {
@@ -218,13 +218,13 @@ export function PanelJointSettings() {
           setTopPanelPositionX(prev => prev - changeAmount / 2);
           setTopRightExpanded(false);
           setRightPanelHeight(prev => prev + changeAmount);
-          setRightPanelPositionY(prev => prev - changeAmount / 2);
+          setRightPanelPositionY(prev => prev + changeAmount / 2);
         } else {
           setTopPanelWidth(prev => prev + changeAmount);
           setTopPanelPositionX(prev => prev + changeAmount / 2);
           setTopRightExpanded(true);
           setRightPanelHeight(prev => prev - changeAmount);
-          setRightPanelPositionY(prev => prev + changeAmount / 2);
+          setRightPanelPositionY(prev => prev - changeAmount / 2);
         }
       }
     } else if (id === 'bottom') {
@@ -234,13 +234,13 @@ export function PanelJointSettings() {
           setBottomPanelPositionX(prev => prev + changeAmount / 2);
           setBottomLeftExpanded(false);
           setLeftPanelHeight(prev => prev + changeAmount);
-          setLeftPanelPositionY(prev => prev + changeAmount / 2);
+          setLeftPanelPositionY(prev => prev - changeAmount / 2);
         } else {
           setBottomPanelWidth(prev => prev + changeAmount);
           setBottomPanelPositionX(prev => prev - changeAmount / 2);
           setBottomLeftExpanded(true);
           setLeftPanelHeight(prev => prev - changeAmount);
-          setLeftPanelPositionY(prev => prev - changeAmount / 2);
+          setLeftPanelPositionY(prev => prev + changeAmount / 2);
         }
       } else {
         if (bottomRightExpanded) {
@@ -248,13 +248,13 @@ export function PanelJointSettings() {
           setBottomPanelPositionX(prev => prev - changeAmount / 2);
           setBottomRightExpanded(false);
           setRightPanelHeight(prev => prev + changeAmount);
-          setRightPanelPositionY(prev => prev + changeAmount / 2);
+          setRightPanelPositionY(prev => prev - changeAmount / 2);
         } else {
           setBottomPanelWidth(prev => prev + changeAmount);
           setBottomPanelPositionX(prev => prev + changeAmount / 2);
           setBottomRightExpanded(true);
           setRightPanelHeight(prev => prev - changeAmount);
-          setRightPanelPositionY(prev => prev - changeAmount / 2);
+          setRightPanelPositionY(prev => prev + changeAmount / 2);
         }
       }
     }
