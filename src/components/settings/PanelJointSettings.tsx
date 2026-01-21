@@ -7,13 +7,17 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 const Arrow: React.FC<{
   position: [number, number, number];
   direction: 'left' | 'right';
+  isReversed: boolean;
   onClick: () => void;
-}> = ({ position, direction, onClick }) => {
+}> = ({ position, direction, isReversed, onClick }) => {
   const [hovered, setHovered] = React.useState(false);
 
-  const rotation: [number, number, number] = direction === 'left'
-    ? [0, 0, Math.PI / 2]
-    : [0, 0, -Math.PI / 2];
+  let rotation: [number, number, number];
+  if (direction === 'left') {
+    rotation = isReversed ? [0, 0, -Math.PI / 2] : [0, 0, Math.PI / 2];
+  } else {
+    rotation = isReversed ? [0, 0, Math.PI / 2] : [0, 0, -Math.PI / 2];
+  }
 
   return (
     <mesh
@@ -45,7 +49,9 @@ const Panel: React.FC<{
   onShrinkLeft?: () => void;
   onShrinkRight?: () => void;
   showArrows: boolean;
-}> = ({ id, position, args, color, isSelected, onSelect, onShrinkLeft, onShrinkRight, showArrows }) => {
+  isLeftExpanded?: boolean;
+  isRightExpanded?: boolean;
+}> = ({ id, position, args, color, isSelected, onSelect, onShrinkLeft, onShrinkRight, showArrows, isLeftExpanded, isRightExpanded }) => {
   const geometry = new THREE.BoxGeometry(...args);
   const edges = new THREE.EdgesGeometry(geometry);
 
@@ -64,16 +70,18 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkLeft && (
         <Arrow
-          position={[-args[0] / 2 - 0.3, 0, 0]}
+          position={[-args[0] / 2 - 0.3, args[1] / 2 + 0.2, 0]}
           direction="left"
+          isReversed={isLeftExpanded || false}
           onClick={onShrinkLeft}
         />
       )}
 
       {isSelected && showArrows && onShrinkRight && (
         <Arrow
-          position={[args[0] / 2 + 0.3, 0, 0]}
+          position={[args[0] / 2 + 0.3, args[1] / 2 + 0.2, 0]}
           direction="right"
+          isReversed={isRightExpanded || false}
           onClick={onShrinkRight}
         />
       )}
@@ -87,7 +95,11 @@ const Cabinet3D: React.FC<{
   selectedPanel: string | null;
   onSelectPanel: (id: string) => void;
   onShrinkPanel: (id: string, direction: 'left' | 'right') => void;
-}> = ({ topPanelWidth, bottomPanelWidth, selectedPanel, onSelectPanel, onShrinkPanel }) => {
+  topLeftExpanded: boolean;
+  topRightExpanded: boolean;
+  bottomLeftExpanded: boolean;
+  bottomRightExpanded: boolean;
+}> = ({ topPanelWidth, bottomPanelWidth, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded }) => {
   const cabinetWidth = 2.5;
   const cabinetHeight = 3.5;
   const cabinetDepth = 2;
@@ -125,6 +137,8 @@ const Cabinet3D: React.FC<{
         onShrinkLeft={() => onShrinkPanel('top', 'left')}
         onShrinkRight={() => onShrinkPanel('top', 'right')}
         showArrows={true}
+        isLeftExpanded={topLeftExpanded}
+        isRightExpanded={topRightExpanded}
       />
 
       <Panel
@@ -137,6 +151,8 @@ const Cabinet3D: React.FC<{
         onShrinkLeft={() => onShrinkPanel('bottom', 'left')}
         onShrinkRight={() => onShrinkPanel('bottom', 'right')}
         showArrows={true}
+        isLeftExpanded={bottomLeftExpanded}
+        isRightExpanded={bottomRightExpanded}
       />
 
       <ambientLight intensity={0.7} />
@@ -152,17 +168,54 @@ export function PanelJointSettings() {
   const [topPanelWidth, setTopPanelWidth] = React.useState(2.5);
   const [bottomPanelWidth, setBottomPanelWidth] = React.useState(2.5);
 
+  const [topLeftExpanded, setTopLeftExpanded] = React.useState(false);
+  const [topRightExpanded, setTopRightExpanded] = React.useState(false);
+  const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
+  const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
+
   const handleSelectPanel = (id: string) => {
     setSelectedPanel(selectedPanel === id ? null : id);
   };
 
   const handleShrinkPanel = (id: string, direction: 'left' | 'right') => {
-    const growAmount = 0.18;
+    const changeAmount = 0.18;
 
     if (id === 'top') {
-      setTopPanelWidth(prev => prev + growAmount);
+      if (direction === 'left') {
+        if (topLeftExpanded) {
+          setTopPanelWidth(prev => prev - changeAmount);
+          setTopLeftExpanded(false);
+        } else {
+          setTopPanelWidth(prev => prev + changeAmount);
+          setTopLeftExpanded(true);
+        }
+      } else {
+        if (topRightExpanded) {
+          setTopPanelWidth(prev => prev - changeAmount);
+          setTopRightExpanded(false);
+        } else {
+          setTopPanelWidth(prev => prev + changeAmount);
+          setTopRightExpanded(true);
+        }
+      }
     } else if (id === 'bottom') {
-      setBottomPanelWidth(prev => prev + growAmount);
+      if (direction === 'left') {
+        if (bottomLeftExpanded) {
+          setBottomPanelWidth(prev => prev - changeAmount);
+          setBottomLeftExpanded(false);
+        } else {
+          setBottomPanelWidth(prev => prev + changeAmount);
+          setBottomLeftExpanded(true);
+        }
+      } else {
+        if (bottomRightExpanded) {
+          setBottomPanelWidth(prev => prev - changeAmount);
+          setBottomRightExpanded(false);
+        } else {
+          setBottomPanelWidth(prev => prev + changeAmount);
+          setBottomRightExpanded(true);
+        }
+      }
     }
   };
 
@@ -185,6 +238,10 @@ export function PanelJointSettings() {
             selectedPanel={selectedPanel}
             onSelectPanel={handleSelectPanel}
             onShrinkPanel={handleShrinkPanel}
+            topLeftExpanded={topLeftExpanded}
+            topRightExpanded={topRightExpanded}
+            bottomLeftExpanded={bottomLeftExpanded}
+            bottomRightExpanded={bottomRightExpanded}
           />
         </Canvas>
       </div>
