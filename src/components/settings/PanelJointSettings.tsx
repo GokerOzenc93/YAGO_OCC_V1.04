@@ -19,8 +19,10 @@ const Arrow: React.FC<{
     rotation = isReversed ? [0, 0, Math.PI / 2] : [0, 0, -Math.PI / 2];
   }
 
+  const arrowColor = hovered ? "#f97316" : "#3b82f6";
+
   return (
-    <mesh
+    <group
       position={position}
       rotation={rotation}
       onClick={(e) => {
@@ -33,9 +35,15 @@ const Arrow: React.FC<{
       }}
       onPointerOut={() => setHovered(false)}
     >
-      <coneGeometry args={[0.15, 0.3, 8]} />
-      <meshStandardMaterial color={hovered ? "#f97316" : "#3b82f6"} />
-    </mesh>
+      <mesh position={[-0.15, 0, 0]}>
+        <boxGeometry args={[0.25, 0.05, 0.05]} />
+        <meshStandardMaterial color={arrowColor} />
+      </mesh>
+      <mesh position={[0.05, 0, 0]}>
+        <coneGeometry args={[0.12, 0.2, 3]} />
+        <meshStandardMaterial color={arrowColor} />
+      </mesh>
+    </group>
   );
 };
 
@@ -51,11 +59,16 @@ const Panel: React.FC<{
   showArrows: boolean;
   isLeftExpanded?: boolean;
   isRightExpanded?: boolean;
-}> = ({ id, position, args, color, isSelected, onSelect, onShrinkLeft, onShrinkRight, showArrows, isLeftExpanded, isRightExpanded }) => {
+  arrowPosition?: 'top' | 'bottom';
+}> = ({ id, position, args, color, isSelected, onSelect, onShrinkLeft, onShrinkRight, showArrows, isLeftExpanded, isRightExpanded, arrowPosition = 'top' }) => {
   const geometry = new THREE.BoxGeometry(...args);
   const edges = new THREE.EdgesGeometry(geometry);
 
   const displayColor = isSelected ? "#ef4444" : color;
+
+  const arrowYOffset = arrowPosition === 'top'
+    ? args[1] / 2 + 0.2
+    : -args[1] / 2 - 0.2;
 
   return (
     <group position={position}>
@@ -70,7 +83,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkLeft && (
         <Arrow
-          position={[-args[0] / 2 - 0.3, args[1] / 2 + 0.2, 0]}
+          position={[-args[0] / 2 - 0.3, arrowYOffset, 0]}
           direction="left"
           isReversed={isLeftExpanded || false}
           onClick={onShrinkLeft}
@@ -79,7 +92,7 @@ const Panel: React.FC<{
 
       {isSelected && showArrows && onShrinkRight && (
         <Arrow
-          position={[args[0] / 2 + 0.3, args[1] / 2 + 0.2, 0]}
+          position={[args[0] / 2 + 0.3, arrowYOffset, 0]}
           direction="right"
           isReversed={isRightExpanded || false}
           onClick={onShrinkRight}
@@ -155,6 +168,7 @@ const Cabinet3D: React.FC<{
         showArrows={true}
         isLeftExpanded={bottomLeftExpanded}
         isRightExpanded={bottomRightExpanded}
+        arrowPosition="bottom"
       />
 
       <ambientLight intensity={0.7} />
