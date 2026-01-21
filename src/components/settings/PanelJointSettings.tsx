@@ -166,9 +166,9 @@ const Cabinet3D: React.FC<{
       {selectedBodyType === 'bazali' && (
         <Panel
           id="base"
-          position={[0, -baseHeight / 2 - panelThickness, 0]}
-          args={[cabinetWidth, baseHeight, cabinetDepth]}
-          color="#a8a29e"
+          position={[0, -baseHeight / 2 - panelThickness, cabinetDepth / 2 - panelThickness / 2]}
+          args={[cabinetWidth, baseHeight, panelThickness]}
+          color="#78716c"
           isSelected={false}
           onSelect={() => {}}
           showArrows={false}
