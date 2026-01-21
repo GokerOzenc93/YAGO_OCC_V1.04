@@ -171,18 +171,18 @@ const Cabinet3D: React.FC<{
         <>
           <Panel
             id="base-front"
-            position={[0, -baseHeightInMeters / 2 - panelThickness, cabinetDepth / 2 - (frontBaseDistance / 1000)]}
+            position={[0, -baseHeightInMeters / 2 - panelThickness, cabinetDepth / 2 - (frontBaseDistance / 1000) - panelThickness / 2]}
             args={[cabinetWidth, baseHeightInMeters, panelThickness]}
-            color="#78716c"
+            color="#a8c5a1"
             isSelected={false}
             onSelect={() => {}}
             showArrows={false}
           />
           <Panel
             id="base-back"
-            position={[0, -baseHeightInMeters / 2 - panelThickness, -cabinetDepth / 2 + (backBaseDistance / 1000)]}
+            position={[0, -baseHeightInMeters / 2 - panelThickness, -cabinetDepth / 2 + (backBaseDistance / 1000) + panelThickness / 2]}
             args={[cabinetWidth, baseHeightInMeters, panelThickness]}
-            color="#78716c"
+            color="#a8c5a1"
             isSelected={false}
             onSelect={() => {}}
             showArrows={false}
