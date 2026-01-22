@@ -117,7 +117,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
         left: `${position.x}px`,
         top: `${position.y}px`,
         width: '700px',
-        height: '500px'
+        height: '540px'
       }}
     >
       <div

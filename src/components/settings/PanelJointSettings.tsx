@@ -408,14 +408,14 @@ export function PanelJointSettings() {
       </div>
 
       {selectedBodyType === 'bazali' && (
-        <div className="mt-3 space-y-2 pt-2 border-t border-stone-200">
+        <div className="mt-3 space-y-1 pt-2 border-t border-stone-200">
           <div className="flex items-center justify-between">
             <label className="text-xs text-slate-600">Baza Yüksekliği</label>
             <input
               type="number"
               value={bazaHeight}
               onChange={(e) => setBazaHeight(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <div className="flex items-center justify-between">
@@ -424,7 +424,7 @@ export function PanelJointSettings() {
               type="number"
               value={frontBaseDistance}
               onChange={(e) => setFrontBaseDistance(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <div className="flex items-center justify-between">
@@ -433,21 +433,21 @@ export function PanelJointSettings() {
               type="number"
               value={backBaseDistance}
               onChange={(e) => setBackBaseDistance(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         </div>
       )}
 
       {selectedBodyType === 'ayakli' && (
-        <div className="mt-3 space-y-2 pt-2 border-t border-stone-200">
+        <div className="mt-3 space-y-1 pt-2 border-t border-stone-200">
           <div className="flex items-center justify-between">
             <label className="text-xs text-slate-600">Ayak Yüksekliği</label>
             <input
               type="number"
               value={legHeight}
               onChange={(e) => setLegHeight(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <div className="flex items-center justify-between">
@@ -456,7 +456,7 @@ export function PanelJointSettings() {
               type="number"
               value={legFrontDistance}
               onChange={(e) => setLegFrontDistance(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <div className="flex items-center justify-between">
@@ -465,7 +465,7 @@ export function PanelJointSettings() {
               type="number"
               value={legBackDistance}
               onChange={(e) => setLegBackDistance(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
           <div className="flex items-center justify-between">
@@ -474,7 +474,7 @@ export function PanelJointSettings() {
               type="number"
               value={legSideDistance}
               onChange={(e) => setLegSideDistance(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         </div>
