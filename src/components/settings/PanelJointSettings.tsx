@@ -223,15 +223,22 @@ export function PanelJointSettings() {
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
 
   React.useEffect(() => {
+    setTopPanelWidth(0.45);
+    setBottomPanelWidth(0.45);
+    setTopPanelPositionX(0);
+    setBottomPanelPositionX(0);
+    setTopLeftExpanded(false);
+    setTopRightExpanded(false);
+    setBottomLeftExpanded(false);
+    setBottomRightExpanded(false);
+    setSelectedPanel(null);
+
     if (selectedBodyType === 'bazali') {
       const bazaliHeight = initialSidePanelHeight + baseHeightInMeters;
       setLeftPanelHeight(bazaliHeight);
       setLeftPanelPositionY(cabinetHeight / 2 - baseHeightInMeters / 2);
       setRightPanelHeight(bazaliHeight);
       setRightPanelPositionY(cabinetHeight / 2 - baseHeightInMeters / 2);
-      if (selectedPanel === 'bottom') {
-        setSelectedPanel(null);
-      }
     } else {
       setLeftPanelHeight(initialSidePanelHeight);
       setLeftPanelPositionY(cabinetHeight / 2);
