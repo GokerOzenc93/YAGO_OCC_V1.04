@@ -353,139 +353,141 @@ export function PanelJointSettings() {
   };
 
   return (
-    <div className="border border-stone-200 rounded-lg p-3 bg-white">
-      <div className="h-56 border border-stone-200 rounded overflow-hidden mb-3">
-        <Canvas>
-          <color attach="background" args={['#ffffff']} />
-          <PerspectiveCamera makeDefault position={[0.3, 0.4, 1]} fov={45} />
-          <OrbitControls
-            enableDamping
-            dampingFactor={0.05}
-            minDistance={0.5}
-            maxDistance={2}
-            target={[0, 0.275, 0]}
-          />
-          <Cabinet3D
-            topPanelWidth={topPanelWidth}
-            bottomPanelWidth={bottomPanelWidth}
-            topPanelPositionX={topPanelPositionX}
-            bottomPanelPositionX={bottomPanelPositionX}
-            selectedPanel={selectedPanel}
-            onSelectPanel={handleSelectPanel}
-            onShrinkPanel={handleShrinkPanel}
-            topLeftExpanded={topLeftExpanded}
-            topRightExpanded={topRightExpanded}
-            bottomLeftExpanded={bottomLeftExpanded}
-            bottomRightExpanded={bottomRightExpanded}
-            leftPanelHeight={leftPanelHeight}
-            leftPanelPositionY={leftPanelPositionY}
-            rightPanelHeight={rightPanelHeight}
-            rightPanelPositionY={rightPanelPositionY}
-            selectedBodyType={selectedBodyType}
-            bazaHeight={bazaHeight}
-            frontBaseDistance={frontBaseDistance}
-            backBaseDistance={backBaseDistance}
-            legHeight={legHeight}
-            legDiameter={legDiameter}
-            legFrontDistance={legFrontDistance}
-            legBackDistance={legBackDistance}
-            legSideDistance={legSideDistance}
-          />
-        </Canvas>
+    <div className="border border-stone-200 rounded-lg p-3 bg-white flex flex-col h-full">
+      <div className="flex-1">
+        <div className="h-56 border border-stone-200 rounded overflow-hidden mb-3">
+          <Canvas>
+            <color attach="background" args={['#ffffff']} />
+            <PerspectiveCamera makeDefault position={[0.3, 0.4, 1]} fov={45} />
+            <OrbitControls
+              enableDamping
+              dampingFactor={0.05}
+              minDistance={0.5}
+              maxDistance={2}
+              target={[0, 0.275, 0]}
+            />
+            <Cabinet3D
+              topPanelWidth={topPanelWidth}
+              bottomPanelWidth={bottomPanelWidth}
+              topPanelPositionX={topPanelPositionX}
+              bottomPanelPositionX={bottomPanelPositionX}
+              selectedPanel={selectedPanel}
+              onSelectPanel={handleSelectPanel}
+              onShrinkPanel={handleShrinkPanel}
+              topLeftExpanded={topLeftExpanded}
+              topRightExpanded={topRightExpanded}
+              bottomLeftExpanded={bottomLeftExpanded}
+              bottomRightExpanded={bottomRightExpanded}
+              leftPanelHeight={leftPanelHeight}
+              leftPanelPositionY={leftPanelPositionY}
+              rightPanelHeight={rightPanelHeight}
+              rightPanelPositionY={rightPanelPositionY}
+              selectedBodyType={selectedBodyType}
+              bazaHeight={bazaHeight}
+              frontBaseDistance={frontBaseDistance}
+              backBaseDistance={backBaseDistance}
+              legHeight={legHeight}
+              legDiameter={legDiameter}
+              legFrontDistance={legFrontDistance}
+              legBackDistance={legBackDistance}
+              legSideDistance={legSideDistance}
+            />
+          </Canvas>
+        </div>
+
+        <div className="mt-3 flex items-center gap-2">
+          <p className="text-xs text-slate-600">Cabinet Body Type:</p>
+          <select
+            value={selectedBodyType || 'ayaksiz'}
+            onChange={(e) => setSelectedBodyType(e.target.value)}
+            className="text-xs px-2 py-1 bg-transparent border-none focus:outline-none cursor-pointer text-slate-700"
+          >
+            <option value="ayakli">With Legs</option>
+            <option value="ayaksiz">Without Legs</option>
+            <option value="bazali">With Base</option>
+          </select>
+        </div>
+
+        {selectedBodyType === 'bazali' && (
+          <div className="mt-3 space-y-1 pt-2 border-t border-stone-200">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-600">Base Height</label>
+              <input
+                type="number"
+                value={bazaHeight}
+                onChange={(e) => setBazaHeight(Number(e.target.value))}
+                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-600">Front Base Offset</label>
+              <input
+                type="number"
+                value={frontBaseDistance}
+                onChange={(e) => setFrontBaseDistance(Number(e.target.value))}
+                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-600">Rear Base Offset</label>
+              <input
+                type="number"
+                value={backBaseDistance}
+                onChange={(e) => setBackBaseDistance(Number(e.target.value))}
+                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {selectedBodyType === 'ayakli' && (
+          <div className="mt-3 space-y-1 pt-2 border-t border-stone-200">
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-600">Leg Height</label>
+              <input
+                type="number"
+                value={legHeight}
+                onChange={(e) => setLegHeight(Number(e.target.value))}
+                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-600">Front Offset</label>
+              <input
+                type="number"
+                value={legFrontDistance}
+                onChange={(e) => setLegFrontDistance(Number(e.target.value))}
+                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-600">Rear Offset</label>
+              <input
+                type="number"
+                value={legBackDistance}
+                onChange={(e) => setLegBackDistance(Number(e.target.value))}
+                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-slate-600">Side Offset</label>
+              <input
+                type="number"
+                value={legSideDistance}
+                onChange={(e) => setLegSideDistance(Number(e.target.value))}
+                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <p className="text-xs text-slate-600">Cabinet Body Type:</p>
-        <select
-          value={selectedBodyType || 'ayaksiz'}
-          onChange={(e) => setSelectedBodyType(e.target.value)}
-          className="text-xs px-2 py-1 bg-transparent border-none focus:outline-none cursor-pointer text-slate-700"
-        >
-          <option value="ayakli">With Legs</option>
-          <option value="ayaksiz">Without Legs</option>
-          <option value="bazali">With Base</option>
-        </select>
-      </div>
-
-      {selectedBodyType === 'bazali' && (
-        <div className="mt-3 space-y-1 pt-2 border-t border-stone-200">
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Base Height</label>
-            <input
-              type="number"
-              value={bazaHeight}
-              onChange={(e) => setBazaHeight(Number(e.target.value))}
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Front Base Offset</label>
-            <input
-              type="number"
-              value={frontBaseDistance}
-              onChange={(e) => setFrontBaseDistance(Number(e.target.value))}
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Rear Base Offset</label>
-            <input
-              type="number"
-              value={backBaseDistance}
-              onChange={(e) => setBackBaseDistance(Number(e.target.value))}
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-        </div>
-      )}
-
-      {selectedBodyType === 'ayakli' && (
-        <div className="mt-3 space-y-1 pt-2 border-t border-stone-200">
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Leg Height</label>
-            <input
-              type="number"
-              value={legHeight}
-              onChange={(e) => setLegHeight(Number(e.target.value))}
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Front Offset</label>
-            <input
-              type="number"
-              value={legFrontDistance}
-              onChange={(e) => setLegFrontDistance(Number(e.target.value))}
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Rear Offset</label>
-            <input
-              type="number"
-              value={legBackDistance}
-              onChange={(e) => setLegBackDistance(Number(e.target.value))}
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Side Offset</label>
-            <input
-              type="number"
-              value={legSideDistance}
-              onChange={(e) => setLegSideDistance(Number(e.target.value))}
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-        </div>
-      )}
-
-      <div className="flex gap-2 mt-3">
+      <div className="flex gap-2 mt-3 pt-3 border-t border-stone-200">
         <button
           onClick={() => {
             console.log('Save clicked');
           }}
-          className="flex-1 px-3 py-1.5 bg-white text-orange-600 border-2 border-orange-500 text-xs font-medium rounded hover:bg-orange-50 transition-colors"
+          className="flex-1 px-3 py-1 bg-white text-orange-600 border-2 border-orange-500 text-xs font-medium rounded hover:bg-orange-50 transition-colors"
         >
           Save
         </button>
@@ -493,7 +495,7 @@ export function PanelJointSettings() {
           onClick={() => {
             console.log('Save As clicked');
           }}
-          className="flex-1 px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded hover:bg-orange-600 transition-colors"
+          className="flex-1 px-3 py-1 bg-orange-500 text-white text-xs font-medium rounded hover:bg-orange-600 transition-colors"
         >
           Save As
         </button>
