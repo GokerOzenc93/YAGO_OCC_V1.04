@@ -451,15 +451,6 @@ export function PanelJointSettings() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Ayak Çapı</label>
-            <input
-              type="number"
-              value={legDiameter}
-              onChange={(e) => setLegDiameter(Number(e.target.value))}
-              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
             <label className="text-xs text-slate-600">Önden Mesafe</label>
             <input
               type="number"

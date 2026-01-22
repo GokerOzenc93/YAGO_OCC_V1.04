@@ -343,7 +343,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Ayak Ayarları
   legHeight: 100,
   setLegHeight: (height) => set({ legHeight: height }),
-  legDiameter: 50,
+  legDiameter: 25,
   setLegDiameter: (diameter) => set({ legDiameter: diameter }),
   legFrontDistance: 30,
   setLegFrontDistance: (distance) => set({ legFrontDistance: distance }),
