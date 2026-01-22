@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { PanelJointSettings } from './settings/PanelJointSettings';
+import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 
 interface GlobalSettingsPanelProps {
   isOpen: boolean;
@@ -12,9 +13,7 @@ interface SettingOption {
   label: string;
 }
 
-interface Profile {
-  id: string;
-  name: string;
+interface Profile extends GlobalSettingsProfile {
   isEditing?: boolean;
 }
 
@@ -28,11 +27,31 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [profiles, setProfiles] = useState<Profile[]>([
-    { id: 'default', name: 'Default' }
-  ]);
-  const [selectedProfile, setSelectedProfile] = useState<string>('default');
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [hoveredProfile, setHoveredProfile] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadProfiles();
+    }
+  }, [isOpen]);
+
+  const loadProfiles = async () => {
+    try {
+      setLoading(true);
+      const data = await globalSettingsService.listProfiles();
+      setProfiles(data.map(p => ({ ...p, isEditing: false })));
+      if (data.length > 0 && !selectedProfile) {
+        setSelectedProfile(data[0].id);
+      }
+    } catch (error) {
+      console.error('Failed to load profiles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -67,14 +86,17 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
     };
   }, [isDragging, dragOffset]);
 
-  const handleAddProfile = () => {
-    const newProfile: Profile = {
-      id: `profile-${Date.now()}`,
-      name: `Default ${profiles.length + 1}`,
-      isEditing: false
-    };
-    setProfiles([...profiles, newProfile]);
-    setSelectedProfile(newProfile.id);
+  const handleAddProfile = async () => {
+    try {
+      const newProfile = await globalSettingsService.createProfile(
+        `Default ${profiles.length + 1}`,
+        profiles.length
+      );
+      setProfiles([...profiles, { ...newProfile, isEditing: false }]);
+      setSelectedProfile(newProfile.id);
+    } catch (error) {
+      console.error('Failed to add profile:', error);
+    }
   };
 
   const handleProfileNameChange = (profileId: string, newName: string) => {
@@ -89,22 +111,35 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
     ));
   };
 
-  const handleStopEditing = (profileId: string) => {
+  const handleStopEditing = async (profileId: string) => {
+    const profile = profiles.find(p => p.id === profileId);
+    if (profile) {
+      try {
+        await globalSettingsService.updateProfile(profileId, { name: profile.name });
+      } catch (error) {
+        console.error('Failed to update profile name:', error);
+      }
+    }
     setProfiles(profiles.map(p =>
       p.id === profileId ? { ...p, isEditing: false } : p
     ));
   };
 
-  const handleDeleteProfile = (profileId: string) => {
+  const handleDeleteProfile = async (profileId: string) => {
     if (profiles.length === 1) {
       return;
     }
 
-    const updatedProfiles = profiles.filter(p => p.id !== profileId);
-    setProfiles(updatedProfiles);
+    try {
+      await globalSettingsService.deleteProfile(profileId);
+      const updatedProfiles = profiles.filter(p => p.id !== profileId);
+      setProfiles(updatedProfiles);
 
-    if (selectedProfile === profileId) {
-      setSelectedProfile(updatedProfiles[0].id);
+      if (selectedProfile === profileId) {
+        setSelectedProfile(updatedProfiles[0].id);
+      }
+    } catch (error) {
+      console.error('Failed to delete profile:', error);
     }
   };
 
@@ -137,7 +172,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             <Plus size={14} className="text-stone-600" />
           </button>
           <button
-            onClick={() => handleDeleteProfile(selectedProfile)}
+            onClick={() => selectedProfile && handleDeleteProfile(selectedProfile)}
             className={`p-0.5 hover:bg-red-100 rounded transition-colors ${
               profiles.length === 1 ? 'opacity-30 cursor-not-allowed' : ''
             }`}
@@ -157,41 +192,45 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
 
       <div className="flex h-[calc(100%-44px)]">
         <div className="w-48 border-r border-stone-200 bg-white p-2 space-y-1">
-          {profiles.map((profile) => (
-            <div
-              key={profile.id}
-              onClick={() => setSelectedProfile(profile.id)}
-              onDoubleClick={() => handleStartEditing(profile.id)}
-              onMouseEnter={() => setHoveredProfile(profile.id)}
-              onMouseLeave={() => setHoveredProfile(null)}
-              className={`relative text-xs px-2 py-0.5 bg-white border border-stone-200 rounded cursor-pointer transition-all ${
-                selectedProfile === profile.id
-                  ? 'text-slate-700 border-l-4 border-l-orange-500'
-                  : hoveredProfile === profile.id
-                  ? 'text-slate-700 border-l-4 border-l-orange-300'
-                  : 'text-slate-700'
-              }`}
-            >
-              {profile.isEditing ? (
-                <input
-                  type="text"
-                  value={profile.name}
-                  onChange={(e) => handleProfileNameChange(profile.id, e.target.value)}
-                  onBlur={() => handleStopEditing(profile.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleStopEditing(profile.id);
-                    }
-                  }}
-                  autoFocus
-                  className="w-full bg-transparent border-none outline-none text-xs"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              ) : (
-                <span className="select-none">{profile.name}</span>
-              )}
-            </div>
-          ))}
+          {loading ? (
+            <div className="text-xs text-stone-400 text-center py-4">Loading...</div>
+          ) : (
+            profiles.map((profile) => (
+              <div
+                key={profile.id}
+                onClick={() => setSelectedProfile(profile.id)}
+                onDoubleClick={() => handleStartEditing(profile.id)}
+                onMouseEnter={() => setHoveredProfile(profile.id)}
+                onMouseLeave={() => setHoveredProfile(null)}
+                className={`relative text-xs px-2 py-0.5 bg-white border border-stone-200 rounded cursor-pointer transition-all ${
+                  selectedProfile === profile.id
+                    ? 'text-slate-700 border-l-4 border-l-orange-500'
+                    : hoveredProfile === profile.id
+                    ? 'text-slate-700 border-l-4 border-l-orange-300'
+                    : 'text-slate-700'
+                }`}
+              >
+                {profile.isEditing ? (
+                  <input
+                    type="text"
+                    value={profile.name}
+                    onChange={(e) => handleProfileNameChange(profile.id, e.target.value)}
+                    onBlur={() => handleStopEditing(profile.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleStopEditing(profile.id);
+                      }
+                    }}
+                    autoFocus
+                    className="w-full bg-transparent border-none outline-none text-xs"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <span className="select-none">{profile.name}</span>
+                )}
+              </div>
+            ))
+          )}
         </div>
 
         <div className="w-48 border-r border-stone-200 bg-white p-2 space-y-1">
@@ -211,8 +250,11 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
         </div>
 
         <div className="flex-1 bg-white p-4 overflow-auto">
-          {selectedOption === 'panel_joint' ? (
-            <PanelJointSettings />
+          {selectedOption === 'panel_joint' && selectedProfile ? (
+            <PanelJointSettings
+              profileId={selectedProfile}
+              profiles={profiles}
+            />
           ) : selectedOption === 'backrest' ? (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
               Backrest Settings Content

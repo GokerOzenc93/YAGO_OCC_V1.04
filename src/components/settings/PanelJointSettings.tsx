@@ -2,10 +2,14 @@ import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '../../store';
 import { SaveAsDialog } from './SaveAsDialog';
-import { panelJointTypesService, PanelJointType } from '../PanelJointTypesDatabase';
+import { globalSettingsService, GlobalSettingsProfile } from '../GlobalSettingsDatabase';
+
+interface PanelJointSettingsProps {
+  profileId: string;
+  profiles: GlobalSettingsProfile[];
+}
 
 const Arrow: React.FC<{
   position: [number, number, number];
@@ -56,7 +60,6 @@ const Panel: React.FC<{
   isRightExpanded?: boolean;
 }> = ({ id, position, args, color, isSelected, onSelect, onShrinkLeft, onShrinkRight, showArrows, isLeftExpanded, isRightExpanded }) => {
   const geometry = new THREE.BoxGeometry(...args);
-  const edges = new THREE.EdgesGeometry(geometry);
 
   const displayColor = isSelected ? "#ef4444" : color;
 
@@ -230,13 +233,15 @@ const Cabinet3D: React.FC<{
   );
 };
 
-export function PanelJointSettings() {
+export function PanelJointSettings({ profileId, profiles }: PanelJointSettingsProps) {
   const {
     bazaHeight, setBazaHeight, frontBaseDistance, setFrontBaseDistance, backBaseDistance, setBackBaseDistance,
     legHeight, setLegHeight, legDiameter, setLegDiameter, legFrontDistance, setLegFrontDistance,
     legBackDistance, setLegBackDistance, legSideDistance, setLegSideDistance
   } = useAppStore();
 
+  const [hasSettings, setHasSettings] = React.useState(false);
+  const [loading, setLoading] = React.useState(true);
   const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>('ayaksiz');
   const [selectedPanel, setSelectedPanel] = React.useState<string | null>(null);
   const [topPanelWidth, setTopPanelWidth] = React.useState(0.45);
@@ -260,9 +265,52 @@ export function PanelJointSettings() {
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
 
   const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = React.useState(false);
-  const [currentProfileId, setCurrentProfileId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
+    loadProfileSettings();
+  }, [profileId]);
+
+  const loadProfileSettings = async () => {
+    try {
+      setLoading(true);
+      const settings = await globalSettingsService.getProfileSettings(profileId, 'panel_joint');
+
+      if (settings && settings.settings) {
+        setHasSettings(true);
+        loadSettings(settings.settings as Record<string, unknown>);
+      } else {
+        setHasSettings(false);
+        resetToDefaults();
+      }
+    } catch (error) {
+      console.error('Failed to load profile settings:', error);
+      setHasSettings(false);
+      resetToDefaults();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetToDefaults = () => {
+    setSelectedBodyType('ayaksiz');
+    setTopPanelWidth(0.45);
+    setBottomPanelWidth(0.45);
+    setTopPanelPositionX(0);
+    setBottomPanelPositionX(0);
+    setTopLeftExpanded(false);
+    setTopRightExpanded(false);
+    setBottomLeftExpanded(false);
+    setBottomRightExpanded(false);
+    setLeftPanelHeight(initialSidePanelHeight);
+    setLeftPanelPositionY(cabinetHeight / 2);
+    setRightPanelHeight(initialSidePanelHeight);
+    setRightPanelPositionY(cabinetHeight / 2);
+    setSelectedPanel(null);
+  };
+
+  React.useEffect(() => {
+    if (!hasSettings) return;
+
     setTopPanelWidth(0.45);
     setBottomPanelWidth(0.45);
     setTopPanelPositionX(0);
@@ -285,7 +333,7 @@ export function PanelJointSettings() {
       setRightPanelHeight(initialSidePanelHeight);
       setRightPanelPositionY(cabinetHeight / 2);
     }
-  }, [selectedBodyType, bazaHeight]);
+  }, [selectedBodyType, bazaHeight, hasSettings]);
 
   const handleSelectPanel = (id: string) => {
     setSelectedPanel(selectedPanel === id ? null : id);
@@ -381,60 +429,76 @@ export function PanelJointSettings() {
     rightPanelPositionY
   });
 
-  const loadSettings = (settings: PanelJointType['settings']) => {
-    if (settings.selectedBodyType) setSelectedBodyType(settings.selectedBodyType);
-    if (settings.bazaHeight !== undefined) setBazaHeight(settings.bazaHeight);
-    if (settings.frontBaseDistance !== undefined) setFrontBaseDistance(settings.frontBaseDistance);
-    if (settings.backBaseDistance !== undefined) setBackBaseDistance(settings.backBaseDistance);
-    if (settings.legHeight !== undefined) setLegHeight(settings.legHeight);
-    if (settings.legDiameter !== undefined) setLegDiameter(settings.legDiameter);
-    if (settings.legFrontDistance !== undefined) setLegFrontDistance(settings.legFrontDistance);
-    if (settings.legBackDistance !== undefined) setLegBackDistance(settings.legBackDistance);
-    if (settings.legSideDistance !== undefined) setLegSideDistance(settings.legSideDistance);
-    if (settings.topPanelWidth !== undefined) setTopPanelWidth(settings.topPanelWidth);
-    if (settings.bottomPanelWidth !== undefined) setBottomPanelWidth(settings.bottomPanelWidth);
-    if (settings.topPanelPositionX !== undefined) setTopPanelPositionX(settings.topPanelPositionX);
-    if (settings.bottomPanelPositionX !== undefined) setBottomPanelPositionX(settings.bottomPanelPositionX);
-    if (settings.topLeftExpanded !== undefined) setTopLeftExpanded(settings.topLeftExpanded);
-    if (settings.topRightExpanded !== undefined) setTopRightExpanded(settings.topRightExpanded);
-    if (settings.bottomLeftExpanded !== undefined) setBottomLeftExpanded(settings.bottomLeftExpanded);
-    if (settings.bottomRightExpanded !== undefined) setBottomRightExpanded(settings.bottomRightExpanded);
-    if (settings.leftPanelHeight !== undefined) setLeftPanelHeight(settings.leftPanelHeight);
-    if (settings.leftPanelPositionY !== undefined) setLeftPanelPositionY(settings.leftPanelPositionY);
-    if (settings.rightPanelHeight !== undefined) setRightPanelHeight(settings.rightPanelHeight);
-    if (settings.rightPanelPositionY !== undefined) setRightPanelPositionY(settings.rightPanelPositionY);
+  const loadSettings = (settings: Record<string, unknown>) => {
+    if (settings.selectedBodyType) setSelectedBodyType(settings.selectedBodyType as string);
+    if (settings.bazaHeight !== undefined) setBazaHeight(settings.bazaHeight as number);
+    if (settings.frontBaseDistance !== undefined) setFrontBaseDistance(settings.frontBaseDistance as number);
+    if (settings.backBaseDistance !== undefined) setBackBaseDistance(settings.backBaseDistance as number);
+    if (settings.legHeight !== undefined) setLegHeight(settings.legHeight as number);
+    if (settings.legDiameter !== undefined) setLegDiameter(settings.legDiameter as number);
+    if (settings.legFrontDistance !== undefined) setLegFrontDistance(settings.legFrontDistance as number);
+    if (settings.legBackDistance !== undefined) setLegBackDistance(settings.legBackDistance as number);
+    if (settings.legSideDistance !== undefined) setLegSideDistance(settings.legSideDistance as number);
+    if (settings.topPanelWidth !== undefined) setTopPanelWidth(settings.topPanelWidth as number);
+    if (settings.bottomPanelWidth !== undefined) setBottomPanelWidth(settings.bottomPanelWidth as number);
+    if (settings.topPanelPositionX !== undefined) setTopPanelPositionX(settings.topPanelPositionX as number);
+    if (settings.bottomPanelPositionX !== undefined) setBottomPanelPositionX(settings.bottomPanelPositionX as number);
+    if (settings.topLeftExpanded !== undefined) setTopLeftExpanded(settings.topLeftExpanded as boolean);
+    if (settings.topRightExpanded !== undefined) setTopRightExpanded(settings.topRightExpanded as boolean);
+    if (settings.bottomLeftExpanded !== undefined) setBottomLeftExpanded(settings.bottomLeftExpanded as boolean);
+    if (settings.bottomRightExpanded !== undefined) setBottomRightExpanded(settings.bottomRightExpanded as boolean);
+    if (settings.leftPanelHeight !== undefined) setLeftPanelHeight(settings.leftPanelHeight as number);
+    if (settings.leftPanelPositionY !== undefined) setLeftPanelPositionY(settings.leftPanelPositionY as number);
+    if (settings.rightPanelHeight !== undefined) setRightPanelHeight(settings.rightPanelHeight as number);
+    if (settings.rightPanelPositionY !== undefined) setRightPanelPositionY(settings.rightPanelPositionY as number);
   };
 
   const handleSave = async () => {
-    if (!currentProfileId) {
-      setIsSaveAsDialogOpen(true);
-      return;
-    }
-
     try {
-      await panelJointTypesService.update(currentProfileId, {
-        settings: getCurrentSettings()
-      });
-      console.log('Profile updated successfully');
+      await globalSettingsService.saveProfileSettings(profileId, 'panel_joint', getCurrentSettings());
+      setHasSettings(true);
+      console.log('Settings saved successfully');
     } catch (error) {
-      console.error('Failed to save profile:', error);
-      alert('Failed to save profile');
+      console.error('Failed to save settings:', error);
+      alert('Failed to save settings');
     }
   };
 
-  const handleSaveAs = async (name: string) => {
+  const handleSaveAs = async (targetProfileId: string, profileName: string) => {
     try {
-      const newProfile = await panelJointTypesService.create({
-        name,
-        settings: getCurrentSettings()
-      });
-      setCurrentProfileId(newProfile.id);
-      console.log('Profile saved successfully:', name);
+      await globalSettingsService.saveProfileSettings(targetProfileId, 'panel_joint', getCurrentSettings());
+      setHasSettings(true);
+      console.log('Settings saved to profile:', profileName);
     } catch (error) {
-      console.error('Failed to save profile:', error);
-      alert('Failed to save profile');
+      console.error('Failed to save settings:', error);
+      alert('Failed to save settings');
     }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-stone-400 text-sm">
+        Loading...
+      </div>
+    );
+  }
+
+  if (!hasSettings) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-stone-400">
+        <p className="text-sm mb-4">No panel joint settings saved for this profile.</p>
+        <button
+          onClick={() => {
+            setHasSettings(true);
+            resetToDefaults();
+          }}
+          className="px-4 py-2 bg-orange-500 text-white text-xs font-medium rounded hover:bg-orange-600 transition-colors"
+        >
+          Create Settings
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="border border-stone-200 rounded-lg p-3 bg-white flex flex-col h-full">
@@ -585,7 +649,8 @@ export function PanelJointSettings() {
         isOpen={isSaveAsDialogOpen}
         onClose={() => setIsSaveAsDialogOpen(false)}
         onSave={handleSaveAs}
-        onLoad={loadSettings}
+        profiles={profiles}
+        currentProfileId={profileId}
       />
     </div>
   );
