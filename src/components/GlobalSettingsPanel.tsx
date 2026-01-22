@@ -19,8 +19,8 @@ interface Profile {
 }
 
 const settingOptions: SettingOption[] = [
-  { id: 'panel_joint', label: 'Panel Birleşim Tipleri' },
-  { id: 'backrest', label: 'Arkalık Ayarları' }
+  { id: 'panel_joint', label: 'Panel Joint Types' },
+  { id: 'backrest', label: 'Backrest Settings' }
 ];
 
 export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProps) {
@@ -215,11 +215,11 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             <PanelJointSettings />
           ) : selectedOption === 'backrest' ? (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              Arkalık Ayarları İçeriği
+              Backrest Settings Content
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              Bir ayar seçin
+              Select a setting
             </div>
           )}
         </div>

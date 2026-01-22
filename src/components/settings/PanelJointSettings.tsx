@@ -395,22 +395,22 @@ export function PanelJointSettings() {
       </div>
 
       <div className="mt-3 flex items-center gap-2">
-        <p className="text-xs text-slate-600">Ana Gövde Tipi:</p>
+        <p className="text-xs text-slate-600">Cabinet Body Type:</p>
         <select
-          value={selectedBodyType || 'Ayaksiz'}
+          value={selectedBodyType || 'ayaksiz'}
           onChange={(e) => setSelectedBodyType(e.target.value)}
           className="text-xs px-2 py-1 bg-transparent border-none focus:outline-none cursor-pointer text-slate-700"
         >
-          <option value="ayakli">Ayaklı</option>
-          <option value="ayaksiz">Ayaksız</option>
-          <option value="bazali">Bazalı</option>
+          <option value="ayakli">With Legs</option>
+          <option value="ayaksiz">Without Legs</option>
+          <option value="bazali">With Base</option>
         </select>
       </div>
 
       {selectedBodyType === 'bazali' && (
         <div className="mt-3 space-y-1 pt-2 border-t border-stone-200">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Baza Yüksekliği</label>
+            <label className="text-xs text-slate-600">Base Height</label>
             <input
               type="number"
               value={bazaHeight}
@@ -419,7 +419,7 @@ export function PanelJointSettings() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Ön Baza Mesafesi</label>
+            <label className="text-xs text-slate-600">Front Base Offset</label>
             <input
               type="number"
               value={frontBaseDistance}
@@ -428,7 +428,7 @@ export function PanelJointSettings() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Arka Baza Mesafesi</label>
+            <label className="text-xs text-slate-600">Rear Base Offset</label>
             <input
               type="number"
               value={backBaseDistance}
@@ -442,7 +442,7 @@ export function PanelJointSettings() {
       {selectedBodyType === 'ayakli' && (
         <div className="mt-3 space-y-1 pt-2 border-t border-stone-200">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Ayak Yüksekliği</label>
+            <label className="text-xs text-slate-600">Leg Height</label>
             <input
               type="number"
               value={legHeight}
@@ -451,7 +451,7 @@ export function PanelJointSettings() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Önden Mesafe</label>
+            <label className="text-xs text-slate-600">Front Offset</label>
             <input
               type="number"
               value={legFrontDistance}
@@ -460,7 +460,7 @@ export function PanelJointSettings() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Arkadan Mesafe</label>
+            <label className="text-xs text-slate-600">Rear Offset</label>
             <input
               type="number"
               value={legBackDistance}
@@ -469,7 +469,7 @@ export function PanelJointSettings() {
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Yandan Mesafe</label>
+            <label className="text-xs text-slate-600">Side Offset</label>
             <input
               type="number"
               value={legSideDistance}
