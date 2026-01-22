@@ -17,7 +17,7 @@ interface Profile extends GlobalSettingsProfile {
   isEditing?: boolean;
 }
 
-const settingOptions: SettingOption[] = [
+const allSettingOptions: SettingOption[] = [
   { id: 'panel_joint', label: 'Panel Joint Types' },
   { id: 'backrest', label: 'Backrest Settings' }
 ];
@@ -31,12 +31,25 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [hoveredProfile, setHoveredProfile] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savedSettingTypes, setSavedSettingTypes] = useState<string[]>([]);
+  const [loadingSettings, setLoadingSettings] = useState(false);
+
+  const isDefaultProfile = () => {
+    const profile = profiles.find(p => p.id === selectedProfile);
+    return profile?.name === 'Default' || profiles.indexOf(profile!) === 0;
+  };
 
   useEffect(() => {
     if (isOpen) {
       loadProfiles();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedProfile) {
+      loadProfileSettingTypes();
+    }
+  }, [selectedProfile]);
 
   const loadProfiles = async () => {
     try {
@@ -50,6 +63,28 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
       console.error('Failed to load profiles:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProfileSettingTypes = async () => {
+    if (!selectedProfile) return;
+
+    try {
+      setLoadingSettings(true);
+      const settings = await globalSettingsService.getAllProfileSettings(selectedProfile);
+      setSavedSettingTypes(settings.map(s => s.setting_type));
+
+      if (selectedOption && !isDefaultProfile()) {
+        const hasSelectedOption = settings.some(s => s.setting_type === selectedOption);
+        if (!hasSelectedOption) {
+          setSelectedOption(null);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load profile settings:', error);
+      setSavedSettingTypes([]);
+    } finally {
+      setLoadingSettings(false);
     }
   };
 
@@ -89,7 +124,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   const handleAddProfile = async () => {
     try {
       const newProfile = await globalSettingsService.createProfile(
-        `Default ${profiles.length + 1}`,
+        `Profile ${profiles.length}`,
         profiles.length
       );
       setProfiles([...profiles, { ...newProfile, isEditing: false }]);
@@ -106,6 +141,9 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   };
 
   const handleStartEditing = (profileId: string) => {
+    const profile = profiles.find(p => p.id === profileId);
+    if (profile?.name === 'Default') return;
+
     setProfiles(profiles.map(p =>
       p.id === profileId ? { ...p, isEditing: true } : { ...p, isEditing: false }
     ));
@@ -126,7 +164,8 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
   };
 
   const handleDeleteProfile = async (profileId: string) => {
-    if (profiles.length === 1) {
+    const profile = profiles.find(p => p.id === profileId);
+    if (profile?.name === 'Default' || profiles.length === 1) {
       return;
     }
 
@@ -142,6 +181,21 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
       console.error('Failed to delete profile:', error);
     }
   };
+
+  const handleSettingsSaved = () => {
+    loadProfileSettingTypes();
+  };
+
+  const getVisibleOptions = () => {
+    if (isDefaultProfile()) {
+      return allSettingOptions;
+    }
+    return allSettingOptions.filter(opt => savedSettingTypes.includes(opt.id));
+  };
+
+  const visibleOptions = getVisibleOptions();
+  const selectedProfileData = profiles.find(p => p.id === selectedProfile);
+  const canDeleteProfile = selectedProfileData?.name !== 'Default' && profiles.length > 1;
 
   if (!isOpen) return null;
 
@@ -174,10 +228,10 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
           <button
             onClick={() => selectedProfile && handleDeleteProfile(selectedProfile)}
             className={`p-0.5 hover:bg-red-100 rounded transition-colors ${
-              profiles.length === 1 ? 'opacity-30 cursor-not-allowed' : ''
+              !canDeleteProfile ? 'opacity-30 cursor-not-allowed' : ''
             }`}
             title="Delete Selected Profile"
-            disabled={profiles.length === 1}
+            disabled={!canDeleteProfile}
           >
             <Trash2 size={14} className="text-red-600" />
           </button>
@@ -198,7 +252,10 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             profiles.map((profile) => (
               <div
                 key={profile.id}
-                onClick={() => setSelectedProfile(profile.id)}
+                onClick={() => {
+                  setSelectedProfile(profile.id);
+                  setSelectedOption(null);
+                }}
                 onDoubleClick={() => handleStartEditing(profile.id)}
                 onMouseEnter={() => setHoveredProfile(profile.id)}
                 onMouseLeave={() => setHoveredProfile(null)}
@@ -234,19 +291,27 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
         </div>
 
         <div className="w-48 border-r border-stone-200 bg-white p-2 space-y-1">
-          {settingOptions.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => setSelectedOption(option.id)}
-              className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
-                selectedOption === option.id
-                  ? 'text-slate-700 border-l-4 border-l-orange-500'
-                  : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+          {loadingSettings ? (
+            <div className="text-xs text-stone-400 text-center py-4">Loading...</div>
+          ) : visibleOptions.length === 0 ? (
+            <div className="text-xs text-stone-400 text-center py-4">
+              No settings saved
+            </div>
+          ) : (
+            visibleOptions.map((option) => (
+              <button
+                key={option.id}
+                onClick={() => setSelectedOption(option.id)}
+                className={`w-full text-xs text-left px-2 py-0.5 bg-white border border-stone-200 rounded transition-all ${
+                  selectedOption === option.id
+                    ? 'text-slate-700 border-l-4 border-l-orange-500'
+                    : 'text-slate-700 hover:border-l-4 hover:border-l-orange-300'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))
+          )}
         </div>
 
         <div className="flex-1 bg-white p-4 overflow-auto">
@@ -254,6 +319,8 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             <PanelJointSettings
               profileId={selectedProfile}
               profiles={profiles}
+              isDefaultProfile={isDefaultProfile()}
+              onSettingsSaved={handleSettingsSaved}
             />
           ) : selectedOption === 'backrest' ? (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
@@ -261,7 +328,7 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
             </div>
           ) : (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              Select a setting
+              {isDefaultProfile() ? 'Select a setting' : 'No settings available'}
             </div>
           )}
         </div>

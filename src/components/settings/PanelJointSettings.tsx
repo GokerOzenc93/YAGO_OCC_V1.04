@@ -9,6 +9,8 @@ import { globalSettingsService, GlobalSettingsProfile } from '../GlobalSettingsD
 interface PanelJointSettingsProps {
   profileId: string;
   profiles: GlobalSettingsProfile[];
+  isDefaultProfile: boolean;
+  onSettingsSaved: () => void;
 }
 
 const Arrow: React.FC<{
@@ -233,7 +235,7 @@ const Cabinet3D: React.FC<{
   );
 };
 
-export function PanelJointSettings({ profileId, profiles }: PanelJointSettingsProps) {
+export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSettingsSaved }: PanelJointSettingsProps) {
   const {
     bazaHeight, setBazaHeight, frontBaseDistance, setFrontBaseDistance, backBaseDistance, setBackBaseDistance,
     legHeight, setLegHeight, legDiameter, setLegDiameter, legFrontDistance, setLegFrontDistance,
@@ -278,14 +280,22 @@ export function PanelJointSettings({ profileId, profiles }: PanelJointSettingsPr
       if (settings && settings.settings) {
         setHasSettings(true);
         loadSettings(settings.settings as Record<string, unknown>);
+      } else if (isDefaultProfile) {
+        setHasSettings(true);
+        resetToDefaults();
       } else {
         setHasSettings(false);
         resetToDefaults();
       }
     } catch (error) {
       console.error('Failed to load profile settings:', error);
-      setHasSettings(false);
-      resetToDefaults();
+      if (isDefaultProfile) {
+        setHasSettings(true);
+        resetToDefaults();
+      } else {
+        setHasSettings(false);
+        resetToDefaults();
+      }
     } finally {
       setLoading(false);
     }
@@ -457,18 +467,17 @@ export function PanelJointSettings({ profileId, profiles }: PanelJointSettingsPr
     try {
       await globalSettingsService.saveProfileSettings(profileId, 'panel_joint', getCurrentSettings());
       setHasSettings(true);
-      console.log('Settings saved successfully');
+      onSettingsSaved();
     } catch (error) {
       console.error('Failed to save settings:', error);
       alert('Failed to save settings');
     }
   };
 
-  const handleSaveAs = async (targetProfileId: string, profileName: string) => {
+  const handleSaveAs = async (targetProfileId: string, _profileName: string) => {
     try {
       await globalSettingsService.saveProfileSettings(targetProfileId, 'panel_joint', getCurrentSettings());
-      setHasSettings(true);
-      console.log('Settings saved to profile:', profileName);
+      onSettingsSaved();
     } catch (error) {
       console.error('Failed to save settings:', error);
       alert('Failed to save settings');
