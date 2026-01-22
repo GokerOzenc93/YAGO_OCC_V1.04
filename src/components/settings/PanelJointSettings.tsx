@@ -2,74 +2,8 @@ import React from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
-import { ChevronLeft, ChevronRight, Save, Plus, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useAppStore } from '../../store';
-import { supabase } from '../Database';
-
-interface PanelJointPreset {
-  id: string;
-  name: string;
-  settings: any;
-  is_default: boolean;
-}
-
-const SaveAsDialog: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (name: string) => void;
-}> = ({ isOpen, onClose, onSave }) => {
-  const [name, setName] = React.useState('');
-
-  if (!isOpen) return null;
-
-  const handleSave = () => {
-    if (name.trim()) {
-      onSave(name.trim());
-      setName('');
-      onClose();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl p-4 w-80">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-slate-900">Save Preset As</h3>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-          placeholder="Enter preset name"
-          className="w-full px-3 py-2 text-sm border border-stone-300 rounded focus:outline-none focus:border-orange-500"
-          autoFocus
-        />
-        <div className="flex justify-end gap-2 mt-3">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!name.trim()}
-            className="px-3 py-1.5 text-xs bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 const Arrow: React.FC<{
   position: [number, number, number];
@@ -308,11 +242,6 @@ export function PanelJointSettings() {
   const [topPanelPositionX, setTopPanelPositionX] = React.useState(0);
   const [bottomPanelPositionX, setBottomPanelPositionX] = React.useState(0);
 
-  const [presets, setPresets] = React.useState<PanelJointPreset[]>([]);
-  const [currentPresetId, setCurrentPresetId] = React.useState<string | null>(null);
-  const [showSaveAsDialog, setShowSaveAsDialog] = React.useState(false);
-  const [selectedPreset, setSelectedPreset] = React.useState<string>('default');
-
   const cabinetHeight = 0.55;
   const panelThickness = 0.018;
   const baseHeightInMeters = bazaHeight / 1000;
@@ -327,120 +256,6 @@ export function PanelJointSettings() {
   const [topRightExpanded, setTopRightExpanded] = React.useState(false);
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
-
-  React.useEffect(() => {
-    loadPresets();
-  }, []);
-
-  const loadPresets = async () => {
-    const { data, error } = await supabase
-      .from('panel_joint_types')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (data && !error) {
-      setPresets(data);
-    }
-  };
-
-  const getCurrentSettings = () => ({
-    selectedBodyType,
-    topPanelWidth,
-    bottomPanelWidth,
-    topPanelPositionX,
-    bottomPanelPositionX,
-    topLeftExpanded,
-    topRightExpanded,
-    bottomLeftExpanded,
-    bottomRightExpanded,
-    leftPanelHeight,
-    leftPanelPositionY,
-    rightPanelHeight,
-    rightPanelPositionY,
-    bazaHeight,
-    frontBaseDistance,
-    backBaseDistance,
-    legHeight,
-    legDiameter,
-    legFrontDistance,
-    legBackDistance,
-    legSideDistance,
-  });
-
-  const applySettings = (settings: any) => {
-    setSelectedBodyType(settings.selectedBodyType);
-    setTopPanelWidth(settings.topPanelWidth);
-    setBottomPanelWidth(settings.bottomPanelWidth);
-    setTopPanelPositionX(settings.topPanelPositionX);
-    setBottomPanelPositionX(settings.bottomPanelPositionX);
-    setTopLeftExpanded(settings.topLeftExpanded);
-    setTopRightExpanded(settings.topRightExpanded);
-    setBottomLeftExpanded(settings.bottomLeftExpanded);
-    setBottomRightExpanded(settings.bottomRightExpanded);
-    setLeftPanelHeight(settings.leftPanelHeight);
-    setLeftPanelPositionY(settings.leftPanelPositionY);
-    setRightPanelHeight(settings.rightPanelHeight);
-    setRightPanelPositionY(settings.rightPanelPositionY);
-    setBazaHeight(settings.bazaHeight);
-    setFrontBaseDistance(settings.frontBaseDistance);
-    setBackBaseDistance(settings.backBaseDistance);
-    setLegHeight(settings.legHeight);
-    setLegDiameter(settings.legDiameter);
-    setLegFrontDistance(settings.legFrontDistance);
-    setLegBackDistance(settings.legBackDistance);
-    setLegSideDistance(settings.legSideDistance);
-  };
-
-  const handleSave = async () => {
-    if (!currentPresetId) return;
-
-    const settings = getCurrentSettings();
-    const { error } = await supabase
-      .from('panel_joint_types')
-      .update({ settings, updated_at: new Date().toISOString() })
-      .eq('id', currentPresetId);
-
-    if (!error) {
-      await loadPresets();
-    }
-  };
-
-  const handleSaveAs = async (name: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const settings = getCurrentSettings();
-    const { data, error } = await supabase
-      .from('panel_joint_types')
-      .insert({
-        name,
-        settings,
-        is_default: false,
-        user_id: user.id,
-      })
-      .select()
-      .single();
-
-    if (data && !error) {
-      await loadPresets();
-      setCurrentPresetId(data.id);
-      setSelectedPreset(data.id);
-    }
-  };
-
-  const handlePresetSelect = (presetId: string) => {
-    setSelectedPreset(presetId);
-    if (presetId === 'default') {
-      setCurrentPresetId(null);
-      return;
-    }
-
-    const preset = presets.find(p => p.id === presetId);
-    if (preset) {
-      setCurrentPresetId(preset.id);
-      applySettings(preset.settings);
-    }
-  };
 
   React.useEffect(() => {
     setTopPanelWidth(0.45);
@@ -539,46 +354,6 @@ export function PanelJointSettings() {
 
   return (
     <div className="border border-stone-200 rounded-lg p-3 bg-white">
-      <SaveAsDialog
-        isOpen={showSaveAsDialog}
-        onClose={() => setShowSaveAsDialog(false)}
-        onSave={handleSaveAs}
-      />
-
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex-1">
-          <select
-            value={selectedPreset}
-            onChange={(e) => handlePresetSelect(e.target.value)}
-            className="text-sm px-2 py-1 border border-stone-300 rounded focus:outline-none focus:border-orange-500 cursor-pointer"
-          >
-            <option value="default">Default</option>
-            {presets.map(preset => (
-              <option key={preset.id} value={preset.id}>
-                {preset.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={handleSave}
-            disabled={!currentPresetId}
-            className="p-1.5 text-slate-600 hover:text-orange-500 hover:bg-orange-50 rounded disabled:opacity-30 disabled:cursor-not-allowed"
-            title="Save"
-          >
-            <Save className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setShowSaveAsDialog(true)}
-            className="p-1.5 text-slate-600 hover:text-orange-500 hover:bg-orange-50 rounded"
-            title="Save As"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
       <div className="h-56 border border-stone-200 rounded overflow-hidden mb-3">
         <Canvas>
           <color attach="background" args={['#ffffff']} />
