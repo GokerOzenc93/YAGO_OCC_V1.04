@@ -257,6 +257,18 @@ interface AppState {
   setFrontBaseDistance: (distance: number) => void;
   backBaseDistance: number;
   setBackBaseDistance: (distance: number) => void;
+
+  // Ayak Ayarları
+  legHeight: number;
+  setLegHeight: (height: number) => void;
+  legDiameter: number;
+  setLegDiameter: (diameter: number) => void;
+  legFrontDistance: number;
+  setLegFrontDistance: (distance: number) => void;
+  legBackDistance: number;
+  setLegBackDistance: (distance: number) => void;
+  legSideDistance: number;
+  setLegSideDistance: (distance: number) => void;
 }
 
 /**
@@ -327,6 +339,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   setFrontBaseDistance: (distance) => set({ frontBaseDistance: distance }),
   backBaseDistance: 30,
   setBackBaseDistance: (distance) => set({ backBaseDistance: distance }),
+
+  // Ayak Ayarları
+  legHeight: 100,
+  setLegHeight: (height) => set({ legHeight: height }),
+  legDiameter: 50,
+  setLegDiameter: (diameter) => set({ legDiameter: diameter }),
+  legFrontDistance: 30,
+  setLegFrontDistance: (distance) => set({ legFrontDistance: distance }),
+  legBackDistance: 30,
+  setLegBackDistance: (distance) => set({ legBackDistance: distance }),
+  legSideDistance: 30,
+  setLegSideDistance: (distance) => set({ legSideDistance: distance }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

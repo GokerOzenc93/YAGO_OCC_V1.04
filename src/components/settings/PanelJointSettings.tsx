@@ -110,12 +110,22 @@ const Cabinet3D: React.FC<{
   bazaHeight: number;
   frontBaseDistance: number;
   backBaseDistance: number;
-}> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded, leftPanelHeight, leftPanelPositionY, rightPanelHeight, rightPanelPositionY, selectedBodyType, bazaHeight, frontBaseDistance, backBaseDistance }) => {
+  legHeight: number;
+  legDiameter: number;
+  legFrontDistance: number;
+  legBackDistance: number;
+  legSideDistance: number;
+}> = ({ topPanelWidth, bottomPanelWidth, topPanelPositionX, bottomPanelPositionX, selectedPanel, onSelectPanel, onShrinkPanel, topLeftExpanded, topRightExpanded, bottomLeftExpanded, bottomRightExpanded, leftPanelHeight, leftPanelPositionY, rightPanelHeight, rightPanelPositionY, selectedBodyType, bazaHeight, frontBaseDistance, backBaseDistance, legHeight, legDiameter, legFrontDistance, legBackDistance, legSideDistance }) => {
   const cabinetWidth = 0.45;
   const cabinetHeight = 0.55;
   const cabinetDepth = 0.25;
   const panelThickness = 0.018;
   const baseHeightInMeters = bazaHeight / 1000;
+  const legHeightInMeters = legHeight / 1000;
+  const legDiameterInMeters = legDiameter / 1000;
+  const legFrontDistanceInMeters = legFrontDistance / 1000;
+  const legBackDistanceInMeters = legBackDistance / 1000;
+  const legSideDistanceInMeters = legSideDistance / 1000;
 
   return (
     <group>
@@ -190,6 +200,27 @@ const Cabinet3D: React.FC<{
         </>
       )}
 
+      {selectedBodyType === 'ayakli' && (
+        <>
+          <mesh position={[-cabinetWidth / 2 + legSideDistanceInMeters, -legHeightInMeters / 2 - panelThickness, cabinetDepth / 2 - legFrontDistanceInMeters]}>
+            <cylinderGeometry args={[legDiameterInMeters / 2, legDiameterInMeters / 2, legHeightInMeters, 16]} />
+            <meshStandardMaterial color="#71717a" />
+          </mesh>
+          <mesh position={[cabinetWidth / 2 - legSideDistanceInMeters, -legHeightInMeters / 2 - panelThickness, cabinetDepth / 2 - legFrontDistanceInMeters]}>
+            <cylinderGeometry args={[legDiameterInMeters / 2, legDiameterInMeters / 2, legHeightInMeters, 16]} />
+            <meshStandardMaterial color="#71717a" />
+          </mesh>
+          <mesh position={[-cabinetWidth / 2 + legSideDistanceInMeters, -legHeightInMeters / 2 - panelThickness, -cabinetDepth / 2 + legBackDistanceInMeters]}>
+            <cylinderGeometry args={[legDiameterInMeters / 2, legDiameterInMeters / 2, legHeightInMeters, 16]} />
+            <meshStandardMaterial color="#71717a" />
+          </mesh>
+          <mesh position={[cabinetWidth / 2 - legSideDistanceInMeters, -legHeightInMeters / 2 - panelThickness, -cabinetDepth / 2 + legBackDistanceInMeters]}>
+            <cylinderGeometry args={[legDiameterInMeters / 2, legDiameterInMeters / 2, legHeightInMeters, 16]} />
+            <meshStandardMaterial color="#71717a" />
+          </mesh>
+        </>
+      )}
+
       <ambientLight intensity={0.7} />
       <directionalLight position={[5, 5, 5]} intensity={0.6} />
       <directionalLight position={[-5, 3, -5]} intensity={0.3} />
@@ -198,7 +229,11 @@ const Cabinet3D: React.FC<{
 };
 
 export function PanelJointSettings() {
-  const { bazaHeight, setBazaHeight, frontBaseDistance, setFrontBaseDistance, backBaseDistance, setBackBaseDistance } = useAppStore();
+  const {
+    bazaHeight, setBazaHeight, frontBaseDistance, setFrontBaseDistance, backBaseDistance, setBackBaseDistance,
+    legHeight, setLegHeight, legDiameter, setLegDiameter, legFrontDistance, setLegFrontDistance,
+    legBackDistance, setLegBackDistance, legSideDistance, setLegSideDistance
+  } = useAppStore();
 
   const [selectedBodyType, setSelectedBodyType] = React.useState<string | null>('ayaksiz');
   const [selectedPanel, setSelectedPanel] = React.useState<string | null>(null);
@@ -350,6 +385,11 @@ export function PanelJointSettings() {
             bazaHeight={bazaHeight}
             frontBaseDistance={frontBaseDistance}
             backBaseDistance={backBaseDistance}
+            legHeight={legHeight}
+            legDiameter={legDiameter}
+            legFrontDistance={legFrontDistance}
+            legBackDistance={legBackDistance}
+            legSideDistance={legSideDistance}
           />
         </Canvas>
       </div>
@@ -393,6 +433,56 @@ export function PanelJointSettings() {
               type="number"
               value={backBaseDistance}
               onChange={(e) => setBackBaseDistance(Number(e.target.value))}
+              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+        </div>
+      )}
+
+      {selectedBodyType === 'ayakli' && (
+        <div className="mt-3 space-y-2 pt-2 border-t border-stone-200">
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Ayak Yüksekliği</label>
+            <input
+              type="number"
+              value={legHeight}
+              onChange={(e) => setLegHeight(Number(e.target.value))}
+              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Ayak Çapı</label>
+            <input
+              type="number"
+              value={legDiameter}
+              onChange={(e) => setLegDiameter(Number(e.target.value))}
+              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Önden Mesafe</label>
+            <input
+              type="number"
+              value={legFrontDistance}
+              onChange={(e) => setLegFrontDistance(Number(e.target.value))}
+              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Arkadan Mesafe</label>
+            <input
+              type="number"
+              value={legBackDistance}
+              onChange={(e) => setLegBackDistance(Number(e.target.value))}
+              className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Yandan Mesafe</label>
+            <input
+              type="number"
+              value={legSideDistance}
+              onChange={(e) => setLegSideDistance(Number(e.target.value))}
               className="text-xs px-2 py-1 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
