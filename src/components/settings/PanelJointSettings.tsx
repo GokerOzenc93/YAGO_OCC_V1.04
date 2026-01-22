@@ -183,7 +183,7 @@ const Cabinet3D: React.FC<{
             id="base-front"
             position={[0, -baseHeightInMeters / 2 - panelThickness, cabinetDepth / 2 - (frontBaseDistance / 1000) - panelThickness / 2]}
             args={[cabinetWidth, baseHeightInMeters, panelThickness]}
-            color="#a8c5a1"
+            color="#f5f5f4"
             isSelected={false}
             onSelect={() => {}}
             showArrows={false}
@@ -192,7 +192,7 @@ const Cabinet3D: React.FC<{
             id="base-back"
             position={[0, -baseHeightInMeters / 2 - panelThickness, -cabinetDepth / 2 + (backBaseDistance / 1000) + panelThickness / 2]}
             args={[cabinetWidth, baseHeightInMeters, panelThickness]}
-            color="#a8c5a1"
+            color="#f5f5f4"
             isSelected={false}
             onSelect={() => {}}
             showArrows={false}

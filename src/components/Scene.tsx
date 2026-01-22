@@ -442,18 +442,25 @@ const Scene: React.FC = () => {
 
       <CameraController controlsRef={controlsRef} cameraType={cameraType} />
 
-      <ambientLight intensity={0.6} />
+      <ambientLight intensity={0.8} />
+      <hemisphereLight intensity={0.5} groundColor="#666666" />
       <directionalLight
         position={[2000, 3000, 2000]}
-        intensity={1.5}
+        intensity={1.8}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
       <directionalLight
         position={[-1000, 1500, -1000]}
-        intensity={0.4}
+        intensity={0.6}
       />
+      <directionalLight
+        position={[0, 2000, -2000]}
+        intensity={0.5}
+      />
+      <pointLight position={[1000, 1500, 1000]} intensity={0.4} />
+      <pointLight position={[-1000, 1500, -1000]} intensity={0.3} />
 
       <OrbitControls
         ref={controlsRef}

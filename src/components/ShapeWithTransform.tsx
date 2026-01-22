@@ -128,7 +128,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         }
 
         setLocalGeometry(geom);
-        const edges = new THREE.EdgesGeometry(geom, 15);
+        const edges = new THREE.EdgesGeometry(geom, 5);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -143,7 +143,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         geom.computeBoundingSphere();
 
         setLocalGeometry(geom);
-        const edges = new THREE.EdgesGeometry(geom, 15);
+        const edges = new THREE.EdgesGeometry(geom, 5);
         setEdgeGeometry(edges);
         setGeometryKey(prev => prev + 1);
         return;
@@ -314,7 +314,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, 5]} />
               )}
               <lineBasicMaterial
                 color="#000000"
@@ -337,7 +337,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, 5]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
@@ -350,7 +350,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, 5]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
@@ -384,7 +384,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               {edgeGeometry ? (
                 <bufferGeometry {...edgeGeometry} />
               ) : (
-                <edgesGeometry args={[localGeometry, 15]} />
+                <edgesGeometry args={[localGeometry, 5]} />
               )}
               <lineBasicMaterial
                 color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
