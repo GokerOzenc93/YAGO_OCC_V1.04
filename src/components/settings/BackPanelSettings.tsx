@@ -1,6 +1,6 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
+import { PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { SaveButtons } from './SaveButtons';
 import { globalSettingsService, GlobalSettingsProfile } from '../GlobalSettingsDatabase';
@@ -11,115 +11,50 @@ interface BackPanelSettingsProps {
   onSettingsSaved?: () => void;
 }
 
-const SidePanel: React.FC<{
-  thickness: number;
-  height: number;
-  depth: number;
-  color: string;
-}> = ({ thickness, height, depth, color }) => {
-  const geometry = new THREE.BoxGeometry(thickness, height, depth);
-
-  return (
-    <group>
-      <mesh>
-        <boxGeometry args={[thickness, height, depth]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <lineSegments>
-        <edgesGeometry attach="geometry" args={[geometry]} />
-        <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
-      </lineSegments>
-    </group>
-  );
-};
-
-const Backrest: React.FC<{
-  thickness: number;
-  height: number;
-  depth: number;
-  positionX: number;
-}> = ({ thickness, height, depth, positionX }) => {
-  const geometry = new THREE.BoxGeometry(thickness, height, depth);
-
-  return (
-    <group position={[positionX, 0, 0]}>
-      <mesh>
-        <boxGeometry args={[thickness, height, depth]} />
-        <meshStandardMaterial color="#ef4444" />
-      </mesh>
-      <lineSegments>
-        <edgesGeometry attach="geometry" args={[geometry]} />
-        <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
-      </lineSegments>
-    </group>
-  );
-};
-
-const TopView: React.FC<{
+const CabinetTopView: React.FC<{
   backrestThickness: number;
-  backrestHeight: number;
-  backrestDepth: number;
-  backrestOffsetX: number;
-}> = ({ backrestThickness, backrestHeight, backrestDepth, backrestOffsetX }) => {
+}> = ({ backrestThickness }) => {
+  const cabinetWidth = 0.2;
+  const cabinetHeight = 0.25;
+  const cabinetDepth = 0.22;
   const panelThickness = 0.018;
-  const panelHeight = 0.55;
-  const panelWidth = 0.3;
-  const panelDepth = 0.25;
+
+  const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
+  const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
+  const backPanelZ = -cabinetDepth / 2 + backrestThickness / 2;
 
   return (
     <group>
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <boxGeometry args={[panelWidth, panelDepth, panelThickness]} />
-        <meshStandardMaterial color="#f5f5f4" />
+      <mesh position={[leftPanelX, 0, 0]}>
+        <boxGeometry args={[panelThickness, cabinetHeight, cabinetDepth]} />
+        <meshStandardMaterial color="#d4d4d4" />
       </mesh>
-      <lineSegments rotation={[Math.PI / 2, 0, 0]}>
-        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelWidth, panelDepth, panelThickness)]} />
+      <lineSegments position={[leftPanelX, 0, 0]}>
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, cabinetDepth)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      <mesh position={[0, 0, panelDepth / 2 - backrestDepth / 2]}>
-        <boxGeometry args={[panelWidth, backrestHeight, backrestDepth]} />
+      <mesh position={[rightPanelX, 0, 0]}>
+        <boxGeometry args={[panelThickness, cabinetHeight, cabinetDepth]} />
+        <meshStandardMaterial color="#d4d4d4" />
+      </mesh>
+      <lineSegments position={[rightPanelX, 0, 0]}>
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, cabinetDepth)]} />
+        <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
+      </lineSegments>
+
+      <mesh position={[0, 0, backPanelZ]}>
+        <boxGeometry args={[cabinetWidth - panelThickness * 2, cabinetHeight, backrestThickness]} />
         <meshStandardMaterial color="#ef4444" />
       </mesh>
-      <lineSegments position={[0, 0, panelDepth / 2 - backrestDepth / 2]}>
-        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelWidth, backrestHeight, backrestDepth)]} />
+      <lineSegments position={[0, 0, backPanelZ]}>
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetWidth - panelThickness * 2, cabinetHeight, backrestThickness)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
       <ambientLight intensity={0.7} />
       <directionalLight position={[0, 5, 5]} intensity={0.6} />
       <directionalLight position={[0, 3, -5]} intensity={0.3} />
-    </group>
-  );
-};
-
-const LeftView: React.FC = () => {
-  const panelThickness = 0.018;
-  const panelHeight = 0.55;
-  const panelDepth = 0.25;
-  const backrestThickness = 0.005;
-  const backrestHeight = 0.45;
-  const backrestDepth = 0.08;
-
-  return (
-    <group rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-      <SidePanel
-        thickness={panelThickness}
-        height={panelHeight}
-        depth={panelDepth}
-        color="#f5f5f4"
-      />
-
-      <Backrest
-        thickness={backrestThickness}
-        height={backrestHeight}
-        depth={backrestDepth}
-        positionX={panelThickness / 2 + backrestThickness / 2}
-      />
-
-      <ambientLight intensity={0.7} />
-      <directionalLight position={[5, 5, 5]} intensity={0.6} />
-      <directionalLight position={[-5, 3, -5]} intensity={0.3} />
     </group>
   );
 };
@@ -264,16 +199,11 @@ export function BackPanelSettings({
   return (
     <div className="border border-stone-200 rounded-lg p-3 bg-white flex flex-col h-full">
       <div className="flex-1 overflow-auto">
-        <div className="h-56 border border-stone-200 rounded overflow-hidden mb-3">
+        <div className="h-44 border border-stone-200 rounded overflow-hidden mb-3">
           <Canvas>
             <color attach="background" args={['#ffffff']} />
-            <PerspectiveCamera makeDefault position={[0, 0.33, 0]} fov={45} />
-            <TopView
-              backrestThickness={0.005}
-              backrestHeight={backrestHeight}
-              backrestDepth={backrestDepth}
-              backrestOffsetX={backrestOffsetX}
-            />
+            <PerspectiveCamera makeDefault position={[0, 0.4, 0]} fov={35} />
+            <CabinetTopView backrestThickness={backrestThickness} />
           </Canvas>
         </div>
 
