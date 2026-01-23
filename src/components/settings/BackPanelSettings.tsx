@@ -12,18 +12,16 @@ interface BackPanelSettingsProps {
 }
 
 const CabinetTopView: React.FC<{
-  backrestThickness: number;
+  panelThickness: number;
   viewMode: 'plan' | 'side';
-}> = ({ backrestThickness, viewMode }) => {
+}> = ({ panelThickness, viewMode }) => {
   const cabinetWidth = 0.14;
   const cabinetDepth = 0.1;
-  const panelThickness = 0.018;
 
   if (viewMode === 'side') {
     const sideHeight = 0.1;
     const topPanelY = sideHeight / 2 - panelThickness / 2;
     const bottomPanelY = -sideHeight / 2 + panelThickness / 2;
-    const backPanelZ = -cabinetDepth / 2 + backrestThickness / 2;
     const innerWidth = cabinetWidth - panelThickness * 2;
 
     return (
@@ -46,15 +44,6 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        <mesh position={[0, 0, backPanelZ]}>
-          <boxGeometry args={[innerWidth, sideHeight - panelThickness * 2, backrestThickness]} />
-          <meshStandardMaterial color="#ef4444" />
-        </mesh>
-        <lineSegments position={[0, 0, backPanelZ]}>
-          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, sideHeight - panelThickness * 2, backrestThickness)]} />
-          <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
-        </lineSegments>
-
         <ambientLight intensity={0.7} />
         <directionalLight position={[-5, 5, 5]} intensity={0.6} />
         <directionalLight position={[-5, 3, -5]} intensity={0.3} />
@@ -65,7 +54,6 @@ const CabinetTopView: React.FC<{
   const cabinetHeight = 0.25;
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
   const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
-  const backPanelZ = -cabinetDepth / 2 + backrestThickness / 2;
 
   return (
     <group>
@@ -87,15 +75,6 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      <mesh position={[0, 0, backPanelZ]}>
-        <boxGeometry args={[cabinetWidth - panelThickness * 2, cabinetHeight, backrestThickness]} />
-        <meshStandardMaterial color="#ef4444" />
-      </mesh>
-      <lineSegments position={[0, 0, backPanelZ]}>
-        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetWidth - panelThickness * 2, cabinetHeight, backrestThickness)]} />
-        <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
-      </lineSegments>
-
       <ambientLight intensity={0.7} />
       <directionalLight position={[0, 5, 5]} intensity={0.6} />
       <directionalLight position={[0, 3, -5]} intensity={0.3} />
@@ -110,10 +89,6 @@ export function BackPanelSettings({
 }: BackPanelSettingsProps) {
   const [hasSettings, setHasSettings] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
-  const [backrestThickness, setBackrestThickness] = React.useState(0.005);
-  const [backrestHeight, setBackrestHeight] = React.useState(0.45);
-  const [backrestDepth, setBackrestDepth] = React.useState(0.08);
-  const [backrestOffsetX, setBackrestOffsetX] = React.useState(0.018);
   const [panelThickness, setPanelThickness] = React.useState(0.018);
   const [loose, setLoose] = React.useState(0.002);
   const [grooveOffset, setGrooveOffset] = React.useState(0.004);
@@ -170,24 +145,12 @@ export function BackPanelSettings({
   };
 
   const resetToDefaults = () => {
-    setBackrestThickness(0.005);
-    setBackrestHeight(0.45);
-    setBackrestDepth(0.08);
-    setBackrestOffsetX(0.018);
     setPanelThickness(0.018);
     setLoose(0.002);
     setGrooveOffset(0.004);
   };
 
   const loadSettings = (settings: Record<string, unknown>) => {
-    if (settings.backrestThickness !== undefined)
-      setBackrestThickness(settings.backrestThickness as number);
-    if (settings.backrestHeight !== undefined)
-      setBackrestHeight(settings.backrestHeight as number);
-    if (settings.backrestDepth !== undefined)
-      setBackrestDepth(settings.backrestDepth as number);
-    if (settings.backrestOffsetX !== undefined)
-      setBackrestOffsetX(settings.backrestOffsetX as number);
     if (settings.panelThickness !== undefined)
       setPanelThickness(settings.panelThickness as number);
     if (settings.loose !== undefined)
@@ -197,10 +160,6 @@ export function BackPanelSettings({
   };
 
   const getCurrentSettings = () => ({
-    backrestThickness,
-    backrestHeight,
-    backrestDepth,
-    backrestOffsetX,
     panelThickness,
     loose,
     grooveOffset
@@ -267,7 +226,7 @@ export function BackPanelSettings({
             ) : (
               <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1400} />
             )}
-            <CabinetTopView backrestThickness={backrestThickness} viewMode={viewMode} />
+            <CabinetTopView panelThickness={panelThickness} viewMode={viewMode} />
           </Canvas>
         </div>
 
@@ -284,46 +243,6 @@ export function BackPanelSettings({
         </div>
 
         <div className="space-y-1 pt-2 border-t border-stone-200">
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Backrest Thickness</label>
-            <input
-              type="number"
-              value={backrestThickness}
-              onChange={(e) => setBackrestThickness(Number(e.target.value))}
-              step="0.001"
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Backrest Height</label>
-            <input
-              type="number"
-              value={backrestHeight}
-              onChange={(e) => setBackrestHeight(Number(e.target.value))}
-              step="0.01"
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Backrest Depth</label>
-            <input
-              type="number"
-              value={backrestDepth}
-              onChange={(e) => setBackrestDepth(Number(e.target.value))}
-              step="0.01"
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Backrest Offset</label>
-            <input
-              type="number"
-              value={backrestOffsetX}
-              onChange={(e) => setBackrestOffsetX(Number(e.target.value))}
-              step="0.001"
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
           <div className="flex items-center justify-between">
             <label className="text-xs text-slate-600">Panel Thickness</label>
             <input
