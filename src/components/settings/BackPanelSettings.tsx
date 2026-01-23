@@ -23,30 +23,41 @@ const CabinetTopView: React.FC<{
     const sideHeight = 0.1;
     const topPanelY = sideHeight / 2 - panelThickness / 2;
     const bottomPanelY = -sideHeight / 2 + panelThickness / 2;
+    const backPanelZ = -cabinetDepth / 2 + backrestThickness / 2;
+    const innerWidth = cabinetWidth - panelThickness * 2;
 
     return (
       <group>
         <mesh position={[0, topPanelY, 0]}>
-          <boxGeometry args={[cabinetDepth, panelThickness, cabinetWidth]} />
-          <meshStandardMaterial color="#fed7aa" />
+          <boxGeometry args={[innerWidth, panelThickness, cabinetDepth]} />
+          <meshStandardMaterial color="#d4d4d4" />
         </mesh>
         <lineSegments position={[0, topPanelY, 0]}>
-          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetDepth, panelThickness, cabinetWidth)]} />
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, panelThickness, cabinetDepth)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
         <mesh position={[0, bottomPanelY, 0]}>
-          <boxGeometry args={[cabinetDepth, panelThickness, cabinetWidth]} />
-          <meshStandardMaterial color="#fed7aa" />
+          <boxGeometry args={[innerWidth, panelThickness, cabinetDepth]} />
+          <meshStandardMaterial color="#d4d4d4" />
         </mesh>
         <lineSegments position={[0, bottomPanelY, 0]}>
-          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetDepth, panelThickness, cabinetWidth)]} />
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, panelThickness, cabinetDepth)]} />
+          <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
+        </lineSegments>
+
+        <mesh position={[0, 0, backPanelZ]}>
+          <boxGeometry args={[innerWidth, sideHeight - panelThickness * 2, backrestThickness]} />
+          <meshStandardMaterial color="#ef4444" />
+        </mesh>
+        <lineSegments position={[0, 0, backPanelZ]}>
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, sideHeight - panelThickness * 2, backrestThickness)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
         <ambientLight intensity={0.7} />
-        <directionalLight position={[5, 5, 0]} intensity={0.6} />
-        <directionalLight position={[-5, 3, 0]} intensity={0.3} />
+        <directionalLight position={[-5, 5, 5]} intensity={0.6} />
+        <directionalLight position={[-5, 3, -5]} intensity={0.3} />
       </group>
     );
   }
@@ -239,7 +250,7 @@ export function BackPanelSettings({
             {viewMode === 'plan' ? (
               <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={1400} />
             ) : (
-              <OrthographicCamera makeDefault position={[0, 0, 1]} zoom={1400} />
+              <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1400} />
             )}
             <CabinetTopView backrestThickness={backrestThickness} viewMode={viewMode} />
           </Canvas>
