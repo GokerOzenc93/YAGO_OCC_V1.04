@@ -642,7 +642,6 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
         onSaveAs={handleSaveAs}
         profiles={profiles}
         currentProfileId={profileId}
-        isDefaultProfile={isDefaultProfile}
       />
     </div>
   );

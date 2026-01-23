@@ -334,7 +334,6 @@ export function BackPanelSettings({
         onSaveAs={handleSaveAs}
         profiles={profiles}
         currentProfileId={profileId}
-        isDefaultProfile={isDefaultProfile}
       />
     </div>
   );

@@ -7,15 +7,13 @@ interface SaveButtonsProps {
   onSaveAs: (targetProfileId: string, profileName: string) => void;
   profiles: GlobalSettingsProfile[];
   currentProfileId: string;
-  isDefaultProfile: boolean;
 }
 
 export function SaveButtons({
   onSave,
   onSaveAs,
   profiles,
-  currentProfileId,
-  isDefaultProfile
+  currentProfileId
 }: SaveButtonsProps) {
   const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = React.useState(false);
 
@@ -28,25 +26,21 @@ export function SaveButtons({
         >
           Save
         </button>
-        {!isDefaultProfile && (
-          <button
-            onClick={() => setIsSaveAsDialogOpen(true)}
-            className="flex-1 px-3 py-1 bg-orange-500 text-white text-xs font-medium rounded hover:bg-orange-600 transition-colors"
-          >
-            Save As
-          </button>
-        )}
+        <button
+          onClick={() => setIsSaveAsDialogOpen(true)}
+          className="flex-1 px-3 py-1 bg-orange-500 text-white text-xs font-medium rounded hover:bg-orange-600 transition-colors"
+        >
+          Save As
+        </button>
       </div>
 
-      {!isDefaultProfile && (
-        <SaveAsDialog
-          isOpen={isSaveAsDialogOpen}
-          onClose={() => setIsSaveAsDialogOpen(false)}
-          onSave={onSaveAs}
-          profiles={profiles}
-          currentProfileId={currentProfileId}
-        />
-      )}
+      <SaveAsDialog
+        isOpen={isSaveAsDialogOpen}
+        onClose={() => setIsSaveAsDialogOpen(false)}
+        onSave={onSaveAs}
+        profiles={profiles}
+        currentProfileId={currentProfileId}
+      />
     </>
   );
 }
