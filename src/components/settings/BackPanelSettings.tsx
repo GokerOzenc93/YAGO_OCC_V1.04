@@ -16,7 +16,7 @@ const CabinetTopView: React.FC<{
 }> = ({ backrestThickness }) => {
   const cabinetWidth = 0.2;
   const cabinetHeight = 0.25;
-  const cabinetDepth = 0.22;
+  const cabinetDepth = 0.18;
   const panelThickness = 0.018;
 
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
@@ -202,7 +202,7 @@ export function BackPanelSettings({
         <div className="h-44 border border-stone-200 rounded overflow-hidden mb-3">
           <Canvas>
             <color attach="background" args={['#ffffff']} />
-            <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={500} />
+            <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={900} />
             <CabinetTopView backrestThickness={backrestThickness} />
           </Canvas>
         </div>
