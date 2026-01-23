@@ -13,10 +13,11 @@ interface BackPanelSettingsProps {
 
 const CabinetTopView: React.FC<{
   backrestThickness: number;
-}> = ({ backrestThickness }) => {
-  const cabinetWidth = 0.2;
+  viewMode: 'plan' | 'side';
+}> = ({ backrestThickness, viewMode }) => {
+  const cabinetWidth = 0.14;
   const cabinetHeight = 0.25;
-  const cabinetDepth = 0.18;
+  const cabinetDepth = 0.1;
   const panelThickness = 0.018;
 
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
@@ -71,6 +72,7 @@ export function BackPanelSettings({
   const [backrestDepth, setBackrestDepth] = React.useState(0.08);
   const [backrestOffsetX, setBackrestOffsetX] = React.useState(0.018);
   const [profiles, setProfiles] = React.useState<GlobalSettingsProfile[]>([]);
+  const [viewMode, setViewMode] = React.useState<'plan' | 'side'>('plan');
 
   React.useEffect(() => {
     loadProfiles();
@@ -202,11 +204,26 @@ export function BackPanelSettings({
         <div className="h-44 border border-stone-200 rounded overflow-hidden mb-3">
           <Canvas>
             <color attach="background" args={['#ffffff']} />
-            <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={900} />
-            <CabinetTopView backrestThickness={backrestThickness} />
+            {viewMode === 'plan' ? (
+              <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={1400} />
+            ) : (
+              <OrthographicCamera makeDefault position={[1, 0, 0]} rotation={[0, Math.PI / 2, 0]} zoom={1400} />
+            )}
+            <CabinetTopView backrestThickness={backrestThickness} viewMode={viewMode} />
           </Canvas>
         </div>
 
+        <div className="flex items-center gap-2 mb-3">
+          <p className="text-xs text-slate-600">View:</p>
+          <select
+            value={viewMode}
+            onChange={(e) => setViewMode(e.target.value as 'plan' | 'side')}
+            className="text-xs px-2 py-1 bg-transparent border-none focus:outline-none cursor-pointer text-slate-700"
+          >
+            <option value="plan">Plan</option>
+            <option value="side">Side</option>
+          </select>
+        </div>
 
         <div className="space-y-1 pt-2 border-t border-stone-200">
           <div className="flex items-center justify-between">
