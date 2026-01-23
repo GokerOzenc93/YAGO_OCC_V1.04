@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Trash2 } from 'lucide-react';
 import { PanelJointSettings } from './settings/PanelJointSettings';
+import { BackPanelSettings } from './settings/BackPanelSettings';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 
 interface GlobalSettingsPanelProps {
@@ -19,7 +20,7 @@ interface Profile extends GlobalSettingsProfile {
 
 const allSettingOptions: SettingOption[] = [
   { id: 'panel_joint', label: 'Panel Joint Types' },
-  { id: 'backrest', label: 'Backrest Settings' }
+  { id: 'back_panel', label: 'Back Panel Settings' }
 ];
 
 export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProps) {
@@ -322,10 +323,8 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
               isDefaultProfile={isDefaultProfile()}
               onSettingsSaved={handleSettingsSaved}
             />
-          ) : selectedOption === 'backrest' ? (
-            <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              Backrest Settings Content
-            </div>
+          ) : selectedOption === 'back_panel' && selectedProfile ? (
+            <BackPanelSettings profileId={selectedProfile} />
           ) : (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
               {isDefaultProfile() ? 'Select a setting' : 'No settings available'}
