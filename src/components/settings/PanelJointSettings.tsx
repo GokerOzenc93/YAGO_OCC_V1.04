@@ -510,7 +510,7 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
   return (
     <div className="border border-stone-200 rounded-lg p-3 bg-white flex flex-col h-full">
       <div className="flex-1">
-        <div className="h-56 border border-stone-200 rounded overflow-hidden mb-3">
+        <div className="h-80 border border-stone-200 rounded overflow-hidden mb-3">
           <Canvas>
             <color attach="background" args={['#ffffff']} />
             <PerspectiveCamera makeDefault position={[0.3, 0.4, 1]} fov={45} />
