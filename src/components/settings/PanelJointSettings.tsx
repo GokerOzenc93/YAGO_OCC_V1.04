@@ -3,7 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore } from '../../store';
-import { SaveAsDialog } from './SaveAsDialog';
+import { SaveButtons } from './SaveButtons';
 import { globalSettingsService, GlobalSettingsProfile } from '../GlobalSettingsDatabase';
 
 interface PanelJointSettingsProps {
@@ -265,8 +265,6 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
   const [topRightExpanded, setTopRightExpanded] = React.useState(false);
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
-
-  const [isSaveAsDialogOpen, setIsSaveAsDialogOpen] = React.useState(false);
 
   React.useEffect(() => {
     loadProfileSettings();
@@ -639,27 +637,12 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
         )}
       </div>
 
-      <div className="flex gap-2 mt-3 pt-3 border-t border-stone-200">
-        <button
-          onClick={handleSave}
-          className="flex-1 px-3 py-1 bg-white text-orange-600 border-2 border-orange-500 text-xs font-medium rounded hover:bg-orange-50 transition-colors"
-        >
-          Save
-        </button>
-        <button
-          onClick={() => setIsSaveAsDialogOpen(true)}
-          className="flex-1 px-3 py-1 bg-orange-500 text-white text-xs font-medium rounded hover:bg-orange-600 transition-colors"
-        >
-          Save As
-        </button>
-      </div>
-
-      <SaveAsDialog
-        isOpen={isSaveAsDialogOpen}
-        onClose={() => setIsSaveAsDialogOpen(false)}
-        onSave={handleSaveAs}
+      <SaveButtons
+        onSave={handleSave}
+        onSaveAs={handleSaveAs}
         profiles={profiles}
         currentProfileId={profileId}
+        isDefaultProfile={isDefaultProfile}
       />
     </div>
   );

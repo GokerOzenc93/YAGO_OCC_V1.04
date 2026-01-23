@@ -324,7 +324,11 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
               onSettingsSaved={handleSettingsSaved}
             />
           ) : selectedOption === 'back_panel' && selectedProfile ? (
-            <BackPanelSettings profileId={selectedProfile} />
+            <BackPanelSettings
+              profileId={selectedProfile}
+              isDefaultProfile={isDefaultProfile()}
+              onSettingsSaved={handleSettingsSaved}
+            />
           ) : (
             <div className="flex items-center justify-center h-full text-stone-400 text-sm">
               {isDefaultProfile() ? 'Select a setting' : 'No settings available'}
