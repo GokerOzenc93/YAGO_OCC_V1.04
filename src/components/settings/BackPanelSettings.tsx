@@ -114,6 +114,9 @@ export function BackPanelSettings({
   const [backrestHeight, setBackrestHeight] = React.useState(0.45);
   const [backrestDepth, setBackrestDepth] = React.useState(0.08);
   const [backrestOffsetX, setBackrestOffsetX] = React.useState(0.018);
+  const [panelThickness, setPanelThickness] = React.useState(0.018);
+  const [loose, setLoose] = React.useState(0.002);
+  const [grooveOffset, setGrooveOffset] = React.useState(0.004);
   const [profiles, setProfiles] = React.useState<GlobalSettingsProfile[]>([]);
   const [viewMode, setViewMode] = React.useState<'plan' | 'side'>('plan');
 
@@ -171,6 +174,9 @@ export function BackPanelSettings({
     setBackrestHeight(0.45);
     setBackrestDepth(0.08);
     setBackrestOffsetX(0.018);
+    setPanelThickness(0.018);
+    setLoose(0.002);
+    setGrooveOffset(0.004);
   };
 
   const loadSettings = (settings: Record<string, unknown>) => {
@@ -182,13 +188,22 @@ export function BackPanelSettings({
       setBackrestDepth(settings.backrestDepth as number);
     if (settings.backrestOffsetX !== undefined)
       setBackrestOffsetX(settings.backrestOffsetX as number);
+    if (settings.panelThickness !== undefined)
+      setPanelThickness(settings.panelThickness as number);
+    if (settings.loose !== undefined)
+      setLoose(settings.loose as number);
+    if (settings.grooveOffset !== undefined)
+      setGrooveOffset(settings.grooveOffset as number);
   };
 
   const getCurrentSettings = () => ({
     backrestThickness,
     backrestHeight,
     backrestDepth,
-    backrestOffsetX
+    backrestOffsetX,
+    panelThickness,
+    loose,
+    grooveOffset
   });
 
   const handleSave = async () => {
@@ -305,6 +320,36 @@ export function BackPanelSettings({
               type="number"
               value={backrestOffsetX}
               onChange={(e) => setBackrestOffsetX(Number(e.target.value))}
+              step="0.001"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Panel Thickness</label>
+            <input
+              type="number"
+              value={panelThickness}
+              onChange={(e) => setPanelThickness(Number(e.target.value))}
+              step="0.001"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Loose</label>
+            <input
+              type="number"
+              value={loose}
+              onChange={(e) => setLoose(Number(e.target.value))}
+              step="0.001"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Groove Offset</label>
+            <input
+              type="number"
+              value={grooveOffset}
+              onChange={(e) => setGrooveOffset(Number(e.target.value))}
               step="0.001"
               className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
