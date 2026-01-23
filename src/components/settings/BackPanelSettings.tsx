@@ -202,7 +202,7 @@ export function BackPanelSettings({
         <div className="h-44 border border-stone-200 rounded overflow-hidden mb-3">
           <Canvas>
             <color attach="background" args={['#ffffff']} />
-            <PerspectiveCamera makeDefault position={[0, 0.4, 0]} fov={35} />
+            <PerspectiveCamera makeDefault position={[0, 0.5, 0]} rotation={[-Math.PI / 2, 0, 0]} fov={35} />
             <CabinetTopView backrestThickness={backrestThickness} />
           </Canvas>
         </div>
