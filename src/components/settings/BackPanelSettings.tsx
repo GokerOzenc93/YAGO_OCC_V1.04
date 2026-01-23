@@ -16,10 +16,42 @@ const CabinetTopView: React.FC<{
   viewMode: 'plan' | 'side';
 }> = ({ backrestThickness, viewMode }) => {
   const cabinetWidth = 0.14;
-  const cabinetHeight = 0.25;
   const cabinetDepth = 0.1;
   const panelThickness = 0.018;
 
+  if (viewMode === 'side') {
+    const sideHeight = 0.1;
+    const topPanelY = sideHeight / 2 - panelThickness / 2;
+    const bottomPanelY = -sideHeight / 2 + panelThickness / 2;
+
+    return (
+      <group>
+        <mesh position={[0, topPanelY, 0]}>
+          <boxGeometry args={[cabinetDepth, panelThickness, cabinetWidth]} />
+          <meshStandardMaterial color="#fed7aa" />
+        </mesh>
+        <lineSegments position={[0, topPanelY, 0]}>
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetDepth, panelThickness, cabinetWidth)]} />
+          <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
+        </lineSegments>
+
+        <mesh position={[0, bottomPanelY, 0]}>
+          <boxGeometry args={[cabinetDepth, panelThickness, cabinetWidth]} />
+          <meshStandardMaterial color="#fed7aa" />
+        </mesh>
+        <lineSegments position={[0, bottomPanelY, 0]}>
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetDepth, panelThickness, cabinetWidth)]} />
+          <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
+        </lineSegments>
+
+        <ambientLight intensity={0.7} />
+        <directionalLight position={[5, 5, 0]} intensity={0.6} />
+        <directionalLight position={[-5, 3, 0]} intensity={0.3} />
+      </group>
+    );
+  }
+
+  const cabinetHeight = 0.25;
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
   const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
   const backPanelZ = -cabinetDepth / 2 + backrestThickness / 2;
@@ -207,7 +239,7 @@ export function BackPanelSettings({
             {viewMode === 'plan' ? (
               <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={1400} />
             ) : (
-              <OrthographicCamera makeDefault position={[1, 0, 0]} rotation={[0, Math.PI / 2, 0]} zoom={1400} />
+              <OrthographicCamera makeDefault position={[0, 0, 1]} zoom={1400} />
             )}
             <CabinetTopView backrestThickness={backrestThickness} viewMode={viewMode} />
           </Canvas>
