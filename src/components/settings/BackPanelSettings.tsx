@@ -109,7 +109,6 @@ const CabinetTopView: React.FC<{
           const grooveDimZ = -cabinetDepth / 2 - 0.012;
           const grooveTickLength = 0.006;
           const grooveTextOffset = 0.01;
-          const thicknessValue = backrestThickness * 1000;
 
           return (
             <>
@@ -147,24 +146,6 @@ const CabinetTopView: React.FC<{
                 anchorY="middle"
               >
                 {grooveDepthValue.toFixed(1)}
-              </Text>
-
-              <mesh position={[0, 0, backPanelZ]} rotation={[0, Math.PI / 2, 0]} renderOrder={999}>
-                <planeGeometry args={[0.022, 0.01]} />
-                <meshBasicMaterial color="#ffffff" depthTest={false} />
-              </mesh>
-              <Text
-                key={`thickness-text-${backrestThickness}`}
-                position={[0, 0, backPanelZ]}
-                rotation={[0, -Math.PI / 2, 0]}
-                fontSize={0.008}
-                color="#666666"
-                anchorX="center"
-                anchorY="middle"
-                renderOrder={1000}
-                depthOffset={-1}
-              >
-                {thicknessValue.toFixed(1)}
               </Text>
             </>
           );
@@ -310,6 +291,7 @@ const CabinetTopView: React.FC<{
         const thicknessDimEndZ = backPanelZ + backrestThickness / 2;
         const thicknessDimX = 0;
         const thicknessTickLength = 0.006;
+        const thicknessTextOffset = 0.01;
 
         return (
           <>
@@ -337,19 +319,13 @@ const CabinetTopView: React.FC<{
               <lineBasicMaterial color="#666666" linewidth={1} />
             </line>
 
-            <mesh position={[thicknessDimX, dimY, (thicknessDimStartZ + thicknessDimEndZ) / 2]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={999}>
-              <planeGeometry args={[0.022, 0.01]} />
-              <meshBasicMaterial color="#ffffff" depthTest={false} />
-            </mesh>
             <Text
-              position={[thicknessDimX, dimY, (thicknessDimStartZ + thicknessDimEndZ) / 2]}
+              position={[thicknessDimX, dimY + thicknessTextOffset, (thicknessDimStartZ + thicknessDimEndZ) / 2]}
               rotation={[-Math.PI / 2, 0, 0]}
               fontSize={0.008}
               color="#666666"
               anchorX="center"
               anchorY="middle"
-              renderOrder={1000}
-              depthOffset={-1}
             >
               {thicknessDimValue.toFixed(1)}
             </Text>
