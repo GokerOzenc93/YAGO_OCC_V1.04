@@ -32,16 +32,17 @@ const CabinetTopView: React.FC<{
 
     const dimStartZ = -cabinetDepth / 2;
     const dimEndZ = -cabinetDepth / 2 + grooveOffset + backrestThickness;
-    const dimX = -innerWidth / 2 - 0.015;
-    const dimY = -sideHeight / 2 - 0.012;
+    const dimX = -innerWidth / 2 - 0.008;
+    const dimY = -sideHeight / 2 - 0.008;
     const dimensionValue = (grooveOffset + backrestThickness) * 1000;
     const tickLength = 0.006;
-    const textOffset = 0.012;
+    const textOffset = 0.008;
 
     const thicknessDimValue = backrestThickness * 1000;
     const thicknessDimStartZ = backPanelZ - backrestThickness / 2;
     const thicknessDimEndZ = backPanelZ + backrestThickness / 2;
-    const thicknessDimY = sideHeight / 2 + 0.015;
+    const thicknessDimY = sideHeight / 2 + 0.008;
+    const thicknessTickLength = 0.006;
 
     return (
       <group>
@@ -72,36 +73,24 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        <line key="dim-line-side-depth">
+        <line key={`tick-start-side-depth-${dimStartZ}`}>
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
               count={2}
-              array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
+              array={new Float32Array([dimX, dimY, dimStartZ, dimX - tickLength, dimY, dimStartZ])}
               itemSize={3}
             />
           </bufferGeometry>
           <lineBasicMaterial color="#666666" linewidth={1} />
         </line>
 
-        <line key="tick-start-side-depth">
+        <line key={`tick-end-side-depth-${dimEndZ}`}>
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
               count={2}
-              array={new Float32Array([dimX, dimY - tickLength, dimStartZ, dimX, dimY + tickLength, dimStartZ])}
-              itemSize={3}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial color="#666666" linewidth={1} />
-        </line>
-
-        <line key="tick-end-side-depth">
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              count={2}
-              array={new Float32Array([dimX, dimY - tickLength, dimEndZ, dimX, dimY + tickLength, dimEndZ])}
+              array={new Float32Array([dimX, dimY, dimEndZ, dimX - tickLength, dimY, dimEndZ])}
               itemSize={3}
             />
           </bufferGeometry>
@@ -109,8 +98,8 @@ const CabinetTopView: React.FC<{
         </line>
 
         <Text
-          position={[dimX, dimY - textOffset, (dimStartZ + dimEndZ) / 2]}
-          rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+          position={[dimX - textOffset, dimY, (dimStartZ + dimEndZ) / 2]}
+          rotation={[0, Math.PI / 2, 0]}
           fontSize={0.008}
           color="#666666"
           anchorX="center"
@@ -119,36 +108,24 @@ const CabinetTopView: React.FC<{
           {dimensionValue.toFixed(1)}
         </Text>
 
-        <line key="dim-line-side-thickness">
+        <line key={`tick-start-side-thickness-${thicknessDimStartZ}`}>
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
               count={2}
-              array={new Float32Array([0, thicknessDimY, thicknessDimStartZ, 0, thicknessDimY, thicknessDimEndZ])}
+              array={new Float32Array([0, thicknessDimY, thicknessDimStartZ, 0, thicknessDimY + thicknessTickLength, thicknessDimStartZ])}
               itemSize={3}
             />
           </bufferGeometry>
           <lineBasicMaterial color="#666666" linewidth={1} />
         </line>
 
-        <line key="tick-start-side-thickness">
+        <line key={`tick-end-side-thickness-${thicknessDimEndZ}`}>
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
               count={2}
-              array={new Float32Array([0, thicknessDimY - tickLength, thicknessDimStartZ, 0, thicknessDimY + tickLength, thicknessDimStartZ])}
-              itemSize={3}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial color="#666666" linewidth={1} />
-        </line>
-
-        <line key="tick-end-side-thickness">
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              count={2}
-              array={new Float32Array([0, thicknessDimY - tickLength, thicknessDimEndZ, 0, thicknessDimY + tickLength, thicknessDimEndZ])}
+              array={new Float32Array([0, thicknessDimY, thicknessDimEndZ, 0, thicknessDimY + thicknessTickLength, thicknessDimEndZ])}
               itemSize={3}
             />
           </bufferGeometry>
@@ -157,7 +134,7 @@ const CabinetTopView: React.FC<{
 
         <Text
           position={[0, thicknessDimY + textOffset, (thicknessDimStartZ + thicknessDimEndZ) / 2]}
-          rotation={[-Math.PI / 2, 0, Math.PI / 2]}
+          rotation={[0, Math.PI / 2, 0]}
           fontSize={0.008}
           color="#666666"
           anchorX="center"
