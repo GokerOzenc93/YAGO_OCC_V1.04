@@ -106,7 +106,7 @@ const CabinetTopView: React.FC<{
           const bottomPanelTopEdge = bottomPanelY + panelThickness / 2;
           const backPanelBottomEdge = -backPanelHeight / 2;
           const grooveDepthValue = grooveDepth * 1000;
-          const grooveDimX = -innerWidth / 2 - 0.052;
+          const grooveDimX = -innerWidth / 2 - 1.012;
           const grooveTickLength = 0.006;
           const grooveTextOffset = 0.01;
 
