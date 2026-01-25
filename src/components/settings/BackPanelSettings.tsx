@@ -25,13 +25,8 @@ const CabinetTopView: React.FC<{
     const sideHeight = 0.1;
     const topPanelY = sideHeight / 2 - panelThickness / 2;
     const bottomPanelY = -sideHeight / 2 + panelThickness / 2;
-    const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
+    const backPanelZ = -cabinetDepth / 2 + grooveOffset + grooveDepth + backrestThickness / 2;
     const innerWidth = cabinetWidth - panelThickness * 2;
-    const grooveZ = -cabinetDepth / 2 + grooveDepth / 2;
-
-    // Groove positions in top and bottom panels
-    const topGrooveY = topPanelY - grooveDepth / 2;
-    const bottomGrooveY = bottomPanelY + grooveDepth / 2;
 
     return (
       <group>
@@ -53,30 +48,6 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        {grooveDepth > 0 && (
-          <>
-            {/* Top panel groove */}
-            <mesh position={[0, topGrooveY, grooveZ]}>
-              <boxGeometry args={[innerWidth, grooveDepth, grooveDepth]} />
-              <meshStandardMaterial color="#fbbf24" transparent opacity={0.7} />
-            </mesh>
-            <lineSegments position={[0, topGrooveY, grooveZ]}>
-              <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, grooveDepth, grooveDepth)]} />
-              <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
-            </lineSegments>
-
-            {/* Bottom panel groove */}
-            <mesh position={[0, bottomGrooveY, grooveZ]}>
-              <boxGeometry args={[innerWidth, grooveDepth, grooveDepth]} />
-              <meshStandardMaterial color="#fbbf24" transparent opacity={0.7} />
-            </mesh>
-            <lineSegments position={[0, bottomGrooveY, grooveZ]}>
-              <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, grooveDepth, grooveDepth)]} />
-              <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
-            </lineSegments>
-          </>
-        )}
-
         <mesh position={[0, 0, backPanelZ]}>
           <boxGeometry args={[innerWidth, sideHeight - panelThickness * 2, backrestThickness]} />
           <meshStandardMaterial color="#ef4444" />
@@ -96,12 +67,7 @@ const CabinetTopView: React.FC<{
   const cabinetHeight = 0.25;
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
   const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
-  const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
-  const grooveZ = -cabinetDepth / 2 + grooveDepth / 2;
-
-  // Groove positions in left and right panels
-  const leftGrooveX = leftPanelX + grooveDepth / 2;
-  const rightGrooveX = rightPanelX - grooveDepth / 2;
+  const backPanelZ = -cabinetDepth / 2 + grooveOffset + grooveDepth + backrestThickness / 2;
 
   return (
     <group>
@@ -122,30 +88,6 @@ const CabinetTopView: React.FC<{
         <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, cabinetDepth)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
-
-      {grooveDepth > 0 && (
-        <>
-          {/* Left panel groove */}
-          <mesh position={[leftGrooveX, 0, grooveZ]}>
-            <boxGeometry args={[grooveDepth, cabinetHeight, grooveDepth]} />
-            <meshStandardMaterial color="#fbbf24" transparent opacity={0.7} />
-          </mesh>
-          <lineSegments position={[leftGrooveX, 0, grooveZ]}>
-            <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(grooveDepth, cabinetHeight, grooveDepth)]} />
-            <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
-          </lineSegments>
-
-          {/* Right panel groove */}
-          <mesh position={[rightGrooveX, 0, grooveZ]}>
-            <boxGeometry args={[grooveDepth, cabinetHeight, grooveDepth]} />
-            <meshStandardMaterial color="#fbbf24" transparent opacity={0.7} />
-          </mesh>
-          <lineSegments position={[rightGrooveX, 0, grooveZ]}>
-            <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(grooveDepth, cabinetHeight, grooveDepth)]} />
-            <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
-          </lineSegments>
-        </>
-      )}
 
       <mesh position={[0, 0, backPanelZ]}>
         <boxGeometry args={[cabinetWidth - panelThickness * 2, cabinetHeight, backrestThickness]} />
