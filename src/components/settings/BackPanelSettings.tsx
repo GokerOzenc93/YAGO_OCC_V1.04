@@ -1,6 +1,6 @@
 import React from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrthographicCamera } from '@react-three/drei';
+import { OrthographicCamera, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { SaveButtons } from './SaveButtons';
 import { globalSettingsService, GlobalSettingsProfile } from '../GlobalSettingsDatabase';
@@ -27,6 +27,12 @@ const CabinetTopView: React.FC<{
     const bottomPanelY = -sideHeight / 2 + panelThickness / 2;
     const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
     const innerWidth = cabinetWidth - panelThickness * 2;
+
+    const dimStartZ = -cabinetDepth / 2;
+    const dimEndZ = backPanelZ + backrestThickness / 2;
+    const dimX = -innerWidth / 2 - 0.015;
+    const dimY = bottomPanelY - 0.01;
+    const dimensionValue = (grooveOffset + backrestThickness) * 1000;
 
     return (
       <group>
@@ -56,6 +62,53 @@ const CabinetTopView: React.FC<{
           <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth + grooveDepth * 2, sideHeight - panelThickness * 2, backrestThickness)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
+
+        <line>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              count={2}
+              array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
+              itemSize={3}
+            />
+          </bufferGeometry>
+          <lineBasicMaterial color="#2563eb" linewidth={2} />
+        </line>
+
+        <line>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              count={2}
+              array={new Float32Array([dimX - 0.003, dimY, dimStartZ, dimX + 0.003, dimY, dimStartZ])}
+              itemSize={3}
+            />
+          </bufferGeometry>
+          <lineBasicMaterial color="#2563eb" linewidth={2} />
+        </line>
+
+        <line>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              count={2}
+              array={new Float32Array([dimX - 0.003, dimY, dimEndZ, dimX + 0.003, dimY, dimEndZ])}
+              itemSize={3}
+            />
+          </bufferGeometry>
+          <lineBasicMaterial color="#2563eb" linewidth={2} />
+        </line>
+
+        <Text
+          position={[dimX, dimY, (dimStartZ + dimEndZ) / 2]}
+          rotation={[0, Math.PI / 2, 0]}
+          fontSize={0.005}
+          color="#2563eb"
+          anchorX="center"
+          anchorY="middle"
+        >
+          {dimensionValue.toFixed(1)}
+        </Text>
 
         <ambientLight intensity={0.7} />
         <directionalLight position={[-5, 5, 5]} intensity={0.6} />
@@ -112,11 +165,11 @@ export function BackPanelSettings({
 }: BackPanelSettingsProps) {
   const [hasSettings, setHasSettings] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
-  const [looseWid, setLooseWid] = React.useState(0);
-  const [looseDep, setLooseDep] = React.useState(0);
-  const [backPanelThickness, setBackPanelThickness] = React.useState(5);
-  const [grooveOffset, setGrooveOffset] = React.useState(0);
-  const [grooveDepth, setGrooveDepth] = React.useState(0);
+  const [looseWid, setLooseWid] = React.useState(0.5);
+  const [looseDep, setLooseDep] = React.useState(1);
+  const [backPanelThickness, setBackPanelThickness] = React.useState(1);
+  const [grooveOffset, setGrooveOffset] = React.useState(12);
+  const [grooveDepth, setGrooveDepth] = React.useState(8);
   const [profiles, setProfiles] = React.useState<GlobalSettingsProfile[]>([]);
   const [viewMode, setViewMode] = React.useState<'plan' | 'side'>('plan');
 
@@ -170,11 +223,11 @@ export function BackPanelSettings({
   };
 
   const resetToDefaults = () => {
-    setLooseWid(0);
-    setLooseDep(0);
-    setBackPanelThickness(5);
-    setGrooveOffset(0);
-    setGrooveDepth(0);
+    setLooseWid(0.5);
+    setLooseDep(1);
+    setBackPanelThickness(1);
+    setGrooveOffset(12);
+    setGrooveDepth(8);
   };
 
   const loadSettings = (settings: Record<string, unknown>) => {
