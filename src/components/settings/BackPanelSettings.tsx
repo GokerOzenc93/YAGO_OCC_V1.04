@@ -49,11 +49,11 @@ const CabinetTopView: React.FC<{
         </lineSegments>
 
         <mesh position={[0, 0, backPanelZ]}>
-          <boxGeometry args={[innerWidth, sideHeight - panelThickness * 2, backrestThickness]} />
+          <boxGeometry args={[innerWidth + grooveDepth * 2, sideHeight - panelThickness * 2, backrestThickness]} />
           <meshStandardMaterial color="#ef4444" />
         </mesh>
         <lineSegments position={[0, 0, backPanelZ]}>
-          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, sideHeight - panelThickness * 2, backrestThickness)]} />
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth + grooveDepth * 2, sideHeight - panelThickness * 2, backrestThickness)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
@@ -90,11 +90,11 @@ const CabinetTopView: React.FC<{
       </lineSegments>
 
       <mesh position={[0, 0, backPanelZ]}>
-        <boxGeometry args={[cabinetWidth - panelThickness * 2, cabinetHeight, backrestThickness]} />
+        <boxGeometry args={[cabinetWidth - panelThickness * 2 + grooveDepth * 2, cabinetHeight, backrestThickness]} />
         <meshStandardMaterial color="#ef4444" />
       </mesh>
       <lineSegments position={[0, 0, backPanelZ]}>
-        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetWidth - panelThickness * 2, cabinetHeight, backrestThickness)]} />
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetWidth - panelThickness * 2 + grooveDepth * 2, cabinetHeight, backrestThickness)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
