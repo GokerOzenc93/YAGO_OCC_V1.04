@@ -29,12 +29,12 @@ const CabinetTopView: React.FC<{
     const innerWidth = cabinetWidth - panelThickness * 2;
 
     const dimStartZ = -cabinetDepth / 2;
-    const dimEndZ = backPanelZ + backrestThickness / 2;
-    const dimX = -innerWidth / 2 - 0.012;
+    const dimEndZ = -cabinetDepth / 2 + grooveOffset;
+    const dimX = -innerWidth / 2 - 0.008;
     const dimY = bottomPanelY - 0.01;
-    const dimensionValue = (grooveOffset + backrestThickness) * 1000;
-    const tickLength = Math.max(0.008, backrestThickness * 1.5);
-    const textOffset = 0.015;
+    const dimensionValue = grooveOffset * 1000;
+    const tickLength = 0.006;
+    const textOffset = 0.012;
 
     return (
       <group>
@@ -74,7 +74,7 @@ const CabinetTopView: React.FC<{
               itemSize={3}
             />
           </bufferGeometry>
-          <lineBasicMaterial color="#000000" linewidth={2} />
+          <lineBasicMaterial color="#666666" linewidth={1} />
         </line>
 
         <line>
@@ -86,14 +86,26 @@ const CabinetTopView: React.FC<{
               itemSize={3}
             />
           </bufferGeometry>
-          <lineBasicMaterial color="#000000" linewidth={2} />
+          <lineBasicMaterial color="#666666" linewidth={1} />
+        </line>
+
+        <line>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              count={2}
+              array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
+              itemSize={3}
+            />
+          </bufferGeometry>
+          <lineBasicMaterial color="#666666" linewidth={1} />
         </line>
 
         <Text
           position={[dimX - textOffset, dimY, (dimStartZ + dimEndZ) / 2]}
           rotation={[0, Math.PI / 2, 0]}
           fontSize={0.008}
-          color="#000000"
+          color="#666666"
           anchorX="right"
           anchorY="middle"
         >
@@ -113,12 +125,12 @@ const CabinetTopView: React.FC<{
   const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
 
   const dimStartZ = -cabinetDepth / 2;
-  const dimEndZ = backPanelZ + backrestThickness / 2;
-  const dimX = leftPanelX - panelThickness / 2 - 0.012;
+  const dimEndZ = -cabinetDepth / 2 + grooveOffset;
+  const dimX = leftPanelX - panelThickness / 2 - 0.008;
   const dimY = 0;
-  const dimensionValue = (grooveOffset + backrestThickness) * 1000;
-  const tickLength = Math.max(0.008, backrestThickness * 1.5);
-  const textOffset = 0.015;
+  const dimensionValue = grooveOffset * 1000;
+  const tickLength = 0.006;
+  const textOffset = 0.012;
 
   return (
     <group>
@@ -158,7 +170,7 @@ const CabinetTopView: React.FC<{
             itemSize={3}
           />
         </bufferGeometry>
-        <lineBasicMaterial color="#000000" linewidth={2} />
+        <lineBasicMaterial color="#666666" linewidth={1} />
       </line>
 
       <line>
@@ -170,14 +182,26 @@ const CabinetTopView: React.FC<{
             itemSize={3}
           />
         </bufferGeometry>
-        <lineBasicMaterial color="#000000" linewidth={2} />
+        <lineBasicMaterial color="#666666" linewidth={1} />
+      </line>
+
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#666666" linewidth={1} />
       </line>
 
       <Text
         position={[dimX - textOffset, dimY, (dimStartZ + dimEndZ) / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
         fontSize={0.008}
-        color="#000000"
+        color="#666666"
         anchorX="right"
         anchorY="middle"
       >
