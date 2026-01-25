@@ -65,7 +65,7 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        <line>
+        <line key={`tick-start-side-${dimStartZ}`}>
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
@@ -77,7 +77,7 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial color="#666666" linewidth={1} />
         </line>
 
-        <line>
+        <line key={`tick-end-side-${dimEndZ}`}>
           <bufferGeometry>
             <bufferAttribute
               attach="attributes-position"
@@ -149,7 +149,7 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      <line>
+      <line key={`tick-start-plan-${dimStartZ}`}>
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
@@ -161,7 +161,7 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial color="#666666" linewidth={1} />
       </line>
 
-      <line>
+      <line key={`tick-end-plan-${dimEndZ}`}>
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
