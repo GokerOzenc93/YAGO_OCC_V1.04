@@ -106,9 +106,9 @@ const CabinetTopView: React.FC<{
           const bottomPanelTopEdge = bottomPanelY + panelThickness / 2;
           const backPanelBottomEdge = -backPanelHeight / 2;
           const grooveDepthValue = grooveDepth * 1000;
-          const grooveDimZ = backPanelZ + backrestThickness / 2 + 0.008;
-          const grooveTickLength = 0.004;
-          const grooveTextOffset = 0.008;
+          const grooveDimX = -innerWidth / 2 - 0.012;
+          const grooveTickLength = 0.006;
+          const grooveTextOffset = 0.01;
 
           return (
             <>
@@ -117,7 +117,7 @@ const CabinetTopView: React.FC<{
                   <bufferAttribute
                     attach="attributes-position"
                     count={2}
-                    array={new Float32Array([0, bottomPanelTopEdge, grooveDimZ - grooveTickLength, 0, bottomPanelTopEdge, grooveDimZ + grooveTickLength])}
+                    array={new Float32Array([grooveDimX - grooveTickLength, bottomPanelTopEdge, backPanelZ, grooveDimX + grooveTickLength, bottomPanelTopEdge, backPanelZ])}
                     itemSize={3}
                   />
                 </bufferGeometry>
@@ -129,7 +129,7 @@ const CabinetTopView: React.FC<{
                   <bufferAttribute
                     attach="attributes-position"
                     count={2}
-                    array={new Float32Array([0, backPanelBottomEdge, grooveDimZ - grooveTickLength, 0, backPanelBottomEdge, grooveDimZ + grooveTickLength])}
+                    array={new Float32Array([grooveDimX - grooveTickLength, backPanelBottomEdge, backPanelZ, grooveDimX + grooveTickLength, backPanelBottomEdge, backPanelZ])}
                     itemSize={3}
                   />
                 </bufferGeometry>
@@ -137,7 +137,7 @@ const CabinetTopView: React.FC<{
               </line>
 
               <Text
-                position={[0, (bottomPanelTopEdge + backPanelBottomEdge) / 2, grooveDimZ + grooveTextOffset]}
+                position={[grooveDimX - grooveTextOffset, (bottomPanelTopEdge + backPanelBottomEdge) / 2, backPanelZ]}
                 rotation={[0, -Math.PI / 2, 0]}
                 fontSize={0.006}
                 color="#666666"
