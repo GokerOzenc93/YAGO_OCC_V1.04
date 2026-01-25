@@ -109,6 +109,7 @@ const CabinetTopView: React.FC<{
           const grooveDimZ = -cabinetDepth / 2 - 0.012;
           const grooveTickLength = 0.006;
           const grooveTextOffset = 0.01;
+          const thicknessValue = backrestThickness * 1000;
 
           return (
             <>
@@ -146,6 +147,22 @@ const CabinetTopView: React.FC<{
                 anchorY="middle"
               >
                 {grooveDepthValue.toFixed(1)}
+              </Text>
+
+              <mesh position={[0, 0, backPanelZ + backrestThickness / 2 + 0.0005]}>
+                <planeGeometry args={[0.022, 0.01]} />
+                <meshBasicMaterial color="#ffffff" />
+              </mesh>
+              <Text
+                key={`thickness-text-${backrestThickness}`}
+                position={[0, 0, backPanelZ + backrestThickness / 2 + 0.001]}
+                rotation={[0, -Math.PI / 2, 0]}
+                fontSize={0.008}
+                color="#666666"
+                anchorX="center"
+                anchorY="middle"
+              >
+                {thicknessValue.toFixed(1)}
               </Text>
             </>
           );
