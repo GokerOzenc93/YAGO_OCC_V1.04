@@ -104,7 +104,7 @@ const CabinetTopView: React.FC<{
 
         {(() => {
           const bottomPanelTopEdge = bottomPanelY + panelThickness / 2;
-          const backPanelBottomEdge = -backPanelHeight / 2;
+          const grooveBottomEdge = bottomPanelTopEdge - grooveDepth;
           const grooveDepthValue = grooveDepth * 1000;
           const grooveDimZ = -cabinetDepth / 2 - 0.012;
           const grooveTickLength = 0.006;
@@ -112,18 +112,6 @@ const CabinetTopView: React.FC<{
 
           return (
             <>
-              <line key="groove-vertical-line">
-                <bufferGeometry>
-                  <bufferAttribute
-                    attach="attributes-position"
-                    count={2}
-                    array={new Float32Array([0, backPanelBottomEdge, grooveDimZ, 0, bottomPanelTopEdge, grooveDimZ])}
-                    itemSize={3}
-                  />
-                </bufferGeometry>
-                <lineBasicMaterial color="#666666" linewidth={1} />
-              </line>
-
               <line key="tick-groove-top">
                 <bufferGeometry>
                   <bufferAttribute
@@ -141,7 +129,7 @@ const CabinetTopView: React.FC<{
                   <bufferAttribute
                     attach="attributes-position"
                     count={2}
-                    array={new Float32Array([0, backPanelBottomEdge, grooveDimZ - grooveTickLength, 0, backPanelBottomEdge, grooveDimZ + grooveTickLength])}
+                    array={new Float32Array([0, grooveBottomEdge, grooveDimZ - grooveTickLength, 0, grooveBottomEdge, grooveDimZ + grooveTickLength])}
                     itemSize={3}
                   />
                 </bufferGeometry>
@@ -149,9 +137,9 @@ const CabinetTopView: React.FC<{
               </line>
 
               <Text
-                position={[0, (bottomPanelTopEdge + backPanelBottomEdge) / 2, grooveDimZ - grooveTextOffset]}
+                position={[0, (bottomPanelTopEdge + grooveBottomEdge) / 2, grooveDimZ - grooveTextOffset]}
                 rotation={[0, -Math.PI / 2, 0]}
-                fontSize={0.006}
+                fontSize={0.008}
                 color="#666666"
                 anchorX="center"
                 anchorY="middle"
