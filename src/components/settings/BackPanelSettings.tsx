@@ -67,7 +67,7 @@ const CabinetTopView: React.FC<{
   const cabinetHeight = 0.25;
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
   const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
-  const backPanelZ = -cabinetDepth / 2 + grooveOffset + grooveDepth + backrestThickness / 2;
+  const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
 
   return (
     <group>
