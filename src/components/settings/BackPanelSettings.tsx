@@ -33,6 +33,8 @@ const CabinetTopView: React.FC<{
     const dimX = -innerWidth / 2 - 0.015;
     const dimY = bottomPanelY - 0.01;
     const dimensionValue = (grooveOffset + backrestThickness) * 1000;
+    const tickLength = Math.max(0.008, backrestThickness * 1.5);
+    const textOffset = 0.015;
 
     return (
       <group>
@@ -68,11 +70,11 @@ const CabinetTopView: React.FC<{
             <bufferAttribute
               attach="attributes-position"
               count={2}
-              array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
+              array={new Float32Array([dimX, dimY, dimStartZ, dimX - tickLength, dimY, dimStartZ])}
               itemSize={3}
             />
           </bufferGeometry>
-          <lineBasicMaterial color="#2563eb" linewidth={2} />
+          <lineBasicMaterial color="#000000" linewidth={2} />
         </line>
 
         <line>
@@ -80,31 +82,19 @@ const CabinetTopView: React.FC<{
             <bufferAttribute
               attach="attributes-position"
               count={2}
-              array={new Float32Array([dimX - 0.003, dimY, dimStartZ, dimX + 0.003, dimY, dimStartZ])}
+              array={new Float32Array([dimX, dimY, dimEndZ, dimX - tickLength, dimY, dimEndZ])}
               itemSize={3}
             />
           </bufferGeometry>
-          <lineBasicMaterial color="#2563eb" linewidth={2} />
-        </line>
-
-        <line>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              count={2}
-              array={new Float32Array([dimX - 0.003, dimY, dimEndZ, dimX + 0.003, dimY, dimEndZ])}
-              itemSize={3}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial color="#2563eb" linewidth={2} />
+          <lineBasicMaterial color="#000000" linewidth={2} />
         </line>
 
         <Text
-          position={[dimX, dimY, (dimStartZ + dimEndZ) / 2]}
+          position={[dimX - textOffset, dimY, (dimStartZ + dimEndZ) / 2]}
           rotation={[0, Math.PI / 2, 0]}
-          fontSize={0.005}
-          color="#2563eb"
-          anchorX="center"
+          fontSize={0.008}
+          color="#000000"
+          anchorX="right"
           anchorY="middle"
         >
           {dimensionValue.toFixed(1)}
@@ -127,6 +117,8 @@ const CabinetTopView: React.FC<{
   const dimX = leftPanelX - panelThickness / 2 - 0.015;
   const dimY = 0;
   const dimensionValue = (grooveOffset + backrestThickness) * 1000;
+  const tickLength = Math.max(0.008, backrestThickness * 1.5);
+  const textOffset = 0.015;
 
   return (
     <group>
@@ -162,11 +154,11 @@ const CabinetTopView: React.FC<{
           <bufferAttribute
             attach="attributes-position"
             count={2}
-            array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
+            array={new Float32Array([dimX, dimY, dimStartZ, dimX - tickLength, dimY, dimStartZ])}
             itemSize={3}
           />
         </bufferGeometry>
-        <lineBasicMaterial color="#2563eb" linewidth={2} />
+        <lineBasicMaterial color="#000000" linewidth={2} />
       </line>
 
       <line>
@@ -174,31 +166,19 @@ const CabinetTopView: React.FC<{
           <bufferAttribute
             attach="attributes-position"
             count={2}
-            array={new Float32Array([dimX - 0.003, dimY, dimStartZ, dimX + 0.003, dimY, dimStartZ])}
+            array={new Float32Array([dimX, dimY, dimEndZ, dimX - tickLength, dimY, dimEndZ])}
             itemSize={3}
           />
         </bufferGeometry>
-        <lineBasicMaterial color="#2563eb" linewidth={2} />
-      </line>
-
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={2}
-            array={new Float32Array([dimX - 0.003, dimY, dimEndZ, dimX + 0.003, dimY, dimEndZ])}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial color="#2563eb" linewidth={2} />
+        <lineBasicMaterial color="#000000" linewidth={2} />
       </line>
 
       <Text
-        position={[dimX, dimY, (dimStartZ + dimEndZ) / 2]}
+        position={[dimX - textOffset, dimY, (dimStartZ + dimEndZ) / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={0.005}
-        color="#2563eb"
-        anchorX="center"
+        fontSize={0.008}
+        color="#000000"
+        anchorX="right"
         anchorY="middle"
       >
         {dimensionValue.toFixed(1)}
