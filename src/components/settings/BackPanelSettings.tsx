@@ -15,8 +15,9 @@ const CabinetTopView: React.FC<{
   backrestThickness: number;
   grooveOffset: number;
   grooveDepth: number;
+  looseWid: number;
   viewMode: 'plan' | 'side';
-}> = ({ backrestThickness, grooveOffset, grooveDepth, viewMode }) => {
+}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode }) => {
   const cabinetWidth = 0.14;
   const cabinetDepth = 0.1;
   const panelThickness = 0.018;
@@ -184,6 +185,56 @@ const CabinetTopView: React.FC<{
         {dimensionValue.toFixed(1)}
       </Text>
 
+      {(() => {
+        const backPanelRightEdge = (cabinetWidth - panelThickness * 2) / 2 + grooveDepth;
+        const sidePanelInnerEdge = rightPanelX - panelThickness / 2;
+        const widthDimValue = (looseWid + grooveDepth) * 1000;
+        const widthDimStartX = sidePanelInnerEdge;
+        const widthDimEndX = backPanelRightEdge;
+        const widthDimZ = -cabinetDepth / 2 - 0.008;
+        const widthTickLength = 0.006;
+        const widthTextOffset = 0.012;
+
+        return (
+          <>
+            <line key={`tick-start-width-${widthDimStartX}`}>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([widthDimStartX, dimY, widthDimZ, widthDimStartX, dimY, widthDimZ - widthTickLength])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color="#666666" linewidth={1} />
+            </line>
+
+            <line key={`tick-end-width-${widthDimEndX}`}>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([widthDimEndX, dimY, widthDimZ, widthDimEndX, dimY, widthDimZ - widthTickLength])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color="#666666" linewidth={1} />
+            </line>
+
+            <Text
+              position={[(widthDimStartX + widthDimEndX) / 2, dimY, widthDimZ - widthTextOffset]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              fontSize={0.008}
+              color="#666666"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {widthDimValue.toFixed(1)}
+            </Text>
+          </>
+        );
+      })()}
+
       <ambientLight intensity={0.7} />
       <directionalLight position={[0, 5, 5]} intensity={0.6} />
       <directionalLight position={[0, 3, -5]} intensity={0.3} />
@@ -345,7 +396,7 @@ export function BackPanelSettings({
             ) : (
               <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1400} />
             )}
-            <CabinetTopView backrestThickness={backPanelThickness / 1000} grooveOffset={grooveOffset / 1000} grooveDepth={grooveDepth / 1000} viewMode={viewMode} />
+            <CabinetTopView backrestThickness={backPanelThickness / 1000} grooveOffset={grooveOffset / 1000} grooveDepth={grooveDepth / 1000} looseWid={looseWid / 1000} viewMode={viewMode} />
           </Canvas>
         </div>
 
