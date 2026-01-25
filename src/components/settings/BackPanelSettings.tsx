@@ -235,6 +235,54 @@ const CabinetTopView: React.FC<{
         );
       })()}
 
+      {(() => {
+        const thicknessDimValue = backrestThickness * 1000;
+        const thicknessDimStartZ = backPanelZ - backrestThickness / 2;
+        const thicknessDimEndZ = backPanelZ + backrestThickness / 2;
+        const thicknessDimX = 0;
+        const thicknessTickLength = 0.006;
+        const thicknessTextOffset = 0.01;
+
+        return (
+          <>
+            <line key={`tick-start-thickness-${thicknessDimStartZ}`}>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([thicknessDimX - thicknessTickLength, dimY, thicknessDimStartZ, thicknessDimX + thicknessTickLength, dimY, thicknessDimStartZ])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color="#666666" linewidth={1} />
+            </line>
+
+            <line key={`tick-end-thickness-${thicknessDimEndZ}`}>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([thicknessDimX - thicknessTickLength, dimY, thicknessDimEndZ, thicknessDimX + thicknessTickLength, dimY, thicknessDimEndZ])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color="#666666" linewidth={1} />
+            </line>
+
+            <Text
+              position={[thicknessDimX, dimY + thicknessTextOffset, (thicknessDimStartZ + thicknessDimEndZ) / 2]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              fontSize={0.008}
+              color="#666666"
+              anchorX="center"
+              anchorY="middle"
+            >
+              {thicknessDimValue.toFixed(1)}
+            </Text>
+          </>
+        );
+      })()}
+
       <ambientLight intensity={0.7} />
       <directionalLight position={[0, 5, 5]} intensity={0.6} />
       <directionalLight position={[0, 3, -5]} intensity={0.3} />
