@@ -106,18 +106,30 @@ const CabinetTopView: React.FC<{
           const bottomPanelTopEdge = bottomPanelY + panelThickness / 2;
           const backPanelBottomEdge = -backPanelHeight / 2;
           const grooveDepthValue = grooveDepth * 1000;
-          const grooveDimX = -innerWidth / 2 - 1.012;
+          const grooveDimZ = -cabinetDepth / 2 - 0.012;
           const grooveTickLength = 0.006;
           const grooveTextOffset = 0.01;
 
           return (
             <>
+              <line key="groove-vertical-line">
+                <bufferGeometry>
+                  <bufferAttribute
+                    attach="attributes-position"
+                    count={2}
+                    array={new Float32Array([0, backPanelBottomEdge, grooveDimZ, 0, bottomPanelTopEdge, grooveDimZ])}
+                    itemSize={3}
+                  />
+                </bufferGeometry>
+                <lineBasicMaterial color="#666666" linewidth={1} />
+              </line>
+
               <line key="tick-groove-top">
                 <bufferGeometry>
                   <bufferAttribute
                     attach="attributes-position"
                     count={2}
-                    array={new Float32Array([grooveDimX - grooveTickLength, bottomPanelTopEdge, backPanelZ, grooveDimX + grooveTickLength, bottomPanelTopEdge, backPanelZ])}
+                    array={new Float32Array([0, bottomPanelTopEdge, grooveDimZ - grooveTickLength, 0, bottomPanelTopEdge, grooveDimZ + grooveTickLength])}
                     itemSize={3}
                   />
                 </bufferGeometry>
@@ -129,7 +141,7 @@ const CabinetTopView: React.FC<{
                   <bufferAttribute
                     attach="attributes-position"
                     count={2}
-                    array={new Float32Array([grooveDimX - grooveTickLength, backPanelBottomEdge, backPanelZ, grooveDimX + grooveTickLength, backPanelBottomEdge, backPanelZ])}
+                    array={new Float32Array([0, backPanelBottomEdge, grooveDimZ - grooveTickLength, 0, backPanelBottomEdge, grooveDimZ + grooveTickLength])}
                     itemSize={3}
                   />
                 </bufferGeometry>
@@ -137,7 +149,7 @@ const CabinetTopView: React.FC<{
               </line>
 
               <Text
-                position={[grooveDimX - grooveTextOffset, (bottomPanelTopEdge + backPanelBottomEdge) / 2, backPanelZ]}
+                position={[0, (bottomPanelTopEdge + backPanelBottomEdge) / 2, grooveDimZ - grooveTextOffset]}
                 rotation={[0, -Math.PI / 2, 0]}
                 fontSize={0.006}
                 color="#666666"
