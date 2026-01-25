@@ -14,8 +14,9 @@ interface BackPanelSettingsProps {
 const CabinetTopView: React.FC<{
   backrestThickness: number;
   grooveOffset: number;
+  grooveDepth: number;
   viewMode: 'plan' | 'side';
-}> = ({ backrestThickness, grooveOffset, viewMode }) => {
+}> = ({ backrestThickness, grooveOffset, grooveDepth, viewMode }) => {
   const cabinetWidth = 0.14;
   const cabinetDepth = 0.1;
   const panelThickness = 0.018;
@@ -26,12 +27,13 @@ const CabinetTopView: React.FC<{
     const bottomPanelY = -sideHeight / 2 + panelThickness / 2;
     const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
     const innerWidth = cabinetWidth - panelThickness * 2;
+    const grooveZ = -cabinetDepth / 2 + grooveDepth / 2;
 
     return (
       <group>
         <mesh position={[0, topPanelY, 0]}>
           <boxGeometry args={[innerWidth, panelThickness, cabinetDepth]} />
-          <meshStandardMaterial color="#d4d4d4" />
+          <meshStandardMaterial color="#d4d4d4" transparent opacity={0.4} />
         </mesh>
         <lineSegments position={[0, topPanelY, 0]}>
           <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, panelThickness, cabinetDepth)]} />
@@ -40,12 +42,25 @@ const CabinetTopView: React.FC<{
 
         <mesh position={[0, bottomPanelY, 0]}>
           <boxGeometry args={[innerWidth, panelThickness, cabinetDepth]} />
-          <meshStandardMaterial color="#d4d4d4" />
+          <meshStandardMaterial color="#d4d4d4" transparent opacity={0.4} />
         </mesh>
         <lineSegments position={[0, bottomPanelY, 0]}>
           <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, panelThickness, cabinetDepth)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
+
+        {grooveDepth > 0 && (
+          <>
+            <mesh position={[0, 0, grooveZ]}>
+              <boxGeometry args={[innerWidth, sideHeight - panelThickness * 2, grooveDepth]} />
+              <meshStandardMaterial color="#fbbf24" transparent opacity={0.5} />
+            </mesh>
+            <lineSegments position={[0, 0, grooveZ]}>
+              <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, sideHeight - panelThickness * 2, grooveDepth)]} />
+              <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
+            </lineSegments>
+          </>
+        )}
 
         <mesh position={[0, 0, backPanelZ]}>
           <boxGeometry args={[innerWidth, sideHeight - panelThickness * 2, backrestThickness]} />
@@ -67,12 +82,13 @@ const CabinetTopView: React.FC<{
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
   const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
   const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
+  const grooveZ = -cabinetDepth / 2 + grooveDepth / 2;
 
   return (
     <group>
       <mesh position={[leftPanelX, 0, 0]}>
         <boxGeometry args={[panelThickness, cabinetHeight, cabinetDepth]} />
-        <meshStandardMaterial color="#d4d4d4" />
+        <meshStandardMaterial color="#d4d4d4" transparent opacity={0.4} />
       </mesh>
       <lineSegments position={[leftPanelX, 0, 0]}>
         <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, cabinetDepth)]} />
@@ -81,12 +97,25 @@ const CabinetTopView: React.FC<{
 
       <mesh position={[rightPanelX, 0, 0]}>
         <boxGeometry args={[panelThickness, cabinetHeight, cabinetDepth]} />
-        <meshStandardMaterial color="#d4d4d4" />
+        <meshStandardMaterial color="#d4d4d4" transparent opacity={0.4} />
       </mesh>
       <lineSegments position={[rightPanelX, 0, 0]}>
         <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, cabinetDepth)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
+
+      {grooveDepth > 0 && (
+        <>
+          <mesh position={[0, 0, grooveZ]}>
+            <boxGeometry args={[cabinetWidth - panelThickness * 2, cabinetHeight, grooveDepth]} />
+            <meshStandardMaterial color="#fbbf24" transparent opacity={0.5} />
+          </mesh>
+          <lineSegments position={[0, 0, grooveZ]}>
+            <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetWidth - panelThickness * 2, cabinetHeight, grooveDepth)]} />
+            <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
+          </lineSegments>
+        </>
+      )}
 
       <mesh position={[0, 0, backPanelZ]}>
         <boxGeometry args={[cabinetWidth - panelThickness * 2, cabinetHeight, backrestThickness]} />
@@ -115,6 +144,7 @@ export function BackPanelSettings({
   const [looseDep, setLooseDep] = React.useState(0);
   const [backPanelThickness, setBackPanelThickness] = React.useState(5);
   const [grooveOffset, setGrooveOffset] = React.useState(0);
+  const [grooveDepth, setGrooveDepth] = React.useState(0);
   const [profiles, setProfiles] = React.useState<GlobalSettingsProfile[]>([]);
   const [viewMode, setViewMode] = React.useState<'plan' | 'side'>('plan');
 
@@ -172,6 +202,7 @@ export function BackPanelSettings({
     setLooseDep(0);
     setBackPanelThickness(5);
     setGrooveOffset(0);
+    setGrooveDepth(0);
   };
 
   const loadSettings = (settings: Record<string, unknown>) => {
@@ -183,13 +214,16 @@ export function BackPanelSettings({
       setBackPanelThickness(settings.backPanelThickness as number);
     if (settings.grooveOffset !== undefined)
       setGrooveOffset(settings.grooveOffset as number);
+    if (settings.grooveDepth !== undefined)
+      setGrooveDepth(settings.grooveDepth as number);
   };
 
   const getCurrentSettings = () => ({
     looseWid,
     looseDep,
     backPanelThickness,
-    grooveOffset
+    grooveOffset,
+    grooveDepth
   });
 
   const handleSave = async () => {
@@ -253,7 +287,7 @@ export function BackPanelSettings({
             ) : (
               <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1400} />
             )}
-            <CabinetTopView backrestThickness={backPanelThickness / 1000} grooveOffset={grooveOffset / 1000} viewMode={viewMode} />
+            <CabinetTopView backrestThickness={backPanelThickness / 1000} grooveOffset={grooveOffset / 1000} grooveDepth={grooveDepth / 1000} viewMode={viewMode} />
           </Canvas>
         </div>
 
@@ -271,7 +305,7 @@ export function BackPanelSettings({
 
         <div className="space-y-1 pt-2 border-t border-stone-200">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">LOOSEWID</label>
+            <label className="text-xs text-slate-600">Loosewid</label>
             <input
               type="number"
               value={looseWid}
@@ -281,7 +315,7 @@ export function BackPanelSettings({
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">LOOSEDEP</label>
+            <label className="text-xs text-slate-600">Loosedep</label>
             <input
               type="number"
               value={looseDep}
@@ -291,7 +325,7 @@ export function BackPanelSettings({
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">back panel thickness</label>
+            <label className="text-xs text-slate-600">Back panel thickness</label>
             <input
               type="number"
               value={backPanelThickness}
@@ -301,20 +335,21 @@ export function BackPanelSettings({
             />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Panel Thickness</label>
-            <input
-              type="number"
-              value="18"
-              disabled
-              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded bg-gray-100 text-slate-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Groove Offset</label>
+            <label className="text-xs text-slate-600">Groove offset</label>
             <input
               type="number"
               value={grooveOffset}
               onChange={(e) => setGrooveOffset(Number(e.target.value))}
+              step="0.1"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Groove depth</label>
+            <input
+              type="number"
+              value={grooveDepth}
+              onChange={(e) => setGrooveDepth(Number(e.target.value))}
               step="0.1"
               className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
