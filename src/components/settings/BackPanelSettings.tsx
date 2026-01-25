@@ -186,11 +186,11 @@ const CabinetTopView: React.FC<{
       </Text>
 
       {(() => {
-        const backPanelRightEdge = (cabinetWidth - panelThickness * 2) / 2 + grooveDepth;
-        const sidePanelInnerEdge = rightPanelX - panelThickness / 2;
+        const backPanelLeftEdge = -((cabinetWidth - panelThickness * 2) / 2 + grooveDepth);
+        const sidePanelInnerEdge = leftPanelX + panelThickness / 2;
         const widthDimValue = (looseWid + grooveDepth) * 1000;
-        const widthDimStartX = sidePanelInnerEdge;
-        const widthDimEndX = backPanelRightEdge;
+        const widthDimStartX = backPanelLeftEdge;
+        const widthDimEndX = sidePanelInnerEdge;
         const widthDimZ = -cabinetDepth / 2 - 0.008;
         const widthTickLength = 0.006;
         const widthTextOffset = 0.012;
