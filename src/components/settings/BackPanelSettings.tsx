@@ -111,7 +111,9 @@ export function BackPanelSettings({
 }: BackPanelSettingsProps) {
   const [hasSettings, setHasSettings] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
-  const [backrestThickness, setBackrestThickness] = React.useState(5);
+  const [looseWid, setLooseWid] = React.useState(0);
+  const [looseDep, setLooseDep] = React.useState(0);
+  const [backPanelThickness, setBackPanelThickness] = React.useState(5);
   const [grooveOffset, setGrooveOffset] = React.useState(0);
   const [profiles, setProfiles] = React.useState<GlobalSettingsProfile[]>([]);
   const [viewMode, setViewMode] = React.useState<'plan' | 'side'>('plan');
@@ -166,19 +168,27 @@ export function BackPanelSettings({
   };
 
   const resetToDefaults = () => {
-    setBackrestThickness(5);
+    setLooseWid(0);
+    setLooseDep(0);
+    setBackPanelThickness(5);
     setGrooveOffset(0);
   };
 
   const loadSettings = (settings: Record<string, unknown>) => {
-    if (settings.backrestThickness !== undefined)
-      setBackrestThickness(settings.backrestThickness as number);
+    if (settings.looseWid !== undefined)
+      setLooseWid(settings.looseWid as number);
+    if (settings.looseDep !== undefined)
+      setLooseDep(settings.looseDep as number);
+    if (settings.backPanelThickness !== undefined)
+      setBackPanelThickness(settings.backPanelThickness as number);
     if (settings.grooveOffset !== undefined)
       setGrooveOffset(settings.grooveOffset as number);
   };
 
   const getCurrentSettings = () => ({
-    backrestThickness,
+    looseWid,
+    looseDep,
+    backPanelThickness,
     grooveOffset
   });
 
@@ -243,7 +253,7 @@ export function BackPanelSettings({
             ) : (
               <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1400} />
             )}
-            <CabinetTopView backrestThickness={backrestThickness / 1000} grooveOffset={grooveOffset / 1000} viewMode={viewMode} />
+            <CabinetTopView backrestThickness={backPanelThickness / 1000} grooveOffset={grooveOffset / 1000} viewMode={viewMode} />
           </Canvas>
         </div>
 
@@ -261,42 +271,53 @@ export function BackPanelSettings({
 
         <div className="space-y-1 pt-2 border-t border-stone-200">
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Red Panel Thickness (mm)</label>
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                value={backrestThickness}
-                onChange={(e) => setBackrestThickness(Number(e.target.value))}
-                step="0.1"
-                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span className="text-xs text-slate-500">mm</span>
-            </div>
+            <label className="text-xs text-slate-600">LOOSEWID</label>
+            <input
+              type="number"
+              value={looseWid}
+              onChange={(e) => setLooseWid(Number(e.target.value))}
+              step="0.1"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Panel Thickness (mm)</label>
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                value="18"
-                disabled
-                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded bg-gray-100 text-slate-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span className="text-xs text-slate-500">mm</span>
-            </div>
+            <label className="text-xs text-slate-600">LOOSEDEP</label>
+            <input
+              type="number"
+              value={looseDep}
+              onChange={(e) => setLooseDep(Number(e.target.value))}
+              step="0.1"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
           </div>
           <div className="flex items-center justify-between">
-            <label className="text-xs text-slate-600">Groove Offset (mm)</label>
-            <div className="flex items-center gap-1">
-              <input
-                type="number"
-                value={grooveOffset}
-                onChange={(e) => setGrooveOffset(Number(e.target.value))}
-                step="0.1"
-                className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <span className="text-xs text-slate-500">mm</span>
-            </div>
+            <label className="text-xs text-slate-600">back panel thickness</label>
+            <input
+              type="number"
+              value={backPanelThickness}
+              onChange={(e) => setBackPanelThickness(Number(e.target.value))}
+              step="0.1"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Panel Thickness</label>
+            <input
+              type="number"
+              value="18"
+              disabled
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded bg-gray-100 text-slate-600 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-xs text-slate-600">Groove Offset</label>
+            <input
+              type="number"
+              value={grooveOffset}
+              onChange={(e) => setGrooveOffset(Number(e.target.value))}
+              step="0.1"
+              className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
           </div>
         </div>
       </div>
