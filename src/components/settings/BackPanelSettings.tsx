@@ -92,8 +92,8 @@ const CabinetTopView: React.FC<{
         </line>
 
         <Text
-          position={[dimX, dimY - textOffset, (dimStartZ + dimEndZ) / 2]}
-          rotation={[-Math.PI / 2, 0, 0]}
+          position={[0, dimY - textOffset, (dimStartZ + dimEndZ) / 2]}
+          rotation={[0, -Math.PI / 2, 0]}
           fontSize={0.008}
           color="#666666"
           anchorX="center"
