@@ -89,18 +89,6 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial color="#666666" linewidth={1} />
         </line>
 
-        <line>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              count={2}
-              array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
-              itemSize={3}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial color="#666666" linewidth={1} />
-        </line>
-
         <Text
           position={[dimX - textOffset, dimY, (dimStartZ + dimEndZ) / 2]}
           rotation={[0, Math.PI / 2, 0]}
@@ -179,18 +167,6 @@ const CabinetTopView: React.FC<{
             attach="attributes-position"
             count={2}
             array={new Float32Array([dimX, dimY, dimEndZ, dimX - tickLength, dimY, dimEndZ])}
-            itemSize={3}
-          />
-        </bufferGeometry>
-        <lineBasicMaterial color="#666666" linewidth={1} />
-      </line>
-
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={2}
-            array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
             itemSize={3}
           />
         </bufferGeometry>
