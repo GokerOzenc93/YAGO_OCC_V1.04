@@ -29,6 +29,10 @@ const CabinetTopView: React.FC<{
     const innerWidth = cabinetWidth - panelThickness * 2;
     const grooveZ = -cabinetDepth / 2 + grooveDepth / 2;
 
+    // Groove positions in top and bottom panels
+    const topGrooveY = topPanelY - grooveDepth / 2;
+    const bottomGrooveY = bottomPanelY + grooveDepth / 2;
+
     return (
       <group>
         <mesh position={[0, topPanelY, 0]}>
@@ -51,12 +55,23 @@ const CabinetTopView: React.FC<{
 
         {grooveDepth > 0 && (
           <>
-            <mesh position={[0, 0, grooveZ]}>
-              <boxGeometry args={[innerWidth, sideHeight - panelThickness * 2, grooveDepth]} />
-              <meshStandardMaterial color="#fbbf24" transparent opacity={0.5} />
+            {/* Top panel groove */}
+            <mesh position={[0, topGrooveY, grooveZ]}>
+              <boxGeometry args={[innerWidth, grooveDepth, grooveDepth]} />
+              <meshStandardMaterial color="#fbbf24" transparent opacity={0.7} />
             </mesh>
-            <lineSegments position={[0, 0, grooveZ]}>
-              <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, sideHeight - panelThickness * 2, grooveDepth)]} />
+            <lineSegments position={[0, topGrooveY, grooveZ]}>
+              <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, grooveDepth, grooveDepth)]} />
+              <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
+            </lineSegments>
+
+            {/* Bottom panel groove */}
+            <mesh position={[0, bottomGrooveY, grooveZ]}>
+              <boxGeometry args={[innerWidth, grooveDepth, grooveDepth]} />
+              <meshStandardMaterial color="#fbbf24" transparent opacity={0.7} />
+            </mesh>
+            <lineSegments position={[0, bottomGrooveY, grooveZ]}>
+              <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, grooveDepth, grooveDepth)]} />
               <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
             </lineSegments>
           </>
@@ -84,6 +99,10 @@ const CabinetTopView: React.FC<{
   const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
   const grooveZ = -cabinetDepth / 2 + grooveDepth / 2;
 
+  // Groove positions in left and right panels
+  const leftGrooveX = leftPanelX + grooveDepth / 2;
+  const rightGrooveX = rightPanelX - grooveDepth / 2;
+
   return (
     <group>
       <mesh position={[leftPanelX, 0, 0]}>
@@ -106,12 +125,23 @@ const CabinetTopView: React.FC<{
 
       {grooveDepth > 0 && (
         <>
-          <mesh position={[0, 0, grooveZ]}>
-            <boxGeometry args={[cabinetWidth - panelThickness * 2, cabinetHeight, grooveDepth]} />
-            <meshStandardMaterial color="#fbbf24" transparent opacity={0.5} />
+          {/* Left panel groove */}
+          <mesh position={[leftGrooveX, 0, grooveZ]}>
+            <boxGeometry args={[grooveDepth, cabinetHeight, grooveDepth]} />
+            <meshStandardMaterial color="#fbbf24" transparent opacity={0.7} />
           </mesh>
-          <lineSegments position={[0, 0, grooveZ]}>
-            <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetWidth - panelThickness * 2, cabinetHeight, grooveDepth)]} />
+          <lineSegments position={[leftGrooveX, 0, grooveZ]}>
+            <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(grooveDepth, cabinetHeight, grooveDepth)]} />
+            <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
+          </lineSegments>
+
+          {/* Right panel groove */}
+          <mesh position={[rightGrooveX, 0, grooveZ]}>
+            <boxGeometry args={[grooveDepth, cabinetHeight, grooveDepth]} />
+            <meshStandardMaterial color="#fbbf24" transparent opacity={0.7} />
+          </mesh>
+          <lineSegments position={[rightGrooveX, 0, grooveZ]}>
+            <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(grooveDepth, cabinetHeight, grooveDepth)]} />
             <lineBasicMaterial attach="material" color="#f59e0b" linewidth={2} />
           </lineSegments>
         </>
