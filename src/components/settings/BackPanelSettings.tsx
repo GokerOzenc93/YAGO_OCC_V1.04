@@ -122,6 +122,12 @@ const CabinetTopView: React.FC<{
   const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
   const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
 
+  const dimStartZ = -cabinetDepth / 2;
+  const dimEndZ = backPanelZ + backrestThickness / 2;
+  const dimX = leftPanelX - panelThickness / 2 - 0.015;
+  const dimY = 0;
+  const dimensionValue = (grooveOffset + backrestThickness) * 1000;
+
   return (
     <group>
       <mesh position={[leftPanelX, 0, 0]}>
@@ -151,6 +157,53 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={new Float32Array([dimX, dimY, dimStartZ, dimX, dimY, dimEndZ])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#2563eb" linewidth={2} />
+      </line>
+
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={new Float32Array([dimX - 0.003, dimY, dimStartZ, dimX + 0.003, dimY, dimStartZ])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#2563eb" linewidth={2} />
+      </line>
+
+      <line>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={new Float32Array([dimX - 0.003, dimY, dimEndZ, dimX + 0.003, dimY, dimEndZ])}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#2563eb" linewidth={2} />
+      </line>
+
+      <Text
+        position={[dimX, dimY, (dimStartZ + dimEndZ) / 2]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontSize={0.005}
+        color="#2563eb"
+        anchorX="center"
+        anchorY="middle"
+      >
+        {dimensionValue.toFixed(1)}
+      </Text>
+
       <ambientLight intensity={0.7} />
       <directionalLight position={[0, 5, 5]} intensity={0.6} />
       <directionalLight position={[0, 3, -5]} intensity={0.3} />
@@ -167,7 +220,7 @@ export function BackPanelSettings({
   const [loading, setLoading] = React.useState(true);
   const [looseWid, setLooseWid] = React.useState(0.5);
   const [looseDep, setLooseDep] = React.useState(1);
-  const [backPanelThickness, setBackPanelThickness] = React.useState(1);
+  const [backPanelThickness, setBackPanelThickness] = React.useState(8);
   const [grooveOffset, setGrooveOffset] = React.useState(12);
   const [grooveDepth, setGrooveDepth] = React.useState(8);
   const [profiles, setProfiles] = React.useState<GlobalSettingsProfile[]>([]);
@@ -225,7 +278,7 @@ export function BackPanelSettings({
   const resetToDefaults = () => {
     setLooseWid(0.5);
     setLooseDep(1);
-    setBackPanelThickness(1);
+    setBackPanelThickness(8);
     setGrooveOffset(12);
     setGrooveDepth(8);
   };
