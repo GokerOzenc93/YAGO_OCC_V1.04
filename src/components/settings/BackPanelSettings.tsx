@@ -112,7 +112,7 @@ const CabinetTopView: React.FC<{
 
           return (
             <>
-              <line key="tick-groove-top">
+              <line key={`tick-groove-top-${grooveDepth}`}>
                 <bufferGeometry>
                   <bufferAttribute
                     attach="attributes-position"
@@ -124,7 +124,7 @@ const CabinetTopView: React.FC<{
                 <lineBasicMaterial color="#666666" linewidth={1} />
               </line>
 
-              <line key="tick-groove-bottom">
+              <line key={`tick-groove-bottom-${grooveDepth}`}>
                 <bufferGeometry>
                   <bufferAttribute
                     attach="attributes-position"
@@ -137,6 +137,7 @@ const CabinetTopView: React.FC<{
               </line>
 
               <Text
+                key={`groove-depth-text-${grooveDepth}`}
                 position={[0, (bottomPanelTopEdge + grooveBottomEdge) / 2, grooveDimZ - grooveTextOffset]}
                 rotation={[0, -Math.PI / 2, 0]}
                 fontSize={0.008}
