@@ -30,7 +30,7 @@ const CabinetTopView: React.FC<{
 
     const dimStartZ = -cabinetDepth / 2;
     const dimEndZ = backPanelZ + backrestThickness / 2;
-    const dimX = -innerWidth / 2 - 0.015;
+    const dimX = -innerWidth / 2 - 0.012;
     const dimY = bottomPanelY - 0.01;
     const dimensionValue = (grooveOffset + backrestThickness) * 1000;
     const tickLength = Math.max(0.008, backrestThickness * 1.5);
@@ -114,7 +114,7 @@ const CabinetTopView: React.FC<{
 
   const dimStartZ = -cabinetDepth / 2;
   const dimEndZ = backPanelZ + backrestThickness / 2;
-  const dimX = leftPanelX - panelThickness / 2 - 0.015;
+  const dimX = leftPanelX - panelThickness / 2 - 0.012;
   const dimY = 0;
   const dimensionValue = (grooveOffset + backrestThickness) * 1000;
   const tickLength = Math.max(0.008, backrestThickness * 1.5);
