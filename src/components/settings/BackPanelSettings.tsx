@@ -149,13 +149,13 @@ const CabinetTopView: React.FC<{
                 {grooveDepthValue.toFixed(1)}
               </Text>
 
-              <mesh position={[0, 0, backPanelZ + backrestThickness / 2 + 0.0005]}>
+              <mesh position={[-innerWidth / 2 - 0.001, 0, backPanelZ]} rotation={[0, Math.PI / 2, 0]}>
                 <planeGeometry args={[0.022, 0.01]} />
                 <meshBasicMaterial color="#ffffff" />
               </mesh>
               <Text
                 key={`thickness-text-${backrestThickness}`}
-                position={[0, 0, backPanelZ + backrestThickness / 2 + 0.001]}
+                position={[-innerWidth / 2 - 0.002, 0, backPanelZ]}
                 rotation={[0, -Math.PI / 2, 0]}
                 fontSize={0.008}
                 color="#666666"
