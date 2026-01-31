@@ -448,7 +448,9 @@ export function BackPanelSettings({
 
   const {
     backPanelLeftExtend,
+    setBackPanelLeftExtend,
     backPanelRightExtend,
+    setBackPanelRightExtend,
     showBackPanelLeftExtend,
     showBackPanelRightExtend,
     setShowBackPanelLeftExtend,
@@ -673,6 +675,32 @@ export function BackPanelSettings({
               className="text-xs px-2 py-0.5 w-16 border border-stone-300 rounded focus:outline-none focus:border-orange-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
+
+          {showBackPanelLeftExtend && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-orange-600 font-medium">Back panel left extend</label>
+              <input
+                type="number"
+                value={backPanelLeftExtend}
+                onChange={(e) => setBackPanelLeftExtend(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-orange-400 rounded focus:outline-none focus:border-orange-500 bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
+          {showBackPanelRightExtend && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-orange-600 font-medium">Back panel right extend</label>
+              <input
+                type="number"
+                value={backPanelRightExtend}
+                onChange={(e) => setBackPanelRightExtend(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-orange-400 rounded focus:outline-none focus:border-orange-500 bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
         </div>
       </div>
 
