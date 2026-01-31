@@ -141,7 +141,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     clearFilletFaceData,
     roleEditMode,
     setRoleEditMode,
-    updateFaceRole
+    updateFaceRole,
+    backPanelLeftExtend,
+    setBackPanelLeftExtend,
+    showBackPanelLeftExtend,
+    setShowBackPanelLeftExtend,
+    backPanelRightExtend,
+    setBackPanelRightExtend,
+    showBackPanelRightExtend,
+    setShowBackPanelRightExtend
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -816,6 +824,90 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
                 description="Rotation Z"
                 step={1}
               />
+
+              {showBackPanelLeftExtend && (
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="BPL"
+                    readOnly
+                    tabIndex={-1}
+                    className="w-10 px-1 py-0.5 text-xs font-mono bg-orange-100 text-orange-800 border border-orange-300 rounded text-center"
+                  />
+                  <input
+                    type="number"
+                    value={backPanelLeftExtend}
+                    onChange={(e) => setBackPanelLeftExtend(Number(e.target.value))}
+                    className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-orange-300 rounded text-left [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={backPanelLeftExtend.toFixed(2)}
+                    readOnly
+                    tabIndex={-1}
+                    className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
+                  />
+                  <input
+                    type="text"
+                    value="Back panel left extend"
+                    readOnly
+                    tabIndex={-1}
+                    className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
+                  />
+                  <button
+                    onClick={() => {
+                      setShowBackPanelLeftExtend(false);
+                      setBackPanelLeftExtend(0);
+                    }}
+                    className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                    title="Remove"
+                  >
+                    <X size={12} className="text-red-600" />
+                  </button>
+                </div>
+              )}
+
+              {showBackPanelRightExtend && (
+                <div className="flex gap-1 items-center">
+                  <input
+                    type="text"
+                    value="BPR"
+                    readOnly
+                    tabIndex={-1}
+                    className="w-10 px-1 py-0.5 text-xs font-mono bg-orange-100 text-orange-800 border border-orange-300 rounded text-center"
+                  />
+                  <input
+                    type="number"
+                    value={backPanelRightExtend}
+                    onChange={(e) => setBackPanelRightExtend(Number(e.target.value))}
+                    className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-orange-300 rounded text-left [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <input
+                    type="text"
+                    value={backPanelRightExtend.toFixed(2)}
+                    readOnly
+                    tabIndex={-1}
+                    className="w-16 px-1 py-0.5 text-xs font-mono bg-white text-gray-400 border border-gray-300 rounded text-left"
+                  />
+                  <input
+                    type="text"
+                    value="Back panel right extend"
+                    readOnly
+                    tabIndex={-1}
+                    className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-600 border border-gray-300 rounded"
+                  />
+                  <button
+                    onClick={() => {
+                      setShowBackPanelRightExtend(false);
+                      setBackPanelRightExtend(0);
+                    }}
+                    className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                    title="Remove"
+                  >
+                    <X size={12} className="text-red-600" />
+                  </button>
+                </div>
+              )}
             </div>
 
             {filletRadii.length > 0 && (

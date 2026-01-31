@@ -4,6 +4,7 @@ import { OrthographicCamera, Text } from '@react-three/drei';
 import * as THREE from 'three';
 import { SaveButtons } from './SaveButtons';
 import { globalSettingsService, GlobalSettingsProfile } from '../GlobalSettingsDatabase';
+import { useAppStore } from '../../store';
 
 interface BackPanelSettingsProps {
   profileId: string;
@@ -15,11 +16,18 @@ const BackPanelArrow: React.FC<{
   position: [number, number, number];
   direction: 'left' | 'right';
   onClick: () => void;
-}> = ({ position, direction, onClick }) => {
+  active?: boolean;
+}> = ({ position, direction, onClick, active = false }) => {
   const [hovered, setHovered] = React.useState(false);
   const rotation: [number, number, number] = direction === 'left'
     ? [-Math.PI / 2, 0, Math.PI / 2]
     : [-Math.PI / 2, 0, -Math.PI / 2];
+
+  const getColor = () => {
+    if (active) return "#f97316";
+    if (hovered) return "#f97316";
+    return "#3b82f6";
+  };
 
   return (
     <mesh
@@ -40,7 +48,7 @@ const BackPanelArrow: React.FC<{
       }}
     >
       <coneGeometry args={[0.008, 0.016, 8]} />
-      <meshStandardMaterial color={hovered ? "#f97316" : "#3b82f6"} />
+      <meshStandardMaterial color={getColor()} />
     </mesh>
   );
 };
@@ -55,7 +63,9 @@ const CabinetTopView: React.FC<{
   onSelect: () => void;
   onLeftArrowClick: () => void;
   onRightArrowClick: () => void;
-}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick }) => {
+  leftExtendActive: boolean;
+  rightExtendActive: boolean;
+}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive }) => {
   const [hovered, setHovered] = React.useState(false);
   const cabinetWidth = 0.14;
   const cabinetDepth = 0.1;
@@ -306,11 +316,13 @@ const CabinetTopView: React.FC<{
             position={[-backPanelFullWidth / 2 + 0.012, -0.002, backPanelZ + backrestThickness / 2 + 0.012]}
             direction="left"
             onClick={onLeftArrowClick}
+            active={leftExtendActive}
           />
           <BackPanelArrow
             position={[backPanelFullWidth / 2 - 0.012, -0.002, backPanelZ + backrestThickness / 2 + 0.012]}
             direction="right"
             onClick={onRightArrowClick}
+            active={rightExtendActive}
           />
         </>
       )}
@@ -433,6 +445,15 @@ export function BackPanelSettings({
   const [profiles, setProfiles] = React.useState<GlobalSettingsProfile[]>([]);
   const [viewMode, setViewMode] = React.useState<'plan' | 'side'>('plan');
   const [isBackPanelSelected, setIsBackPanelSelected] = React.useState(false);
+
+  const {
+    backPanelLeftExtend,
+    backPanelRightExtend,
+    showBackPanelLeftExtend,
+    showBackPanelRightExtend,
+    setShowBackPanelLeftExtend,
+    setShowBackPanelRightExtend
+  } = useAppStore();
 
   React.useEffect(() => {
     loadProfiles();
@@ -581,8 +602,10 @@ export function BackPanelSettings({
               viewMode={viewMode}
               isSelected={isBackPanelSelected}
               onSelect={() => setIsBackPanelSelected(!isBackPanelSelected)}
-              onLeftArrowClick={() => {}}
-              onRightArrowClick={() => {}}
+              onLeftArrowClick={() => setShowBackPanelLeftExtend(true)}
+              onRightArrowClick={() => setShowBackPanelRightExtend(true)}
+              leftExtendActive={showBackPanelLeftExtend || backPanelLeftExtend > 0}
+              rightExtendActive={showBackPanelRightExtend || backPanelRightExtend > 0}
             />
           </Canvas>
         </div>

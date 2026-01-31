@@ -269,6 +269,16 @@ interface AppState {
   setLegBackDistance: (distance: number) => void;
   legSideDistance: number;
   setLegSideDistance: (distance: number) => void;
+
+  // Back Panel Extend Ayarları
+  backPanelLeftExtend: number;
+  setBackPanelLeftExtend: (value: number) => void;
+  showBackPanelLeftExtend: boolean;
+  setShowBackPanelLeftExtend: (show: boolean) => void;
+  backPanelRightExtend: number;
+  setBackPanelRightExtend: (value: number) => void;
+  showBackPanelRightExtend: boolean;
+  setShowBackPanelRightExtend: (show: boolean) => void;
 }
 
 /**
@@ -351,6 +361,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   setLegBackDistance: (distance) => set({ legBackDistance: distance }),
   legSideDistance: 30,
   setLegSideDistance: (distance) => set({ legSideDistance: distance }),
+
+  // Back Panel Extend Ayarları
+  backPanelLeftExtend: 0,
+  setBackPanelLeftExtend: (value) => set({ backPanelLeftExtend: value }),
+  showBackPanelLeftExtend: false,
+  setShowBackPanelLeftExtend: (show) => set({ showBackPanelLeftExtend: show }),
+  backPanelRightExtend: 0,
+  setBackPanelRightExtend: (value) => set({ backPanelRightExtend: value }),
+  showBackPanelRightExtend: false,
+  setShowBackPanelRightExtend: (show) => set({ showBackPanelRightExtend: show }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
