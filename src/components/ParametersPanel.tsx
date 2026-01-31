@@ -1136,25 +1136,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
               <Check size={12} />
               Apply Changes
             </button>
-
-            <div className="flex gap-2 mt-2">
-              <button
-                onClick={() => {
-                  console.log('Save clicked');
-                }}
-                className="flex-1 px-3 py-1.5 bg-white text-orange-600 border-2 border-orange-500 text-xs font-medium rounded hover:bg-orange-50 transition-colors"
-              >
-                Save
-              </button>
-              <button
-                onClick={() => {
-                  console.log('Save As clicked');
-                }}
-                className="flex-1 px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded hover:bg-orange-600 transition-colors"
-              >
-                Save As
-              </button>
-            </div>
           </div>
         ) : (
           <div className="text-center text-stone-500 text-xs py-4">
