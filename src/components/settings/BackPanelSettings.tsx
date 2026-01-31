@@ -433,40 +433,44 @@ const CabinetTopView: React.FC<{
               {leftWidthDimValue.toFixed(1)}
             </Text>
 
-            <line key={`tick-start-width-right-${sidePanelInnerEdgeRight}`}>
-              <bufferGeometry>
-                <bufferAttribute
-                  attach="attributes-position"
-                  count={2}
-                  array={new Float32Array([sidePanelInnerEdgeRight, dimY, widthDimZ, sidePanelInnerEdgeRight, dimY, widthDimZ - widthTickLength])}
-                  itemSize={3}
-                />
-              </bufferGeometry>
-              <lineBasicMaterial color={rightDimColor} linewidth={1} />
-            </line>
+            {rightExtendValue > 0 && (
+              <>
+                <line key={`tick-start-width-right-${sidePanelInnerEdgeRight}`}>
+                  <bufferGeometry>
+                    <bufferAttribute
+                      attach="attributes-position"
+                      count={2}
+                      array={new Float32Array([sidePanelInnerEdgeRight, dimY, widthDimZ, sidePanelInnerEdgeRight, dimY, widthDimZ - widthTickLength])}
+                      itemSize={3}
+                    />
+                  </bufferGeometry>
+                  <lineBasicMaterial color={rightDimColor} linewidth={1} />
+                </line>
 
-            <line key={`tick-end-width-right-${backPanelRightEdge}`}>
-              <bufferGeometry>
-                <bufferAttribute
-                  attach="attributes-position"
-                  count={2}
-                  array={new Float32Array([backPanelRightEdge, dimY, widthDimZ, backPanelRightEdge, dimY, widthDimZ - widthTickLength])}
-                  itemSize={3}
-                />
-              </bufferGeometry>
-              <lineBasicMaterial color={rightDimColor} linewidth={1} />
-            </line>
+                <line key={`tick-end-width-right-${backPanelRightEdge}`}>
+                  <bufferGeometry>
+                    <bufferAttribute
+                      attach="attributes-position"
+                      count={2}
+                      array={new Float32Array([backPanelRightEdge, dimY, widthDimZ, backPanelRightEdge, dimY, widthDimZ - widthTickLength])}
+                      itemSize={3}
+                    />
+                  </bufferGeometry>
+                  <lineBasicMaterial color={rightDimColor} linewidth={1} />
+                </line>
 
-            <Text
-              position={[(sidePanelInnerEdgeRight + backPanelRightEdge) / 2, dimY, widthDimZ - widthTextOffset]}
-              rotation={[-Math.PI / 2, 0, 0]}
-              fontSize={0.008}
-              color={rightDimColor}
-              anchorX="center"
-              anchorY="middle"
-            >
-              {rightWidthDimValue.toFixed(1)}
-            </Text>
+                <Text
+                  position={[(sidePanelInnerEdgeRight + backPanelRightEdge) / 2, dimY, widthDimZ - widthTextOffset]}
+                  rotation={[-Math.PI / 2, 0, 0]}
+                  fontSize={0.008}
+                  color={rightDimColor}
+                  anchorX="center"
+                  anchorY="middle"
+                >
+                  {rightWidthDimValue.toFixed(1)}
+                </Text>
+              </>
+            )}
           </>
         );
       })()}
@@ -651,9 +655,15 @@ export function BackPanelSettings({
               looseWid={looseWid / 1000}
               viewMode={viewMode}
               isSelected={isBackPanelSelected}
-              onSelect={() => setIsBackPanelSelected(!isBackPanelSelected)}
-              onLeftArrowClick={() => setShowBackPanelLeftExtend(true)}
-              onRightArrowClick={() => setShowBackPanelRightExtend(true)}
+              onSelect={() => {
+                if (isBackPanelSelected) {
+                  setShowBackPanelLeftExtend(false);
+                  setShowBackPanelRightExtend(false);
+                }
+                setIsBackPanelSelected(!isBackPanelSelected);
+              }}
+              onLeftArrowClick={() => setShowBackPanelLeftExtend(!showBackPanelLeftExtend)}
+              onRightArrowClick={() => setShowBackPanelRightExtend(!showBackPanelRightExtend)}
               leftExtendActive={showBackPanelLeftExtend || backPanelLeftExtend > 0}
               rightExtendActive={showBackPanelRightExtend || backPanelRightExtend > 0}
               leftExtendValue={backPanelLeftExtend}
