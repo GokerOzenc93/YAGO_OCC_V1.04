@@ -126,6 +126,44 @@ const VerticalBackPanelArrow: React.FC<{
   );
 };
 
+const HorizontalPanelArrow: React.FC<{
+  position: [number, number, number];
+  onClick: () => void;
+  active?: boolean;
+}> = ({ position, onClick, active = false }) => {
+  const [hovered, setHovered] = React.useState(false);
+  const rotation: [number, number, number] = [Math.PI / 2, 0, 0];
+
+  const getColor = () => {
+    if (active) return "#f97316";
+    if (hovered) return "#f97316";
+    return "#3b82f6";
+  };
+
+  return (
+    <mesh
+      position={position}
+      rotation={rotation}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = 'auto';
+      }}
+    >
+      <coneGeometry args={[0.008, 0.016, 8]} />
+      <meshStandardMaterial color={getColor()} />
+    </mesh>
+  );
+};
+
 const CabinetTopView: React.FC<{
   backrestThickness: number;
   grooveOffset: number;
@@ -156,10 +194,22 @@ const CabinetTopView: React.FC<{
   bottomExtendActive: boolean;
   topExtendValue: number;
   bottomExtendValue: number;
-}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive, leftExtendValue, rightExtendValue, isLeftPanelSelected, isRightPanelSelected, onLeftPanelSelect, onRightPanelSelect, onLeftPanelArrowClick, onRightPanelArrowClick, leftPanelShortenActive, rightPanelShortenActive, leftPanelShortenValue, rightPanelShortenValue, onTopArrowClick, onBottomArrowClick, topExtendActive, bottomExtendActive, topExtendValue, bottomExtendValue }) => {
+  isTopPanelSelected: boolean;
+  isBottomPanelSelected: boolean;
+  onTopPanelSelect: () => void;
+  onBottomPanelSelect: () => void;
+  onTopPanelArrowClick: () => void;
+  onBottomPanelArrowClick: () => void;
+  topPanelShortenActive: boolean;
+  bottomPanelShortenActive: boolean;
+  topPanelShortenValue: number;
+  bottomPanelShortenValue: number;
+}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive, leftExtendValue, rightExtendValue, isLeftPanelSelected, isRightPanelSelected, onLeftPanelSelect, onRightPanelSelect, onLeftPanelArrowClick, onRightPanelArrowClick, leftPanelShortenActive, rightPanelShortenActive, leftPanelShortenValue, rightPanelShortenValue, onTopArrowClick, onBottomArrowClick, topExtendActive, bottomExtendActive, topExtendValue, bottomExtendValue, isTopPanelSelected, isBottomPanelSelected, onTopPanelSelect, onBottomPanelSelect, onTopPanelArrowClick, onBottomPanelArrowClick, topPanelShortenActive, bottomPanelShortenActive, topPanelShortenValue, bottomPanelShortenValue }) => {
   const [hovered, setHovered] = React.useState(false);
   const [leftPanelHovered, setLeftPanelHovered] = React.useState(false);
   const [rightPanelHovered, setRightPanelHovered] = React.useState(false);
+  const [topPanelHovered, setTopPanelHovered] = React.useState(false);
+  const [bottomPanelHovered, setBottomPanelHovered] = React.useState(false);
   const cabinetWidth = 0.14;
   const cabinetDepth = 0.1;
   const panelThickness = 0.018;
@@ -191,25 +241,59 @@ const CabinetTopView: React.FC<{
     const topBackPanelY = backPanelCenterY + gapHeight / 2 + backPanelHalfHeight / 2;
     const bottomBackPanelY = backPanelCenterY - gapHeight / 2 - backPanelHalfHeight / 2;
 
+    const topPanelDepth = cabinetDepth - (topPanelShortenValue / 1000);
+    const bottomPanelDepth = cabinetDepth - (bottomPanelShortenValue / 1000);
+    const topPanelZOffset = (topPanelShortenValue / 1000) / 2;
+    const bottomPanelZOffset = (bottomPanelShortenValue / 1000) / 2;
+
+    const topPanelColor = isTopPanelSelected ? "#ef4444" : (topPanelHovered ? "#ef4444" : "#d4d4d4");
+    const bottomPanelColor = isBottomPanelSelected ? "#ef4444" : (bottomPanelHovered ? "#ef4444" : "#d4d4d4");
+
     return (
       <group>
-        <mesh position={[0, topPanelY, 0]}>
-          <boxGeometry args={[innerWidth, panelThickness, cabinetDepth]} />
-          <meshStandardMaterial color="#d4d4d4" transparent opacity={0.4} />
+        <mesh
+          position={[0, topPanelY, topPanelZOffset]}
+          onClick={(e) => { e.stopPropagation(); onTopPanelSelect(); }}
+          onPointerOver={() => { setTopPanelHovered(true); document.body.style.cursor = 'pointer'; }}
+          onPointerOut={() => { setTopPanelHovered(false); document.body.style.cursor = 'auto'; }}
+        >
+          <boxGeometry args={[innerWidth, panelThickness, topPanelDepth]} />
+          <meshStandardMaterial color={topPanelColor} transparent opacity={isTopPanelSelected || topPanelHovered ? 0.8 : 0.4} />
         </mesh>
-        <lineSegments position={[0, topPanelY, 0]}>
-          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, panelThickness, cabinetDepth)]} />
+        <lineSegments position={[0, topPanelY, topPanelZOffset]}>
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, panelThickness, topPanelDepth)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        <mesh position={[0, bottomPanelY, 0]}>
-          <boxGeometry args={[innerWidth, panelThickness, cabinetDepth]} />
-          <meshStandardMaterial color="#d4d4d4" transparent opacity={0.4} />
+        {isTopPanelSelected && (
+          <HorizontalPanelArrow
+            position={[innerWidth / 2 - 0.012, topPanelY, -cabinetDepth / 2 + 0.025]}
+            onClick={onTopPanelArrowClick}
+            active={topPanelShortenActive}
+          />
+        )}
+
+        <mesh
+          position={[0, bottomPanelY, bottomPanelZOffset]}
+          onClick={(e) => { e.stopPropagation(); onBottomPanelSelect(); }}
+          onPointerOver={() => { setBottomPanelHovered(true); document.body.style.cursor = 'pointer'; }}
+          onPointerOut={() => { setBottomPanelHovered(false); document.body.style.cursor = 'auto'; }}
+        >
+          <boxGeometry args={[innerWidth, panelThickness, bottomPanelDepth]} />
+          <meshStandardMaterial color={bottomPanelColor} transparent opacity={isBottomPanelSelected || bottomPanelHovered ? 0.8 : 0.4} />
         </mesh>
-        <lineSegments position={[0, bottomPanelY, 0]}>
-          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, panelThickness, cabinetDepth)]} />
+        <lineSegments position={[0, bottomPanelY, bottomPanelZOffset]}>
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth, panelThickness, bottomPanelDepth)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
+
+        {isBottomPanelSelected && (
+          <HorizontalPanelArrow
+            position={[innerWidth / 2 - 0.012, bottomPanelY, -cabinetDepth / 2 + 0.025]}
+            onClick={onBottomPanelArrowClick}
+            active={bottomPanelShortenActive}
+          />
+        )}
 
         <mesh
           position={[0, topBackPanelY, backPanelZ]}
@@ -722,7 +806,19 @@ export function BackPanelSettings({
     isLeftPanelSelected,
     setIsLeftPanelSelected,
     isRightPanelSelected,
-    setIsRightPanelSelected
+    setIsRightPanelSelected,
+    isTopPanelSelected,
+    setIsTopPanelSelected,
+    isBottomPanelSelected,
+    setIsBottomPanelSelected,
+    topPanelBackShorten,
+    setTopPanelBackShorten,
+    bottomPanelBackShorten,
+    setBottomPanelBackShorten,
+    showTopPanelBackShorten,
+    showBottomPanelBackShorten,
+    setShowTopPanelBackShorten,
+    setShowBottomPanelBackShorten
   } = useAppStore();
 
   React.useEffect(() => {
@@ -882,6 +978,10 @@ export function BackPanelSettings({
                 setIsRightPanelSelected(false);
                 setShowLeftPanelBackShorten(false);
                 setShowRightPanelBackShorten(false);
+                setIsTopPanelSelected(false);
+                setIsBottomPanelSelected(false);
+                setShowTopPanelBackShorten(false);
+                setShowBottomPanelBackShorten(false);
                 setIsBackPanelSelected(!isBackPanelSelected);
               }}
               onLeftArrowClick={() => setShowBackPanelLeftExtend(!showBackPanelLeftExtend)}
@@ -903,6 +1003,10 @@ export function BackPanelSettings({
                 setShowBackPanelBottomExtend(false);
                 setIsRightPanelSelected(false);
                 setShowRightPanelBackShorten(false);
+                setIsTopPanelSelected(false);
+                setIsBottomPanelSelected(false);
+                setShowTopPanelBackShorten(false);
+                setShowBottomPanelBackShorten(false);
                 setIsLeftPanelSelected(!isLeftPanelSelected);
               }}
               onRightPanelSelect={() => {
@@ -916,6 +1020,10 @@ export function BackPanelSettings({
                 setShowBackPanelBottomExtend(false);
                 setIsLeftPanelSelected(false);
                 setShowLeftPanelBackShorten(false);
+                setIsTopPanelSelected(false);
+                setIsBottomPanelSelected(false);
+                setShowTopPanelBackShorten(false);
+                setShowBottomPanelBackShorten(false);
                 setIsRightPanelSelected(!isRightPanelSelected);
               }}
               onLeftPanelArrowClick={() => setShowLeftPanelBackShorten(!showLeftPanelBackShorten)}
@@ -930,6 +1038,48 @@ export function BackPanelSettings({
               bottomExtendActive={showBackPanelBottomExtend || backPanelBottomExtend > 0}
               topExtendValue={backPanelTopExtend}
               bottomExtendValue={backPanelBottomExtend}
+              isTopPanelSelected={isTopPanelSelected}
+              isBottomPanelSelected={isBottomPanelSelected}
+              onTopPanelSelect={() => {
+                if (isTopPanelSelected) {
+                  setShowTopPanelBackShorten(false);
+                }
+                setIsBackPanelSelected(false);
+                setShowBackPanelLeftExtend(false);
+                setShowBackPanelRightExtend(false);
+                setShowBackPanelTopExtend(false);
+                setShowBackPanelBottomExtend(false);
+                setIsLeftPanelSelected(false);
+                setIsRightPanelSelected(false);
+                setShowLeftPanelBackShorten(false);
+                setShowRightPanelBackShorten(false);
+                setIsBottomPanelSelected(false);
+                setShowBottomPanelBackShorten(false);
+                setIsTopPanelSelected(!isTopPanelSelected);
+              }}
+              onBottomPanelSelect={() => {
+                if (isBottomPanelSelected) {
+                  setShowBottomPanelBackShorten(false);
+                }
+                setIsBackPanelSelected(false);
+                setShowBackPanelLeftExtend(false);
+                setShowBackPanelRightExtend(false);
+                setShowBackPanelTopExtend(false);
+                setShowBackPanelBottomExtend(false);
+                setIsLeftPanelSelected(false);
+                setIsRightPanelSelected(false);
+                setShowLeftPanelBackShorten(false);
+                setShowRightPanelBackShorten(false);
+                setIsTopPanelSelected(false);
+                setShowTopPanelBackShorten(false);
+                setIsBottomPanelSelected(!isBottomPanelSelected);
+              }}
+              onTopPanelArrowClick={() => setShowTopPanelBackShorten(!showTopPanelBackShorten)}
+              onBottomPanelArrowClick={() => setShowBottomPanelBackShorten(!showBottomPanelBackShorten)}
+              topPanelShortenActive={showTopPanelBackShorten || topPanelBackShorten > 0}
+              bottomPanelShortenActive={showBottomPanelBackShorten || bottomPanelBackShorten > 0}
+              topPanelShortenValue={topPanelBackShorten}
+              bottomPanelShortenValue={bottomPanelBackShorten}
             />
           </Canvas>
         </div>
@@ -1072,6 +1222,32 @@ export function BackPanelSettings({
                 onChange={(e) => setBackPanelBottomExtend(Number(e.target.value))}
                 step="0.1"
                 className="text-xs px-2 py-0.5 w-16 border border-orange-400 rounded focus:outline-none focus:border-orange-500 bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
+          {showTopPanelBackShorten && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-red-600 font-medium">Top panel back shorten</label>
+              <input
+                type="number"
+                value={topPanelBackShorten}
+                onChange={(e) => setTopPanelBackShorten(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-red-400 rounded focus:outline-none focus:border-red-500 bg-red-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
+          {showBottomPanelBackShorten && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-red-600 font-medium">Bottom panel back shorten</label>
+              <input
+                type="number"
+                value={bottomPanelBackShorten}
+                onChange={(e) => setBottomPanelBackShorten(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-red-400 rounded focus:outline-none focus:border-red-500 bg-red-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           )}

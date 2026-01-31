@@ -305,6 +305,22 @@ interface AppState {
   setIsLeftPanelSelected: (selected: boolean) => void;
   isRightPanelSelected: boolean;
   setIsRightPanelSelected: (selected: boolean) => void;
+
+  // Top/Bottom Panel Selection (Side View)
+  isTopPanelSelected: boolean;
+  setIsTopPanelSelected: (selected: boolean) => void;
+  isBottomPanelSelected: boolean;
+  setIsBottomPanelSelected: (selected: boolean) => void;
+
+  // Top/Bottom Panel Back Shorten (Side View)
+  topPanelBackShorten: number;
+  setTopPanelBackShorten: (value: number) => void;
+  showTopPanelBackShorten: boolean;
+  setShowTopPanelBackShorten: (show: boolean) => void;
+  bottomPanelBackShorten: number;
+  setBottomPanelBackShorten: (value: number) => void;
+  showBottomPanelBackShorten: boolean;
+  setShowBottomPanelBackShorten: (show: boolean) => void;
 }
 
 /**
@@ -423,6 +439,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   setIsLeftPanelSelected: (selected) => set({ isLeftPanelSelected: selected }),
   isRightPanelSelected: false,
   setIsRightPanelSelected: (selected) => set({ isRightPanelSelected: selected }),
+
+  // Top/Bottom Panel Selection (Side View)
+  isTopPanelSelected: false,
+  setIsTopPanelSelected: (selected) => set({ isTopPanelSelected: selected }),
+  isBottomPanelSelected: false,
+  setIsBottomPanelSelected: (selected) => set({ isBottomPanelSelected: selected }),
+
+  // Top/Bottom Panel Back Shorten (Side View)
+  topPanelBackShorten: 0,
+  setTopPanelBackShorten: (value) => set({ topPanelBackShorten: value }),
+  showTopPanelBackShorten: false,
+  setShowTopPanelBackShorten: (show) => set({ showTopPanelBackShorten: show }),
+  bottomPanelBackShorten: 0,
+  setBottomPanelBackShorten: (value) => set({ bottomPanelBackShorten: value }),
+  showBottomPanelBackShorten: false,
+  setShowBottomPanelBackShorten: (show) => set({ showBottomPanelBackShorten: show }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
