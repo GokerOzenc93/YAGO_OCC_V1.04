@@ -337,19 +337,117 @@ const CabinetTopView: React.FC<{
         {isSelected && (
           <>
             <VerticalBackPanelArrow
-              position={[0, topBackPanelY + backPanelHalfHeight / 2 + 0.015, backPanelZ - backrestThickness / 2 - 0.01]}
+              position={[innerWidth / 2 - 0.012, topPanelY, backPanelZ - backrestThickness / 2 - 0.01]}
               direction="up"
               onClick={onTopArrowClick}
               active={topExtendActive}
             />
             <VerticalBackPanelArrow
-              position={[0, bottomBackPanelY - backPanelHalfHeight / 2 - 0.015, backPanelZ - backrestThickness / 2 - 0.01]}
+              position={[innerWidth / 2 - 0.012, bottomPanelY, backPanelZ - backrestThickness / 2 - 0.01]}
               direction="down"
               onClick={onBottomArrowClick}
               active={bottomExtendActive}
             />
           </>
         )}
+
+        {topExtendValue > 0 && (() => {
+          const topPanelBottomEdge = topPanelY - panelThickness / 2;
+          const backPanelTopEdge = topPanelBottomEdge + topGrooveTotal;
+          const topDimZ = -cabinetDepth / 2 - 0.012;
+          const topTickLength = 0.006;
+          const topTextOffset = 0.01;
+          const topDimValue = (grooveDepth * 1000) + topExtendValue;
+          const topDimColor = topExtendActive ? "#f97316" : "#666666";
+
+          return (
+            <>
+              <line key={`tick-top-panel-edge-${topPanelBottomEdge}`}>
+                <bufferGeometry>
+                  <bufferAttribute
+                    attach="attributes-position"
+                    count={2}
+                    array={new Float32Array([0, topPanelBottomEdge, topDimZ - topTickLength, 0, topPanelBottomEdge, topDimZ + topTickLength])}
+                    itemSize={3}
+                  />
+                </bufferGeometry>
+                <lineBasicMaterial color={topDimColor} linewidth={1} />
+              </line>
+
+              <line key={`tick-back-panel-top-edge-${backPanelTopEdge}`}>
+                <bufferGeometry>
+                  <bufferAttribute
+                    attach="attributes-position"
+                    count={2}
+                    array={new Float32Array([0, backPanelTopEdge, topDimZ - topTickLength, 0, backPanelTopEdge, topDimZ + topTickLength])}
+                    itemSize={3}
+                  />
+                </bufferGeometry>
+                <lineBasicMaterial color={topDimColor} linewidth={1} />
+              </line>
+
+              <Text
+                position={[0, (topPanelBottomEdge + backPanelTopEdge) / 2, topDimZ - topTextOffset]}
+                rotation={[0, -Math.PI / 2, 0]}
+                fontSize={0.008}
+                color={topDimColor}
+                anchorX="center"
+                anchorY="middle"
+              >
+                {topDimValue.toFixed(1)}
+              </Text>
+            </>
+          );
+        })()}
+
+        {bottomExtendValue > 0 && (() => {
+          const bottomPanelTopEdge = bottomPanelY + panelThickness / 2;
+          const backPanelBottomEdge = bottomPanelTopEdge - bottomGrooveTotal;
+          const bottomDimZ = -cabinetDepth / 2 - 0.012;
+          const bottomTickLength = 0.006;
+          const bottomTextOffset = 0.01;
+          const bottomDimValue = (grooveDepth * 1000) + bottomExtendValue;
+          const bottomDimColor = bottomExtendActive ? "#f97316" : "#666666";
+
+          return (
+            <>
+              <line key={`tick-bottom-panel-edge-${bottomPanelTopEdge}`}>
+                <bufferGeometry>
+                  <bufferAttribute
+                    attach="attributes-position"
+                    count={2}
+                    array={new Float32Array([0, bottomPanelTopEdge, bottomDimZ - bottomTickLength, 0, bottomPanelTopEdge, bottomDimZ + bottomTickLength])}
+                    itemSize={3}
+                  />
+                </bufferGeometry>
+                <lineBasicMaterial color={bottomDimColor} linewidth={1} />
+              </line>
+
+              <line key={`tick-back-panel-bottom-edge-${backPanelBottomEdge}`}>
+                <bufferGeometry>
+                  <bufferAttribute
+                    attach="attributes-position"
+                    count={2}
+                    array={new Float32Array([0, backPanelBottomEdge, bottomDimZ - bottomTickLength, 0, backPanelBottomEdge, bottomDimZ + bottomTickLength])}
+                    itemSize={3}
+                  />
+                </bufferGeometry>
+                <lineBasicMaterial color={bottomDimColor} linewidth={1} />
+              </line>
+
+              <Text
+                position={[0, (bottomPanelTopEdge + backPanelBottomEdge) / 2, bottomDimZ - bottomTextOffset]}
+                rotation={[0, -Math.PI / 2, 0]}
+                fontSize={0.008}
+                color={bottomDimColor}
+                anchorX="center"
+                anchorY="middle"
+              >
+                {bottomDimValue.toFixed(1)}
+              </Text>
+            </>
+          );
+        })()}
 
         <ambientLight intensity={0.7} />
         <directionalLight position={[-5, 5, 5]} intensity={0.6} />
