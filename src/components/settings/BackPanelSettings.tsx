@@ -65,7 +65,9 @@ const CabinetTopView: React.FC<{
   onRightArrowClick: () => void;
   leftExtendActive: boolean;
   rightExtendActive: boolean;
-}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive }) => {
+  leftExtendValue: number;
+  rightExtendValue: number;
+}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive, leftExtendValue, rightExtendValue }) => {
   const [hovered, setHovered] = React.useState(false);
   const cabinetWidth = 0.14;
   const cabinetDepth = 0.1;
@@ -248,11 +250,17 @@ const CabinetTopView: React.FC<{
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
   const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
   const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
-  const backPanelFullWidth = cabinetWidth - panelThickness * 2 + grooveDepth * 2;
+
+  const leftGrooveTotal = grooveDepth + (leftExtendValue / 1000);
+  const rightGrooveTotal = grooveDepth + (rightExtendValue / 1000);
+  const innerWidth = cabinetWidth - panelThickness * 2;
+  const backPanelFullWidth = innerWidth + leftGrooveTotal + rightGrooveTotal;
+  const backPanelCenterX = (rightGrooveTotal - leftGrooveTotal) / 2;
+
   const gapWidth = 0.025;
   const backPanelHalfWidth = (backPanelFullWidth - gapWidth) / 2;
-  const leftBackPanelX = -backPanelFullWidth / 2 + backPanelHalfWidth / 2;
-  const rightBackPanelX = backPanelFullWidth / 2 - backPanelHalfWidth / 2;
+  const leftBackPanelX = backPanelCenterX - backPanelFullWidth / 2 + backPanelHalfWidth / 2;
+  const rightBackPanelX = backPanelCenterX + backPanelFullWidth / 2 - backPanelHalfWidth / 2;
 
   const dimStartZ = -cabinetDepth / 2;
   const dimEndZ = -cabinetDepth / 2 + grooveOffset + backrestThickness;
@@ -374,50 +382,90 @@ const CabinetTopView: React.FC<{
       </Text>
 
       {(() => {
-        const backPanelLeftEdge = -((cabinetWidth - panelThickness * 2) / 2 + grooveDepth);
-        const sidePanelInnerEdge = leftPanelX + panelThickness / 2;
-        const widthDimValue = (looseWid + grooveDepth) * 1000;
-        const widthDimStartX = backPanelLeftEdge;
-        const widthDimEndX = sidePanelInnerEdge;
+        const sidePanelInnerEdgeLeft = leftPanelX + panelThickness / 2;
+        const sidePanelInnerEdgeRight = rightPanelX - panelThickness / 2;
+        const backPanelLeftEdge = sidePanelInnerEdgeLeft - leftGrooveTotal;
+        const backPanelRightEdge = sidePanelInnerEdgeRight + rightGrooveTotal;
         const widthDimZ = -cabinetDepth / 2 - 0.008;
         const widthTickLength = 0.006;
         const widthTextOffset = 0.012;
 
+        const leftWidthDimValue = (looseWid + grooveDepth) * 1000 + leftExtendValue;
+        const rightWidthDimValue = (looseWid + grooveDepth) * 1000 + rightExtendValue;
+
+        const leftDimColor = leftExtendActive ? "#f97316" : "#666666";
+        const rightDimColor = rightExtendActive ? "#f97316" : "#666666";
+
         return (
           <>
-            <line key={`tick-start-width-${widthDimStartX}`}>
+            <line key={`tick-start-width-left-${backPanelLeftEdge}`}>
               <bufferGeometry>
                 <bufferAttribute
                   attach="attributes-position"
                   count={2}
-                  array={new Float32Array([widthDimStartX, dimY, widthDimZ, widthDimStartX, dimY, widthDimZ - widthTickLength])}
+                  array={new Float32Array([backPanelLeftEdge, dimY, widthDimZ, backPanelLeftEdge, dimY, widthDimZ - widthTickLength])}
                   itemSize={3}
                 />
               </bufferGeometry>
-              <lineBasicMaterial color="#666666" linewidth={1} />
+              <lineBasicMaterial color={leftDimColor} linewidth={1} />
             </line>
 
-            <line key={`tick-end-width-${widthDimEndX}`}>
+            <line key={`tick-end-width-left-${sidePanelInnerEdgeLeft}`}>
               <bufferGeometry>
                 <bufferAttribute
                   attach="attributes-position"
                   count={2}
-                  array={new Float32Array([widthDimEndX, dimY, widthDimZ, widthDimEndX, dimY, widthDimZ - widthTickLength])}
+                  array={new Float32Array([sidePanelInnerEdgeLeft, dimY, widthDimZ, sidePanelInnerEdgeLeft, dimY, widthDimZ - widthTickLength])}
                   itemSize={3}
                 />
               </bufferGeometry>
-              <lineBasicMaterial color="#666666" linewidth={1} />
+              <lineBasicMaterial color={leftDimColor} linewidth={1} />
             </line>
 
             <Text
-              position={[(widthDimStartX + widthDimEndX) / 2, dimY, widthDimZ - widthTextOffset]}
+              position={[(backPanelLeftEdge + sidePanelInnerEdgeLeft) / 2, dimY, widthDimZ - widthTextOffset]}
               rotation={[-Math.PI / 2, 0, 0]}
               fontSize={0.008}
-              color="#666666"
+              color={leftDimColor}
               anchorX="center"
               anchorY="middle"
             >
-              {widthDimValue.toFixed(1)}
+              {leftWidthDimValue.toFixed(1)}
+            </Text>
+
+            <line key={`tick-start-width-right-${sidePanelInnerEdgeRight}`}>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([sidePanelInnerEdgeRight, dimY, widthDimZ, sidePanelInnerEdgeRight, dimY, widthDimZ - widthTickLength])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color={rightDimColor} linewidth={1} />
+            </line>
+
+            <line key={`tick-end-width-right-${backPanelRightEdge}`}>
+              <bufferGeometry>
+                <bufferAttribute
+                  attach="attributes-position"
+                  count={2}
+                  array={new Float32Array([backPanelRightEdge, dimY, widthDimZ, backPanelRightEdge, dimY, widthDimZ - widthTickLength])}
+                  itemSize={3}
+                />
+              </bufferGeometry>
+              <lineBasicMaterial color={rightDimColor} linewidth={1} />
+            </line>
+
+            <Text
+              position={[(sidePanelInnerEdgeRight + backPanelRightEdge) / 2, dimY, widthDimZ - widthTextOffset]}
+              rotation={[-Math.PI / 2, 0, 0]}
+              fontSize={0.008}
+              color={rightDimColor}
+              anchorX="center"
+              anchorY="middle"
+            >
+              {rightWidthDimValue.toFixed(1)}
             </Text>
           </>
         );
@@ -608,6 +656,8 @@ export function BackPanelSettings({
               onRightArrowClick={() => setShowBackPanelRightExtend(true)}
               leftExtendActive={showBackPanelLeftExtend || backPanelLeftExtend > 0}
               rightExtendActive={showBackPanelRightExtend || backPanelRightExtend > 0}
+              leftExtendValue={backPanelLeftExtend}
+              rightExtendValue={backPanelRightExtend}
             />
           </Canvas>
         </div>
