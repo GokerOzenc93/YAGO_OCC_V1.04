@@ -210,7 +210,7 @@ const CabinetTopView: React.FC<{
   const [rightPanelHovered, setRightPanelHovered] = React.useState(false);
   const [topPanelHovered, setTopPanelHovered] = React.useState(false);
   const [bottomPanelHovered, setBottomPanelHovered] = React.useState(false);
-  const cabinetWidth = 0.14;
+  const cabinetWidth = 0.09;
   const cabinetDepth = 0.1;
   const panelThickness = 0.018;
 
