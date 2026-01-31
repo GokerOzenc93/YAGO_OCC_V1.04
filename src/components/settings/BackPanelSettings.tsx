@@ -958,7 +958,7 @@ export function BackPanelSettings({
             {viewMode === 'plan' ? (
               <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={1400} />
             ) : (
-              <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1400} />
+              <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1800} />
             )}
             <CabinetTopView
               backrestThickness={backPanelThickness / 1000}
