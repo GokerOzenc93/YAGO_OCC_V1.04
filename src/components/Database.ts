@@ -15,6 +15,11 @@ export interface CatalogItem {
   description: string;
   tags: string[];
   geometry_data: any;
+  shape_parameters?: any;
+  subtraction_geometries?: any[];
+  fillets?: any[];
+  face_roles?: Record<number, string>;
+  preview_image?: string;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +49,10 @@ export const catalogService = {
     description: string;
     tags: string[];
     geometry_data: any;
+    shape_parameters?: any;
+    subtraction_geometries?: any[];
+    fillets?: any[];
+    face_roles?: Record<number, string>;
     preview_image?: string;
   }): Promise<CatalogItem | null> {
     if (!supabase) {
@@ -64,6 +73,10 @@ export const catalogService = {
           description: item.description,
           tags: item.tags,
           geometry_data: item.geometry_data,
+          shape_parameters: item.shape_parameters || {},
+          subtraction_geometries: item.subtraction_geometries || [],
+          fillets: item.fillets || [],
+          face_roles: item.face_roles || {},
           preview_image: item.preview_image,
           updated_at: new Date().toISOString()
         })
@@ -83,6 +96,10 @@ export const catalogService = {
       .from('geometry_catalog')
       .insert([{
         ...item,
+        shape_parameters: item.shape_parameters || {},
+        subtraction_geometries: item.subtraction_geometries || [],
+        fillets: item.fillets || [],
+        face_roles: item.face_roles || {},
         updated_at: new Date().toISOString()
       }])
       .select()

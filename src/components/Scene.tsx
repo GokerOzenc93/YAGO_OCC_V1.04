@@ -357,6 +357,31 @@ const Scene: React.FC = () => {
     return canvas.toDataURL('image/png');
   };
 
+  const serializeSubtractionGeometries = (subtractionGeometries: any[] | undefined) => {
+    if (!subtractionGeometries || subtractionGeometries.length === 0) return [];
+
+    return subtractionGeometries.filter(sub => sub !== null).map(sub => {
+      const serialized: any = {
+        relativeOffset: sub.relativeOffset,
+        relativeRotation: sub.relativeRotation,
+        scale: sub.scale,
+        parameters: sub.parameters
+      };
+
+      if (sub.geometry) {
+        const posAttr = sub.geometry.getAttribute('position');
+        if (posAttr) {
+          const box = new THREE.Box3().setFromBufferAttribute(posAttr);
+          const size = new THREE.Vector3();
+          box.getSize(size);
+          serialized.geometrySize = [size.x, size.y, size.z];
+        }
+      }
+
+      return serialized;
+    });
+  };
+
   const handleSave = async (data: { code: string; description: string; tags: string[]; previewImage?: string }) => {
     if (!saveDialog.shapeId) return;
 
@@ -365,6 +390,10 @@ const Scene: React.FC = () => {
 
     try {
       let geometryData: any;
+      let shapeParameters: any = {};
+      let subtractionGeometriesData: any[] = [];
+      let filletsData: any[] = [];
+      let faceRolesData: Record<number, string> = {};
 
       if (shape.groupId) {
         const groupShapes = shapes.filter(s => s.groupId === shape.groupId);
@@ -382,7 +411,7 @@ const Scene: React.FC = () => {
           }))
         };
 
-        console.log('💾 Saving group:', {
+        console.log('Saving group:', {
           code: data.code,
           shapeCount: groupShapes.length,
           groupId: shape.groupId
@@ -398,13 +427,44 @@ const Scene: React.FC = () => {
           vertexModifications: shape.vertexModifications || []
         };
 
-        console.log('💾 Saving geometry:', {
+        shapeParameters = {
+          width: shape.parameters?.width,
+          height: shape.parameters?.height,
+          depth: shape.parameters?.depth,
+          color: shape.color,
+          position: shape.position,
+          rotation: shape.rotation,
+          scale: shape.scale,
+          vertexModifications: shape.vertexModifications || []
+        };
+
+        subtractionGeometriesData = serializeSubtractionGeometries(shape.subtractionGeometries);
+
+        if (shape.fillets && shape.fillets.length > 0) {
+          filletsData = shape.fillets.map(fillet => ({
+            face1Descriptor: fillet.face1Descriptor,
+            face2Descriptor: fillet.face2Descriptor,
+            face1Data: fillet.face1Data,
+            face2Data: fillet.face2Data,
+            radius: fillet.radius,
+            originalSize: fillet.originalSize
+          }));
+        }
+
+        if (shape.faceRoles) {
+          faceRolesData = Object.entries(shape.faceRoles).reduce((acc, [key, value]) => {
+            if (value) acc[Number(key)] = value;
+            return acc;
+          }, {} as Record<number, string>);
+        }
+
+        console.log('Saving geometry with full parameters:', {
           code: data.code,
           type: shape.type,
-          parameters: shape.parameters,
-          position: shape.position,
-          scale: shape.scale,
-          vertexModifications: shape.vertexModifications?.length || 0
+          parameters: shapeParameters,
+          subtractionCount: subtractionGeometriesData.length,
+          filletsCount: filletsData.length,
+          faceRolesCount: Object.keys(faceRolesData).length
         });
       }
 
@@ -413,10 +473,14 @@ const Scene: React.FC = () => {
         description: data.description,
         tags: data.tags,
         geometry_data: geometryData,
+        shape_parameters: shapeParameters,
+        subtraction_geometries: subtractionGeometriesData,
+        fillets: filletsData,
+        face_roles: faceRolesData,
         preview_image: data.previewImage
       });
 
-      console.log('✅ Geometry saved to catalog:', data.code);
+      console.log('Geometry saved to catalog:', data.code);
       alert('Geometry saved successfully!');
       setSaveDialog({ isOpen: false, shapeId: null });
     } catch (error) {
