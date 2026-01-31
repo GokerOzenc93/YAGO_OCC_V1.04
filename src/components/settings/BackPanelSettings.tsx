@@ -38,6 +38,11 @@ const CabinetTopView: React.FC<{
     const tickLength = 0.006;
     const textOffset = 0.01;
 
+    const gapHeight = 0.02;
+    const backPanelHalfHeight = (backPanelHeight - gapHeight) / 2;
+    const topBackPanelY = gapHeight / 2 + backPanelHalfHeight / 2;
+    const bottomBackPanelY = -gapHeight / 2 - backPanelHalfHeight / 2;
+
     return (
       <group>
         <mesh position={[0, topPanelY, 0]}>
@@ -58,25 +63,31 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        <mesh position={[0, 0, backPanelZ]}>
-          <boxGeometry args={[innerWidth + grooveDepth * 2, backPanelHeight, backrestThickness]} />
+        <mesh position={[0, topBackPanelY, backPanelZ]}>
+          <boxGeometry args={[innerWidth + grooveDepth * 2, backPanelHalfHeight, backrestThickness]} />
           <meshStandardMaterial color="#ef4444" />
         </mesh>
-        <lineSegments position={[0, 0, backPanelZ]}>
-          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth + grooveDepth * 2, backPanelHeight, backrestThickness)]} />
+        <lineSegments position={[0, topBackPanelY, backPanelZ]}>
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth + grooveDepth * 2, backPanelHalfHeight, backrestThickness)]} />
+          <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
+        </lineSegments>
+
+        <mesh position={[0, bottomBackPanelY, backPanelZ]}>
+          <boxGeometry args={[innerWidth + grooveDepth * 2, backPanelHalfHeight, backrestThickness]} />
+          <meshStandardMaterial color="#ef4444" />
+        </mesh>
+        <lineSegments position={[0, bottomBackPanelY, backPanelZ]}>
+          <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth + grooveDepth * 2, backPanelHalfHeight, backrestThickness)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
         <Text
           position={[0, 0, backPanelZ + 0.0001]}
           rotation={[0, -Math.PI / 2, 0]}
-          fontSize={0.012}
-          color="#000000"
+          fontSize={0.008}
+          color="#666666"
           anchorX="center"
           anchorY="middle"
-          outlineWidth={0.003}
-          outlineColor="#ffffff"
-          depthOffset={-1}
         >
           {(backrestThickness * 1000).toFixed(1)}
         </Text>
