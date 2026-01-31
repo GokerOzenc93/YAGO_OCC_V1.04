@@ -267,7 +267,7 @@ const CabinetTopView: React.FC<{
 
         {isTopPanelSelected && (
           <HorizontalPanelArrow
-            position={[innerWidth / 2 - 0.012, topPanelY, -cabinetDepth / 2 + 0.025]}
+            position={[0, topPanelY, topPanelZOffset - topPanelDepth / 2 + 0.015]}
             onClick={onTopPanelArrowClick}
             active={topPanelShortenActive}
           />
@@ -289,7 +289,7 @@ const CabinetTopView: React.FC<{
 
         {isBottomPanelSelected && (
           <HorizontalPanelArrow
-            position={[innerWidth / 2 - 0.012, bottomPanelY, -cabinetDepth / 2 + 0.025]}
+            position={[0, bottomPanelY, bottomPanelZOffset - bottomPanelDepth / 2 + 0.015]}
             onClick={onBottomPanelArrowClick}
             active={bottomPanelShortenActive}
           />
