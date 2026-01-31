@@ -67,6 +67,17 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
+        <Text
+          position={[0, 0, backPanelZ]}
+          rotation={[0, -Math.PI / 2, 0]}
+          fontSize={0.008}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          Back Panel Thickness
+        </Text>
+
         <line key={`tick-start-side-depth-${dimStartZ}`}>
           <bufferGeometry>
             <bufferAttribute
@@ -199,6 +210,17 @@ const CabinetTopView: React.FC<{
         <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetWidth - panelThickness * 2 + grooveDepth * 2, cabinetHeight, backrestThickness)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
+
+      <Text
+        position={[0, 0, backPanelZ]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        fontSize={0.008}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+      >
+        Back Panel Thickness
+      </Text>
 
       <line key={`tick-start-plan-${dimStartZ}`}>
         <bufferGeometry>
