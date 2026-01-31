@@ -75,7 +75,7 @@ const CabinetTopView: React.FC<{
           anchorX="center"
           anchorY="middle"
         >
-          Back Panel Thickness
+          {backrestThickness * 1000}
         </Text>
 
         <line key={`tick-start-side-depth-${dimStartZ}`}>
@@ -219,7 +219,7 @@ const CabinetTopView: React.FC<{
         anchorX="center"
         anchorY="middle"
       >
-        Back Panel Thickness
+        {backrestThickness * 1000}
       </Text>
 
       <line key={`tick-start-plan-${dimStartZ}`}>
