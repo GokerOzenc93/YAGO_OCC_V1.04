@@ -176,6 +176,11 @@ const CabinetTopView: React.FC<{
   const leftPanelX = -cabinetWidth / 2 + panelThickness / 2;
   const rightPanelX = cabinetWidth / 2 - panelThickness / 2;
   const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
+  const backPanelFullWidth = cabinetWidth - panelThickness * 2 + grooveDepth * 2;
+  const gapWidth = 0.025;
+  const backPanelHalfWidth = (backPanelFullWidth - gapWidth) / 2;
+  const leftBackPanelX = -backPanelFullWidth / 2 + backPanelHalfWidth / 2;
+  const rightBackPanelX = backPanelFullWidth / 2 - backPanelHalfWidth / 2;
 
   const dimStartZ = -cabinetDepth / 2;
   const dimEndZ = -cabinetDepth / 2 + grooveOffset + backrestThickness;
@@ -205,25 +210,31 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      <mesh position={[0, 0, backPanelZ]}>
-        <boxGeometry args={[cabinetWidth - panelThickness * 2 + grooveDepth * 2, cabinetHeight, backrestThickness]} />
+      <mesh position={[leftBackPanelX, 0, backPanelZ]}>
+        <boxGeometry args={[backPanelHalfWidth, cabinetHeight, backrestThickness]} />
         <meshStandardMaterial color="#ef4444" />
       </mesh>
-      <lineSegments position={[0, 0, backPanelZ]}>
-        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(cabinetWidth - panelThickness * 2 + grooveDepth * 2, cabinetHeight, backrestThickness)]} />
+      <lineSegments position={[leftBackPanelX, 0, backPanelZ]}>
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(backPanelHalfWidth, cabinetHeight, backrestThickness)]} />
+        <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
+      </lineSegments>
+
+      <mesh position={[rightBackPanelX, 0, backPanelZ]}>
+        <boxGeometry args={[backPanelHalfWidth, cabinetHeight, backrestThickness]} />
+        <meshStandardMaterial color="#ef4444" />
+      </mesh>
+      <lineSegments position={[rightBackPanelX, 0, backPanelZ]}>
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(backPanelHalfWidth, cabinetHeight, backrestThickness)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
       <Text
         position={[0, 0.0002, backPanelZ]}
         rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={0.012}
-        color="#000000"
+        fontSize={0.008}
+        color="#666666"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.003}
-        outlineColor="#ffffff"
-        depthOffset={-1}
       >
         {(backrestThickness * 1000).toFixed(1)}
       </Text>
