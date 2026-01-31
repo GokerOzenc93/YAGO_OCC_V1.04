@@ -11,16 +11,57 @@ interface BackPanelSettingsProps {
   onSettingsSaved?: () => void;
 }
 
+const BackPanelArrow: React.FC<{
+  position: [number, number, number];
+  direction: 'left' | 'right';
+  onClick: () => void;
+}> = ({ position, direction, onClick }) => {
+  const [hovered, setHovered] = React.useState(false);
+  const rotation: [number, number, number] = direction === 'left'
+    ? [-Math.PI / 2, 0, Math.PI / 2]
+    : [-Math.PI / 2, 0, -Math.PI / 2];
+
+  return (
+    <mesh
+      position={position}
+      rotation={rotation}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = 'auto';
+      }}
+    >
+      <coneGeometry args={[0.008, 0.016, 8]} />
+      <meshStandardMaterial color={hovered ? "#f97316" : "#3b82f6"} />
+    </mesh>
+  );
+};
+
 const CabinetTopView: React.FC<{
   backrestThickness: number;
   grooveOffset: number;
   grooveDepth: number;
   looseWid: number;
   viewMode: 'plan' | 'side';
-}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode }) => {
+  isSelected: boolean;
+  onSelect: () => void;
+  onLeftArrowClick: () => void;
+  onRightArrowClick: () => void;
+}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick }) => {
+  const [hovered, setHovered] = React.useState(false);
   const cabinetWidth = 0.14;
   const cabinetDepth = 0.1;
   const panelThickness = 0.018;
+
+  const backPanelColor = isSelected ? "#ef4444" : (hovered ? "#ef4444" : "#fed7aa");
 
   if (viewMode === 'side') {
     const sideHeight = 0.1;
@@ -63,18 +104,28 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        <mesh position={[0, topBackPanelY, backPanelZ]}>
+        <mesh
+          position={[0, topBackPanelY, backPanelZ]}
+          onClick={onSelect}
+          onPointerOver={() => { setHovered(true); document.body.style.cursor = 'pointer'; }}
+          onPointerOut={() => { setHovered(false); document.body.style.cursor = 'auto'; }}
+        >
           <boxGeometry args={[innerWidth + grooveDepth * 2, backPanelHalfHeight, backrestThickness]} />
-          <meshStandardMaterial color="#ef4444" />
+          <meshStandardMaterial color={backPanelColor} />
         </mesh>
         <lineSegments position={[0, topBackPanelY, backPanelZ]}>
           <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth + grooveDepth * 2, backPanelHalfHeight, backrestThickness)]} />
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        <mesh position={[0, bottomBackPanelY, backPanelZ]}>
+        <mesh
+          position={[0, bottomBackPanelY, backPanelZ]}
+          onClick={onSelect}
+          onPointerOver={() => { setHovered(true); document.body.style.cursor = 'pointer'; }}
+          onPointerOut={() => { setHovered(false); document.body.style.cursor = 'auto'; }}
+        >
           <boxGeometry args={[innerWidth + grooveDepth * 2, backPanelHalfHeight, backrestThickness]} />
-          <meshStandardMaterial color="#ef4444" />
+          <meshStandardMaterial color={backPanelColor} />
         </mesh>
         <lineSegments position={[0, bottomBackPanelY, backPanelZ]}>
           <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(innerWidth + grooveDepth * 2, backPanelHalfHeight, backrestThickness)]} />
@@ -221,23 +272,48 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      <mesh position={[leftBackPanelX, 0, backPanelZ]}>
+      <mesh
+        position={[leftBackPanelX, 0, backPanelZ]}
+        onClick={onSelect}
+        onPointerOver={() => { setHovered(true); document.body.style.cursor = 'pointer'; }}
+        onPointerOut={() => { setHovered(false); document.body.style.cursor = 'auto'; }}
+      >
         <boxGeometry args={[backPanelHalfWidth, cabinetHeight, backrestThickness]} />
-        <meshStandardMaterial color="#ef4444" />
+        <meshStandardMaterial color={backPanelColor} />
       </mesh>
       <lineSegments position={[leftBackPanelX, 0, backPanelZ]}>
         <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(backPanelHalfWidth, cabinetHeight, backrestThickness)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      <mesh position={[rightBackPanelX, 0, backPanelZ]}>
+      <mesh
+        position={[rightBackPanelX, 0, backPanelZ]}
+        onClick={onSelect}
+        onPointerOver={() => { setHovered(true); document.body.style.cursor = 'pointer'; }}
+        onPointerOut={() => { setHovered(false); document.body.style.cursor = 'auto'; }}
+      >
         <boxGeometry args={[backPanelHalfWidth, cabinetHeight, backrestThickness]} />
-        <meshStandardMaterial color="#ef4444" />
+        <meshStandardMaterial color={backPanelColor} />
       </mesh>
       <lineSegments position={[rightBackPanelX, 0, backPanelZ]}>
         <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(backPanelHalfWidth, cabinetHeight, backrestThickness)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
+
+      {isSelected && (
+        <>
+          <BackPanelArrow
+            position={[-backPanelFullWidth / 2 - 0.015, 0.0001, backPanelZ]}
+            direction="left"
+            onClick={onLeftArrowClick}
+          />
+          <BackPanelArrow
+            position={[backPanelFullWidth / 2 + 0.015, 0.0001, backPanelZ]}
+            direction="right"
+            onClick={onRightArrowClick}
+          />
+        </>
+      )}
 
       <Text
         position={[0, 0.0002, backPanelZ]}
@@ -356,6 +432,7 @@ export function BackPanelSettings({
   const [grooveDepth, setGrooveDepth] = React.useState(8);
   const [profiles, setProfiles] = React.useState<GlobalSettingsProfile[]>([]);
   const [viewMode, setViewMode] = React.useState<'plan' | 'side'>('plan');
+  const [isBackPanelSelected, setIsBackPanelSelected] = React.useState(false);
 
   React.useEffect(() => {
     loadProfiles();
@@ -496,7 +573,17 @@ export function BackPanelSettings({
             ) : (
               <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1400} />
             )}
-            <CabinetTopView backrestThickness={backPanelThickness / 1000} grooveOffset={grooveOffset / 1000} grooveDepth={grooveDepth / 1000} looseWid={looseWid / 1000} viewMode={viewMode} />
+            <CabinetTopView
+              backrestThickness={backPanelThickness / 1000}
+              grooveOffset={grooveOffset / 1000}
+              grooveDepth={grooveDepth / 1000}
+              looseWid={looseWid / 1000}
+              viewMode={viewMode}
+              isSelected={isBackPanelSelected}
+              onSelect={() => setIsBackPanelSelected(!isBackPanelSelected)}
+              onLeftArrowClick={() => {}}
+              onRightArrowClick={() => {}}
+            />
           </Canvas>
         </div>
 
