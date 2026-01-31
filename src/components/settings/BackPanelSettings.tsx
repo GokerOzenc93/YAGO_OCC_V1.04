@@ -458,7 +458,7 @@ const CabinetTopView: React.FC<{
 
       {isLeftPanelSelected && (
         <SidePanelArrow
-          position={[leftPanelX + 0.015, -0.08, -cabinetDepth / 2 + 0.03]}
+          position={[leftPanelX + 0.015, -0.08, -cabinetDepth / 2 + 0.025]}
           onClick={onLeftPanelArrowClick}
           active={leftPanelShortenActive}
         />
@@ -480,7 +480,7 @@ const CabinetTopView: React.FC<{
 
       {isRightPanelSelected && (
         <SidePanelArrow
-          position={[rightPanelX - 0.015, -0.08, -cabinetDepth / 2 + 0.03]}
+          position={[rightPanelX - 0.015, -0.08, -cabinetDepth / 2 + 0.025]}
           onClick={onRightPanelArrowClick}
           active={rightPanelShortenActive}
         />
@@ -517,13 +517,13 @@ const CabinetTopView: React.FC<{
       {isSelected && (
         <>
           <BackPanelArrow
-            position={[-backPanelFullWidth / 2 + 0.012, -0.002, backPanelZ - backrestThickness / 2 - 0.015]}
+            position={[-backPanelFullWidth / 2 + 0.012, -0.002, backPanelZ - backrestThickness / 2 - 0.020]}
             direction="left"
             onClick={onLeftArrowClick}
             active={leftExtendActive}
           />
           <BackPanelArrow
-            position={[backPanelFullWidth / 2 - 0.012, -0.002, backPanelZ - backrestThickness / 2 - 0.015]}
+            position={[backPanelFullWidth / 2 - 0.012, -0.002, backPanelZ - backrestThickness / 2 - 0.020]}
             direction="right"
             onClick={onRightArrowClick}
             active={rightExtendActive}
