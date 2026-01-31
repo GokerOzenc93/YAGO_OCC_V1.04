@@ -70,12 +70,12 @@ const CabinetTopView: React.FC<{
         <Text
           position={[0, 0, backPanelZ]}
           rotation={[0, -Math.PI / 2, 0]}
-          fontSize={0.008}
+          fontSize={0.012}
           color="#ffffff"
           anchorX="center"
           anchorY="middle"
         >
-          {backrestThickness * 1000}
+          {(backrestThickness * 1000).toFixed(1)}
         </Text>
 
         <line key={`tick-start-side-depth-${dimStartZ}`}>
@@ -214,12 +214,12 @@ const CabinetTopView: React.FC<{
       <Text
         position={[0, 0, backPanelZ]}
         rotation={[-Math.PI / 2, 0, 0]}
-        fontSize={0.008}
+        fontSize={0.012}
         color="#ffffff"
         anchorX="center"
         anchorY="middle"
       >
-        {backrestThickness * 1000}
+        {(backrestThickness * 1000).toFixed(1)}
       </Text>
 
       <line key={`tick-start-plan-${dimStartZ}`}>
