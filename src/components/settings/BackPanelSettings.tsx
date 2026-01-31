@@ -53,38 +53,6 @@ const BackPanelArrow: React.FC<{
   );
 };
 
-const SidePanelArrow: React.FC<{
-  position: [number, number, number];
-  onClick: () => void;
-  active?: boolean;
-}> = ({ position, onClick, active = false }) => {
-  const [hovered, setHovered] = React.useState(false);
-  const rotation: [number, number, number] = [-Math.PI / 2, 0, Math.PI];
-
-  return (
-    <mesh
-      position={position}
-      rotation={rotation}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        setHovered(false);
-        document.body.style.cursor = 'auto';
-      }}
-    >
-      <coneGeometry args={[0.008, 0.016, 8]} />
-      <meshStandardMaterial color="#3b82f6" />
-    </mesh>
-  );
-};
-
 const VerticalBackPanelArrow: React.FC<{
   position: [number, number, number];
   direction: 'up' | 'down';
@@ -95,44 +63,6 @@ const VerticalBackPanelArrow: React.FC<{
   const rotation: [number, number, number] = direction === 'up'
     ? [0, 0, 0]
     : [Math.PI, 0, 0];
-
-  const getColor = () => {
-    if (active) return "#f97316";
-    if (hovered) return "#f97316";
-    return "#3b82f6";
-  };
-
-  return (
-    <mesh
-      position={position}
-      rotation={rotation}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
-      }}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-        document.body.style.cursor = 'pointer';
-      }}
-      onPointerOut={() => {
-        setHovered(false);
-        document.body.style.cursor = 'auto';
-      }}
-    >
-      <coneGeometry args={[0.008, 0.016, 8]} />
-      <meshStandardMaterial color={getColor()} />
-    </mesh>
-  );
-};
-
-const HorizontalPanelArrow: React.FC<{
-  position: [number, number, number];
-  onClick: () => void;
-  active?: boolean;
-}> = ({ position, onClick, active = false }) => {
-  const [hovered, setHovered] = React.useState(false);
-  const rotation: [number, number, number] = [Math.PI / 2, 0, 0];
 
   const getColor = () => {
     if (active) return "#f97316";
@@ -265,13 +195,6 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        {isTopPanelSelected && (
-          <HorizontalPanelArrow
-            position={[0, topPanelY, topPanelZOffset - topPanelDepth / 2 + 0.015]}
-            onClick={onTopPanelArrowClick}
-            active={topPanelShortenActive}
-          />
-        )}
 
         <mesh
           position={[0, bottomPanelY, bottomPanelZOffset]}
@@ -287,13 +210,6 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
-        {isBottomPanelSelected && (
-          <HorizontalPanelArrow
-            position={[0, bottomPanelY, bottomPanelZOffset - bottomPanelDepth / 2 + 0.015]}
-            onClick={onBottomPanelArrowClick}
-            active={bottomPanelShortenActive}
-          />
-        )}
 
         <mesh
           position={[0, topBackPanelY, backPanelZ]}
@@ -540,13 +456,6 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      {isLeftPanelSelected && (
-        <SidePanelArrow
-          position={[leftPanelX + 0.015, -0.08, -cabinetDepth / 2 + 0.025]}
-          onClick={onLeftPanelArrowClick}
-          active={leftPanelShortenActive}
-        />
-      )}
 
       <mesh
         position={[rightPanelX, 0, rightSidePanelZ]}
@@ -562,13 +471,6 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      {isRightPanelSelected && (
-        <SidePanelArrow
-          position={[rightPanelX - 0.015, -0.08, -cabinetDepth / 2 + 0.025]}
-          onClick={onRightPanelArrowClick}
-          active={rightPanelShortenActive}
-        />
-      )}
 
       <mesh
         position={[leftBackPanelX, 0, backPanelZ]}
@@ -993,9 +895,6 @@ export function BackPanelSettings({
               isLeftPanelSelected={isLeftPanelSelected}
               isRightPanelSelected={isRightPanelSelected}
               onLeftPanelSelect={() => {
-                if (isLeftPanelSelected) {
-                  setShowLeftPanelBackShorten(false);
-                }
                 setIsBackPanelSelected(false);
                 setShowBackPanelLeftExtend(false);
                 setShowBackPanelRightExtend(false);
@@ -1008,11 +907,9 @@ export function BackPanelSettings({
                 setShowTopPanelBackShorten(false);
                 setShowBottomPanelBackShorten(false);
                 setIsLeftPanelSelected(!isLeftPanelSelected);
+                setShowLeftPanelBackShorten(!isLeftPanelSelected);
               }}
               onRightPanelSelect={() => {
-                if (isRightPanelSelected) {
-                  setShowRightPanelBackShorten(false);
-                }
                 setIsBackPanelSelected(false);
                 setShowBackPanelLeftExtend(false);
                 setShowBackPanelRightExtend(false);
@@ -1025,6 +922,7 @@ export function BackPanelSettings({
                 setShowTopPanelBackShorten(false);
                 setShowBottomPanelBackShorten(false);
                 setIsRightPanelSelected(!isRightPanelSelected);
+                setShowRightPanelBackShorten(!isRightPanelSelected);
               }}
               onLeftPanelArrowClick={() => setShowLeftPanelBackShorten(!showLeftPanelBackShorten)}
               onRightPanelArrowClick={() => setShowRightPanelBackShorten(!showRightPanelBackShorten)}
@@ -1041,9 +939,6 @@ export function BackPanelSettings({
               isTopPanelSelected={isTopPanelSelected}
               isBottomPanelSelected={isBottomPanelSelected}
               onTopPanelSelect={() => {
-                if (isTopPanelSelected) {
-                  setShowTopPanelBackShorten(false);
-                }
                 setIsBackPanelSelected(false);
                 setShowBackPanelLeftExtend(false);
                 setShowBackPanelRightExtend(false);
@@ -1056,11 +951,9 @@ export function BackPanelSettings({
                 setIsBottomPanelSelected(false);
                 setShowBottomPanelBackShorten(false);
                 setIsTopPanelSelected(!isTopPanelSelected);
+                setShowTopPanelBackShorten(!isTopPanelSelected);
               }}
               onBottomPanelSelect={() => {
-                if (isBottomPanelSelected) {
-                  setShowBottomPanelBackShorten(false);
-                }
                 setIsBackPanelSelected(false);
                 setShowBackPanelLeftExtend(false);
                 setShowBackPanelRightExtend(false);
@@ -1073,6 +966,7 @@ export function BackPanelSettings({
                 setIsTopPanelSelected(false);
                 setShowTopPanelBackShorten(false);
                 setIsBottomPanelSelected(!isBottomPanelSelected);
+                setShowBottomPanelBackShorten(!isBottomPanelSelected);
               }}
               onTopPanelArrowClick={() => setShowTopPanelBackShorten(!showTopPanelBackShorten)}
               onBottomPanelArrowClick={() => setShowBottomPanelBackShorten(!showBottomPanelBackShorten)}
