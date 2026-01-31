@@ -61,12 +61,6 @@ const SidePanelArrow: React.FC<{
   const [hovered, setHovered] = React.useState(false);
   const rotation: [number, number, number] = [-Math.PI / 2, 0, Math.PI];
 
-  const getColor = () => {
-    if (active) return "#f97316";
-    if (hovered) return "#f97316";
-    return "#3b82f6";
-  };
-
   return (
     <mesh
       position={position}
@@ -86,7 +80,7 @@ const SidePanelArrow: React.FC<{
       }}
     >
       <coneGeometry args={[0.008, 0.016, 8]} />
-      <meshStandardMaterial color={getColor()} />
+      <meshStandardMaterial color="#3b82f6" />
     </mesh>
   );
 };
@@ -325,8 +319,8 @@ const CabinetTopView: React.FC<{
   const leftSidePanelZ = (leftPanelShortenValue / 1000) / 2;
   const rightSidePanelZ = (rightPanelShortenValue / 1000) / 2;
 
-  const leftPanelColor = isLeftPanelSelected ? "#22c55e" : (leftPanelHovered ? "#22c55e" : "#d4d4d4");
-  const rightPanelColor = isRightPanelSelected ? "#22c55e" : (rightPanelHovered ? "#22c55e" : "#d4d4d4");
+  const leftPanelColor = isLeftPanelSelected ? "#ef4444" : (leftPanelHovered ? "#ef4444" : "#d4d4d4");
+  const rightPanelColor = isRightPanelSelected ? "#ef4444" : (rightPanelHovered ? "#ef4444" : "#d4d4d4");
 
   return (
     <group>
@@ -346,7 +340,7 @@ const CabinetTopView: React.FC<{
 
       {isLeftPanelSelected && (
         <SidePanelArrow
-          position={[leftPanelX, -0.002, -cabinetDepth / 2 + leftSidePanelZ + 0.02]}
+          position={[leftPanelX + 0.015, -0.08, -cabinetDepth / 2 + 0.03]}
           onClick={onLeftPanelArrowClick}
           active={leftPanelShortenActive}
         />
@@ -368,7 +362,7 @@ const CabinetTopView: React.FC<{
 
       {isRightPanelSelected && (
         <SidePanelArrow
-          position={[rightPanelX, -0.002, -cabinetDepth / 2 + rightSidePanelZ + 0.02]}
+          position={[rightPanelX - 0.015, -0.08, -cabinetDepth / 2 + 0.03]}
           onClick={onRightPanelArrowClick}
           active={rightPanelShortenActive}
         />
@@ -852,6 +846,32 @@ export function BackPanelSettings({
             />
           </div>
 
+          {showLeftPanelBackShorten && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-red-600 font-medium">Left panel back shorten</label>
+              <input
+                type="number"
+                value={leftPanelBackShorten}
+                onChange={(e) => setLeftPanelBackShorten(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-red-400 rounded focus:outline-none focus:border-red-500 bg-red-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
+          {showRightPanelBackShorten && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-red-600 font-medium">Right panel back shorten</label>
+              <input
+                type="number"
+                value={rightPanelBackShorten}
+                onChange={(e) => setRightPanelBackShorten(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-red-400 rounded focus:outline-none focus:border-red-500 bg-red-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
           {showBackPanelLeftExtend && (
             <div className="flex items-center justify-between">
               <label className="text-xs text-orange-600 font-medium">Back panel left extend</label>
@@ -874,32 +894,6 @@ export function BackPanelSettings({
                 onChange={(e) => setBackPanelRightExtend(Number(e.target.value))}
                 step="0.1"
                 className="text-xs px-2 py-0.5 w-16 border border-orange-400 rounded focus:outline-none focus:border-orange-500 bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-          )}
-
-          {showLeftPanelBackShorten && (
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-green-600 font-medium">Left panel back shorten</label>
-              <input
-                type="number"
-                value={leftPanelBackShorten}
-                onChange={(e) => setLeftPanelBackShorten(Number(e.target.value))}
-                step="0.1"
-                className="text-xs px-2 py-0.5 w-16 border border-green-400 rounded focus:outline-none focus:border-green-500 bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-            </div>
-          )}
-
-          {showRightPanelBackShorten && (
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-green-600 font-medium">Right panel back shorten</label>
-              <input
-                type="number"
-                value={rightPanelBackShorten}
-                onChange={(e) => setRightPanelBackShorten(Number(e.target.value))}
-                step="0.1"
-                className="text-xs px-2 py-0.5 w-16 border border-green-400 rounded focus:outline-none focus:border-green-500 bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           )}
