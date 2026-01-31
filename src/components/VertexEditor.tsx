@@ -70,20 +70,19 @@ const DirectionArrow: React.FC<{
     }
   };
 
+  const lineGeometry = React.useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    const positions = new Float32Array([
+      position.x, position.y, position.z,
+      endPosition.x, endPosition.y, endPosition.z
+    ]);
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return geometry;
+  }, [position.x, position.y, position.z, endPosition.x, endPosition.y, endPosition.z]);
+
   return (
     <group>
-      <line>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={2}
-            array={new Float32Array([
-              position.x, position.y, position.z,
-              endPosition.x, endPosition.y, endPosition.z
-            ])}
-            itemSize={3}
-          />
-        </bufferGeometry>
+      <line geometry={lineGeometry}>
         <lineBasicMaterial color="#ef4444" linewidth={3} />
       </line>
       <mesh position={endPosition} rotation={getRotation()}>
@@ -136,20 +135,19 @@ const DirectionSelector: React.FC<{
         const endPosition = position.clone().add(dirVector.clone().multiplyScalar(arrowLength));
         const color = getColor(dir);
 
+        const lineGeometry = React.useMemo(() => {
+          const geometry = new THREE.BufferGeometry();
+          const positions = new Float32Array([
+            position.x, position.y, position.z,
+            endPosition.x, endPosition.y, endPosition.z
+          ]);
+          geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+          return geometry;
+        }, [position.x, position.y, position.z, endPosition.x, endPosition.y, endPosition.z]);
+
         return (
           <group key={dir}>
-            <line>
-              <bufferGeometry>
-                <bufferAttribute
-                  attach="attributes-position"
-                  count={2}
-                  array={new Float32Array([
-                    position.x, position.y, position.z,
-                    endPosition.x, endPosition.y, endPosition.z
-                  ])}
-                  itemSize={3}
-                />
-              </bufferGeometry>
+            <line geometry={lineGeometry}>
               <lineBasicMaterial color={color} linewidth={3} transparent opacity={0.8} />
             </line>
             <mesh
