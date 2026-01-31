@@ -287,15 +287,16 @@ const CabinetTopView: React.FC<{
 
         {(() => {
           const bottomPanelTopEdge = bottomPanelY + panelThickness / 2;
-          const grooveBottomEdge = bottomPanelTopEdge - grooveDepth;
-          const grooveDepthValue = grooveDepth * 1000;
+          const grooveBottomEdge = bottomPanelTopEdge - bottomGrooveTotal;
+          const grooveDepthValue = grooveDepth * 1000 + bottomExtendValue;
           const grooveDimZ = -cabinetDepth / 2 - 0.012;
           const grooveTickLength = 0.006;
           const grooveTextOffset = 0.01;
+          const bottomDimColor = bottomExtendActive ? "#f97316" : "#666666";
 
           return (
             <>
-              <line key={`tick-groove-top-${grooveDepth}`}>
+              <line key={`tick-groove-top-${bottomGrooveTotal}`}>
                 <bufferGeometry>
                   <bufferAttribute
                     attach="attributes-position"
@@ -304,10 +305,10 @@ const CabinetTopView: React.FC<{
                     itemSize={3}
                   />
                 </bufferGeometry>
-                <lineBasicMaterial color="#666666" linewidth={1} />
+                <lineBasicMaterial color={bottomDimColor} linewidth={1} />
               </line>
 
-              <line key={`tick-groove-bottom-${grooveDepth}`}>
+              <line key={`tick-groove-bottom-${bottomGrooveTotal}`}>
                 <bufferGeometry>
                   <bufferAttribute
                     attach="attributes-position"
@@ -316,15 +317,15 @@ const CabinetTopView: React.FC<{
                     itemSize={3}
                   />
                 </bufferGeometry>
-                <lineBasicMaterial color="#666666" linewidth={1} />
+                <lineBasicMaterial color={bottomDimColor} linewidth={1} />
               </line>
 
               <Text
-                key={`groove-depth-text-${grooveDepth}`}
+                key={`groove-depth-text-${bottomGrooveTotal}`}
                 position={[0, (bottomPanelTopEdge + grooveBottomEdge) / 2, grooveDimZ - grooveTextOffset]}
                 rotation={[0, -Math.PI / 2, 0]}
                 fontSize={0.008}
-                color="#666666"
+                color={bottomDimColor}
                 anchorX="center"
                 anchorY="middle"
               >
@@ -395,55 +396,6 @@ const CabinetTopView: React.FC<{
                 anchorY="middle"
               >
                 {topDimValue.toFixed(1)}
-              </Text>
-            </>
-          );
-        })()}
-
-        {bottomExtendValue > 0 && (() => {
-          const bottomPanelTopEdge = bottomPanelY + panelThickness / 2;
-          const backPanelBottomEdge = bottomPanelTopEdge - bottomGrooveTotal;
-          const bottomDimZ = -cabinetDepth / 2 - 0.012;
-          const bottomTickLength = 0.006;
-          const bottomTextOffset = 0.01;
-          const bottomDimValue = (grooveDepth * 1000) + bottomExtendValue;
-          const bottomDimColor = bottomExtendActive ? "#f97316" : "#666666";
-
-          return (
-            <>
-              <line key={`tick-bottom-panel-edge-${bottomPanelTopEdge}`}>
-                <bufferGeometry>
-                  <bufferAttribute
-                    attach="attributes-position"
-                    count={2}
-                    array={new Float32Array([0, bottomPanelTopEdge, bottomDimZ - bottomTickLength, 0, bottomPanelTopEdge, bottomDimZ + bottomTickLength])}
-                    itemSize={3}
-                  />
-                </bufferGeometry>
-                <lineBasicMaterial color={bottomDimColor} linewidth={1} />
-              </line>
-
-              <line key={`tick-back-panel-bottom-edge-${backPanelBottomEdge}`}>
-                <bufferGeometry>
-                  <bufferAttribute
-                    attach="attributes-position"
-                    count={2}
-                    array={new Float32Array([0, backPanelBottomEdge, bottomDimZ - bottomTickLength, 0, backPanelBottomEdge, bottomDimZ + bottomTickLength])}
-                    itemSize={3}
-                  />
-                </bufferGeometry>
-                <lineBasicMaterial color={bottomDimColor} linewidth={1} />
-              </line>
-
-              <Text
-                position={[0, (bottomPanelTopEdge + backPanelBottomEdge) / 2, bottomDimZ - bottomTextOffset]}
-                rotation={[0, -Math.PI / 2, 0]}
-                fontSize={0.008}
-                color={bottomDimColor}
-                anchorX="center"
-                anchorY="middle"
-              >
-                {bottomDimValue.toFixed(1)}
               </Text>
             </>
           );
