@@ -85,6 +85,47 @@ const SidePanelArrow: React.FC<{
   );
 };
 
+const VerticalBackPanelArrow: React.FC<{
+  position: [number, number, number];
+  direction: 'up' | 'down';
+  onClick: () => void;
+  active?: boolean;
+}> = ({ position, direction, onClick, active = false }) => {
+  const [hovered, setHovered] = React.useState(false);
+  const rotation: [number, number, number] = direction === 'up'
+    ? [0, 0, 0]
+    : [Math.PI, 0, 0];
+
+  const getColor = () => {
+    if (active) return "#f97316";
+    if (hovered) return "#f97316";
+    return "#3b82f6";
+  };
+
+  return (
+    <mesh
+      position={position}
+      rotation={rotation}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = 'auto';
+      }}
+    >
+      <coneGeometry args={[0.008, 0.016, 8]} />
+      <meshStandardMaterial color={getColor()} />
+    </mesh>
+  );
+};
+
 const CabinetTopView: React.FC<{
   backrestThickness: number;
   grooveOffset: number;
@@ -109,7 +150,13 @@ const CabinetTopView: React.FC<{
   rightPanelShortenActive: boolean;
   leftPanelShortenValue: number;
   rightPanelShortenValue: number;
-}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive, leftExtendValue, rightExtendValue, isLeftPanelSelected, isRightPanelSelected, onLeftPanelSelect, onRightPanelSelect, onLeftPanelArrowClick, onRightPanelArrowClick, leftPanelShortenActive, rightPanelShortenActive, leftPanelShortenValue, rightPanelShortenValue }) => {
+  onTopArrowClick: () => void;
+  onBottomArrowClick: () => void;
+  topExtendActive: boolean;
+  bottomExtendActive: boolean;
+  topExtendValue: number;
+  bottomExtendValue: number;
+}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive, leftExtendValue, rightExtendValue, isLeftPanelSelected, isRightPanelSelected, onLeftPanelSelect, onRightPanelSelect, onLeftPanelArrowClick, onRightPanelArrowClick, leftPanelShortenActive, rightPanelShortenActive, leftPanelShortenValue, rightPanelShortenValue, onTopArrowClick, onBottomArrowClick, topExtendActive, bottomExtendActive, topExtendValue, bottomExtendValue }) => {
   const [hovered, setHovered] = React.useState(false);
   const [leftPanelHovered, setLeftPanelHovered] = React.useState(false);
   const [rightPanelHovered, setRightPanelHovered] = React.useState(false);
@@ -125,7 +172,10 @@ const CabinetTopView: React.FC<{
     const bottomPanelY = -sideHeight / 2 + panelThickness / 2;
     const backPanelZ = -cabinetDepth / 2 + grooveOffset + backrestThickness / 2;
     const innerWidth = cabinetWidth - panelThickness * 2;
-    const backPanelHeight = sideHeight - panelThickness * 2 + grooveDepth * 2;
+
+    const topGrooveTotal = grooveDepth + (topExtendValue / 1000);
+    const bottomGrooveTotal = grooveDepth + (bottomExtendValue / 1000);
+    const backPanelHeight = sideHeight - panelThickness * 2 + topGrooveTotal + bottomGrooveTotal;
 
     const dimStartZ = -cabinetDepth / 2;
     const dimEndZ = -cabinetDepth / 2 + grooveOffset + backrestThickness;
@@ -137,8 +187,9 @@ const CabinetTopView: React.FC<{
 
     const gapHeight = 0.02;
     const backPanelHalfHeight = (backPanelHeight - gapHeight) / 2;
-    const topBackPanelY = gapHeight / 2 + backPanelHalfHeight / 2;
-    const bottomBackPanelY = -gapHeight / 2 - backPanelHalfHeight / 2;
+    const backPanelCenterY = (topGrooveTotal - bottomGrooveTotal) / 2;
+    const topBackPanelY = backPanelCenterY + gapHeight / 2 + backPanelHalfHeight / 2;
+    const bottomBackPanelY = backPanelCenterY - gapHeight / 2 - backPanelHalfHeight / 2;
 
     return (
       <group>
@@ -282,6 +333,23 @@ const CabinetTopView: React.FC<{
             </>
           );
         })()}
+
+        {isSelected && (
+          <>
+            <VerticalBackPanelArrow
+              position={[0, topBackPanelY + backPanelHalfHeight / 2 + 0.015, backPanelZ - backrestThickness / 2 - 0.01]}
+              direction="up"
+              onClick={onTopArrowClick}
+              active={topExtendActive}
+            />
+            <VerticalBackPanelArrow
+              position={[0, bottomBackPanelY - backPanelHalfHeight / 2 - 0.015, backPanelZ - backrestThickness / 2 - 0.01]}
+              direction="down"
+              onClick={onBottomArrowClick}
+              active={bottomExtendActive}
+            />
+          </>
+        )}
 
         <ambientLight intensity={0.7} />
         <directionalLight position={[-5, 5, 5]} intensity={0.6} />
@@ -585,6 +653,14 @@ export function BackPanelSettings({
     showBackPanelRightExtend,
     setShowBackPanelLeftExtend,
     setShowBackPanelRightExtend,
+    backPanelTopExtend,
+    setBackPanelTopExtend,
+    backPanelBottomExtend,
+    setBackPanelBottomExtend,
+    showBackPanelTopExtend,
+    showBackPanelBottomExtend,
+    setShowBackPanelTopExtend,
+    setShowBackPanelBottomExtend,
     leftPanelBackShorten,
     setLeftPanelBackShorten,
     rightPanelBackShorten,
@@ -749,6 +825,8 @@ export function BackPanelSettings({
                 if (isBackPanelSelected) {
                   setShowBackPanelLeftExtend(false);
                   setShowBackPanelRightExtend(false);
+                  setShowBackPanelTopExtend(false);
+                  setShowBackPanelBottomExtend(false);
                 }
                 setIsLeftPanelSelected(false);
                 setIsRightPanelSelected(false);
@@ -771,6 +849,8 @@ export function BackPanelSettings({
                 setIsBackPanelSelected(false);
                 setShowBackPanelLeftExtend(false);
                 setShowBackPanelRightExtend(false);
+                setShowBackPanelTopExtend(false);
+                setShowBackPanelBottomExtend(false);
                 setIsRightPanelSelected(false);
                 setShowRightPanelBackShorten(false);
                 setIsLeftPanelSelected(!isLeftPanelSelected);
@@ -782,6 +862,8 @@ export function BackPanelSettings({
                 setIsBackPanelSelected(false);
                 setShowBackPanelLeftExtend(false);
                 setShowBackPanelRightExtend(false);
+                setShowBackPanelTopExtend(false);
+                setShowBackPanelBottomExtend(false);
                 setIsLeftPanelSelected(false);
                 setShowLeftPanelBackShorten(false);
                 setIsRightPanelSelected(!isRightPanelSelected);
@@ -792,6 +874,12 @@ export function BackPanelSettings({
               rightPanelShortenActive={showRightPanelBackShorten || rightPanelBackShorten > 0}
               leftPanelShortenValue={leftPanelBackShorten}
               rightPanelShortenValue={rightPanelBackShorten}
+              onTopArrowClick={() => setShowBackPanelTopExtend(!showBackPanelTopExtend)}
+              onBottomArrowClick={() => setShowBackPanelBottomExtend(!showBackPanelBottomExtend)}
+              topExtendActive={showBackPanelTopExtend || backPanelTopExtend > 0}
+              bottomExtendActive={showBackPanelBottomExtend || backPanelBottomExtend > 0}
+              topExtendValue={backPanelTopExtend}
+              bottomExtendValue={backPanelBottomExtend}
             />
           </Canvas>
         </div>
@@ -906,6 +994,32 @@ export function BackPanelSettings({
                 type="number"
                 value={backPanelRightExtend}
                 onChange={(e) => setBackPanelRightExtend(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-orange-400 rounded focus:outline-none focus:border-orange-500 bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
+          {showBackPanelTopExtend && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-orange-600 font-medium">Back panel top extend</label>
+              <input
+                type="number"
+                value={backPanelTopExtend}
+                onChange={(e) => setBackPanelTopExtend(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-orange-400 rounded focus:outline-none focus:border-orange-500 bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
+          {showBackPanelBottomExtend && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-orange-600 font-medium">Back panel bottom extend</label>
+              <input
+                type="number"
+                value={backPanelBottomExtend}
+                onChange={(e) => setBackPanelBottomExtend(Number(e.target.value))}
                 step="0.1"
                 className="text-xs px-2 py-0.5 w-16 border border-orange-400 rounded focus:outline-none focus:border-orange-500 bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />

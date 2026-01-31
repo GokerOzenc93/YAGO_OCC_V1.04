@@ -280,6 +280,16 @@ interface AppState {
   showBackPanelRightExtend: boolean;
   setShowBackPanelRightExtend: (show: boolean) => void;
 
+  // Back Panel Top/Bottom Extend Ayarları (Side View)
+  backPanelTopExtend: number;
+  setBackPanelTopExtend: (value: number) => void;
+  showBackPanelTopExtend: boolean;
+  setShowBackPanelTopExtend: (show: boolean) => void;
+  backPanelBottomExtend: number;
+  setBackPanelBottomExtend: (value: number) => void;
+  showBackPanelBottomExtend: boolean;
+  setShowBackPanelBottomExtend: (show: boolean) => void;
+
   // Side Panel Back Shorten Ayarları
   leftPanelBackShorten: number;
   setLeftPanelBackShorten: (value: number) => void;
@@ -387,6 +397,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBackPanelRightExtend: (value) => set({ backPanelRightExtend: value }),
   showBackPanelRightExtend: false,
   setShowBackPanelRightExtend: (show) => set({ showBackPanelRightExtend: show }),
+
+  // Back Panel Top/Bottom Extend Ayarları (Side View)
+  backPanelTopExtend: 0,
+  setBackPanelTopExtend: (value) => set({ backPanelTopExtend: value }),
+  showBackPanelTopExtend: false,
+  setShowBackPanelTopExtend: (show) => set({ showBackPanelTopExtend: show }),
+  backPanelBottomExtend: 0,
+  setBackPanelBottomExtend: (value) => set({ backPanelBottomExtend: value }),
+  showBackPanelBottomExtend: false,
+  setShowBackPanelBottomExtend: (show) => set({ showBackPanelBottomExtend: show }),
 
   // Side Panel Back Shorten Ayarları
   leftPanelBackShorten: 0,
