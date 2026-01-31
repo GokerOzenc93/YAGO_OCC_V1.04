@@ -586,8 +586,8 @@ const CabinetTopView: React.FC<{
         const widthTickLength = 0.006;
         const widthTextOffset = 0.012;
 
-        const leftWidthDimValue = (looseWid + grooveDepth) * 1000 + leftExtendValue;
-        const rightWidthDimValue = (looseWid + grooveDepth) * 1000 + rightExtendValue;
+        const leftWidthDimValue = grooveDepth * 1000 + leftExtendValue;
+        const rightWidthDimValue = grooveDepth * 1000 + rightExtendValue;
 
         const leftDimColor = leftExtendActive ? "#f97316" : "#666666";
         const rightDimColor = rightExtendActive ? "#f97316" : "#666666";
