@@ -956,7 +956,7 @@ export function BackPanelSettings({
           <Canvas>
             <color attach="background" args={['#ffffff']} />
             {viewMode === 'plan' ? (
-              <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={1400} />
+              <OrthographicCamera makeDefault position={[0, 1, 0]} rotation={[-Math.PI / 2, 0, 0]} zoom={1800} />
             ) : (
               <OrthographicCamera makeDefault position={[-1, 0, 0]} rotation={[0, -Math.PI / 2, 0]} zoom={1800} />
             )}
