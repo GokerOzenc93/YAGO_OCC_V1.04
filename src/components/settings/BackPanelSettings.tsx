@@ -399,13 +399,13 @@ const CabinetTopView: React.FC<{
       {isSelected && (
         <>
           <BackPanelArrow
-            position={[-backPanelFullWidth / 2 + 0.012, -0.002, backPanelZ + backrestThickness / 2 + 0.012]}
+            position={[-backPanelFullWidth / 2 + 0.012, -0.002, backPanelZ - backrestThickness / 2 - 0.015]}
             direction="left"
             onClick={onLeftArrowClick}
             active={leftExtendActive}
           />
           <BackPanelArrow
-            position={[backPanelFullWidth / 2 - 0.012, -0.002, backPanelZ + backrestThickness / 2 + 0.012]}
+            position={[backPanelFullWidth / 2 - 0.012, -0.002, backPanelZ - backrestThickness / 2 - 0.015]}
             direction="right"
             onClick={onRightArrowClick}
             active={rightExtendActive}
@@ -750,6 +750,10 @@ export function BackPanelSettings({
                   setShowBackPanelLeftExtend(false);
                   setShowBackPanelRightExtend(false);
                 }
+                setIsLeftPanelSelected(false);
+                setIsRightPanelSelected(false);
+                setShowLeftPanelBackShorten(false);
+                setShowRightPanelBackShorten(false);
                 setIsBackPanelSelected(!isBackPanelSelected);
               }}
               onLeftArrowClick={() => setShowBackPanelLeftExtend(!showBackPanelLeftExtend)}
@@ -764,12 +768,22 @@ export function BackPanelSettings({
                 if (isLeftPanelSelected) {
                   setShowLeftPanelBackShorten(false);
                 }
+                setIsBackPanelSelected(false);
+                setShowBackPanelLeftExtend(false);
+                setShowBackPanelRightExtend(false);
+                setIsRightPanelSelected(false);
+                setShowRightPanelBackShorten(false);
                 setIsLeftPanelSelected(!isLeftPanelSelected);
               }}
               onRightPanelSelect={() => {
                 if (isRightPanelSelected) {
                   setShowRightPanelBackShorten(false);
                 }
+                setIsBackPanelSelected(false);
+                setShowBackPanelLeftExtend(false);
+                setShowBackPanelRightExtend(false);
+                setIsLeftPanelSelected(false);
+                setShowLeftPanelBackShorten(false);
                 setIsRightPanelSelected(!isRightPanelSelected);
               }}
               onLeftPanelArrowClick={() => setShowLeftPanelBackShorten(!showLeftPanelBackShorten)}
