@@ -67,13 +67,19 @@ const CabinetTopView: React.FC<{
           <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
         </lineSegments>
 
+        <mesh position={[0, 0, backPanelZ]}>
+          <planeGeometry args={[0.020, 0.015]} />
+          <meshBasicMaterial color="#ffffff" depthTest={false} />
+        </mesh>
+
         <Text
-          position={[0, 0, backPanelZ]}
+          position={[0, 0, backPanelZ + 0.0001]}
           rotation={[0, -Math.PI / 2, 0]}
           fontSize={0.012}
-          color="#ffffff"
+          color="#000000"
           anchorX="center"
           anchorY="middle"
+          depthOffset={-1}
         >
           {(backrestThickness * 1000).toFixed(1)}
         </Text>
@@ -211,13 +217,19 @@ const CabinetTopView: React.FC<{
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
+      <mesh position={[0, 0.0001, backPanelZ]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[0.020, 0.015]} />
+        <meshBasicMaterial color="#ffffff" depthTest={false} />
+      </mesh>
+
       <Text
-        position={[0, 0, backPanelZ]}
+        position={[0, 0.0002, backPanelZ]}
         rotation={[-Math.PI / 2, 0, 0]}
         fontSize={0.012}
-        color="#ffffff"
+        color="#000000"
         anchorX="center"
         anchorY="middle"
+        depthOffset={-1}
       >
         {(backrestThickness * 1000).toFixed(1)}
       </Text>
