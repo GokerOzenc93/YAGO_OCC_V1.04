@@ -279,6 +279,22 @@ interface AppState {
   setBackPanelRightExtend: (value: number) => void;
   showBackPanelRightExtend: boolean;
   setShowBackPanelRightExtend: (show: boolean) => void;
+
+  // Side Panel Back Shorten Ayarları
+  leftPanelBackShorten: number;
+  setLeftPanelBackShorten: (value: number) => void;
+  showLeftPanelBackShorten: boolean;
+  setShowLeftPanelBackShorten: (show: boolean) => void;
+  rightPanelBackShorten: number;
+  setRightPanelBackShorten: (value: number) => void;
+  showRightPanelBackShorten: boolean;
+  setShowRightPanelBackShorten: (show: boolean) => void;
+
+  // Side Panel Selection
+  isLeftPanelSelected: boolean;
+  setIsLeftPanelSelected: (selected: boolean) => void;
+  isRightPanelSelected: boolean;
+  setIsRightPanelSelected: (selected: boolean) => void;
 }
 
 /**
@@ -371,6 +387,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBackPanelRightExtend: (value) => set({ backPanelRightExtend: value }),
   showBackPanelRightExtend: false,
   setShowBackPanelRightExtend: (show) => set({ showBackPanelRightExtend: show }),
+
+  // Side Panel Back Shorten Ayarları
+  leftPanelBackShorten: 0,
+  setLeftPanelBackShorten: (value) => set({ leftPanelBackShorten: value }),
+  showLeftPanelBackShorten: false,
+  setShowLeftPanelBackShorten: (show) => set({ showLeftPanelBackShorten: show }),
+  rightPanelBackShorten: 0,
+  setRightPanelBackShorten: (value) => set({ rightPanelBackShorten: value }),
+  showRightPanelBackShorten: false,
+  setShowRightPanelBackShorten: (show) => set({ showRightPanelBackShorten: show }),
+
+  // Side Panel Selection
+  isLeftPanelSelected: false,
+  setIsLeftPanelSelected: (selected) => set({ isLeftPanelSelected: selected }),
+  isRightPanelSelected: false,
+  setIsRightPanelSelected: (selected) => set({ isRightPanelSelected: selected }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

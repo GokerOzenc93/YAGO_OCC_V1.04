@@ -53,6 +53,44 @@ const BackPanelArrow: React.FC<{
   );
 };
 
+const SidePanelArrow: React.FC<{
+  position: [number, number, number];
+  onClick: () => void;
+  active?: boolean;
+}> = ({ position, onClick, active = false }) => {
+  const [hovered, setHovered] = React.useState(false);
+  const rotation: [number, number, number] = [-Math.PI / 2, 0, Math.PI];
+
+  const getColor = () => {
+    if (active) return "#f97316";
+    if (hovered) return "#f97316";
+    return "#3b82f6";
+  };
+
+  return (
+    <mesh
+      position={position}
+      rotation={rotation}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        document.body.style.cursor = 'pointer';
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        document.body.style.cursor = 'auto';
+      }}
+    >
+      <coneGeometry args={[0.008, 0.016, 8]} />
+      <meshStandardMaterial color={getColor()} />
+    </mesh>
+  );
+};
+
 const CabinetTopView: React.FC<{
   backrestThickness: number;
   grooveOffset: number;
@@ -67,8 +105,20 @@ const CabinetTopView: React.FC<{
   rightExtendActive: boolean;
   leftExtendValue: number;
   rightExtendValue: number;
-}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive, leftExtendValue, rightExtendValue }) => {
+  isLeftPanelSelected: boolean;
+  isRightPanelSelected: boolean;
+  onLeftPanelSelect: () => void;
+  onRightPanelSelect: () => void;
+  onLeftPanelArrowClick: () => void;
+  onRightPanelArrowClick: () => void;
+  leftPanelShortenActive: boolean;
+  rightPanelShortenActive: boolean;
+  leftPanelShortenValue: number;
+  rightPanelShortenValue: number;
+}> = ({ backrestThickness, grooveOffset, grooveDepth, looseWid, viewMode, isSelected, onSelect, onLeftArrowClick, onRightArrowClick, leftExtendActive, rightExtendActive, leftExtendValue, rightExtendValue, isLeftPanelSelected, isRightPanelSelected, onLeftPanelSelect, onRightPanelSelect, onLeftPanelArrowClick, onRightPanelArrowClick, leftPanelShortenActive, rightPanelShortenActive, leftPanelShortenValue, rightPanelShortenValue }) => {
   const [hovered, setHovered] = React.useState(false);
+  const [leftPanelHovered, setLeftPanelHovered] = React.useState(false);
+  const [rightPanelHovered, setRightPanelHovered] = React.useState(false);
   const cabinetWidth = 0.14;
   const cabinetDepth = 0.1;
   const panelThickness = 0.018;
@@ -270,25 +320,59 @@ const CabinetTopView: React.FC<{
   const tickLength = 0.006;
   const textOffset = 0.012;
 
+  const leftSidePanelDepth = cabinetDepth - (leftPanelShortenValue / 1000);
+  const rightSidePanelDepth = cabinetDepth - (rightPanelShortenValue / 1000);
+  const leftSidePanelZ = (leftPanelShortenValue / 1000) / 2;
+  const rightSidePanelZ = (rightPanelShortenValue / 1000) / 2;
+
+  const leftPanelColor = isLeftPanelSelected ? "#22c55e" : (leftPanelHovered ? "#22c55e" : "#d4d4d4");
+  const rightPanelColor = isRightPanelSelected ? "#22c55e" : (rightPanelHovered ? "#22c55e" : "#d4d4d4");
+
   return (
     <group>
-      <mesh position={[leftPanelX, 0, 0]}>
-        <boxGeometry args={[panelThickness, cabinetHeight, cabinetDepth]} />
-        <meshStandardMaterial color="#d4d4d4" transparent opacity={0.4} />
+      <mesh
+        position={[leftPanelX, 0, leftSidePanelZ]}
+        onClick={(e) => { e.stopPropagation(); onLeftPanelSelect(); }}
+        onPointerOver={() => { setLeftPanelHovered(true); document.body.style.cursor = 'pointer'; }}
+        onPointerOut={() => { setLeftPanelHovered(false); document.body.style.cursor = 'auto'; }}
+      >
+        <boxGeometry args={[panelThickness, cabinetHeight, leftSidePanelDepth]} />
+        <meshStandardMaterial color={leftPanelColor} transparent opacity={isLeftPanelSelected || leftPanelHovered ? 0.8 : 0.4} />
       </mesh>
-      <lineSegments position={[leftPanelX, 0, 0]}>
-        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, cabinetDepth)]} />
+      <lineSegments position={[leftPanelX, 0, leftSidePanelZ]}>
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, leftSidePanelDepth)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
 
-      <mesh position={[rightPanelX, 0, 0]}>
-        <boxGeometry args={[panelThickness, cabinetHeight, cabinetDepth]} />
-        <meshStandardMaterial color="#d4d4d4" transparent opacity={0.4} />
+      {isLeftPanelSelected && (
+        <SidePanelArrow
+          position={[leftPanelX, -0.002, -cabinetDepth / 2 + leftSidePanelZ + 0.02]}
+          onClick={onLeftPanelArrowClick}
+          active={leftPanelShortenActive}
+        />
+      )}
+
+      <mesh
+        position={[rightPanelX, 0, rightSidePanelZ]}
+        onClick={(e) => { e.stopPropagation(); onRightPanelSelect(); }}
+        onPointerOver={() => { setRightPanelHovered(true); document.body.style.cursor = 'pointer'; }}
+        onPointerOut={() => { setRightPanelHovered(false); document.body.style.cursor = 'auto'; }}
+      >
+        <boxGeometry args={[panelThickness, cabinetHeight, rightSidePanelDepth]} />
+        <meshStandardMaterial color={rightPanelColor} transparent opacity={isRightPanelSelected || rightPanelHovered ? 0.8 : 0.4} />
       </mesh>
-      <lineSegments position={[rightPanelX, 0, 0]}>
-        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, cabinetDepth)]} />
+      <lineSegments position={[rightPanelX, 0, rightSidePanelZ]}>
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(panelThickness, cabinetHeight, rightSidePanelDepth)]} />
         <lineBasicMaterial attach="material" color="#000000" linewidth={2} />
       </lineSegments>
+
+      {isRightPanelSelected && (
+        <SidePanelArrow
+          position={[rightPanelX, -0.002, -cabinetDepth / 2 + rightSidePanelZ + 0.02]}
+          onClick={onRightPanelArrowClick}
+          active={rightPanelShortenActive}
+        />
+      )}
 
       <mesh
         position={[leftBackPanelX, 0, backPanelZ]}
@@ -506,7 +590,19 @@ export function BackPanelSettings({
     showBackPanelLeftExtend,
     showBackPanelRightExtend,
     setShowBackPanelLeftExtend,
-    setShowBackPanelRightExtend
+    setShowBackPanelRightExtend,
+    leftPanelBackShorten,
+    setLeftPanelBackShorten,
+    rightPanelBackShorten,
+    setRightPanelBackShorten,
+    showLeftPanelBackShorten,
+    showRightPanelBackShorten,
+    setShowLeftPanelBackShorten,
+    setShowRightPanelBackShorten,
+    isLeftPanelSelected,
+    setIsLeftPanelSelected,
+    isRightPanelSelected,
+    setIsRightPanelSelected
   } = useAppStore();
 
   React.useEffect(() => {
@@ -668,6 +764,26 @@ export function BackPanelSettings({
               rightExtendActive={showBackPanelRightExtend || backPanelRightExtend > 0}
               leftExtendValue={backPanelLeftExtend}
               rightExtendValue={backPanelRightExtend}
+              isLeftPanelSelected={isLeftPanelSelected}
+              isRightPanelSelected={isRightPanelSelected}
+              onLeftPanelSelect={() => {
+                if (isLeftPanelSelected) {
+                  setShowLeftPanelBackShorten(false);
+                }
+                setIsLeftPanelSelected(!isLeftPanelSelected);
+              }}
+              onRightPanelSelect={() => {
+                if (isRightPanelSelected) {
+                  setShowRightPanelBackShorten(false);
+                }
+                setIsRightPanelSelected(!isRightPanelSelected);
+              }}
+              onLeftPanelArrowClick={() => setShowLeftPanelBackShorten(!showLeftPanelBackShorten)}
+              onRightPanelArrowClick={() => setShowRightPanelBackShorten(!showRightPanelBackShorten)}
+              leftPanelShortenActive={showLeftPanelBackShorten || leftPanelBackShorten > 0}
+              rightPanelShortenActive={showRightPanelBackShorten || rightPanelBackShorten > 0}
+              leftPanelShortenValue={leftPanelBackShorten}
+              rightPanelShortenValue={rightPanelBackShorten}
             />
           </Canvas>
         </div>
@@ -758,6 +874,32 @@ export function BackPanelSettings({
                 onChange={(e) => setBackPanelRightExtend(Number(e.target.value))}
                 step="0.1"
                 className="text-xs px-2 py-0.5 w-16 border border-orange-400 rounded focus:outline-none focus:border-orange-500 bg-orange-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
+          {showLeftPanelBackShorten && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-green-600 font-medium">Left panel back shorten</label>
+              <input
+                type="number"
+                value={leftPanelBackShorten}
+                onChange={(e) => setLeftPanelBackShorten(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-green-400 rounded focus:outline-none focus:border-green-500 bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+          )}
+
+          {showRightPanelBackShorten && (
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-green-600 font-medium">Right panel back shorten</label>
+              <input
+                type="number"
+                value={rightPanelBackShorten}
+                onChange={(e) => setRightPanelBackShorten(Number(e.target.value))}
+                step="0.1"
+                className="text-xs px-2 py-0.5 w-16 border border-green-400 rounded focus:outline-none focus:border-green-500 bg-green-50 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
             </div>
           )}
