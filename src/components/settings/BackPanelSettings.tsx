@@ -303,12 +303,12 @@ const CabinetTopView: React.FC<{
       {isSelected && (
         <>
           <BackPanelArrow
-            position={[-backPanelFullWidth / 2 - 0.015, 0.0001, backPanelZ]}
+            position={[-backPanelFullWidth / 2 + 0.012, -0.002, backPanelZ + backrestThickness / 2 + 0.012]}
             direction="left"
             onClick={onLeftArrowClick}
           />
           <BackPanelArrow
-            position={[backPanelFullWidth / 2 + 0.015, 0.0001, backPanelZ]}
+            position={[backPanelFullWidth / 2 - 0.012, -0.002, backPanelZ + backrestThickness / 2 + 0.012]}
             direction="right"
             onClick={onRightArrowClick}
           />
