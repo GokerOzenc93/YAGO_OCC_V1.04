@@ -130,17 +130,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                 </select>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={panelMode}
-                onChange={(e) => setPanelMode(e.target.value)}
-                className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
-              >
-                <option value="default">Panel Mode</option>
-                <option value="side">Side Panel</option>
-                <option value="back">Back Panel</option>
-              </select>
-            </div>
           </div>
 
           <div className="text-center text-stone-500 text-xs py-8 border-t border-stone-200">
