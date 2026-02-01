@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus } from 'lucide-react';
+import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 
 interface PanelEditorProps {
   isOpen: boolean;
@@ -10,6 +11,30 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [profiles, setProfiles] = useState<GlobalSettingsProfile[]>([]);
+  const [selectedProfile, setSelectedProfile] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (isOpen) {
+      loadProfiles();
+    }
+  }, [isOpen]);
+
+  const loadProfiles = async () => {
+    try {
+      setLoading(true);
+      const data = await globalSettingsService.listProfiles();
+      setProfiles(data);
+      if (data.length > 0 && !selectedProfile) {
+        setSelectedProfile(data[0].id);
+      }
+    } catch (error) {
+      console.error('Failed to load profiles:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -80,9 +105,32 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       </div>
 
       <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
-        <div className="space-y-2">
-          <div className="text-center text-stone-500 text-xs py-8">
-            Panel editor interface
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-slate-800">
+              Select Body Profile
+            </label>
+            {loading ? (
+              <div className="px-2 py-0.5 text-xs text-stone-400 bg-white border border-gray-300 rounded">
+                Loading profiles...
+              </div>
+            ) : (
+              <select
+                value={selectedProfile}
+                onChange={(e) => setSelectedProfile(e.target.value)}
+                className="w-full px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
+              >
+                {profiles.map((profile) => (
+                  <option key={profile.id} value={profile.id}>
+                    {profile.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div className="text-center text-stone-500 text-xs py-8 border-t border-stone-200">
+            Panel configuration
           </div>
         </div>
       </div>
