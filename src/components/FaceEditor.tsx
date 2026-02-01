@@ -373,6 +373,55 @@ function computeConvexHull2D(points: THREE.Vector2[]): THREE.Vector2[] {
   return lower.concat(upper);
 }
 
+function extrudeFaceGeometry(
+  faceGeometry: THREE.BufferGeometry,
+  normal: THREE.Vector3,
+  thickness: number,
+  inward: boolean = true
+): THREE.BufferGeometry {
+  const positions = faceGeometry.getAttribute('position').array as Float32Array;
+  const vertexCount = positions.length / 3;
+
+  const extrudeDir = normal.clone().normalize();
+  if (inward) {
+    extrudeDir.negate();
+  }
+
+  const newPositions: number[] = [];
+  const newIndices: number[] = [];
+
+  for (let i = 0; i < vertexCount; i++) {
+    newPositions.push(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+  }
+
+  for (let i = 0; i < vertexCount; i++) {
+    newPositions.push(
+      positions[i * 3] + extrudeDir.x * thickness,
+      positions[i * 3 + 1] + extrudeDir.y * thickness,
+      positions[i * 3 + 2] + extrudeDir.z * thickness
+    );
+  }
+
+  const faceCount = vertexCount / 3;
+  for (let i = 0; i < faceCount; i++) {
+    const baseIdx = i * 3;
+    newIndices.push(baseIdx, baseIdx + 1, baseIdx + 2);
+  }
+
+  for (let i = 0; i < faceCount; i++) {
+    const baseIdx = i * 3;
+    const offsetIdx = vertexCount + baseIdx;
+    newIndices.push(offsetIdx + 2, offsetIdx + 1, offsetIdx);
+  }
+
+  const extrudedGeometry = new THREE.BufferGeometry();
+  extrudedGeometry.setAttribute('position', new THREE.Float32BufferAttribute(newPositions, 3));
+  extrudedGeometry.setIndex(newIndices);
+  extrudedGeometry.computeVertexNormals();
+
+  return extrudedGeometry;
+}
+
 export function createPanelFromFaceGroup(
   faces: FaceData[],
   faceGroups: CoplanarFaceGroup[],
@@ -402,43 +451,18 @@ export function createPanelFromFaceGroup(
   if (allVertices.length === 0) return null;
 
   const avgNormal = group.normal.clone().normalize();
-  const centroid = new THREE.Vector3();
-  allVertices.forEach(v => centroid.add(v));
-  centroid.divideScalar(allVertices.length);
 
-  const absX = Math.abs(avgNormal.x);
-  const absY = Math.abs(avgNormal.y);
-  const absZ = Math.abs(avgNormal.z);
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  let minZ = Infinity, maxZ = -Infinity;
 
-  let xAxis: THREE.Vector3;
-  let yAxis: THREE.Vector3;
-
-  if (absY > absX && absY > absZ) {
-    xAxis = new THREE.Vector3(1, 0, 0);
-    yAxis = new THREE.Vector3(0, 0, -1);
-  } else if (absX > absY && absX > absZ) {
-    xAxis = new THREE.Vector3(0, 0, 1);
-    yAxis = new THREE.Vector3(0, 1, 0);
-  } else {
-    xAxis = new THREE.Vector3(1, 0, 0);
-    yAxis = new THREE.Vector3(0, 1, 0);
-  }
-
-  const points2D: THREE.Vector2[] = allVertices.map(v => {
-    const relative = v.clone().sub(centroid);
-    return new THREE.Vector2(relative.dot(xAxis), relative.dot(yAxis));
-  });
-
-  const hull = computeConvexHull2D(points2D);
-  if (hull.length < 3) return null;
-
-  let minU = Infinity, maxU = -Infinity;
-  let minV = Infinity, maxV = -Infinity;
-  hull.forEach(p => {
-    minU = Math.min(minU, p.x);
-    maxU = Math.max(maxU, p.x);
-    minV = Math.min(minV, p.y);
-    maxV = Math.max(maxV, p.y);
+  allVertices.forEach(v => {
+    minX = Math.min(minX, v.x);
+    maxX = Math.max(maxX, v.x);
+    minY = Math.min(minY, v.y);
+    maxY = Math.max(maxY, v.y);
+    minZ = Math.min(minZ, v.z);
+    maxZ = Math.max(maxZ, v.z);
   });
 
   const leftShrink = adjustments?.widthShrink?.left || 0;
@@ -446,74 +470,56 @@ export function createPanelFromFaceGroup(
   const topShrink = adjustments?.heightShrink?.top || 0;
   const bottomShrink = adjustments?.heightShrink?.bottom || 0;
   const depthShrink = adjustments?.depthShrink || 0;
-  const panelDepth = thickness - depthShrink;
 
-  if (panelDepth <= 0) return null;
+  const absX = Math.abs(avgNormal.x);
+  const absY = Math.abs(avgNormal.y);
+  const absZ = Math.abs(avgNormal.z);
 
-  const shrunkHull = hull.map(p => {
-    const rangeU = maxU - minU;
-    const rangeV = maxV - minV;
-    const tU = rangeU > 0 ? (p.x - minU) / rangeU : 0.5;
-    const tV = rangeV > 0 ? (p.y - minV) / rangeV : 0.5;
+  const panelThickness = thickness - depthShrink;
+  if (panelThickness <= 0) return null;
 
-    let newX = p.x;
-    let newY = p.y;
+  const faceGeometry = createFaceHighlightGeometry(faces, group.faceIndices);
+  const extrudedGeometry = extrudeFaceGeometry(faceGeometry, avgNormal, panelThickness, true);
+  faceGeometry.dispose();
 
-    if (tU < 0.5) {
-      newX += leftShrink * (1 - tU * 2);
-    } else {
-      newX -= rightShrink * ((tU - 0.5) * 2);
-    }
+  const box = new THREE.Box3().setFromBufferAttribute(
+    extrudedGeometry.getAttribute('position') as THREE.BufferAttribute
+  );
+  const center = new THREE.Vector3();
+  box.getCenter(center);
 
-    if (tV < 0.5) {
-      newY += bottomShrink * (1 - tV * 2);
-    } else {
-      newY -= topShrink * ((tV - 0.5) * 2);
-    }
-
-    return new THREE.Vector2(newX, newY);
-  });
-
-  const shape = new THREE.Shape();
-  shape.moveTo(shrunkHull[0].x, shrunkHull[0].y);
-  for (let i = 1; i < shrunkHull.length; i++) {
-    shape.lineTo(shrunkHull[i].x, shrunkHull[i].y);
+  const positionAttr = extrudedGeometry.getAttribute('position');
+  const posArray = positionAttr.array as Float32Array;
+  for (let i = 0; i < posArray.length; i += 3) {
+    posArray[i] -= center.x;
+    posArray[i + 1] -= center.y;
+    posArray[i + 2] -= center.z;
   }
-  shape.closePath();
+  positionAttr.needsUpdate = true;
 
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: panelDepth,
-    bevelEnabled: false
-  });
+  let posX = center.x;
+  let posY = center.y;
+  let posZ = center.z;
 
-  const extrudeDir = avgNormal.clone().negate();
-  const basisMatrix = new THREE.Matrix4().makeBasis(xAxis, yAxis, extrudeDir.clone().negate());
-  const positionOffset = centroid.clone().add(avgNormal.clone().multiplyScalar(-panelDepth));
-  const transformMatrix = new THREE.Matrix4();
-  transformMatrix.copy(basisMatrix);
-  transformMatrix.setPosition(positionOffset);
-  geometry.applyMatrix4(transformMatrix);
+  if (absX > absY && absX > absZ) {
+    posY += (bottomShrink - topShrink) / 2;
+    posZ += (leftShrink - rightShrink) / 2;
+  } else if (absY > absX && absY > absZ) {
+    posX += (leftShrink - rightShrink) / 2;
+    posY += bottomShrink / 2;
+  } else {
+    posX += (leftShrink - rightShrink) / 2;
+    posY += (bottomShrink - topShrink) / 2;
+  }
 
-  let newMinU = Infinity, newMaxU = -Infinity;
-  let newMinV = Infinity, newMaxV = -Infinity;
-  shrunkHull.forEach(p => {
-    newMinU = Math.min(newMinU, p.x);
-    newMaxU = Math.max(newMaxU, p.x);
-    newMinV = Math.min(newMinV, p.y);
-    newMaxV = Math.max(newMaxV, p.y);
-  });
-
-  const panelWidth = newMaxU - newMinU;
-  const panelHeight = newMaxV - newMinV;
-
-  const panelCenter = centroid.clone();
-  panelCenter.add(avgNormal.clone().multiplyScalar(-panelDepth / 2));
+  const size = new THREE.Vector3();
+  box.getSize(size);
 
   return {
-    geometry,
-    position: panelCenter,
+    geometry: extrudedGeometry,
+    position: new THREE.Vector3(posX, posY, posZ),
     normal: avgNormal,
-    dimensions: { width: panelWidth, height: panelHeight, depth: panelDepth }
+    dimensions: { width: size.x, height: size.y, depth: size.z }
   };
 }
 
