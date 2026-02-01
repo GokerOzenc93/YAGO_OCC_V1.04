@@ -46,20 +46,22 @@ const PanelMesh: React.FC<PanelMeshProps> = ({ panel }) => {
         onClick={handleClick}
         onPointerOver={handlePointerOver}
         onPointerOut={handlePointerOut}
+        castShadow
+        receiveShadow
       >
         <meshStandardMaterial
           color={color}
-          transparent
-          opacity={isSelected ? 0.9 : (isHovered ? 0.85 : 0.8)}
-          side={THREE.DoubleSide}
+          roughness={0.4}
+          metalness={0.1}
+          side={THREE.FrontSide}
+          flatShading={false}
         />
       </mesh>
       <lineSegments>
-        <edgesGeometry attach="geometry" args={[panel.geometry]} />
+        <edgesGeometry attach="geometry" args={[panel.geometry, 15]} />
         <lineBasicMaterial
           attach="material"
-          color={isSelected ? '#dc2626' : '#666666'}
-          linewidth={isSelected ? 2 : 1}
+          color={isSelected ? '#dc2626' : '#333333'}
         />
       </lineSegments>
     </group>
