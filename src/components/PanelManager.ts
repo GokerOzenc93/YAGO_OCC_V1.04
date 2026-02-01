@@ -184,8 +184,8 @@ export class PanelManagerService {
       bottomPanelWidth: 0.45,
       topPanelPositionX: 0,
       bottomPanelPositionX: 0,
-      topLeftExpanded: false,
-      topRightExpanded: false,
+      topLeftExpanded: true,
+      topRightExpanded: true,
       bottomLeftExpanded: false,
       bottomRightExpanded: false,
       leftPanelHeight: 0.586,
@@ -343,10 +343,26 @@ export class PanelManagerService {
     const baseY = shape.position[1] + center.y;
     const baseZ = shape.position[2] + center.z;
 
+    const hasBaza = config && config.selectedBodyType === 'bazali' && hasBottom;
+    const bazaHeight = hasBaza ? config.bazaHeight : 0;
+
+    const topExpanded = config?.topLeftExpanded || config?.topRightExpanded;
+    const bottomExpanded = config?.bottomLeftExpanded || config?.bottomRightExpanded;
+
     if (hasLeft) {
-      let panelHeight = size.y;
+      let panelHeight = size.y - bazaHeight;
       let panelDepth = size.z - (backConfig?.leftPanelShorten || 0);
       let posZ = (backConfig?.leftPanelShorten || 0) / 2;
+      let posY = bazaHeight / 2;
+
+      if (topExpanded && hasTop) {
+        panelHeight -= pt;
+        posY -= pt / 2;
+      }
+      if (bottomExpanded && hasBottom) {
+        panelHeight -= pt;
+        posY += pt / 2;
+      }
 
       const leftGeom = new THREE.BoxGeometry(pt, panelHeight, panelDepth);
       panels.push({
@@ -355,7 +371,7 @@ export class PanelManagerService {
         geometry: leftGeom,
         position: [
           baseX - size.x / 2 + pt / 2,
-          baseY,
+          baseY + posY,
           baseZ + posZ
         ],
         rotation: [0, 0, 0],
@@ -365,9 +381,19 @@ export class PanelManagerService {
     }
 
     if (hasRight) {
-      let panelHeight = size.y;
+      let panelHeight = size.y - bazaHeight;
       let panelDepth = size.z - (backConfig?.rightPanelShorten || 0);
       let posZ = (backConfig?.rightPanelShorten || 0) / 2;
+      let posY = bazaHeight / 2;
+
+      if (topExpanded && hasTop) {
+        panelHeight -= pt;
+        posY -= pt / 2;
+      }
+      if (bottomExpanded && hasBottom) {
+        panelHeight -= pt;
+        posY += pt / 2;
+      }
 
       const rightGeom = new THREE.BoxGeometry(pt, panelHeight, panelDepth);
       panels.push({
@@ -376,7 +402,7 @@ export class PanelManagerService {
         geometry: rightGeom,
         position: [
           baseX + size.x / 2 - pt / 2,
-          baseY,
+          baseY + posY,
           baseZ + posZ
         ],
         rotation: [0, 0, 0],
@@ -438,7 +464,7 @@ export class PanelManagerService {
         geometry: bottomGeom,
         position: [
           baseX + posX,
-          baseY - size.y / 2 + pt / 2,
+          baseY - size.y / 2 + bazaHeight + pt / 2,
           baseZ + posZ
         ],
         rotation: [0, 0, 0],
@@ -473,8 +499,7 @@ export class PanelManagerService {
       });
     }
 
-    if (config && config.selectedBodyType === 'bazali' && hasBottom) {
-      const bazaHeight = config.bazaHeight;
+    if (hasBaza) {
       const frontDist = config.frontBaseDistance;
       const backDist = config.backBaseDistance;
 
@@ -487,7 +512,7 @@ export class PanelManagerService {
         geometry: baseFrontGeom,
         position: [
           baseX,
-          baseY - size.y / 2 - bazaHeight / 2,
+          baseY - size.y / 2 + bazaHeight / 2,
           baseZ + size.z / 2 - frontDist - pt / 2
         ],
         rotation: [0, 0, 0],
@@ -501,7 +526,7 @@ export class PanelManagerService {
         geometry: baseBackGeom,
         position: [
           baseX,
-          baseY - size.y / 2 - bazaHeight / 2,
+          baseY - size.y / 2 + bazaHeight / 2,
           baseZ - size.z / 2 + backDist + pt / 2
         ],
         rotation: [0, 0, 0],

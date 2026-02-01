@@ -261,8 +261,8 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
   const [rightPanelHeight, setRightPanelHeight] = React.useState(initialSidePanelHeight);
   const [rightPanelPositionY, setRightPanelPositionY] = React.useState(cabinetHeight / 2);
 
-  const [topLeftExpanded, setTopLeftExpanded] = React.useState(false);
-  const [topRightExpanded, setTopRightExpanded] = React.useState(false);
+  const [topLeftExpanded, setTopLeftExpanded] = React.useState(true);
+  const [topRightExpanded, setTopRightExpanded] = React.useState(true);
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
 
