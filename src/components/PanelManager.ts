@@ -317,7 +317,9 @@ export class PanelManagerService {
       shape.geometry.getAttribute('position')
     );
     const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
     box.getSize(size);
+    box.getCenter(center);
 
     const panels: GeneratedPanel[] = [];
     const pt = panelThickness;
@@ -337,10 +339,13 @@ export class PanelManagerService {
     const looseWid = backConfig?.looseWid || 0;
     const looseDep = backConfig?.looseDep || 0;
 
+    const baseX = shape.position[0] + center.x;
+    const baseY = shape.position[1] + center.y;
+    const baseZ = shape.position[2] + center.z;
+
     if (hasLeft) {
       let panelHeight = size.y;
       let panelDepth = size.z - (backConfig?.leftPanelShorten || 0);
-      let posY = 0;
       let posZ = (backConfig?.leftPanelShorten || 0) / 2;
 
       const leftGeom = new THREE.BoxGeometry(pt, panelHeight, panelDepth);
@@ -349,9 +354,9 @@ export class PanelManagerService {
         role: 'left',
         geometry: leftGeom,
         position: [
-          shape.position[0] + box.min.x + pt / 2,
-          shape.position[1] + posY,
-          shape.position[2] + posZ
+          baseX - size.x / 2 + pt / 2,
+          baseY,
+          baseZ + posZ
         ],
         rotation: [0, 0, 0],
         color: PANEL_COLORS['left'],
@@ -362,7 +367,6 @@ export class PanelManagerService {
     if (hasRight) {
       let panelHeight = size.y;
       let panelDepth = size.z - (backConfig?.rightPanelShorten || 0);
-      let posY = 0;
       let posZ = (backConfig?.rightPanelShorten || 0) / 2;
 
       const rightGeom = new THREE.BoxGeometry(pt, panelHeight, panelDepth);
@@ -371,9 +375,9 @@ export class PanelManagerService {
         role: 'right',
         geometry: rightGeom,
         position: [
-          shape.position[0] + box.max.x - pt / 2,
-          shape.position[1] + posY,
-          shape.position[2] + posZ
+          baseX + size.x / 2 - pt / 2,
+          baseY,
+          baseZ + posZ
         ],
         rotation: [0, 0, 0],
         color: PANEL_COLORS['right'],
@@ -402,9 +406,9 @@ export class PanelManagerService {
         role: 'top',
         geometry: topGeom,
         position: [
-          shape.position[0] + posX,
-          shape.position[1] + box.max.y - pt / 2,
-          shape.position[2] + posZ
+          baseX + posX,
+          baseY + size.y / 2 - pt / 2,
+          baseZ + posZ
         ],
         rotation: [0, 0, 0],
         color: PANEL_COLORS['top'],
@@ -433,9 +437,9 @@ export class PanelManagerService {
         role: 'bottom',
         geometry: bottomGeom,
         position: [
-          shape.position[0] + posX,
-          shape.position[1] + box.min.y + pt / 2,
-          shape.position[2] + posZ
+          baseX + posX,
+          baseY - size.y / 2 + pt / 2,
+          baseZ + posZ
         ],
         rotation: [0, 0, 0],
         color: PANEL_COLORS['bottom'],
@@ -459,9 +463,9 @@ export class PanelManagerService {
         role: 'back',
         geometry: backGeom,
         position: [
-          shape.position[0],
-          shape.position[1],
-          shape.position[2] + box.min.z + grooveOffset + backThickness / 2
+          baseX,
+          baseY,
+          baseZ - size.z / 2 + grooveOffset + backThickness / 2
         ],
         rotation: [0, 0, 0],
         color: PANEL_COLORS['back'],
@@ -482,9 +486,9 @@ export class PanelManagerService {
         role: 'base-front',
         geometry: baseFrontGeom,
         position: [
-          shape.position[0],
-          shape.position[1] + box.min.y - bazaHeight / 2,
-          shape.position[2] + box.max.z - frontDist - pt / 2
+          baseX,
+          baseY - size.y / 2 - bazaHeight / 2,
+          baseZ + size.z / 2 - frontDist - pt / 2
         ],
         rotation: [0, 0, 0],
         color: PANEL_COLORS['base-front'],
@@ -496,9 +500,9 @@ export class PanelManagerService {
         role: 'base-back',
         geometry: baseBackGeom,
         position: [
-          shape.position[0],
-          shape.position[1] + box.min.y - bazaHeight / 2,
-          shape.position[2] + box.min.z + backDist + pt / 2
+          baseX,
+          baseY - size.y / 2 - bazaHeight / 2,
+          baseZ - size.z / 2 + backDist + pt / 2
         ],
         rotation: [0, 0, 0],
         color: PANEL_COLORS['base-back'],
