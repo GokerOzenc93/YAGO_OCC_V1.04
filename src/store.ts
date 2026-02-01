@@ -330,6 +330,13 @@ interface AppState {
   hoveredPanelId: string | null;
   setHoveredPanelId: (id: string | null) => void;
   clearGeneratedPanels: () => void;
+
+  // Panel Mode
+  panelMode: boolean;
+  setPanelMode: (enabled: boolean) => void;
+  panelBasePosition: [number, number, number];
+  setPanelBasePosition: (position: [number, number, number]) => void;
+  updatePanelPositions: (delta: [number, number, number]) => void;
 }
 
 export interface GeneratedPanel {
@@ -482,7 +489,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedPanelId: (id) => set({ selectedPanelId: id }),
   hoveredPanelId: null,
   setHoveredPanelId: (id) => set({ hoveredPanelId: id }),
-  clearGeneratedPanels: () => set({ generatedPanels: [], selectedPanelId: null, hoveredPanelId: null }),
+  clearGeneratedPanels: () => set({ generatedPanels: [], selectedPanelId: null, hoveredPanelId: null, panelMode: false }),
+
+  // Panel Mode
+  panelMode: false,
+  setPanelMode: (enabled) => set({ panelMode: enabled }),
+  panelBasePosition: [0, 0, 0],
+  setPanelBasePosition: (position) => set({ panelBasePosition: position }),
+  updatePanelPositions: (delta) => set((state) => ({
+    generatedPanels: state.generatedPanels.map(panel => ({
+      ...panel,
+      position: [
+        panel.position[0] + delta[0],
+        panel.position[1] + delta[1],
+        panel.position[2] + delta[2]
+      ] as [number, number, number]
+    }))
+  })),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

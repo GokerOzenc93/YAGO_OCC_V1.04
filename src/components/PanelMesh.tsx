@@ -11,24 +11,28 @@ const PanelMesh: React.FC<PanelMeshProps> = ({ panel }) => {
     selectedPanelId,
     setSelectedPanelId,
     hoveredPanelId,
-    setHoveredPanelId
+    setHoveredPanelId,
+    panelMode
   } = useAppStore();
 
-  const isSelected = selectedPanelId === panel.id;
-  const isHovered = hoveredPanelId === panel.id;
+  const isSelected = panelMode && selectedPanelId === panel.id;
+  const isHovered = panelMode && hoveredPanelId === panel.id;
 
   const handleClick = (e: THREE.Event) => {
+    if (!panelMode) return;
     e.stopPropagation();
     setSelectedPanelId(isSelected ? null : panel.id);
   };
 
   const handlePointerOver = (e: THREE.Event) => {
+    if (!panelMode) return;
     e.stopPropagation();
     setHoveredPanelId(panel.id);
     document.body.style.cursor = 'pointer';
   };
 
   const handlePointerOut = () => {
+    if (!panelMode) return;
     setHoveredPanelId(null);
     document.body.style.cursor = 'auto';
   };

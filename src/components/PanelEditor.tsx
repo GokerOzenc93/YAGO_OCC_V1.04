@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { X, GripVertical, RefreshCw, Box, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, GripVertical, RefreshCw, Box, Trash2, Layers, Move } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { panelManagerService, PanelJointConfig, BackPanelConfig } from './PanelManager';
 import { useAppStore, GeneratedPanel } from '../store';
@@ -28,10 +28,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     setGeneratedPanels,
     selectedPanelId,
     setSelectedPanelId,
-    clearGeneratedPanels
+    clearGeneratedPanels,
+    panelMode,
+    setPanelMode
   } = useAppStore();
 
   const selectedShape = shapes.find(s => s.id === selectedShapeId);
+  const prevDimensionsRef = useRef<{ width: number; height: number; depth: number } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -49,6 +52,31 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       setError(null);
     }
   }, [selectedProfile, selectedShapeId]);
+
+  useEffect(() => {
+    if (!selectedShape || selectedProfile === 'none' || generatedPanels.length === 0) {
+      prevDimensionsRef.current = null;
+      return;
+    }
+
+    const currentDimensions = {
+      width: selectedShape.parameters?.width || 0,
+      height: selectedShape.parameters?.height || 0,
+      depth: selectedShape.parameters?.depth || 0
+    };
+
+    if (prevDimensionsRef.current) {
+      const { width: prevW, height: prevH, depth: prevD } = prevDimensionsRef.current;
+      const { width: currW, height: currH, depth: currD } = currentDimensions;
+
+      if (prevW !== currW || prevH !== currH || prevD !== currD) {
+        console.log('📐 Shape dimensions changed, regenerating panels...');
+        loadProfileAndGeneratePanels();
+      }
+    }
+
+    prevDimensionsRef.current = currentDimensions;
+  }, [selectedShape?.parameters?.width, selectedShape?.parameters?.height, selectedShape?.parameters?.depth, selectedProfile, generatedPanels.length]);
 
   const loadProfiles = async () => {
     try {
@@ -301,13 +329,33 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                       <Box size={12} />
                       Panels ({generatedPanels.length})
                     </div>
-                    <button
-                      onClick={handleClearPanels}
-                      className="p-1 hover:bg-red-50 rounded transition-colors"
-                      title="Clear all panels"
-                    >
-                      <Trash2 size={12} className="text-red-400 hover:text-red-500" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setPanelMode(!panelMode)}
+                        className={`p-1 rounded transition-colors flex items-center gap-1 ${
+                          panelMode
+                            ? 'bg-orange-100 hover:bg-orange-200'
+                            : 'bg-stone-100 hover:bg-stone-200'
+                        }`}
+                        title={panelMode ? 'Switch to Body Mode (move all together)' : 'Switch to Panel Mode (select individual panels)'}
+                      >
+                        {panelMode ? (
+                          <Layers size={12} className="text-orange-600" />
+                        ) : (
+                          <Move size={12} className="text-stone-600" />
+                        )}
+                        <span className={`text-[10px] font-medium ${panelMode ? 'text-orange-600' : 'text-stone-600'}`}>
+                          {panelMode ? 'Panel' : 'Body'}
+                        </span>
+                      </button>
+                      <button
+                        onClick={handleClearPanels}
+                        className="p-1 hover:bg-red-50 rounded transition-colors"
+                        title="Clear all panels"
+                      >
+                        <Trash2 size={12} className="text-red-400 hover:text-red-500" />
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1">
                     {generatedPanels.map((panel) => {

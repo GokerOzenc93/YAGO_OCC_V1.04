@@ -33,10 +33,14 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
     setShowParametersPanel,
-    generatedPanels
+    generatedPanels,
+    panelMode,
+    updatePanelPositions
   } = useAppStore();
 
-  const panelModeActive = generatedPanels.length > 0;
+  const hasPanels = generatedPanels.length > 0;
+  const panelModeActive = panelMode && hasPanels;
+  const lastPositionRef = useRef<[number, number, number]>(shape.position);
 
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -177,6 +181,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           orbitControlsRef.current.enabled = !event.value;
         }
 
+        if (event.value && groupRef.current) {
+          lastPositionRef.current = groupRef.current.position.toArray() as [number, number, number];
+        }
+
         if (!event.value && groupRef.current) {
           const finalPosition = groupRef.current.position.toArray() as [number, number, number];
           const finalRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
@@ -199,9 +207,23 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
 
       const onChange = () => {
         if (groupRef.current && isDragging) {
+          const newPosition = groupRef.current.position.toArray() as [number, number, number];
+
+          if (hasPanels && !panelMode) {
+            const delta: [number, number, number] = [
+              newPosition[0] - lastPositionRef.current[0],
+              newPosition[1] - lastPositionRef.current[1],
+              newPosition[2] - lastPositionRef.current[2]
+            ];
+            if (delta[0] !== 0 || delta[1] !== 0 || delta[2] !== 0) {
+              updatePanelPositions(delta);
+            }
+          }
+          lastPositionRef.current = newPosition;
+
           isUpdatingRef.current = true;
           updateShape(shape.id, {
-            position: groupRef.current.position.toArray() as [number, number, number],
+            position: newPosition,
             rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
             scale: groupRef.current.scale.toArray() as [number, number, number]
           });
@@ -216,7 +238,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         controls.removeEventListener('change', onChange);
       };
     }
-  }, [isSelected, shape.id, updateShape, orbitControlsRef, geometryKey]);
+  }, [isSelected, shape.id, updateShape, orbitControlsRef, geometryKey, hasPanels, panelMode, updatePanelPositions]);
 
   const getTransformMode = () => {
     switch (activeTool) {
