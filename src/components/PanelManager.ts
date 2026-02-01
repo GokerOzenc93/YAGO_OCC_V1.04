@@ -380,14 +380,6 @@ export class PanelManagerService {
       bounds.getSize(size);
       bounds.getCenter(center);
 
-      let avgNormal = new THREE.Vector3();
-      faceGroupIndices.forEach(groupIndex => {
-        if (groupIndex < faceGroups.length) {
-          avgNormal.add(faceGroups[groupIndex].normal);
-        }
-      });
-      avgNormal.normalize();
-
       let panelWidth = size.x;
       let panelHeight = size.y;
       let panelDepth = size.z;
@@ -401,21 +393,35 @@ export class PanelManagerService {
       }
 
       const finalWidth = role === 'left' || role === 'right' ? thickness : panelWidth;
-      const finalHeight = role === 'top' || role === 'bottom' ? thickness : panelHeight;
+      const finalHeight = role === 'top' || role === 'bottom' ? pt : panelHeight;
       const finalDepth = role === 'back' ? thickness : panelDepth;
 
       const geometry = new THREE.BoxGeometry(finalWidth, finalHeight, finalDepth);
 
-      let posX = shape.position[0] + center.x + positionAdjust.x;
-      let posY = shape.position[1] + center.y + positionAdjust.y;
-      let posZ = shape.position[2] + center.z + positionAdjust.z;
+      let posX: number;
+      let posY: number;
+      let posZ: number;
 
-      if (role === 'left' || role === 'right') {
-        posY += (heightAdjust.bottom - heightAdjust.top) / 2;
-        posZ += depthAdjust / 2;
-      } else if (role === 'top' || role === 'bottom') {
-        posX += (widthAdjust.left - widthAdjust.right) / 2;
-        posZ += depthAdjust / 2;
+      if (role === 'left') {
+        posX = shape.position[0] + bounds.min.x + thickness / 2;
+        posY = shape.position[1] + center.y + (heightAdjust.bottom - heightAdjust.top) / 2;
+        posZ = shape.position[2] + center.z + depthAdjust / 2;
+      } else if (role === 'right') {
+        posX = shape.position[0] + bounds.max.x - thickness / 2;
+        posY = shape.position[1] + center.y + (heightAdjust.bottom - heightAdjust.top) / 2;
+        posZ = shape.position[2] + center.z + depthAdjust / 2;
+      } else if (role === 'top') {
+        posX = shape.position[0] + center.x + (widthAdjust.left - widthAdjust.right) / 2;
+        posY = shape.position[1] + bounds.max.y - pt / 2;
+        posZ = shape.position[2] + center.z + depthAdjust / 2;
+      } else if (role === 'bottom') {
+        posX = shape.position[0] + center.x + (widthAdjust.left - widthAdjust.right) / 2;
+        posY = shape.position[1] + bounds.min.y + pt / 2 + positionAdjust.y;
+        posZ = shape.position[2] + center.z + depthAdjust / 2;
+      } else {
+        posX = shape.position[0] + center.x + positionAdjust.x;
+        posY = shape.position[1] + center.y + positionAdjust.y;
+        posZ = shape.position[2] + center.z + positionAdjust.z;
       }
 
       return {
@@ -571,31 +577,6 @@ export class PanelManagerService {
           rotation: [0, 0, 0],
           color: PANEL_COLORS['back'],
           dimensions: [backWidth, backHeight, backThickness]
-        });
-      }
-    }
-
-    if (roleToFaceGroups['door']) {
-      const bounds = getFaceBounds(roleToFaceGroups['door']);
-      if (bounds) {
-        const size = new THREE.Vector3();
-        const center = new THREE.Vector3();
-        bounds.getSize(size);
-        bounds.getCenter(center);
-
-        const doorGeom = new THREE.BoxGeometry(size.x, size.y, pt);
-        panels.push({
-          id: `panel-door-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          role: 'door',
-          geometry: doorGeom,
-          position: [
-            shape.position[0] + center.x,
-            shape.position[1] + center.y,
-            shape.position[2] + center.z
-          ],
-          rotation: [0, 0, 0],
-          color: PANEL_COLORS['door'],
-          dimensions: [size.x, size.y, pt]
         });
       }
     }
