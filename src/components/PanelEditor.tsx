@@ -3,6 +3,8 @@ import { X, GripVertical, Plus, Edit2, Save } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { panelGeneratorService } from '../services/PanelGeneratorService';
 import { PanelInstance } from '../types/Panel';
+import { useAppStore } from '../store';
+import { PanelFactory } from './panels/PanelFactory';
 
 interface PanelEditorProps {
   isOpen: boolean;
@@ -10,6 +12,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
+  const addPanels = useAppStore((state) => state.addPanels);
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -82,6 +85,36 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
   const groupedPanels = panelGeneratorService.groupPanelsByRole(panels);
 
+  const handleAddPanels = async () => {
+    if (panels.length === 0) {
+      alert('No panels to add. Please select a profile with configured panels.');
+      return;
+    }
+
+    try {
+      const panelsWithPositions = await Promise.all(
+        panels.map(async (panel) => {
+          const panelGeometry = PanelFactory.createPanel(panel.panelGeometry);
+          const position = panelGeometry.getPosition();
+          const rotation = panelGeometry.getRotation();
+
+          return {
+            ...panel,
+            position,
+            rotation,
+          };
+        })
+      );
+
+      addPanels(panelsWithPositions);
+      console.log(`✅ Added ${panelsWithPositions.length} panels to scene`);
+      alert(`Successfully added ${panelsWithPositions.length} panels to the scene!`);
+    } catch (error) {
+      console.error('Failed to add panels:', error);
+      alert('Failed to add panels. Please try again.');
+    }
+  };
+
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
     setDragOffset({
@@ -136,8 +169,9 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         </div>
         <div className="flex items-center gap-1">
           <button
-            className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-stone-200 text-slate-700 hover:bg-stone-300"
-            title="Add Panel"
+            onClick={handleAddPanels}
+            className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-orange-500 text-white hover:bg-orange-600"
+            title="Add Panels to Scene"
           >
             ADD
           </button>
