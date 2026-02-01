@@ -387,11 +387,8 @@ export class PanelManagerService {
       if (config?.topLeftExpanded && hasTop) {
         topAdj = pt;
       }
-      if (config?.bottomLeftExpanded && hasBottom && !hasBaza) {
+      if (config?.bottomLeftExpanded && hasBottom) {
         bottomAdj = pt;
-      }
-      if (hasBaza) {
-        bottomAdj = bazaHeight;
       }
 
       const depthAdj = backConfig?.leftPanelShorten || 0;
@@ -415,11 +412,8 @@ export class PanelManagerService {
       if (config?.topRightExpanded && hasTop) {
         topAdj = pt;
       }
-      if (config?.bottomRightExpanded && hasBottom && !hasBaza) {
+      if (config?.bottomRightExpanded && hasBottom) {
         bottomAdj = pt;
-      }
-      if (hasBaza) {
-        bottomAdj = bazaHeight;
       }
 
       const depthAdj = backConfig?.rightPanelShorten || 0;
@@ -481,11 +475,13 @@ export class PanelManagerService {
         pt,
         {
           widthShrink: { left: leftAdj, right: rightAdj },
-          heightShrink: { top: yOffset, bottom: 0 },
           depthShrink: depthAdj
         }
       );
-      if (panel) panels.push(panel);
+      if (panel) {
+        panel.position[1] += yOffset;
+        panels.push(panel);
+      }
     }
 
     if (roleToFaceGroups['back'] && backConfig) {
