@@ -425,106 +425,88 @@ export class PanelManagerService {
     const topBounds = panelBoundsMap.get('top');
     const bottomBounds = panelBoundsMap.get('bottom');
 
-    if (topBounds && leftBounds) {
-      const topMinY = topBounds.minY;
-      const topMaxY = topBounds.maxY;
-      const leftMinY = leftBounds.minY;
-      const leftMaxY = leftBounds.maxY;
+    const eps = 1.0;
 
+    if (topBounds && leftBounds) {
+      const topMaxY = topBounds.maxY;
+      const leftMaxY = leftBounds.maxY;
       const topMinX = topBounds.minX;
-      const leftMinX = leftBounds.minX;
       const leftMaxX = leftBounds.maxX;
 
-      if (topMinX < leftMaxX && topMinY < leftMaxY && topMaxY > leftMinY) {
-        const topCenterY = (topMinY + topMaxY) / 2;
-        const leftCenterY = (leftMinY + leftMaxY) / 2;
+      const hasXOverlap = topMinX < leftMaxX + eps;
 
-        if (topCenterY > leftCenterY) {
+      if (hasXOverlap) {
+        if (topMaxY > leftMaxY + eps) {
           const adj = adjustments.get('left')!;
           adj.heightShrink!.top = thickness;
-          console.log('Geometric: Left panel shrinks from top (top panel above)');
+          console.log('Geometric: Left shrinks from top - top extends above left');
         } else {
           const adj = adjustments.get('top')!;
           adj.widthShrink!.left = thickness;
-          console.log('Geometric: Top panel shrinks from left (left panel beside)');
+          console.log('Geometric: Top shrinks from left - left reaches to or above top');
         }
       }
     }
 
     if (topBounds && rightBounds) {
-      const topMinY = topBounds.minY;
       const topMaxY = topBounds.maxY;
-      const rightMinY = rightBounds.minY;
       const rightMaxY = rightBounds.maxY;
-
       const topMaxX = topBounds.maxX;
       const rightMinX = rightBounds.minX;
-      const rightMaxX = rightBounds.maxX;
 
-      if (topMaxX > rightMinX && topMinY < rightMaxY && topMaxY > rightMinY) {
-        const topCenterY = (topMinY + topMaxY) / 2;
-        const rightCenterY = (rightMinY + rightMaxY) / 2;
+      const hasXOverlap = topMaxX > rightMinX - eps;
 
-        if (topCenterY > rightCenterY) {
+      if (hasXOverlap) {
+        if (topMaxY > rightMaxY + eps) {
           const adj = adjustments.get('right')!;
           adj.heightShrink!.top = thickness;
-          console.log('Geometric: Right panel shrinks from top (top panel above)');
+          console.log('Geometric: Right shrinks from top - top extends above right');
         } else {
           const adj = adjustments.get('top')!;
           adj.widthShrink!.right = thickness;
-          console.log('Geometric: Top panel shrinks from right (right panel beside)');
+          console.log('Geometric: Top shrinks from right - right reaches to or above top');
         }
       }
     }
 
     if (bottomBounds && leftBounds) {
       const bottomMinY = bottomBounds.minY;
-      const bottomMaxY = bottomBounds.maxY;
       const leftMinY = leftBounds.minY;
-      const leftMaxY = leftBounds.maxY;
-
       const bottomMinX = bottomBounds.minX;
-      const leftMinX = leftBounds.minX;
       const leftMaxX = leftBounds.maxX;
 
-      if (bottomMinX < leftMaxX && bottomMinY < leftMaxY && bottomMaxY > leftMinY) {
-        const bottomCenterY = (bottomMinY + bottomMaxY) / 2;
-        const leftCenterY = (leftMinY + leftMaxY) / 2;
+      const hasXOverlap = bottomMinX < leftMaxX + eps;
 
-        if (bottomCenterY < leftCenterY) {
+      if (hasXOverlap) {
+        if (bottomMinY < leftMinY - eps) {
           const adj = adjustments.get('left')!;
           adj.heightShrink!.bottom = thickness;
-          console.log('Geometric: Left panel shrinks from bottom (bottom panel below)');
+          console.log('Geometric: Left shrinks from bottom - bottom extends below left');
         } else {
           const adj = adjustments.get('bottom')!;
           adj.widthShrink!.left = thickness;
-          console.log('Geometric: Bottom panel shrinks from left (left panel beside)');
+          console.log('Geometric: Bottom shrinks from left - left reaches to or below bottom');
         }
       }
     }
 
     if (bottomBounds && rightBounds) {
       const bottomMinY = bottomBounds.minY;
-      const bottomMaxY = bottomBounds.maxY;
       const rightMinY = rightBounds.minY;
-      const rightMaxY = rightBounds.maxY;
-
       const bottomMaxX = bottomBounds.maxX;
       const rightMinX = rightBounds.minX;
-      const rightMaxX = rightBounds.maxX;
 
-      if (bottomMaxX > rightMinX && bottomMinY < rightMaxY && bottomMaxY > rightMinY) {
-        const bottomCenterY = (bottomMinY + bottomMaxY) / 2;
-        const rightCenterY = (rightMinY + rightMaxY) / 2;
+      const hasXOverlap = bottomMaxX > rightMinX - eps;
 
-        if (bottomCenterY < rightCenterY) {
+      if (hasXOverlap) {
+        if (bottomMinY < rightMinY - eps) {
           const adj = adjustments.get('right')!;
           adj.heightShrink!.bottom = thickness;
-          console.log('Geometric: Right panel shrinks from bottom (bottom panel below)');
+          console.log('Geometric: Right shrinks from bottom - bottom extends below right');
         } else {
           const adj = adjustments.get('bottom')!;
           adj.widthShrink!.right = thickness;
-          console.log('Geometric: Bottom panel shrinks from right (right panel beside)');
+          console.log('Geometric: Bottom shrinks from right - right reaches to or below bottom');
         }
       }
     }
