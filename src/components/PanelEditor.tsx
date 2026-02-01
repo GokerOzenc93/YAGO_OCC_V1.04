@@ -13,6 +13,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [profiles, setProfiles] = useState<GlobalSettingsProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<string>('');
+  const [panelMode, setPanelMode] = useState<string>('default');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -88,28 +89,39 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           <GripVertical size={14} className="text-stone-400" />
           <span className="text-sm font-semibold text-slate-800">Panel Editor</span>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-stone-200 text-slate-700 hover:bg-stone-300"
-            title="Add Panel"
-          >
-            ADD
-          </button>
-          <button
-            onClick={onClose}
-            className="p-0.5 hover:bg-stone-200 rounded transition-colors"
-          >
-            <X size={14} className="text-stone-600" />
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="p-0.5 hover:bg-stone-200 rounded transition-colors"
+        >
+          <X size={14} className="text-stone-600" />
+        </button>
       </div>
 
       <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
         <div className="space-y-3">
           <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-800">
-              Select Body Profile
-            </label>
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-xs font-semibold text-slate-800">
+                Select Body Profile
+              </label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={panelMode}
+                  onChange={(e) => setPanelMode(e.target.value)}
+                  className="px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
+                >
+                  <option value="default">Panel Mode</option>
+                  <option value="side">Side Panel</option>
+                  <option value="back">Back Panel</option>
+                </select>
+                <button
+                  className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-orange-500 text-white hover:bg-orange-600 whitespace-nowrap"
+                  title="Panel Mode"
+                >
+                  Panel Mode
+                </button>
+              </div>
+            </div>
             {loading ? (
               <div className="px-2 py-0.5 text-xs text-stone-400 bg-white border border-gray-300 rounded">
                 Loading profiles...
