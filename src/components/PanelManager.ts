@@ -409,104 +409,118 @@ export class PanelManagerService {
     return null;
   }
 
+  private getPanelOrientation(bounds: PanelBounds): 'vertical' | 'horizontal' {
+    const absX = Math.abs(bounds.normal.x);
+    const absY = Math.abs(bounds.normal.y);
+    const absZ = Math.abs(bounds.normal.z);
+
+    if (absX > absY && absX > absZ) {
+      return 'vertical';
+    }
+    if (absY > absX && absY > absZ) {
+      return 'horizontal';
+    }
+    return 'vertical';
+  }
+
+  private getContactEdge(
+    panel1: PanelBounds,
+    panel2: PanelBounds,
+    thickness: number
+  ): { panel1Edge: 'left' | 'right' | 'top' | 'bottom'; panel2Edge: 'left' | 'right' | 'top' | 'bottom' } | null {
+    const eps = thickness * 0.5;
+
+    const xOverlap = Math.min(panel1.maxX, panel2.maxX) - Math.max(panel1.minX, panel2.minX);
+    const yOverlap = Math.min(panel1.maxY, panel2.maxY) - Math.max(panel1.minY, panel2.minY);
+    const zOverlap = Math.min(panel1.maxZ, panel2.maxZ) - Math.max(panel1.minZ, panel2.minZ);
+
+    if (xOverlap < -eps || yOverlap < -eps || zOverlap < -eps) {
+      return null;
+    }
+
+    const orient1 = this.getPanelOrientation(panel1);
+    const orient2 = this.getPanelOrientation(panel2);
+
+    if (orient1 === 'vertical' && orient2 === 'horizontal') {
+      const panel1CenterX = (panel1.minX + panel1.maxX) / 2;
+      const panel2CenterX = (panel2.minX + panel2.maxX) / 2;
+
+      const panel1CenterY = (panel1.minY + panel1.maxY) / 2;
+      const panel2CenterY = (panel2.minY + panel2.maxY) / 2;
+
+      const panel1IsLeft = panel1CenterX < panel2CenterX;
+      const panel2IsAbove = panel2CenterY > panel1CenterY;
+
+      return {
+        panel1Edge: panel2IsAbove ? 'top' : 'bottom',
+        panel2Edge: panel1IsLeft ? 'left' : 'right'
+      };
+    }
+
+    if (orient1 === 'horizontal' && orient2 === 'vertical') {
+      const panel1CenterX = (panel1.minX + panel1.maxX) / 2;
+      const panel2CenterX = (panel2.minX + panel2.maxX) / 2;
+
+      const panel1CenterY = (panel1.minY + panel1.maxY) / 2;
+      const panel2CenterY = (panel2.minY + panel2.maxY) / 2;
+
+      const panel2IsLeft = panel2CenterX < panel1CenterX;
+      const panel1IsAbove = panel1CenterY > panel2CenterY;
+
+      return {
+        panel1Edge: panel2IsLeft ? 'left' : 'right',
+        panel2Edge: panel1IsAbove ? 'top' : 'bottom'
+      };
+    }
+
+    return null;
+  }
+
   private computeGeometricAdjustments(
     panelBoundsMap: Map<string, PanelBounds>,
     thickness: number
   ): Map<string, { widthShrink?: { left: number; right: number }; heightShrink?: { top: number; bottom: number }; depthShrink?: number }> {
     const adjustments = new Map<string, { widthShrink?: { left: number; right: number }; heightShrink?: { top: number; bottom: number }; depthShrink?: number }>();
 
-    const roles = ['left', 'right', 'top', 'bottom'];
-    roles.forEach(role => {
+    const allRoles = Array.from(panelBoundsMap.keys());
+    allRoles.forEach(role => {
       adjustments.set(role, { widthShrink: { left: 0, right: 0 }, heightShrink: { top: 0, bottom: 0 }, depthShrink: 0 });
     });
 
-    const leftBounds = panelBoundsMap.get('left');
-    const rightBounds = panelBoundsMap.get('right');
-    const topBounds = panelBoundsMap.get('top');
-    const bottomBounds = panelBoundsMap.get('bottom');
+    const panelList = Array.from(panelBoundsMap.entries());
 
-    const eps = 1.0;
+    for (let i = 0; i < panelList.length; i++) {
+      for (let j = i + 1; j < panelList.length; j++) {
+        const [role1, bounds1] = panelList[i];
+        const [role2, bounds2] = panelList[j];
 
-    if (topBounds && leftBounds) {
-      const topMaxY = topBounds.maxY;
-      const leftMaxY = leftBounds.maxY;
-      const topMinX = topBounds.minX;
-      const leftMaxX = leftBounds.maxX;
+        const contact = this.getContactEdge(bounds1, bounds2, thickness);
+        if (!contact) continue;
 
-      const hasXOverlap = topMinX < leftMaxX + eps;
+        const orient1 = this.getPanelOrientation(bounds1);
+        const orient2 = this.getPanelOrientation(bounds2);
 
-      if (hasXOverlap) {
-        if (topMaxY > leftMaxY + eps) {
-          const adj = adjustments.get('left')!;
-          adj.heightShrink!.top = thickness;
-          console.log('Geometric: Left shrinks from top - top extends above left');
-        } else {
-          const adj = adjustments.get('top')!;
-          adj.widthShrink!.left = thickness;
-          console.log('Geometric: Top shrinks from left - left reaches to or above top');
-        }
-      }
-    }
+        console.log(`Geometric: Contact detected between ${role1} (${orient1}) and ${role2} (${orient2})`);
+        console.log(`  ${role1} edge: ${contact.panel1Edge}, ${role2} edge: ${contact.panel2Edge}`);
 
-    if (topBounds && rightBounds) {
-      const topMaxY = topBounds.maxY;
-      const rightMaxY = rightBounds.maxY;
-      const topMaxX = topBounds.maxX;
-      const rightMinX = rightBounds.minX;
-
-      const hasXOverlap = topMaxX > rightMinX - eps;
-
-      if (hasXOverlap) {
-        if (topMaxY > rightMaxY + eps) {
-          const adj = adjustments.get('right')!;
-          adj.heightShrink!.top = thickness;
-          console.log('Geometric: Right shrinks from top - top extends above right');
-        } else {
-          const adj = adjustments.get('top')!;
-          adj.widthShrink!.right = thickness;
-          console.log('Geometric: Top shrinks from right - right reaches to or above top');
-        }
-      }
-    }
-
-    if (bottomBounds && leftBounds) {
-      const bottomMinY = bottomBounds.minY;
-      const leftMinY = leftBounds.minY;
-      const bottomMinX = bottomBounds.minX;
-      const leftMaxX = leftBounds.maxX;
-
-      const hasXOverlap = bottomMinX < leftMaxX + eps;
-
-      if (hasXOverlap) {
-        if (bottomMinY < leftMinY - eps) {
-          const adj = adjustments.get('left')!;
-          adj.heightShrink!.bottom = thickness;
-          console.log('Geometric: Left shrinks from bottom - bottom extends below left');
-        } else {
-          const adj = adjustments.get('bottom')!;
-          adj.widthShrink!.left = thickness;
-          console.log('Geometric: Bottom shrinks from left - left reaches to or below bottom');
-        }
-      }
-    }
-
-    if (bottomBounds && rightBounds) {
-      const bottomMinY = bottomBounds.minY;
-      const rightMinY = rightBounds.minY;
-      const bottomMaxX = bottomBounds.maxX;
-      const rightMinX = rightBounds.minX;
-
-      const hasXOverlap = bottomMaxX > rightMinX - eps;
-
-      if (hasXOverlap) {
-        if (bottomMinY < rightMinY - eps) {
-          const adj = adjustments.get('right')!;
-          adj.heightShrink!.bottom = thickness;
-          console.log('Geometric: Right shrinks from bottom - bottom extends below right');
-        } else {
-          const adj = adjustments.get('bottom')!;
-          adj.widthShrink!.right = thickness;
-          console.log('Geometric: Bottom shrinks from right - right reaches to or below bottom');
+        if (orient1 === 'vertical' && orient2 === 'horizontal') {
+          const adj2 = adjustments.get(role2)!;
+          if (contact.panel2Edge === 'left') {
+            adj2.widthShrink!.left = Math.max(adj2.widthShrink!.left, thickness);
+            console.log(`  -> ${role2} shrinks from left by ${thickness}`);
+          } else if (contact.panel2Edge === 'right') {
+            adj2.widthShrink!.right = Math.max(adj2.widthShrink!.right, thickness);
+            console.log(`  -> ${role2} shrinks from right by ${thickness}`);
+          }
+        } else if (orient1 === 'horizontal' && orient2 === 'vertical') {
+          const adj1 = adjustments.get(role1)!;
+          if (contact.panel1Edge === 'left') {
+            adj1.widthShrink!.left = Math.max(adj1.widthShrink!.left, thickness);
+            console.log(`  -> ${role1} shrinks from left by ${thickness}`);
+          } else if (contact.panel1Edge === 'right') {
+            adj1.widthShrink!.right = Math.max(adj1.widthShrink!.right, thickness);
+            console.log(`  -> ${role1} shrinks from right by ${thickness}`);
+          }
         }
       }
     }
@@ -616,6 +630,7 @@ export class PanelManagerService {
         roleToFaceGroups['left'],
         pt,
         {
+          widthShrink: geoAdj.widthShrink || { left: 0, right: 0 },
           heightShrink: geoAdj.heightShrink || { top: 0, bottom: 0 },
           depthShrink: depthAdj
         }
@@ -632,6 +647,7 @@ export class PanelManagerService {
         roleToFaceGroups['right'],
         pt,
         {
+          widthShrink: geoAdj.widthShrink || { left: 0, right: 0 },
           heightShrink: geoAdj.heightShrink || { top: 0, bottom: 0 },
           depthShrink: depthAdj
         }
@@ -649,6 +665,7 @@ export class PanelManagerService {
         pt,
         {
           widthShrink: geoAdj.widthShrink || { left: 0, right: 0 },
+          heightShrink: geoAdj.heightShrink || { top: 0, bottom: 0 },
           depthShrink: depthAdj
         }
       );
@@ -666,6 +683,7 @@ export class PanelManagerService {
         pt,
         {
           widthShrink: geoAdj.widthShrink || { left: 0, right: 0 },
+          heightShrink: geoAdj.heightShrink || { top: 0, bottom: 0 },
           depthShrink: depthAdj
         }
       );
