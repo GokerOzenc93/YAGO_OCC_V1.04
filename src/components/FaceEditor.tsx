@@ -471,9 +471,16 @@ export function createPanelFromFaceGroup(
   const bottomShrink = adjustments?.heightShrink?.bottom || 0;
   const depthShrink = adjustments?.depthShrink || 0;
 
+  console.log(`createPanelFromFaceGroup[${groupIndex}]: shrink values:`, {
+    leftShrink, rightShrink, topShrink, bottomShrink, depthShrink
+  });
+
   const absX = Math.abs(avgNormal.x);
   const absY = Math.abs(avgNormal.y);
   const absZ = Math.abs(avgNormal.z);
+
+  console.log(`  Normal: [${avgNormal.x.toFixed(2)}, ${avgNormal.y.toFixed(2)}, ${avgNormal.z.toFixed(2)}]`);
+  console.log(`  absX=${absX.toFixed(2)}, absY=${absY.toFixed(2)}, absZ=${absZ.toFixed(2)}`);
 
   const panelThickness = thickness - depthShrink;
   if (panelThickness <= 0) return null;
@@ -560,6 +567,10 @@ export function createPanelFromFaceGroup(
   shrunkBox.getCenter(shrunkCenter);
   const shrunkSize = new THREE.Vector3();
   shrunkBox.getSize(shrunkSize);
+
+  console.log(`  Before shrink size: [${size.x.toFixed(1)}, ${size.y.toFixed(1)}, ${size.z.toFixed(1)}]`);
+  console.log(`  After shrink size: [${shrunkSize.x.toFixed(1)}, ${shrunkSize.y.toFixed(1)}, ${shrunkSize.z.toFixed(1)}]`);
+  console.log(`  Size diff X: ${(size.x - shrunkSize.x).toFixed(1)}, expected: ${leftShrink + rightShrink}`);
 
   for (let i = 0; i < posArray.length; i += 3) {
     posArray[i] -= shrunkCenter.x;

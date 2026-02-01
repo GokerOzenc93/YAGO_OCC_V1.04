@@ -368,6 +368,14 @@ export class PanelManagerService {
       const faceX = maxX;
       minX = faceX - thickness;
       maxX = faceX;
+    } else if (role === 'top') {
+      const faceY = maxY;
+      minY = faceY - thickness;
+      maxY = faceY;
+    } else if (role === 'bottom') {
+      const faceY = minY;
+      maxY = faceY + thickness;
+      minY = faceY;
     }
 
     return {
@@ -394,17 +402,12 @@ export class PanelManagerService {
     return 'vertical';
   }
 
-  private panelsOverlap(
-    panel1: PanelBounds,
-    panel2: PanelBounds
+  private panelsTouchInX(
+    verticalPanel: PanelBounds,
+    horizontalPanel: PanelBounds
   ): boolean {
-    const eps = 0.5;
-
-    const xOverlap = Math.min(panel1.maxX, panel2.maxX) - Math.max(panel1.minX, panel2.minX);
-    const yOverlap = Math.min(panel1.maxY, panel2.maxY) - Math.max(panel1.minY, panel2.minY);
-    const zOverlap = Math.min(panel1.maxZ, panel2.maxZ) - Math.max(panel1.minZ, panel2.minZ);
-
-    return xOverlap > eps && yOverlap > eps && zOverlap > eps;
+    const xOverlap = Math.min(verticalPanel.maxX, horizontalPanel.maxX) - Math.max(verticalPanel.minX, horizontalPanel.minX);
+    return xOverlap > -1;
   }
 
   private computeGeometricAdjustments(
@@ -418,40 +421,45 @@ export class PanelManagerService {
       adjustments.set(role, { widthShrink: { left: 0, right: 0 }, heightShrink: { top: 0, bottom: 0 }, depthShrink: 0 });
     });
 
+    const hasLeft = panelBoundsMap.has('left');
+    const hasRight = panelBoundsMap.has('right');
     const leftBounds = panelBoundsMap.get('left');
     const rightBounds = panelBoundsMap.get('right');
     const topBounds = panelBoundsMap.get('top');
     const bottomBounds = panelBoundsMap.get('bottom');
 
-    console.log('Panel joint detection (role-based):');
+    console.log('Panel joint detection (role-based, direct):');
+    console.log(`  Has panels: left=${hasLeft}, right=${hasRight}, top=${!!topBounds}, bottom=${!!bottomBounds}`);
 
     if (topBounds) {
       const topAdj = adjustments.get('top')!;
 
-      if (leftBounds && this.panelsOverlap(leftBounds, topBounds)) {
+      if (hasLeft && leftBounds && this.panelsTouchInX(leftBounds, topBounds)) {
         topAdj.widthShrink!.left = thickness;
-        console.log(`  top overlaps with left -> shrink top from LEFT by ${thickness}mm`);
+        console.log(`  TOP: left panel exists and touches -> shrink LEFT side by ${thickness}mm`);
       }
 
-      if (rightBounds && this.panelsOverlap(rightBounds, topBounds)) {
+      if (hasRight && rightBounds && this.panelsTouchInX(rightBounds, topBounds)) {
         topAdj.widthShrink!.right = thickness;
-        console.log(`  top overlaps with right -> shrink top from RIGHT by ${thickness}mm`);
+        console.log(`  TOP: right panel exists and touches -> shrink RIGHT side by ${thickness}mm`);
       }
     }
 
     if (bottomBounds) {
       const bottomAdj = adjustments.get('bottom')!;
 
-      if (leftBounds && this.panelsOverlap(leftBounds, bottomBounds)) {
+      if (hasLeft && leftBounds && this.panelsTouchInX(leftBounds, bottomBounds)) {
         bottomAdj.widthShrink!.left = thickness;
-        console.log(`  bottom overlaps with left -> shrink bottom from LEFT by ${thickness}mm`);
+        console.log(`  BOTTOM: left panel exists and touches -> shrink LEFT side by ${thickness}mm`);
       }
 
-      if (rightBounds && this.panelsOverlap(rightBounds, bottomBounds)) {
+      if (hasRight && rightBounds && this.panelsTouchInX(rightBounds, bottomBounds)) {
         bottomAdj.widthShrink!.right = thickness;
-        console.log(`  bottom overlaps with right -> shrink bottom from RIGHT by ${thickness}mm`);
+        console.log(`  BOTTOM: right panel exists and touches -> shrink RIGHT side by ${thickness}mm`);
       }
     }
+
+    console.log('Final adjustments:', Object.fromEntries(adjustments));
 
     return adjustments;
   }
