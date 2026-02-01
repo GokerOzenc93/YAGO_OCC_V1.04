@@ -319,6 +319,7 @@ export class PanelManagerService {
 
     const panels: GeneratedPanel[] = [];
     const pt = panelThickness;
+    const config = this.panelJointConfig;
     const backConfig = this.backPanelConfig;
     const backThickness = backConfig?.backPanelThickness || 8;
 
@@ -335,98 +336,317 @@ export class PanelManagerService {
 
     console.log('PanelManager: Role to face groups mapping:', roleToFaceGroups);
 
-    const createPanelFromRole = (role: string, faceGroupIndices: number[], thickness: number): GeneratedPanel | null => {
+    const hasLeft = !!roleToFaceGroups['left'];
+    const hasRight = !!roleToFaceGroups['right'];
+    const hasTop = !!roleToFaceGroups['top'];
+    const hasBottom = !!roleToFaceGroups['bottom'];
+
+    const hasBaza = config && config.selectedBodyType === 'bazali' && hasBottom;
+    const bazaHeight = hasBaza ? config.bazaHeight : 0;
+
+    const getFaceBounds = (faceGroupIndices: number[]): THREE.Box3 | null => {
       if (faceGroupIndices.length === 0) return null;
 
       const allFaceIndices: number[] = [];
-      let avgNormal = new THREE.Vector3();
-
       faceGroupIndices.forEach(groupIndex => {
         if (groupIndex < faceGroups.length) {
           const group = faceGroups[groupIndex];
           allFaceIndices.push(...group.faceIndices);
-          avgNormal.add(group.normal);
         }
       });
 
       if (allFaceIndices.length === 0) return null;
 
+      const faceGeometry = createFaceHighlightGeometry(faces, allFaceIndices);
+      return new THREE.Box3().setFromBufferAttribute(faceGeometry.getAttribute('position'));
+    };
+
+    const createPanelWithJoints = (
+      role: string,
+      faceGroupIndices: number[],
+      thickness: number,
+      heightAdjust: { top: number; bottom: number },
+      widthAdjust: { left: number; right: number },
+      depthAdjust: number,
+      positionAdjust: { x: number; y: number; z: number }
+    ): GeneratedPanel | null => {
+      if (faceGroupIndices.length === 0) return null;
+
+      const bounds = getFaceBounds(faceGroupIndices);
+      if (!bounds) return null;
+
+      const size = new THREE.Vector3();
+      const center = new THREE.Vector3();
+      bounds.getSize(size);
+      bounds.getCenter(center);
+
+      let avgNormal = new THREE.Vector3();
+      faceGroupIndices.forEach(groupIndex => {
+        if (groupIndex < faceGroups.length) {
+          avgNormal.add(faceGroups[groupIndex].normal);
+        }
+      });
       avgNormal.normalize();
 
-      try {
-        const faceGeometry = createFaceHighlightGeometry(faces, allFaceIndices);
+      let panelWidth = size.x;
+      let panelHeight = size.y;
+      let panelDepth = size.z;
 
-        const extrudedGeometry = this.extrudeFaceGeometry(
-          faceGeometry,
-          avgNormal,
-          thickness,
-          true
-        );
-
-        const box = new THREE.Box3().setFromBufferAttribute(
-          extrudedGeometry.getAttribute('position')
-        );
-        const size = new THREE.Vector3();
-        const center = new THREE.Vector3();
-        box.getSize(size);
-        box.getCenter(center);
-
-        const position: [number, number, number] = [
-          shape.position[0] + center.x,
-          shape.position[1] + center.y,
-          shape.position[2] + center.z
-        ];
-
-        extrudedGeometry.center();
-
-        return {
-          id: `panel-${role}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          role,
-          geometry: extrudedGeometry,
-          position,
-          rotation: [0, 0, 0],
-          color: PANEL_COLORS[role] || '#e8d4b8',
-          dimensions: [size.x, size.y, size.z]
-        };
-      } catch (error) {
-        console.error(`Failed to create panel for role ${role}:`, error);
-        return null;
+      if (role === 'left' || role === 'right') {
+        panelHeight = panelHeight - heightAdjust.top - heightAdjust.bottom;
+        panelDepth = panelDepth - depthAdjust;
+      } else if (role === 'top' || role === 'bottom') {
+        panelWidth = panelWidth - widthAdjust.left - widthAdjust.right;
+        panelDepth = panelDepth - depthAdjust;
       }
+
+      const finalWidth = role === 'left' || role === 'right' ? thickness : panelWidth;
+      const finalHeight = role === 'top' || role === 'bottom' ? thickness : panelHeight;
+      const finalDepth = role === 'back' ? thickness : panelDepth;
+
+      const geometry = new THREE.BoxGeometry(finalWidth, finalHeight, finalDepth);
+
+      let posX = shape.position[0] + center.x + positionAdjust.x;
+      let posY = shape.position[1] + center.y + positionAdjust.y;
+      let posZ = shape.position[2] + center.z + positionAdjust.z;
+
+      if (role === 'left' || role === 'right') {
+        posY += (heightAdjust.bottom - heightAdjust.top) / 2;
+        posZ += depthAdjust / 2;
+      } else if (role === 'top' || role === 'bottom') {
+        posX += (widthAdjust.left - widthAdjust.right) / 2;
+        posZ += depthAdjust / 2;
+      }
+
+      return {
+        id: `panel-${role}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        role,
+        geometry,
+        position: [posX, posY, posZ],
+        rotation: [0, 0, 0],
+        color: PANEL_COLORS[role] || '#e8d4b8',
+        dimensions: [finalWidth, finalHeight, finalDepth]
+      };
     };
 
     if (roleToFaceGroups['left']) {
-      const panel = createPanelFromRole('left', roleToFaceGroups['left'], pt);
+      let topAdj = 0;
+      let bottomAdj = 0;
+
+      if (config?.topLeftExpanded && hasTop) {
+        topAdj = pt;
+      }
+      if (config?.bottomLeftExpanded && hasBottom && !hasBaza) {
+        bottomAdj = pt;
+      }
+      if (hasBaza) {
+        bottomAdj = bazaHeight;
+      }
+
+      const depthAdj = backConfig?.leftPanelShorten || 0;
+
+      const panel = createPanelWithJoints(
+        'left',
+        roleToFaceGroups['left'],
+        pt,
+        { top: topAdj, bottom: bottomAdj },
+        { left: 0, right: 0 },
+        depthAdj,
+        { x: 0, y: (bottomAdj - topAdj) / 2, z: 0 }
+      );
       if (panel) panels.push(panel);
     }
 
     if (roleToFaceGroups['right']) {
-      const panel = createPanelFromRole('right', roleToFaceGroups['right'], pt);
+      let topAdj = 0;
+      let bottomAdj = 0;
+
+      if (config?.topRightExpanded && hasTop) {
+        topAdj = pt;
+      }
+      if (config?.bottomRightExpanded && hasBottom && !hasBaza) {
+        bottomAdj = pt;
+      }
+      if (hasBaza) {
+        bottomAdj = bazaHeight;
+      }
+
+      const depthAdj = backConfig?.rightPanelShorten || 0;
+
+      const panel = createPanelWithJoints(
+        'right',
+        roleToFaceGroups['right'],
+        pt,
+        { top: topAdj, bottom: bottomAdj },
+        { left: 0, right: 0 },
+        depthAdj,
+        { x: 0, y: (bottomAdj - topAdj) / 2, z: 0 }
+      );
       if (panel) panels.push(panel);
     }
 
     if (roleToFaceGroups['top']) {
-      const panel = createPanelFromRole('top', roleToFaceGroups['top'], pt);
+      let leftAdj = pt;
+      let rightAdj = pt;
+
+      if (config?.topLeftExpanded) {
+        leftAdj = 0;
+      }
+      if (config?.topRightExpanded) {
+        rightAdj = 0;
+      }
+
+      const depthAdj = backConfig?.topPanelShorten || 0;
+
+      const panel = createPanelWithJoints(
+        'top',
+        roleToFaceGroups['top'],
+        pt,
+        { top: 0, bottom: 0 },
+        { left: leftAdj, right: rightAdj },
+        depthAdj,
+        { x: (leftAdj - rightAdj) / 2, y: 0, z: 0 }
+      );
       if (panel) panels.push(panel);
     }
 
     if (roleToFaceGroups['bottom']) {
-      const panel = createPanelFromRole('bottom', roleToFaceGroups['bottom'], pt);
+      let leftAdj = pt;
+      let rightAdj = pt;
+
+      if (config?.bottomLeftExpanded) {
+        leftAdj = 0;
+      }
+      if (config?.bottomRightExpanded) {
+        rightAdj = 0;
+      }
+
+      const depthAdj = backConfig?.bottomPanelShorten || 0;
+      const yOffset = hasBaza ? bazaHeight : 0;
+
+      const panel = createPanelWithJoints(
+        'bottom',
+        roleToFaceGroups['bottom'],
+        pt,
+        { top: 0, bottom: 0 },
+        { left: leftAdj, right: rightAdj },
+        depthAdj,
+        { x: (leftAdj - rightAdj) / 2, y: yOffset, z: 0 }
+      );
       if (panel) panels.push(panel);
     }
 
-    if (roleToFaceGroups['back']) {
-      const panel = createPanelFromRole('back', roleToFaceGroups['back'], backThickness);
-      if (panel) panels.push(panel);
+    if (roleToFaceGroups['back'] && backConfig) {
+      const bounds = getFaceBounds(roleToFaceGroups['back']);
+      if (bounds) {
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        bounds.getSize(size);
+        bounds.getCenter(center);
+
+        const looseWid = backConfig.looseWid || 0;
+        const looseDep = backConfig.looseDep || 0;
+        const grooveOffset = backConfig.grooveOffset || 12;
+
+        let backWidth = size.x - pt * 2 - looseWid * 2;
+        let backHeight = size.y - pt * 2 - looseDep * 2;
+
+        backWidth += (backConfig.leftExtend || 0) + (backConfig.rightExtend || 0);
+        backHeight += (backConfig.topExtend || 0) + (backConfig.bottomExtend || 0);
+
+        if (hasBaza) {
+          backHeight -= bazaHeight;
+        }
+
+        const backGeom = new THREE.BoxGeometry(backWidth, backHeight, backThickness);
+        panels.push({
+          id: `panel-back-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          role: 'back',
+          geometry: backGeom,
+          position: [
+            shape.position[0] + center.x,
+            shape.position[1] + center.y + (hasBaza ? bazaHeight / 2 : 0),
+            shape.position[0] + bounds.min.z + grooveOffset + backThickness / 2
+          ],
+          rotation: [0, 0, 0],
+          color: PANEL_COLORS['back'],
+          dimensions: [backWidth, backHeight, backThickness]
+        });
+      }
     }
 
     if (roleToFaceGroups['door']) {
-      const panel = createPanelFromRole('door', roleToFaceGroups['door'], pt);
-      if (panel) panels.push(panel);
+      const bounds = getFaceBounds(roleToFaceGroups['door']);
+      if (bounds) {
+        const size = new THREE.Vector3();
+        const center = new THREE.Vector3();
+        bounds.getSize(size);
+        bounds.getCenter(center);
+
+        const doorGeom = new THREE.BoxGeometry(size.x, size.y, pt);
+        panels.push({
+          id: `panel-door-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          role: 'door',
+          geometry: doorGeom,
+          position: [
+            shape.position[0] + center.x,
+            shape.position[1] + center.y,
+            shape.position[2] + center.z
+          ],
+          rotation: [0, 0, 0],
+          color: PANEL_COLORS['door'],
+          dimensions: [size.x, size.y, pt]
+        });
+      }
     }
 
-    console.log('PanelManager: Generated panels from actual face geometry', {
+    if (hasBaza && config) {
+      const bodyBounds = this.extractBodyBoundsFromShape(shape);
+      if (bodyBounds) {
+        const frontDist = config.frontBaseDistance;
+        const backDist = config.backBaseDistance;
+        const bazaWidth = bodyBounds.width - pt * 2;
+
+        const baseFrontGeom = new THREE.BoxGeometry(bazaWidth, bazaHeight, pt);
+        const baseBackGeom = new THREE.BoxGeometry(bazaWidth, bazaHeight, pt);
+
+        const centerX = (bodyBounds.minX + bodyBounds.maxX) / 2;
+        const bottomY = bodyBounds.minY + bazaHeight / 2;
+        const frontZ = bodyBounds.maxZ - frontDist - pt / 2;
+        const backZ = bodyBounds.minZ + backDist + pt / 2;
+
+        panels.push({
+          id: `panel-base-front-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          role: 'base-front',
+          geometry: baseFrontGeom,
+          position: [centerX, bottomY, frontZ],
+          rotation: [0, 0, 0],
+          color: PANEL_COLORS['base-front'],
+          dimensions: [bazaWidth, bazaHeight, pt]
+        });
+
+        panels.push({
+          id: `panel-base-back-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          role: 'base-back',
+          geometry: baseBackGeom,
+          position: [centerX, bottomY, backZ],
+          rotation: [0, 0, 0],
+          color: PANEL_COLORS['base-back'],
+          dimensions: [bazaWidth, bazaHeight, pt]
+        });
+      }
+    }
+
+    console.log('PanelManager: Generated panels with joint types', {
       panelCount: panels.length,
-      roles: panels.map(p => p.role)
+      roles: panels.map(p => p.role),
+      hasBaza,
+      config: config ? {
+        topLeftExpanded: config.topLeftExpanded,
+        topRightExpanded: config.topRightExpanded,
+        bottomLeftExpanded: config.bottomLeftExpanded,
+        bottomRightExpanded: config.bottomRightExpanded
+      } : null
     });
 
     return panels;
