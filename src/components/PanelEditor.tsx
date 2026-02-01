@@ -12,8 +12,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [profiles, setProfiles] = useState<GlobalSettingsProfile[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<string>('');
-  const [panelMode, setPanelMode] = useState<string>('default');
+  const [selectedProfile, setSelectedProfile] = useState<string>('none');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,9 +26,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       setLoading(true);
       const data = await globalSettingsService.listProfiles();
       setProfiles(data);
-      if (data.length > 0 && !selectedProfile) {
-        setSelectedProfile(data[0].id);
-      }
     } catch (error) {
       console.error('Failed to load profiles:', error);
     } finally {
@@ -89,20 +85,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           <GripVertical size={14} className="text-stone-400" />
           <span className="text-sm font-semibold text-slate-800">Panel Editor</span>
         </div>
-        <div className="flex items-center gap-1">
-          <button
-            className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-orange-500 text-white hover:bg-orange-600 whitespace-nowrap"
-            title="Panel Mode"
-          >
-            Panel Mode
-          </button>
-          <button
-            onClick={onClose}
-            className="p-0.5 hover:bg-stone-200 rounded transition-colors"
-          >
-            <X size={14} className="text-stone-600" />
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="p-0.5 hover:bg-stone-200 rounded transition-colors"
+        >
+          <X size={14} className="text-stone-600" />
+        </button>
       </div>
 
       <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -122,6 +110,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   onChange={(e) => setSelectedProfile(e.target.value)}
                   className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
                 >
+                  <option value="none">None</option>
                   {profiles.map((profile) => (
                     <option key={profile.id} value={profile.id}>
                       {profile.name}
