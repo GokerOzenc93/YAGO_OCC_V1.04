@@ -488,38 +488,96 @@ export function createPanelFromFaceGroup(
   const center = new THREE.Vector3();
   box.getCenter(center);
 
-  const positionAttr = extrudedGeometry.getAttribute('position');
-  const posArray = positionAttr.array as Float32Array;
-  for (let i = 0; i < posArray.length; i += 3) {
-    posArray[i] -= center.x;
-    posArray[i + 1] -= center.y;
-    posArray[i + 2] -= center.z;
-  }
-  positionAttr.needsUpdate = true;
-
-  let posX = center.x;
-  let posY = center.y;
-  let posZ = center.z;
-
-  if (absX > absY && absX > absZ) {
-    posY += (bottomShrink - topShrink) / 2;
-    posZ += (leftShrink - rightShrink) / 2;
-  } else if (absY > absX && absY > absZ) {
-    posX += (leftShrink - rightShrink) / 2;
-    posY += bottomShrink / 2;
-  } else {
-    posX += (leftShrink - rightShrink) / 2;
-    posY += (bottomShrink - topShrink) / 2;
-  }
-
   const size = new THREE.Vector3();
   box.getSize(size);
+
+  const positionAttr = extrudedGeometry.getAttribute('position');
+  const posArray = positionAttr.array as Float32Array;
+
+  for (let i = 0; i < posArray.length; i += 3) {
+    const vx = posArray[i];
+    const vy = posArray[i + 1];
+    const vz = posArray[i + 2];
+
+    if (absX > absY && absX > absZ) {
+      const isTop = (vy - center.y) > 0;
+      const isBottom = (vy - center.y) < 0;
+      const isLeft = (vz - center.z) < 0;
+      const isRight = (vz - center.z) > 0;
+
+      if (isTop && topShrink > 0) {
+        posArray[i + 1] -= topShrink;
+      }
+      if (isBottom && bottomShrink > 0) {
+        posArray[i + 1] += bottomShrink;
+      }
+      if (isLeft && leftShrink > 0) {
+        posArray[i + 2] += leftShrink;
+      }
+      if (isRight && rightShrink > 0) {
+        posArray[i + 2] -= rightShrink;
+      }
+    } else if (absY > absX && absY > absZ) {
+      const isLeft = (vx - center.x) < 0;
+      const isRight = (vx - center.x) > 0;
+      const isBottom = (vz - center.z) < 0;
+
+      if (isLeft && leftShrink > 0) {
+        posArray[i] += leftShrink;
+      }
+      if (isRight && rightShrink > 0) {
+        posArray[i] -= rightShrink;
+      }
+      if (isBottom && bottomShrink > 0) {
+        posArray[i + 2] += bottomShrink;
+      }
+    } else {
+      const isLeft = (vx - center.x) < 0;
+      const isRight = (vx - center.x) > 0;
+      const isTop = (vy - center.y) > 0;
+      const isBottom = (vy - center.y) < 0;
+
+      if (isLeft && leftShrink > 0) {
+        posArray[i] += leftShrink;
+      }
+      if (isRight && rightShrink > 0) {
+        posArray[i] -= rightShrink;
+      }
+      if (isTop && topShrink > 0) {
+        posArray[i + 1] -= topShrink;
+      }
+      if (isBottom && bottomShrink > 0) {
+        posArray[i + 1] += bottomShrink;
+      }
+    }
+  }
+  positionAttr.needsUpdate = true;
+  extrudedGeometry.computeBoundingBox();
+  extrudedGeometry.computeVertexNormals();
+
+  const shrunkBox = new THREE.Box3().setFromBufferAttribute(positionAttr);
+  const shrunkCenter = new THREE.Vector3();
+  shrunkBox.getCenter(shrunkCenter);
+  const shrunkSize = new THREE.Vector3();
+  shrunkBox.getSize(shrunkSize);
+
+  for (let i = 0; i < posArray.length; i += 3) {
+    posArray[i] -= shrunkCenter.x;
+    posArray[i + 1] -= shrunkCenter.y;
+    posArray[i + 2] -= shrunkCenter.z;
+  }
+  positionAttr.needsUpdate = true;
+  extrudedGeometry.computeBoundingBox();
+
+  let posX = shrunkCenter.x;
+  let posY = shrunkCenter.y;
+  let posZ = shrunkCenter.z;
 
   return {
     geometry: extrudedGeometry,
     position: new THREE.Vector3(posX, posY, posZ),
     normal: avgNormal,
-    dimensions: { width: size.x, height: size.y, depth: size.z }
+    dimensions: { width: shrunkSize.x, height: shrunkSize.y, depth: shrunkSize.z }
   };
 }
 
