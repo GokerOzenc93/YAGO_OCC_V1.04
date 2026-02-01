@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, GripVertical, Plus } from 'lucide-react';
+import { X, GripVertical, RefreshCw, Box } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
+import { panelManagerService, GeneratedPanels, PanelJointConfig, BackPanelConfig } from './PanelManager';
+import { useAppStore } from '../store';
 
 interface PanelEditorProps {
   isOpen: boolean;
@@ -14,6 +16,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [profiles, setProfiles] = useState<GlobalSettingsProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<string>('none');
   const [loading, setLoading] = useState(true);
+  const [loadingPanels, setLoadingPanels] = useState(false);
+  const [generatedPanels, setGeneratedPanels] = useState<GeneratedPanels | null>(null);
+  const [panelJointConfig, setPanelJointConfig] = useState<PanelJointConfig | null>(null);
+  const [backPanelConfig, setBackPanelConfig] = useState<BackPanelConfig | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const { shapes, selectedShapeId } = useAppStore();
+  const selectedShape = shapes.find(s => s.id === selectedShapeId);
 
   useEffect(() => {
     if (isOpen) {
@@ -21,15 +31,61 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (selectedProfile !== 'none') {
+      loadProfileAndGeneratePanels();
+    } else {
+      setGeneratedPanels(null);
+      setPanelJointConfig(null);
+      setBackPanelConfig(null);
+      setError(null);
+    }
+  }, [selectedProfile, selectedShapeId]);
+
   const loadProfiles = async () => {
     try {
       setLoading(true);
       const data = await globalSettingsService.listProfiles();
       setProfiles(data);
-    } catch (error) {
-      console.error('Failed to load profiles:', error);
+    } catch (err) {
+      console.error('Failed to load profiles:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadProfileAndGeneratePanels = async () => {
+    if (selectedProfile === 'none') return;
+
+    setLoadingPanels(true);
+    setError(null);
+
+    try {
+      const success = await panelManagerService.loadProfileSettings(selectedProfile);
+      if (!success) {
+        setError('Failed to load profile settings');
+        return;
+      }
+
+      setPanelJointConfig(panelManagerService.getPanelJointConfig());
+      setBackPanelConfig(panelManagerService.getBackPanelConfig());
+
+      if (selectedShape) {
+        const panels = panelManagerService.generatePanels(selectedShape);
+        setGeneratedPanels(panels);
+
+        if (!panels) {
+          setError('No geometry selected or geometry has no face roles defined');
+        }
+      } else {
+        setError('Select a geometry to generate panels');
+        setGeneratedPanels(null);
+      }
+    } catch (err) {
+      console.error('Failed to generate panels:', err);
+      setError('Failed to generate panels');
+    } finally {
+      setLoadingPanels(false);
     }
   };
 
@@ -65,6 +121,15 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging, dragOffset]);
+
+  const getBodyTypeLabel = (type: string) => {
+    switch (type) {
+      case 'ayakli': return 'With Legs';
+      case 'ayaksiz': return 'Without Legs';
+      case 'bazali': return 'With Base';
+      default: return type;
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -105,25 +170,161 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   Loading profiles...
                 </div>
               ) : (
-                <select
-                  value={selectedProfile}
-                  onChange={(e) => setSelectedProfile(e.target.value)}
-                  className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
-                >
-                  <option value="none">None</option>
-                  {profiles.map((profile) => (
-                    <option key={profile.id} value={profile.id}>
-                      {profile.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-1 flex-1">
+                  <select
+                    value={selectedProfile}
+                    onChange={(e) => setSelectedProfile(e.target.value)}
+                    className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
+                  >
+                    <option value="none">None</option>
+                    {profiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedProfile !== 'none' && (
+                    <button
+                      onClick={loadProfileAndGeneratePanels}
+                      disabled={loadingPanels}
+                      className="p-1 hover:bg-stone-100 rounded transition-colors"
+                      title="Refresh panels"
+                    >
+                      <RefreshCw size={12} className={`text-stone-500 ${loadingPanels ? 'animate-spin' : ''}`} />
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           </div>
 
-          <div className="text-center text-stone-500 text-xs py-8 border-t border-stone-200">
-            Panel configuration
-          </div>
+          {selectedProfile === 'none' ? (
+            <div className="text-center text-stone-500 text-xs py-8 border-t border-stone-200">
+              Select a body profile to configure panels
+            </div>
+          ) : loadingPanels ? (
+            <div className="text-center text-stone-500 text-xs py-8 border-t border-stone-200">
+              Loading configuration...
+            </div>
+          ) : error ? (
+            <div className="text-center text-red-500 text-xs py-4 border-t border-stone-200">
+              {error}
+            </div>
+          ) : (
+            <>
+              {panelJointConfig && (
+                <div className="border-t border-stone-200 pt-3">
+                  <div className="text-xs font-semibold text-slate-700 mb-2">Panel Joint Settings</div>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Body Type:</span>
+                      <span className="font-medium text-slate-800">{getBodyTypeLabel(panelJointConfig.selectedBodyType)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Top Panel In-Between (L/R):</span>
+                      <span className="font-medium text-slate-800">
+                        {panelJointConfig.topLeftExpanded ? 'Yes' : 'No'} / {panelJointConfig.topRightExpanded ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Bottom Panel In-Between (L/R):</span>
+                      <span className="font-medium text-slate-800">
+                        {panelJointConfig.bottomLeftExpanded ? 'Yes' : 'No'} / {panelJointConfig.bottomRightExpanded ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    {panelJointConfig.selectedBodyType === 'bazali' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Base Height:</span>
+                          <span className="font-medium text-slate-800">{panelJointConfig.bazaHeight} mm</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Front/Back Offset:</span>
+                          <span className="font-medium text-slate-800">{panelJointConfig.frontBaseDistance} / {panelJointConfig.backBaseDistance} mm</span>
+                        </div>
+                      </>
+                    )}
+                    {panelJointConfig.selectedBodyType === 'ayakli' && (
+                      <>
+                        <div className="flex justify-between">
+                          <span>Leg Height:</span>
+                          <span className="font-medium text-slate-800">{panelJointConfig.legHeight} mm</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Leg Diameter:</span>
+                          <span className="font-medium text-slate-800">{panelJointConfig.legDiameter} mm</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Leg Offsets (F/B/S):</span>
+                          <span className="font-medium text-slate-800">
+                            {panelJointConfig.legFrontDistance} / {panelJointConfig.legBackDistance} / {panelJointConfig.legSideDistance} mm
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {backPanelConfig && (
+                <div className="border-t border-stone-200 pt-3">
+                  <div className="text-xs font-semibold text-slate-700 mb-2">Back Panel Settings</div>
+                  <div className="space-y-1 text-xs text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Thickness:</span>
+                      <span className="font-medium text-slate-800">{backPanelConfig.backPanelThickness} mm</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Groove Offset:</span>
+                      <span className="font-medium text-slate-800">{backPanelConfig.grooveOffset} mm</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Groove Depth:</span>
+                      <span className="font-medium text-slate-800">{backPanelConfig.grooveDepth} mm</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Loose (W/D):</span>
+                      <span className="font-medium text-slate-800">{backPanelConfig.looseWid} / {backPanelConfig.looseDep} mm</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {generatedPanels && (
+                <div className="border-t border-stone-200 pt-3">
+                  <div className="text-xs font-semibold text-slate-700 mb-2 flex items-center gap-1">
+                    <Box size={12} />
+                    Generated Panels ({generatedPanels.panels.length})
+                  </div>
+                  <div className="space-y-1.5">
+                    {generatedPanels.panels.map((panel) => (
+                      <div key={panel.id} className="flex items-center justify-between text-xs bg-stone-50 px-2 py-1 rounded">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded"
+                            style={{ backgroundColor: panel.color }}
+                          />
+                          <span className="capitalize font-medium text-slate-700">{panel.role}</span>
+                        </div>
+                        <span className="text-stone-500">
+                          {(panel.dimensions[0] * 1000).toFixed(0)} x {(panel.dimensions[1] * 1000).toFixed(0)} x {(panel.dimensions[2] * 1000).toFixed(0)} mm
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-2 text-xs text-stone-500">
+                    Body Bounds: {generatedPanels.bodyBounds.width.toFixed(0)} x {generatedPanels.bodyBounds.height.toFixed(0)} x {generatedPanels.bodyBounds.depth.toFixed(0)} mm
+                  </div>
+                </div>
+              )}
+
+              {!generatedPanels && selectedShape && (
+                <div className="border-t border-stone-200 pt-3 text-center text-stone-500 text-xs py-4">
+                  Assign face roles (Left, Right, Top, Bottom, Back) to the selected geometry to generate panels
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>
