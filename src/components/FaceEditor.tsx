@@ -328,114 +328,6 @@ export function createFaceHighlightGeometry(
   return geometry;
 }
 
-function computeConvexHull2D(points: THREE.Vector2[]): THREE.Vector2[] {
-  if (points.length < 3) return points;
-
-  const uniquePoints: THREE.Vector2[] = [];
-  points.forEach(p => {
-    const exists = uniquePoints.some(u => u.distanceTo(p) < 0.001);
-    if (!exists) uniquePoints.push(p.clone());
-  });
-
-  if (uniquePoints.length < 3) return uniquePoints;
-
-  uniquePoints.sort((a, b) => a.x - b.x || a.y - b.y);
-
-  const cross = (o: THREE.Vector2, a: THREE.Vector2, b: THREE.Vector2) =>
-    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-
-  const lower: THREE.Vector2[] = [];
-  for (const p of uniquePoints) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
-      lower.pop();
-    }
-    lower.push(p);
-  }
-
-  const upper: THREE.Vector2[] = [];
-  for (let i = uniquePoints.length - 1; i >= 0; i--) {
-    const p = uniquePoints[i];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
-      upper.pop();
-    }
-    upper.push(p);
-  }
-
-  lower.pop();
-  upper.pop();
-  return lower.concat(upper);
-}
-
-export function createExtrudedPanelGeometry(
-  faces: FaceData[],
-  faceIndices: number[],
-  thickness: number,
-  direction: 'inward' | 'outward' = 'inward'
-): THREE.BufferGeometry | null {
-  if (faceIndices.length === 0) return null;
-
-  const allVertices: THREE.Vector3[] = [];
-  let avgNormal = new THREE.Vector3();
-
-  faceIndices.forEach(idx => {
-    const face = faces[idx];
-    if (face) {
-      allVertices.push(...face.vertices.map(v => v.clone()));
-      avgNormal.add(face.normal);
-    }
-  });
-
-  if (allVertices.length === 0) return null;
-
-  avgNormal.normalize();
-
-  const centroid = new THREE.Vector3();
-  allVertices.forEach(v => centroid.add(v));
-  centroid.divideScalar(allVertices.length);
-
-  let xAxis = new THREE.Vector3(1, 0, 0);
-  if (Math.abs(avgNormal.dot(xAxis)) > 0.9) {
-    xAxis = new THREE.Vector3(0, 1, 0);
-  }
-  const yAxis = new THREE.Vector3().crossVectors(avgNormal, xAxis).normalize();
-  xAxis.crossVectors(yAxis, avgNormal).normalize();
-
-  const points2D: THREE.Vector2[] = allVertices.map(v => {
-    const relative = v.clone().sub(centroid);
-    return new THREE.Vector2(relative.dot(xAxis), relative.dot(yAxis));
-  });
-
-  const hull = computeConvexHull2D(points2D);
-  if (hull.length < 3) return null;
-
-  const shape = new THREE.Shape();
-  shape.moveTo(hull[0].x, hull[0].y);
-  for (let i = 1; i < hull.length; i++) {
-    shape.lineTo(hull[i].x, hull[i].y);
-  }
-  shape.closePath();
-
-  const extrudeSettings: THREE.ExtrudeGeometryOptions = {
-    depth: thickness,
-    bevelEnabled: false
-  };
-
-  const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-
-  const transformMatrix = new THREE.Matrix4();
-  const extrudeNormal = direction === 'inward' ? avgNormal.clone().negate() : avgNormal.clone();
-  const basisMatrix = new THREE.Matrix4().makeBasis(xAxis, yAxis, extrudeNormal.clone().negate());
-  const positionOffset = centroid.clone();
-  if (direction === 'inward') {
-    positionOffset.add(avgNormal.clone().multiplyScalar(-thickness));
-  }
-  transformMatrix.copy(basisMatrix);
-  transformMatrix.setPosition(positionOffset);
-  geometry.applyMatrix4(transformMatrix);
-
-  return geometry;
-}
-
 export interface ExtrudedPanelInfo {
   geometry: THREE.BufferGeometry;
   position: THREE.Vector3;
@@ -472,40 +364,18 @@ export function createPanelFromFaceGroup(
   if (allVertices.length === 0) return null;
 
   const avgNormal = group.normal.clone().normalize();
-  const centroid = new THREE.Vector3();
-  allVertices.forEach(v => centroid.add(v));
-  centroid.divideScalar(allVertices.length);
-
-  let xAxis = new THREE.Vector3(1, 0, 0);
-  let yAxis = new THREE.Vector3(0, 1, 0);
-
-  const absX = Math.abs(avgNormal.x);
-  const absY = Math.abs(avgNormal.y);
-  const absZ = Math.abs(avgNormal.z);
-
-  if (absX > absY && absX > absZ) {
-    xAxis = new THREE.Vector3(0, 0, 1);
-    yAxis = new THREE.Vector3(0, 1, 0);
-  } else if (absY > absX && absY > absZ) {
-    xAxis = new THREE.Vector3(1, 0, 0);
-    yAxis = new THREE.Vector3(0, 0, 1);
-  } else {
-    xAxis = new THREE.Vector3(1, 0, 0);
-    yAxis = new THREE.Vector3(0, 1, 0);
-  }
-
-  const points2D: THREE.Vector2[] = allVertices.map(v => {
-    const relative = v.clone().sub(centroid);
-    return new THREE.Vector2(relative.dot(xAxis), relative.dot(yAxis));
-  });
 
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
-  points2D.forEach(p => {
-    minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
-    minY = Math.min(minY, p.y);
-    maxY = Math.max(maxY, p.y);
+  let minZ = Infinity, maxZ = -Infinity;
+
+  allVertices.forEach(v => {
+    minX = Math.min(minX, v.x);
+    maxX = Math.max(maxX, v.x);
+    minY = Math.min(minY, v.y);
+    maxY = Math.max(maxY, v.y);
+    minZ = Math.min(minZ, v.z);
+    maxZ = Math.max(maxZ, v.z);
   });
 
   const leftShrink = adjustments?.widthShrink?.left || 0;
@@ -514,46 +384,65 @@ export function createPanelFromFaceGroup(
   const bottomShrink = adjustments?.heightShrink?.bottom || 0;
   const depthShrink = adjustments?.depthShrink || 0;
 
-  minX += leftShrink;
-  maxX -= rightShrink;
-  minY += bottomShrink;
-  maxY -= topShrink;
+  const absX = Math.abs(avgNormal.x);
+  const absY = Math.abs(avgNormal.y);
+  const absZ = Math.abs(avgNormal.z);
 
-  const panelWidth = maxX - minX;
-  const panelHeight = maxY - minY;
-  const panelDepth = thickness - depthShrink;
+  let panelWidth: number;
+  let panelHeight: number;
+  let panelDepth: number;
+  let posX: number;
+  let posY: number;
+  let posZ: number;
+
+  if (absX > absY && absX > absZ) {
+    panelWidth = thickness - depthShrink;
+    panelHeight = (maxY - minY) - topShrink - bottomShrink;
+    panelDepth = (maxZ - minZ) - leftShrink - rightShrink;
+
+    posY = (minY + maxY) / 2 + (bottomShrink - topShrink) / 2;
+    posZ = (minZ + maxZ) / 2 + (leftShrink - rightShrink) / 2;
+
+    if (avgNormal.x > 0) {
+      posX = maxX - thickness / 2;
+    } else {
+      posX = minX + thickness / 2;
+    }
+  } else if (absY > absX && absY > absZ) {
+    panelWidth = (maxX - minX) - leftShrink - rightShrink;
+    panelHeight = thickness - depthShrink;
+    panelDepth = (maxZ - minZ);
+
+    posX = (minX + maxX) / 2 + (leftShrink - rightShrink) / 2;
+    posZ = (minZ + maxZ) / 2;
+
+    if (avgNormal.y > 0) {
+      posY = maxY - thickness / 2;
+    } else {
+      posY = minY + thickness / 2 + bottomShrink;
+    }
+  } else {
+    panelWidth = (maxX - minX) - leftShrink - rightShrink;
+    panelHeight = (maxY - minY) - topShrink - bottomShrink;
+    panelDepth = thickness - depthShrink;
+
+    posX = (minX + maxX) / 2 + (leftShrink - rightShrink) / 2;
+    posY = (minY + maxY) / 2 + (bottomShrink - topShrink) / 2;
+
+    if (avgNormal.z > 0) {
+      posZ = maxZ - thickness / 2;
+    } else {
+      posZ = minZ + thickness / 2;
+    }
+  }
 
   if (panelWidth <= 0 || panelHeight <= 0 || panelDepth <= 0) return null;
 
-  const shape = new THREE.Shape();
-  shape.moveTo(minX, minY);
-  shape.lineTo(maxX, minY);
-  shape.lineTo(maxX, maxY);
-  shape.lineTo(minX, maxY);
-  shape.closePath();
-
-  const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: panelDepth,
-    bevelEnabled: false
-  });
-
-  const extrudeDir = avgNormal.clone().negate();
-  const basisMatrix = new THREE.Matrix4().makeBasis(xAxis, yAxis, extrudeDir.clone().negate());
-  const positionOffset = centroid.clone().add(avgNormal.clone().multiplyScalar(-panelDepth));
-  const transformMatrix = new THREE.Matrix4();
-  transformMatrix.copy(basisMatrix);
-  transformMatrix.setPosition(positionOffset);
-  geometry.applyMatrix4(transformMatrix);
-
-  const panelCenter = new THREE.Vector3();
-  panelCenter.add(xAxis.clone().multiplyScalar((minX + maxX) / 2));
-  panelCenter.add(yAxis.clone().multiplyScalar((minY + maxY) / 2));
-  panelCenter.add(centroid);
-  panelCenter.add(avgNormal.clone().multiplyScalar(-panelDepth / 2));
+  const geometry = new THREE.BoxGeometry(panelWidth, panelHeight, panelDepth);
 
   return {
     geometry,
-    position: panelCenter,
+    position: new THREE.Vector3(posX, posY, posZ),
     normal: avgNormal,
     dimensions: { width: panelWidth, height: panelHeight, depth: panelDepth }
   };

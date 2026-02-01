@@ -4,11 +4,8 @@ import { Shape, FaceRole, GeneratedPanel } from '../store';
 import {
   extractFacesFromGeometry,
   groupCoplanarFaces,
-  CoplanarFaceGroup,
   FaceData,
-  createFaceHighlightGeometry,
-  createPanelFromFaceGroup,
-  ExtrudedPanelInfo
+  createPanelFromFaceGroup
 } from './FaceEditor';
 
 export interface PanelJointConfig {
