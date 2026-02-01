@@ -388,7 +388,7 @@ export class PanelManagerService {
     horizontalPanel: PanelBounds,
     thickness: number
   ): { edge: 'left' | 'right' | null; overlap: number } {
-    const eps = 1.0;
+    const eps = 0.5;
 
     const yOverlap = Math.min(verticalPanel.maxY, horizontalPanel.maxY) - Math.max(verticalPanel.minY, horizontalPanel.minY);
     const zOverlap = Math.min(verticalPanel.maxZ, horizontalPanel.maxZ) - Math.max(verticalPanel.minZ, horizontalPanel.minZ);
@@ -397,30 +397,26 @@ export class PanelManagerService {
       return { edge: null, overlap: 0 };
     }
 
-    const vertCenterX = (verticalPanel.minX + verticalPanel.maxX) / 2;
-    const horizMinX = horizontalPanel.minX;
-    const horizMaxX = horizontalPanel.maxX;
+    const xIntersectionStart = Math.max(verticalPanel.minX, horizontalPanel.minX);
+    const xIntersectionEnd = Math.min(verticalPanel.maxX, horizontalPanel.maxX);
 
-    const leftDistance = Math.abs(vertCenterX - horizMinX);
-    const rightDistance = Math.abs(vertCenterX - horizMaxX);
-
-    if (leftDistance < thickness * 1.5) {
-      return { edge: 'left', overlap: thickness };
+    if (xIntersectionEnd - xIntersectionStart < eps) {
+      return { edge: null, overlap: 0 };
     }
-    if (rightDistance < thickness * 1.5) {
+
+    const horizCenterX = (horizontalPanel.minX + horizontalPanel.maxX) / 2;
+    const intersectionCenterX = (xIntersectionStart + xIntersectionEnd) / 2;
+
+    console.log(`  X Intersection: [${xIntersectionStart.toFixed(1)}, ${xIntersectionEnd.toFixed(1)}], Center: ${intersectionCenterX.toFixed(1)}`);
+    console.log(`  Horizontal panel center X: ${horizCenterX.toFixed(1)}`);
+
+    if (intersectionCenterX < horizCenterX) {
+      console.log(`  -> Intersection is on LEFT side of horizontal panel`);
+      return { edge: 'left', overlap: thickness };
+    } else {
+      console.log(`  -> Intersection is on RIGHT side of horizontal panel`);
       return { edge: 'right', overlap: thickness };
     }
-
-    if (vertCenterX > horizMinX && vertCenterX < horizMaxX) {
-      const horizCenterX = (horizMinX + horizMaxX) / 2;
-      if (vertCenterX < horizCenterX) {
-        return { edge: 'left', overlap: thickness };
-      } else {
-        return { edge: 'right', overlap: thickness };
-      }
-    }
-
-    return { edge: null, overlap: 0 };
   }
 
   private computeGeometricAdjustments(

@@ -37,7 +37,7 @@ const PanelMesh: React.FC<PanelMeshProps> = ({ panel }) => {
     document.body.style.cursor = 'auto';
   };
 
-  const color = isSelected ? '#ef4444' : (isHovered ? '#f97316' : panel.color);
+  const color = isSelected ? '#ef4444' : (isHovered ? '#f97316' : '#ffffff');
 
   return (
     <group position={panel.position} rotation={panel.rotation}>
@@ -51,9 +51,9 @@ const PanelMesh: React.FC<PanelMeshProps> = ({ panel }) => {
       >
         <meshStandardMaterial
           color={color}
-          roughness={0.4}
-          metalness={0.1}
-          side={THREE.FrontSide}
+          roughness={0.5}
+          metalness={0.05}
+          side={THREE.DoubleSide}
           flatShading={false}
         />
       </mesh>
@@ -61,7 +61,7 @@ const PanelMesh: React.FC<PanelMeshProps> = ({ panel }) => {
         <edgesGeometry attach="geometry" args={[panel.geometry, 15]} />
         <lineBasicMaterial
           attach="material"
-          color={isSelected ? '#dc2626' : '#333333'}
+          color={isSelected ? '#dc2626' : '#222222'}
         />
       </lineSegments>
     </group>
