@@ -394,40 +394,17 @@ export class PanelManagerService {
     return 'vertical';
   }
 
-  private checkPanelIntersection(
-    verticalPanel: PanelBounds,
-    horizontalPanel: PanelBounds,
-    thickness: number
-  ): { edge: 'left' | 'right' | null; overlap: number } {
+  private panelsOverlap(
+    panel1: PanelBounds,
+    panel2: PanelBounds
+  ): boolean {
     const eps = 0.5;
 
-    const yOverlap = Math.min(verticalPanel.maxY, horizontalPanel.maxY) - Math.max(verticalPanel.minY, horizontalPanel.minY);
-    const zOverlap = Math.min(verticalPanel.maxZ, horizontalPanel.maxZ) - Math.max(verticalPanel.minZ, horizontalPanel.minZ);
+    const xOverlap = Math.min(panel1.maxX, panel2.maxX) - Math.max(panel1.minX, panel2.minX);
+    const yOverlap = Math.min(panel1.maxY, panel2.maxY) - Math.max(panel1.minY, panel2.minY);
+    const zOverlap = Math.min(panel1.maxZ, panel2.maxZ) - Math.max(panel1.minZ, panel2.minZ);
 
-    if (yOverlap < -eps || zOverlap < -eps) {
-      return { edge: null, overlap: 0 };
-    }
-
-    const xIntersectionStart = Math.max(verticalPanel.minX, horizontalPanel.minX);
-    const xIntersectionEnd = Math.min(verticalPanel.maxX, horizontalPanel.maxX);
-
-    if (xIntersectionEnd - xIntersectionStart < eps) {
-      return { edge: null, overlap: 0 };
-    }
-
-    const horizCenterX = (horizontalPanel.minX + horizontalPanel.maxX) / 2;
-    const intersectionCenterX = (xIntersectionStart + xIntersectionEnd) / 2;
-
-    console.log(`  X Intersection: [${xIntersectionStart.toFixed(1)}, ${xIntersectionEnd.toFixed(1)}], Center: ${intersectionCenterX.toFixed(1)}`);
-    console.log(`  Horizontal panel center X: ${horizCenterX.toFixed(1)}`);
-
-    if (intersectionCenterX < horizCenterX) {
-      console.log(`  -> Intersection is on LEFT side of horizontal panel`);
-      return { edge: 'left', overlap: thickness };
-    } else {
-      console.log(`  -> Intersection is on RIGHT side of horizontal panel`);
-      return { edge: 'right', overlap: thickness };
-    }
+    return xOverlap > eps && yOverlap > eps && zOverlap > eps;
   }
 
   private computeGeometricAdjustments(
@@ -441,39 +418,38 @@ export class PanelManagerService {
       adjustments.set(role, { widthShrink: { left: 0, right: 0 }, heightShrink: { top: 0, bottom: 0 }, depthShrink: 0 });
     });
 
-    const verticalPanels: [string, PanelBounds][] = [];
-    const horizontalPanels: [string, PanelBounds][] = [];
+    const leftBounds = panelBoundsMap.get('left');
+    const rightBounds = panelBoundsMap.get('right');
+    const topBounds = panelBoundsMap.get('top');
+    const bottomBounds = panelBoundsMap.get('bottom');
 
-    for (const [role, bounds] of panelBoundsMap) {
-      const orient = this.getPanelOrientation(bounds);
-      if (orient === 'vertical') {
-        verticalPanels.push([role, bounds]);
-      } else {
-        horizontalPanels.push([role, bounds]);
+    console.log('Panel joint detection (role-based):');
+
+    if (topBounds) {
+      const topAdj = adjustments.get('top')!;
+
+      if (leftBounds && this.panelsOverlap(leftBounds, topBounds)) {
+        topAdj.widthShrink!.left = thickness;
+        console.log(`  top overlaps with left -> shrink top from LEFT by ${thickness}mm`);
+      }
+
+      if (rightBounds && this.panelsOverlap(rightBounds, topBounds)) {
+        topAdj.widthShrink!.right = thickness;
+        console.log(`  top overlaps with right -> shrink top from RIGHT by ${thickness}mm`);
       }
     }
 
-    console.log('Panel priority order:');
-    console.log('  Vertical (first):', verticalPanels.map(([r]) => r).join(', '));
-    console.log('  Horizontal (second):', horizontalPanels.map(([r]) => r).join(', '));
+    if (bottomBounds) {
+      const bottomAdj = adjustments.get('bottom')!;
 
-    for (const [hRole, hBounds] of horizontalPanels) {
-      const adj = adjustments.get(hRole)!;
+      if (leftBounds && this.panelsOverlap(leftBounds, bottomBounds)) {
+        bottomAdj.widthShrink!.left = thickness;
+        console.log(`  bottom overlaps with left -> shrink bottom from LEFT by ${thickness}mm`);
+      }
 
-      for (const [vRole, vBounds] of verticalPanels) {
-        const intersection = this.checkPanelIntersection(vBounds, hBounds, thickness);
-
-        if (intersection.edge) {
-          console.log(`Geometric: ${hRole} intersects with ${vRole} at ${intersection.edge} edge`);
-
-          if (intersection.edge === 'left') {
-            adj.widthShrink!.left = Math.max(adj.widthShrink!.left, intersection.overlap);
-            console.log(`  -> ${hRole} shrinks from left by ${intersection.overlap}mm`);
-          } else if (intersection.edge === 'right') {
-            adj.widthShrink!.right = Math.max(adj.widthShrink!.right, intersection.overlap);
-            console.log(`  -> ${hRole} shrinks from right by ${intersection.overlap}mm`);
-          }
-        }
+      if (rightBounds && this.panelsOverlap(rightBounds, bottomBounds)) {
+        bottomAdj.widthShrink!.right = thickness;
+        console.log(`  bottom overlaps with right -> shrink bottom from RIGHT by ${thickness}mm`);
       }
     }
 
