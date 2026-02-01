@@ -313,127 +313,166 @@ export class PanelManagerService {
       return [];
     }
 
-    const faces = extractFacesFromGeometry(shape.geometry);
-    const groups = groupCoplanarFaces(faces);
+    const box = new THREE.Box3().setFromBufferAttribute(
+      shape.geometry.getAttribute('position')
+    );
+    const size = new THREE.Vector3();
+    box.getSize(size);
 
     const panels: GeneratedPanel[] = [];
     const pt = panelThickness;
     const config = this.panelJointConfig;
     const backConfig = this.backPanelConfig;
 
-    const roleToGroupMap = new Map<FaceRole, { group: CoplanarFaceGroup; index: number }>();
-    Object.entries(shape.faceRoles).forEach(([indexStr, role]) => {
-      if (!role) return;
-      const groupIndex = parseInt(indexStr);
-      if (groupIndex >= 0 && groupIndex < groups.length) {
-        roleToGroupMap.set(role, { group: groups[groupIndex], index: groupIndex });
-      }
-    });
+    const hasRole = (role: FaceRole) => {
+      return Object.values(shape.faceRoles || {}).includes(role);
+    };
 
-    const leftData = roleToGroupMap.get('Left');
-    const rightData = roleToGroupMap.get('Right');
-    const topData = roleToGroupMap.get('Top');
-    const bottomData = roleToGroupMap.get('Bottom');
-    const backData = roleToGroupMap.get('Back');
+    const hasLeft = hasRole('Left');
+    const hasRight = hasRole('Right');
+    const hasTop = hasRole('Top');
+    const hasBottom = hasRole('Bottom');
+    const hasBack = hasRole('Back');
 
-    if (leftData) {
-      let offset: [number, number, number] = [pt / 2, 0, 0];
-      if (backConfig && backConfig.leftPanelShorten > 0) {
-        offset[2] = backConfig.leftPanelShorten / 2;
-      }
-      const panel = this.createPanelFromFaceGroup(
-        faces,
-        leftData.group,
-        'left',
-        pt,
-        shape.position,
-        offset
-      );
-      if (panel) panels.push(panel);
+    const looseWid = backConfig?.looseWid || 0;
+    const looseDep = backConfig?.looseDep || 0;
+
+    if (hasLeft) {
+      let panelHeight = size.y;
+      let panelDepth = size.z - (backConfig?.leftPanelShorten || 0);
+      let posY = 0;
+      let posZ = (backConfig?.leftPanelShorten || 0) / 2;
+
+      const leftGeom = new THREE.BoxGeometry(pt, panelHeight, panelDepth);
+      panels.push({
+        id: `panel-left-${Date.now()}`,
+        role: 'left',
+        geometry: leftGeom,
+        position: [
+          shape.position[0] + box.min.x + pt / 2,
+          shape.position[1] + posY,
+          shape.position[2] + posZ
+        ],
+        rotation: [0, 0, 0],
+        color: PANEL_COLORS['left'],
+        dimensions: [pt, panelHeight, panelDepth]
+      });
     }
 
-    if (rightData) {
-      let offset: [number, number, number] = [-pt / 2, 0, 0];
-      if (backConfig && backConfig.rightPanelShorten > 0) {
-        offset[2] = backConfig.rightPanelShorten / 2;
-      }
-      const panel = this.createPanelFromFaceGroup(
-        faces,
-        rightData.group,
-        'right',
-        pt,
-        shape.position,
-        offset
-      );
-      if (panel) panels.push(panel);
+    if (hasRight) {
+      let panelHeight = size.y;
+      let panelDepth = size.z - (backConfig?.rightPanelShorten || 0);
+      let posY = 0;
+      let posZ = (backConfig?.rightPanelShorten || 0) / 2;
+
+      const rightGeom = new THREE.BoxGeometry(pt, panelHeight, panelDepth);
+      panels.push({
+        id: `panel-right-${Date.now()}`,
+        role: 'right',
+        geometry: rightGeom,
+        position: [
+          shape.position[0] + box.max.x - pt / 2,
+          shape.position[1] + posY,
+          shape.position[2] + posZ
+        ],
+        rotation: [0, 0, 0],
+        color: PANEL_COLORS['right'],
+        dimensions: [pt, panelHeight, panelDepth]
+      });
     }
 
-    if (topData) {
-      let offset: [number, number, number] = [0, -pt / 2, 0];
-      if (config) {
-        if (config.topLeftExpanded) offset[0] -= pt / 2;
-        if (config.topRightExpanded) offset[0] += pt / 2;
+    if (hasTop) {
+      let panelWidth = size.x - pt * 2;
+      let panelDepth = size.z - (backConfig?.topPanelShorten || 0);
+      let posX = 0;
+      let posZ = (backConfig?.topPanelShorten || 0) / 2;
+
+      if (config?.topLeftExpanded) {
+        panelWidth += pt;
+        posX -= pt / 2;
       }
-      if (backConfig && backConfig.topPanelShorten > 0) {
-        offset[2] = backConfig.topPanelShorten / 2;
+      if (config?.topRightExpanded) {
+        panelWidth += pt;
+        posX += pt / 2;
       }
-      const panel = this.createPanelFromFaceGroup(
-        faces,
-        topData.group,
-        'top',
-        pt,
-        shape.position,
-        offset
-      );
-      if (panel) panels.push(panel);
+
+      const topGeom = new THREE.BoxGeometry(panelWidth, pt, panelDepth);
+      panels.push({
+        id: `panel-top-${Date.now()}`,
+        role: 'top',
+        geometry: topGeom,
+        position: [
+          shape.position[0] + posX,
+          shape.position[1] + box.max.y - pt / 2,
+          shape.position[2] + posZ
+        ],
+        rotation: [0, 0, 0],
+        color: PANEL_COLORS['top'],
+        dimensions: [panelWidth, pt, panelDepth]
+      });
     }
 
-    if (bottomData) {
-      let offset: [number, number, number] = [0, pt / 2, 0];
-      if (config) {
-        if (config.bottomLeftExpanded) offset[0] -= pt / 2;
-        if (config.bottomRightExpanded) offset[0] += pt / 2;
+    if (hasBottom) {
+      let panelWidth = size.x - pt * 2;
+      let panelDepth = size.z - (backConfig?.bottomPanelShorten || 0);
+      let posX = 0;
+      let posZ = (backConfig?.bottomPanelShorten || 0) / 2;
+
+      if (config?.bottomLeftExpanded) {
+        panelWidth += pt;
+        posX -= pt / 2;
       }
-      if (backConfig && backConfig.bottomPanelShorten > 0) {
-        offset[2] = backConfig.bottomPanelShorten / 2;
+      if (config?.bottomRightExpanded) {
+        panelWidth += pt;
+        posX += pt / 2;
       }
-      const panel = this.createPanelFromFaceGroup(
-        faces,
-        bottomData.group,
-        'bottom',
-        pt,
-        shape.position,
-        offset
-      );
-      if (panel) panels.push(panel);
+
+      const bottomGeom = new THREE.BoxGeometry(panelWidth, pt, panelDepth);
+      panels.push({
+        id: `panel-bottom-${Date.now()}`,
+        role: 'bottom',
+        geometry: bottomGeom,
+        position: [
+          shape.position[0] + posX,
+          shape.position[1] + box.min.y + pt / 2,
+          shape.position[2] + posZ
+        ],
+        rotation: [0, 0, 0],
+        color: PANEL_COLORS['bottom'],
+        dimensions: [panelWidth, pt, panelDepth]
+      });
     }
 
-    if (backData && backConfig) {
+    if (hasBack && backConfig) {
       const backThickness = backConfig.backPanelThickness;
       const grooveOffset = backConfig.grooveOffset;
-      const offset: [number, number, number] = [0, 0, grooveOffset + backThickness / 2];
 
-      const panel = this.createPanelFromFaceGroup(
-        faces,
-        backData.group,
-        'back',
-        backThickness,
-        shape.position,
-        offset
-      );
-      if (panel) panels.push(panel);
+      let backWidth = size.x - pt * 2 - looseWid * 2;
+      let backHeight = size.y - pt * 2 - looseDep * 2;
+
+      backWidth += (backConfig.leftExtend || 0) + (backConfig.rightExtend || 0);
+      backHeight += (backConfig.topExtend || 0) + (backConfig.bottomExtend || 0);
+
+      const backGeom = new THREE.BoxGeometry(backWidth, backHeight, backThickness);
+      panels.push({
+        id: `panel-back-${Date.now()}`,
+        role: 'back',
+        geometry: backGeom,
+        position: [
+          shape.position[0],
+          shape.position[1],
+          shape.position[2] + box.min.z + grooveOffset + backThickness / 2
+        ],
+        rotation: [0, 0, 0],
+        color: PANEL_COLORS['back'],
+        dimensions: [backWidth, backHeight, backThickness]
+      });
     }
 
-    if (config && config.selectedBodyType === 'bazali' && bottomData) {
+    if (config && config.selectedBodyType === 'bazali' && hasBottom) {
       const bazaHeight = config.bazaHeight;
       const frontDist = config.frontBaseDistance;
       const backDist = config.backBaseDistance;
-
-      const box = new THREE.Box3().setFromBufferAttribute(
-        shape.geometry.getAttribute('position')
-      );
-      const size = new THREE.Vector3();
-      box.getSize(size);
 
       const baseFrontGeom = new THREE.BoxGeometry(size.x - pt * 2, bazaHeight, pt);
       const baseBackGeom = new THREE.BoxGeometry(size.x - pt * 2, bazaHeight, pt);
