@@ -350,16 +350,16 @@ export class PanelManagerService {
     const bottomExpanded = config?.bottomLeftExpanded || config?.bottomRightExpanded;
 
     if (hasLeft) {
-      let panelHeight = size.y - bazaHeight;
+      let panelHeight = size.y;
       let panelDepth = size.z - (backConfig?.leftPanelShorten || 0);
       let posZ = (backConfig?.leftPanelShorten || 0) / 2;
-      let posY = bazaHeight / 2;
+      let posY = 0;
 
       if (topExpanded && hasTop) {
         panelHeight -= pt;
         posY -= pt / 2;
       }
-      if (bottomExpanded && hasBottom) {
+      if (bottomExpanded && hasBottom && !hasBaza) {
         panelHeight -= pt;
         posY += pt / 2;
       }
@@ -381,16 +381,16 @@ export class PanelManagerService {
     }
 
     if (hasRight) {
-      let panelHeight = size.y - bazaHeight;
+      let panelHeight = size.y;
       let panelDepth = size.z - (backConfig?.rightPanelShorten || 0);
       let posZ = (backConfig?.rightPanelShorten || 0) / 2;
-      let posY = bazaHeight / 2;
+      let posY = 0;
 
       if (topExpanded && hasTop) {
         panelHeight -= pt;
         posY -= pt / 2;
       }
-      if (bottomExpanded && hasBottom) {
+      if (bottomExpanded && hasBottom && !hasBaza) {
         panelHeight -= pt;
         posY += pt / 2;
       }
