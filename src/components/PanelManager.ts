@@ -322,7 +322,8 @@ export class PanelManagerService {
     faces: FaceData[],
     faceGroups: CoplanarFaceGroup[],
     role: string,
-    faceGroupIndices: number[]
+    faceGroupIndices: number[],
+    thickness: number = 18
   ): PanelBounds | null {
     if (faceGroupIndices.length === 0) return null;
 
@@ -358,6 +359,16 @@ export class PanelManagerService {
     }
 
     if (minX === Infinity) return null;
+
+    if (role === 'left') {
+      const faceX = minX;
+      maxX = faceX + thickness;
+      minX = faceX;
+    } else if (role === 'right') {
+      const faceX = maxX;
+      minX = faceX - thickness;
+      maxX = faceX;
+    }
 
     return {
       role,
@@ -508,7 +519,7 @@ export class PanelManagerService {
 
     ['left', 'right', 'top', 'bottom'].forEach(role => {
       if (roleToFaceGroups[role]) {
-        const bounds = this.computePanelBounds(faces, faceGroups, role, roleToFaceGroups[role]);
+        const bounds = this.computePanelBounds(faces, faceGroups, role, roleToFaceGroups[role], pt);
         if (bounds) {
           panelBoundsMap.set(role, bounds);
           console.log(`PanelManager: ${role} bounds:`, {
