@@ -4,7 +4,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
 import * as THREE from 'three';
 
-const createGeometryFromType = (type: string, parameters: any): THREE.BufferGeometry => {
+const createGeometryFromType = (type: string, parameters: any = {}): THREE.BufferGeometry => {
   switch (type) {
     case 'box':
       return new THREE.BoxGeometry(
