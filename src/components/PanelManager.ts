@@ -5,7 +5,9 @@ import {
   extractFacesFromGeometry,
   groupCoplanarFaces,
   FaceData,
-  createPanelFromFaceGroup
+  CoplanarFaceGroup,
+  createPanelFromFaceGroup,
+  createFaceHighlightGeometry
 } from './FaceEditor';
 
 export interface PanelJointConfig {
@@ -30,6 +32,15 @@ export interface PanelJointConfig {
   leftPanelPositionY: number;
   rightPanelHeight: number;
   rightPanelPositionY: number;
+}
+
+interface PanelBounds {
+  role: string;
+  minX: number; maxX: number;
+  minY: number; maxY: number;
+  minZ: number; maxZ: number;
+  normal: THREE.Vector3;
+  faceGroupIndices: number[];
 }
 
 export interface BackPanelConfig {
@@ -307,6 +318,220 @@ export class PanelManagerService {
     }
   }
 
+  private computePanelBounds(
+    faces: FaceData[],
+    faceGroups: CoplanarFaceGroup[],
+    role: string,
+    faceGroupIndices: number[]
+  ): PanelBounds | null {
+    if (faceGroupIndices.length === 0) return null;
+
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    let avgNormal = new THREE.Vector3();
+    let normalCount = 0;
+
+    for (const groupIndex of faceGroupIndices) {
+      if (groupIndex >= faceGroups.length) continue;
+      const group = faceGroups[groupIndex];
+
+      avgNormal.add(group.normal);
+      normalCount++;
+
+      group.faceIndices.forEach(faceIdx => {
+        const face = faces[faceIdx];
+        if (!face) return;
+        face.vertices.forEach(v => {
+          minX = Math.min(minX, v.x);
+          maxX = Math.max(maxX, v.x);
+          minY = Math.min(minY, v.y);
+          maxY = Math.max(maxY, v.y);
+          minZ = Math.min(minZ, v.z);
+          maxZ = Math.max(maxZ, v.z);
+        });
+      });
+    }
+
+    if (normalCount > 0) {
+      avgNormal.divideScalar(normalCount).normalize();
+    }
+
+    if (minX === Infinity) return null;
+
+    return {
+      role,
+      minX, maxX,
+      minY, maxY,
+      minZ, maxZ,
+      normal: avgNormal,
+      faceGroupIndices
+    };
+  }
+
+  private detectIntersection(
+    bounds1: PanelBounds,
+    bounds2: PanelBounds,
+    thickness: number
+  ): { axis: 'x' | 'y' | 'z'; overlap: number; direction: 1 | -1 } | null {
+    const eps = 0.1;
+
+    const xOverlap = Math.min(bounds1.maxX, bounds2.maxX) - Math.max(bounds1.minX, bounds2.minX);
+    const yOverlap = Math.min(bounds1.maxY, bounds2.maxY) - Math.max(bounds1.minY, bounds2.minY);
+    const zOverlap = Math.min(bounds1.maxZ, bounds2.maxZ) - Math.max(bounds1.minZ, bounds2.minZ);
+
+    if (xOverlap <= eps || yOverlap <= eps || zOverlap <= eps) {
+      return null;
+    }
+
+    const role1 = bounds1.role.toLowerCase();
+    const role2 = bounds2.role.toLowerCase();
+
+    const isVertical1 = role1 === 'left' || role1 === 'right';
+    const isVertical2 = role2 === 'left' || role2 === 'right';
+    const isHorizontal1 = role1 === 'top' || role1 === 'bottom';
+    const isHorizontal2 = role2 === 'top' || role2 === 'bottom';
+
+    if (isVertical1 && isHorizontal2) {
+      const center1X = (bounds1.minX + bounds1.maxX) / 2;
+      const center2X = (bounds2.minX + bounds2.maxX) / 2;
+      const direction = center1X < center2X ? 1 : -1;
+      return { axis: 'x', overlap: thickness, direction };
+    }
+
+    if (isHorizontal1 && isVertical2) {
+      const center1Y = (bounds1.minY + bounds1.maxY) / 2;
+      const center2Y = (bounds2.minY + bounds2.maxY) / 2;
+      const direction = center1Y < center2Y ? 1 : -1;
+      return { axis: 'y', overlap: thickness, direction };
+    }
+
+    return null;
+  }
+
+  private computeGeometricAdjustments(
+    panelBoundsMap: Map<string, PanelBounds>,
+    thickness: number
+  ): Map<string, { widthShrink?: { left: number; right: number }; heightShrink?: { top: number; bottom: number }; depthShrink?: number }> {
+    const adjustments = new Map<string, { widthShrink?: { left: number; right: number }; heightShrink?: { top: number; bottom: number }; depthShrink?: number }>();
+
+    const roles = ['left', 'right', 'top', 'bottom'];
+    roles.forEach(role => {
+      adjustments.set(role, { widthShrink: { left: 0, right: 0 }, heightShrink: { top: 0, bottom: 0 }, depthShrink: 0 });
+    });
+
+    const leftBounds = panelBoundsMap.get('left');
+    const rightBounds = panelBoundsMap.get('right');
+    const topBounds = panelBoundsMap.get('top');
+    const bottomBounds = panelBoundsMap.get('bottom');
+
+    if (topBounds && leftBounds) {
+      const topMinY = topBounds.minY;
+      const topMaxY = topBounds.maxY;
+      const leftMinY = leftBounds.minY;
+      const leftMaxY = leftBounds.maxY;
+
+      const topMinX = topBounds.minX;
+      const leftMinX = leftBounds.minX;
+      const leftMaxX = leftBounds.maxX;
+
+      if (topMinX < leftMaxX && topMinY < leftMaxY && topMaxY > leftMinY) {
+        const topCenterY = (topMinY + topMaxY) / 2;
+        const leftCenterY = (leftMinY + leftMaxY) / 2;
+
+        if (topCenterY > leftCenterY) {
+          const adj = adjustments.get('left')!;
+          adj.heightShrink!.top = thickness;
+          console.log('Geometric: Left panel shrinks from top (top panel above)');
+        } else {
+          const adj = adjustments.get('top')!;
+          adj.widthShrink!.left = thickness;
+          console.log('Geometric: Top panel shrinks from left (left panel beside)');
+        }
+      }
+    }
+
+    if (topBounds && rightBounds) {
+      const topMinY = topBounds.minY;
+      const topMaxY = topBounds.maxY;
+      const rightMinY = rightBounds.minY;
+      const rightMaxY = rightBounds.maxY;
+
+      const topMaxX = topBounds.maxX;
+      const rightMinX = rightBounds.minX;
+      const rightMaxX = rightBounds.maxX;
+
+      if (topMaxX > rightMinX && topMinY < rightMaxY && topMaxY > rightMinY) {
+        const topCenterY = (topMinY + topMaxY) / 2;
+        const rightCenterY = (rightMinY + rightMaxY) / 2;
+
+        if (topCenterY > rightCenterY) {
+          const adj = adjustments.get('right')!;
+          adj.heightShrink!.top = thickness;
+          console.log('Geometric: Right panel shrinks from top (top panel above)');
+        } else {
+          const adj = adjustments.get('top')!;
+          adj.widthShrink!.right = thickness;
+          console.log('Geometric: Top panel shrinks from right (right panel beside)');
+        }
+      }
+    }
+
+    if (bottomBounds && leftBounds) {
+      const bottomMinY = bottomBounds.minY;
+      const bottomMaxY = bottomBounds.maxY;
+      const leftMinY = leftBounds.minY;
+      const leftMaxY = leftBounds.maxY;
+
+      const bottomMinX = bottomBounds.minX;
+      const leftMinX = leftBounds.minX;
+      const leftMaxX = leftBounds.maxX;
+
+      if (bottomMinX < leftMaxX && bottomMinY < leftMaxY && bottomMaxY > leftMinY) {
+        const bottomCenterY = (bottomMinY + bottomMaxY) / 2;
+        const leftCenterY = (leftMinY + leftMaxY) / 2;
+
+        if (bottomCenterY < leftCenterY) {
+          const adj = adjustments.get('left')!;
+          adj.heightShrink!.bottom = thickness;
+          console.log('Geometric: Left panel shrinks from bottom (bottom panel below)');
+        } else {
+          const adj = adjustments.get('bottom')!;
+          adj.widthShrink!.left = thickness;
+          console.log('Geometric: Bottom panel shrinks from left (left panel beside)');
+        }
+      }
+    }
+
+    if (bottomBounds && rightBounds) {
+      const bottomMinY = bottomBounds.minY;
+      const bottomMaxY = bottomBounds.maxY;
+      const rightMinY = rightBounds.minY;
+      const rightMaxY = rightBounds.maxY;
+
+      const bottomMaxX = bottomBounds.maxX;
+      const rightMinX = rightBounds.minX;
+      const rightMaxX = rightBounds.maxX;
+
+      if (bottomMaxX > rightMinX && bottomMinY < rightMaxY && bottomMaxY > rightMinY) {
+        const bottomCenterY = (bottomMinY + bottomMaxY) / 2;
+        const rightCenterY = (rightMinY + rightMaxY) / 2;
+
+        if (bottomCenterY < rightCenterY) {
+          const adj = adjustments.get('right')!;
+          adj.heightShrink!.bottom = thickness;
+          console.log('Geometric: Right panel shrinks from bottom (bottom panel below)');
+        } else {
+          const adj = adjustments.get('bottom')!;
+          adj.widthShrink!.right = thickness;
+          console.log('Geometric: Bottom panel shrinks from right (right panel beside)');
+        }
+      }
+    }
+
+    return adjustments;
+  }
+
   generatePanelsFromFaceRoles(shape: Shape, panelThickness: number = DEFAULT_PANEL_THICKNESS): GeneratedPanel[] {
     if (!shape.geometry || !shape.faceRoles) {
       console.warn('PanelManager: Shape has no geometry or face roles');
@@ -341,6 +566,26 @@ export class PanelManagerService {
 
     const hasBaza = config && config.selectedBodyType === 'bazali' && hasBottom;
     const bazaHeight = hasBaza ? config.bazaHeight : 0;
+
+    const panelBoundsMap = new Map<string, PanelBounds>();
+
+    ['left', 'right', 'top', 'bottom'].forEach(role => {
+      if (roleToFaceGroups[role]) {
+        const bounds = this.computePanelBounds(faces, faceGroups, role, roleToFaceGroups[role]);
+        if (bounds) {
+          panelBoundsMap.set(role, bounds);
+          console.log(`PanelManager: ${role} bounds:`, {
+            x: [bounds.minX.toFixed(1), bounds.maxX.toFixed(1)],
+            y: [bounds.minY.toFixed(1), bounds.maxY.toFixed(1)],
+            z: [bounds.minZ.toFixed(1), bounds.maxZ.toFixed(1)]
+          });
+        }
+      }
+    });
+
+    const geometricAdjustments = this.computeGeometricAdjustments(panelBoundsMap, pt);
+
+    console.log('PanelManager: Geometric adjustments:', Object.fromEntries(geometricAdjustments));
 
     const createExtrudedPanel = (
       role: string,
@@ -381,16 +626,7 @@ export class PanelManagerService {
     };
 
     if (roleToFaceGroups['left']) {
-      let topAdj = 0;
-      let bottomAdj = 0;
-
-      if (config?.topLeftExpanded && hasTop) {
-        topAdj = pt;
-      }
-      if (config?.bottomLeftExpanded && hasBottom) {
-        bottomAdj = pt;
-      }
-
+      const geoAdj = geometricAdjustments.get('left') || {};
       const depthAdj = backConfig?.leftPanelShorten || 0;
 
       const panel = createExtrudedPanel(
@@ -398,7 +634,7 @@ export class PanelManagerService {
         roleToFaceGroups['left'],
         pt,
         {
-          heightShrink: { top: topAdj, bottom: bottomAdj },
+          heightShrink: geoAdj.heightShrink || { top: 0, bottom: 0 },
           depthShrink: depthAdj
         }
       );
@@ -406,16 +642,7 @@ export class PanelManagerService {
     }
 
     if (roleToFaceGroups['right']) {
-      let topAdj = 0;
-      let bottomAdj = 0;
-
-      if (config?.topRightExpanded && hasTop) {
-        topAdj = pt;
-      }
-      if (config?.bottomRightExpanded && hasBottom) {
-        bottomAdj = pt;
-      }
-
+      const geoAdj = geometricAdjustments.get('right') || {};
       const depthAdj = backConfig?.rightPanelShorten || 0;
 
       const panel = createExtrudedPanel(
@@ -423,7 +650,7 @@ export class PanelManagerService {
         roleToFaceGroups['right'],
         pt,
         {
-          heightShrink: { top: topAdj, bottom: bottomAdj },
+          heightShrink: geoAdj.heightShrink || { top: 0, bottom: 0 },
           depthShrink: depthAdj
         }
       );
@@ -431,16 +658,7 @@ export class PanelManagerService {
     }
 
     if (roleToFaceGroups['top']) {
-      let leftAdj = 0;
-      let rightAdj = 0;
-
-      if (!config?.topLeftExpanded && hasLeft) {
-        leftAdj = pt;
-      }
-      if (!config?.topRightExpanded && hasRight) {
-        rightAdj = pt;
-      }
-
+      const geoAdj = geometricAdjustments.get('top') || {};
       const depthAdj = backConfig?.topPanelShorten || 0;
 
       const panel = createExtrudedPanel(
@@ -448,7 +666,7 @@ export class PanelManagerService {
         roleToFaceGroups['top'],
         pt,
         {
-          widthShrink: { left: leftAdj, right: rightAdj },
+          widthShrink: geoAdj.widthShrink || { left: 0, right: 0 },
           depthShrink: depthAdj
         }
       );
@@ -456,16 +674,7 @@ export class PanelManagerService {
     }
 
     if (roleToFaceGroups['bottom']) {
-      let leftAdj = 0;
-      let rightAdj = 0;
-
-      if (!config?.bottomLeftExpanded && hasLeft) {
-        leftAdj = pt;
-      }
-      if (!config?.bottomRightExpanded && hasRight) {
-        rightAdj = pt;
-      }
-
+      const geoAdj = geometricAdjustments.get('bottom') || {};
       const depthAdj = backConfig?.bottomPanelShorten || 0;
       const yOffset = hasBaza ? bazaHeight : 0;
 
@@ -474,7 +683,7 @@ export class PanelManagerService {
         roleToFaceGroups['bottom'],
         pt,
         {
-          widthShrink: { left: leftAdj, right: rightAdj },
+          widthShrink: geoAdj.widthShrink || { left: 0, right: 0 },
           depthShrink: depthAdj
         }
       );
@@ -583,16 +792,10 @@ export class PanelManagerService {
       }
     }
 
-    console.log('PanelManager: Generated panels with joint types', {
+    console.log('PanelManager: Generated panels with geometric joint detection', {
       panelCount: panels.length,
       roles: panels.map(p => p.role),
-      hasBaza,
-      config: config ? {
-        topLeftExpanded: config.topLeftExpanded,
-        topRightExpanded: config.topRightExpanded,
-        bottomLeftExpanded: config.bottomLeftExpanded,
-        bottomRightExpanded: config.bottomRightExpanded
-      } : null
+      hasBaza
     });
 
     return panels;
