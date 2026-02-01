@@ -6,7 +6,9 @@ import {
   groupCoplanarFaces,
   CoplanarFaceGroup,
   FaceData,
-  createFaceHighlightGeometry
+  createFaceHighlightGeometry,
+  createPanelFromFaceGroup,
+  ExtrudedPanelInfo
 } from './FaceEditor';
 
 export interface PanelJointConfig {
@@ -321,7 +323,6 @@ export class PanelManagerService {
     const pt = panelThickness;
     const config = this.panelJointConfig;
     const backConfig = this.backPanelConfig;
-    const backThickness = backConfig?.backPanelThickness || 8;
 
     const roleToFaceGroups: Record<string, number[]> = {};
     Object.entries(shape.faceRoles).forEach(([faceIndexStr, role]) => {
@@ -344,104 +345,42 @@ export class PanelManagerService {
     const hasBaza = config && config.selectedBodyType === 'bazali' && hasBottom;
     const bazaHeight = hasBaza ? config.bazaHeight : 0;
 
-    const getFaceBounds = (faceGroupIndices: number[]): THREE.Box3 | null => {
-      if (faceGroupIndices.length === 0) return null;
-
-      const allFaceIndices: number[] = [];
-      faceGroupIndices.forEach(groupIndex => {
-        if (groupIndex < faceGroups.length) {
-          const group = faceGroups[groupIndex];
-          allFaceIndices.push(...group.faceIndices);
-        }
-      });
-
-      if (allFaceIndices.length === 0) return null;
-
-      const faceGeometry = createFaceHighlightGeometry(faces, allFaceIndices);
-      return new THREE.Box3().setFromBufferAttribute(faceGeometry.getAttribute('position'));
-    };
-
-    const bodyBounds = this.extractBodyBoundsFromShape(shape);
-    if (!bodyBounds) {
-      console.warn('PanelManager: Could not extract body bounds');
-      return [];
-    }
-
-    const bodyWidth = bodyBounds.width;
-    const bodyHeight = bodyBounds.height;
-    const bodyDepth = bodyBounds.depth;
-
-    const createPanelWithJoints = (
+    const createExtrudedPanel = (
       role: string,
       faceGroupIndices: number[],
       thickness: number,
-      heightAdjust: { top: number; bottom: number },
-      widthAdjust: { left: number; right: number },
-      depthAdjust: number
+      adjustments: {
+        widthShrink?: { left: number; right: number };
+        heightShrink?: { top: number; bottom: number };
+        depthShrink?: number;
+      }
     ): GeneratedPanel | null => {
       if (faceGroupIndices.length === 0) return null;
 
-      const bounds = getFaceBounds(faceGroupIndices);
-      if (!bounds) return null;
+      for (const groupIndex of faceGroupIndices) {
+        if (groupIndex >= faceGroups.length) continue;
 
-      const center = new THREE.Vector3();
-      bounds.getCenter(center);
+        const panelInfo = createPanelFromFaceGroup(
+          faces,
+          faceGroups,
+          groupIndex,
+          thickness,
+          adjustments
+        );
 
-      let finalWidth: number;
-      let finalHeight: number;
-      let finalDepth: number;
-      let posX: number;
-      let posY: number;
-      let posZ: number;
-
-      if (role === 'left') {
-        finalWidth = thickness;
-        finalHeight = bodyHeight - heightAdjust.top - heightAdjust.bottom;
-        finalDepth = bodyDepth - depthAdjust;
-        posX = bodyBounds.minX + thickness / 2;
-        posY = (bodyBounds.minY + bodyBounds.maxY) / 2 + (heightAdjust.bottom - heightAdjust.top) / 2;
-        posZ = (bodyBounds.minZ + bodyBounds.maxZ) / 2 + depthAdjust / 2;
-      } else if (role === 'right') {
-        finalWidth = thickness;
-        finalHeight = bodyHeight - heightAdjust.top - heightAdjust.bottom;
-        finalDepth = bodyDepth - depthAdjust;
-        posX = bodyBounds.maxX - thickness / 2;
-        posY = (bodyBounds.minY + bodyBounds.maxY) / 2 + (heightAdjust.bottom - heightAdjust.top) / 2;
-        posZ = (bodyBounds.minZ + bodyBounds.maxZ) / 2 + depthAdjust / 2;
-      } else if (role === 'top') {
-        finalWidth = bodyWidth - widthAdjust.left - widthAdjust.right;
-        finalHeight = thickness;
-        finalDepth = bodyDepth - depthAdjust;
-        posX = (bodyBounds.minX + bodyBounds.maxX) / 2 + (widthAdjust.left - widthAdjust.right) / 2;
-        posY = bodyBounds.maxY - thickness / 2;
-        posZ = (bodyBounds.minZ + bodyBounds.maxZ) / 2 + depthAdjust / 2;
-      } else if (role === 'bottom') {
-        finalWidth = bodyWidth - widthAdjust.left - widthAdjust.right;
-        finalHeight = thickness;
-        finalDepth = bodyDepth - depthAdjust;
-        posX = (bodyBounds.minX + bodyBounds.maxX) / 2 + (widthAdjust.left - widthAdjust.right) / 2;
-        posY = bodyBounds.minY + thickness / 2 + heightAdjust.top;
-        posZ = (bodyBounds.minZ + bodyBounds.maxZ) / 2 + depthAdjust / 2;
-      } else {
-        finalWidth = bodyWidth;
-        finalHeight = bodyHeight;
-        finalDepth = thickness;
-        posX = shape.position[0] + center.x;
-        posY = shape.position[1] + center.y;
-        posZ = shape.position[2] + center.z;
+        if (panelInfo) {
+          return {
+            id: `panel-${role}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            role,
+            geometry: panelInfo.geometry,
+            position: [panelInfo.position.x, panelInfo.position.y, panelInfo.position.z],
+            rotation: [0, 0, 0],
+            color: PANEL_COLORS[role] || '#e8d4b8',
+            dimensions: [panelInfo.dimensions.width, panelInfo.dimensions.height, panelInfo.dimensions.depth]
+          };
+        }
       }
-
-      const geometry = new THREE.BoxGeometry(finalWidth, finalHeight, finalDepth);
-
-      return {
-        id: `panel-${role}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        role,
-        geometry,
-        position: [posX, posY, posZ],
-        rotation: [0, 0, 0],
-        color: PANEL_COLORS[role] || '#e8d4b8',
-        dimensions: [finalWidth, finalHeight, finalDepth]
-      };
+      return null;
     };
 
     if (roleToFaceGroups['left']) {
@@ -460,13 +399,14 @@ export class PanelManagerService {
 
       const depthAdj = backConfig?.leftPanelShorten || 0;
 
-      const panel = createPanelWithJoints(
+      const panel = createExtrudedPanel(
         'left',
         roleToFaceGroups['left'],
         pt,
-        { top: topAdj, bottom: bottomAdj },
-        { left: 0, right: 0 },
-        depthAdj
+        {
+          heightShrink: { top: topAdj, bottom: bottomAdj },
+          depthShrink: depthAdj
+        }
       );
       if (panel) panels.push(panel);
     }
@@ -487,13 +427,14 @@ export class PanelManagerService {
 
       const depthAdj = backConfig?.rightPanelShorten || 0;
 
-      const panel = createPanelWithJoints(
+      const panel = createExtrudedPanel(
         'right',
         roleToFaceGroups['right'],
         pt,
-        { top: topAdj, bottom: bottomAdj },
-        { left: 0, right: 0 },
-        depthAdj
+        {
+          heightShrink: { top: topAdj, bottom: bottomAdj },
+          depthShrink: depthAdj
+        }
       );
       if (panel) panels.push(panel);
     }
@@ -511,13 +452,14 @@ export class PanelManagerService {
 
       const depthAdj = backConfig?.topPanelShorten || 0;
 
-      const panel = createPanelWithJoints(
+      const panel = createExtrudedPanel(
         'top',
         roleToFaceGroups['top'],
         pt,
-        { top: 0, bottom: 0 },
-        { left: leftAdj, right: rightAdj },
-        depthAdj
+        {
+          widthShrink: { left: leftAdj, right: rightAdj },
+          depthShrink: depthAdj
+        }
       );
       if (panel) panels.push(panel);
     }
@@ -536,31 +478,53 @@ export class PanelManagerService {
       const depthAdj = backConfig?.bottomPanelShorten || 0;
       const yOffset = hasBaza ? bazaHeight : 0;
 
-      const panel = createPanelWithJoints(
+      const panel = createExtrudedPanel(
         'bottom',
         roleToFaceGroups['bottom'],
         pt,
-        { top: yOffset, bottom: 0 },
-        { left: leftAdj, right: rightAdj },
-        depthAdj
+        {
+          widthShrink: { left: leftAdj, right: rightAdj },
+          heightShrink: { top: yOffset, bottom: 0 },
+          depthShrink: depthAdj
+        }
       );
       if (panel) panels.push(panel);
     }
 
     if (roleToFaceGroups['back'] && backConfig) {
-      const bounds = getFaceBounds(roleToFaceGroups['back']);
-      if (bounds) {
-        const size = new THREE.Vector3();
-        const center = new THREE.Vector3();
-        bounds.getSize(size);
-        bounds.getCenter(center);
+      const backThickness = backConfig.backPanelThickness || 8;
+
+      for (const groupIndex of roleToFaceGroups['back']) {
+        if (groupIndex >= faceGroups.length) continue;
+
+        const group = faceGroups[groupIndex];
+        const allVertices: THREE.Vector3[] = [];
+        group.faceIndices.forEach(idx => {
+          const face = faces[idx];
+          if (face) {
+            allVertices.push(...face.vertices.map(v => v.clone()));
+          }
+        });
+
+        if (allVertices.length === 0) continue;
+
+        let minX = Infinity, maxX = -Infinity;
+        let minY = Infinity, maxY = -Infinity;
+        let minZ = Infinity;
+        allVertices.forEach(v => {
+          minX = Math.min(minX, v.x);
+          maxX = Math.max(maxX, v.x);
+          minY = Math.min(minY, v.y);
+          maxY = Math.max(maxY, v.y);
+          minZ = Math.min(minZ, v.z);
+        });
 
         const looseWid = backConfig.looseWid || 0;
         const looseDep = backConfig.looseDep || 0;
         const grooveOffset = backConfig.grooveOffset || 12;
 
-        let backWidth = size.x - pt * 2 - looseWid * 2;
-        let backHeight = size.y - pt * 2 - looseDep * 2;
+        let backWidth = (maxX - minX) - pt * 2 - looseWid * 2;
+        let backHeight = (maxY - minY) - pt * 2 - looseDep * 2;
 
         backWidth += (backConfig.leftExtend || 0) + (backConfig.rightExtend || 0);
         backHeight += (backConfig.topExtend || 0) + (backConfig.bottomExtend || 0);
@@ -569,20 +533,23 @@ export class PanelManagerService {
           backHeight -= bazaHeight;
         }
 
+        if (backWidth <= 0 || backHeight <= 0) continue;
+
         const backGeom = new THREE.BoxGeometry(backWidth, backHeight, backThickness);
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2 + (hasBaza ? bazaHeight / 2 : 0);
+        const posZ = minZ + grooveOffset + backThickness / 2;
+
         panels.push({
           id: `panel-back-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           role: 'back',
           geometry: backGeom,
-          position: [
-            shape.position[0] + center.x,
-            shape.position[1] + center.y + (hasBaza ? bazaHeight / 2 : 0),
-            shape.position[0] + bounds.min.z + grooveOffset + backThickness / 2
-          ],
+          position: [centerX, centerY, posZ],
           rotation: [0, 0, 0],
           color: PANEL_COLORS['back'],
           dimensions: [backWidth, backHeight, backThickness]
         });
+        break;
       }
     }
 
