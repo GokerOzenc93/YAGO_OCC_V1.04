@@ -335,7 +335,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             </span>
                           </div>
                           <span className={isSelected ? 'text-red-600' : 'text-stone-500'}>
-                            {(panel.dimensions[0] * 1000).toFixed(0)} x {(panel.dimensions[1] * 1000).toFixed(0)} x {(panel.dimensions[2] * 1000).toFixed(0)}
+                            {panel.dimensions[0].toFixed(0)} x {panel.dimensions[1].toFixed(0)} x {panel.dimensions[2].toFixed(0)} mm
                           </span>
                         </div>
                       );

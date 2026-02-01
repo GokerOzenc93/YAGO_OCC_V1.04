@@ -32,8 +32,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setHoveredSubtractionIndex,
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
-    setShowParametersPanel
+    setShowParametersPanel,
+    generatedPanels
   } = useAppStore();
+
+  const panelModeActive = generatedPanels.length > 0;
 
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
@@ -292,7 +295,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             />
           );
         })}
-        {!isWireframe && !isXray && !shouldShowAsReference && (
+        {!isWireframe && !isXray && !shouldShowAsReference && !panelModeActive && (
           <>
             <mesh
               ref={meshRef}
@@ -326,7 +329,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             </lineSegments>
           </>
         )}
-        {isWireframe && (
+        {isWireframe && !panelModeActive && (
           <>
             <mesh
               ref={meshRef}
@@ -362,7 +365,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             </lineSegments>
           </>
         )}
-        {(isXray || shouldShowAsReference) && (
+        {(isXray || shouldShowAsReference) && !panelModeActive && (
           <>
             <mesh
               ref={meshRef}

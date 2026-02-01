@@ -317,7 +317,7 @@ export class PanelManagerService {
     const groups = groupCoplanarFaces(faces);
 
     const panels: GeneratedPanel[] = [];
-    const pt = panelThickness / 1000;
+    const pt = panelThickness;
     const config = this.panelJointConfig;
     const backConfig = this.backPanelConfig;
 
@@ -339,7 +339,7 @@ export class PanelManagerService {
     if (leftData) {
       let offset: [number, number, number] = [pt / 2, 0, 0];
       if (backConfig && backConfig.leftPanelShorten > 0) {
-        offset[2] = backConfig.leftPanelShorten / 2000;
+        offset[2] = backConfig.leftPanelShorten / 2;
       }
       const panel = this.createPanelFromFaceGroup(
         faces,
@@ -355,7 +355,7 @@ export class PanelManagerService {
     if (rightData) {
       let offset: [number, number, number] = [-pt / 2, 0, 0];
       if (backConfig && backConfig.rightPanelShorten > 0) {
-        offset[2] = backConfig.rightPanelShorten / 2000;
+        offset[2] = backConfig.rightPanelShorten / 2;
       }
       const panel = this.createPanelFromFaceGroup(
         faces,
@@ -375,7 +375,7 @@ export class PanelManagerService {
         if (config.topRightExpanded) offset[0] += pt / 2;
       }
       if (backConfig && backConfig.topPanelShorten > 0) {
-        offset[2] = backConfig.topPanelShorten / 2000;
+        offset[2] = backConfig.topPanelShorten / 2;
       }
       const panel = this.createPanelFromFaceGroup(
         faces,
@@ -395,7 +395,7 @@ export class PanelManagerService {
         if (config.bottomRightExpanded) offset[0] += pt / 2;
       }
       if (backConfig && backConfig.bottomPanelShorten > 0) {
-        offset[2] = backConfig.bottomPanelShorten / 2000;
+        offset[2] = backConfig.bottomPanelShorten / 2;
       }
       const panel = this.createPanelFromFaceGroup(
         faces,
@@ -409,8 +409,8 @@ export class PanelManagerService {
     }
 
     if (backData && backConfig) {
-      const backThickness = backConfig.backPanelThickness / 1000;
-      const grooveOffset = backConfig.grooveOffset / 1000;
+      const backThickness = backConfig.backPanelThickness;
+      const grooveOffset = backConfig.grooveOffset;
       const offset: [number, number, number] = [0, 0, grooveOffset + backThickness / 2];
 
       const panel = this.createPanelFromFaceGroup(
@@ -425,9 +425,9 @@ export class PanelManagerService {
     }
 
     if (config && config.selectedBodyType === 'bazali' && bottomData) {
-      const bazaHeight = config.bazaHeight / 1000;
-      const frontDist = config.frontBaseDistance / 1000;
-      const backDist = config.backBaseDistance / 1000;
+      const bazaHeight = config.bazaHeight;
+      const frontDist = config.frontBaseDistance;
+      const backDist = config.backBaseDistance;
 
       const box = new THREE.Box3().setFromBufferAttribute(
         shape.geometry.getAttribute('position')
