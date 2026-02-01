@@ -106,19 +106,19 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
       <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
         <div className="space-y-3">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-slate-800">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
               Select Body Profile
             </label>
             {loading ? (
-              <div className="px-2 py-0.5 text-xs text-stone-400 bg-white border border-gray-300 rounded">
+              <div className="flex-1 px-2 py-0.5 text-xs text-stone-400 bg-white border border-gray-300 rounded">
                 Loading profiles...
               </div>
             ) : (
               <select
                 value={selectedProfile}
                 onChange={(e) => setSelectedProfile(e.target.value)}
-                className="w-full px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
+                className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
               >
                 {profiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
