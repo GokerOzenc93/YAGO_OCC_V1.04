@@ -45,9 +45,9 @@ function App() {
       const fillets = item.fillets || [];
       const faceRoles = item.face_roles || {};
 
-      const width = shapeParams.width || geometryData.width || 600;
-      const height = shapeParams.height || geometryData.height || 600;
-      const depth = shapeParams.depth || geometryData.depth || 600;
+      const width = shapeParams.width || geometryData.parameters?.width || 600;
+      const height = shapeParams.height || geometryData.parameters?.height || 600;
+      const depth = shapeParams.depth || geometryData.parameters?.depth || 600;
 
       let replicadShape = await createReplicadBox({ width, height, depth });
 

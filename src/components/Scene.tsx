@@ -10,7 +10,6 @@ import { VertexEditor } from './VertexEditor';
 import { applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
-import { PanelMesh } from './panels/PanelMesh';
 
 const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>(null);
@@ -82,7 +81,6 @@ const Scene: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const {
     shapes,
-    panels,
     cameraType,
     selectedShapeId,
     secondarySelectedShapeId,
@@ -578,15 +576,6 @@ const Scene: React.FC = () => {
           </React.Fragment>
         );
       })}
-
-      {panels.map((panel) => (
-        <PanelMesh
-          key={panel.id}
-          panel={panel}
-          color="#d4a574"
-          opacity={1}
-        />
-      ))}
 
       <mesh
         position={[0, -1, 0]}

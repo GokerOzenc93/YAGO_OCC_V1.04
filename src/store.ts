@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import * as THREE from 'three';
 import type { OpenCascadeInstance } from './vite-env';
 import { VertexModification } from './components/VertexEditorService';
-import { PanelInstance } from './types/Panel';
 
 /**
  * ------------------------------------------------------------------
@@ -322,15 +321,6 @@ interface AppState {
   setBottomPanelBackShorten: (value: number) => void;
   showBottomPanelBackShorten: boolean;
   setShowBottomPanelBackShorten: (show: boolean) => void;
-
-  // Panel Management
-  panels: PanelInstance[];
-  addPanels: (panels: PanelInstance[]) => void;
-  updatePanel: (id: string, updates: Partial<PanelInstance>) => void;
-  deletePanel: (id: string) => void;
-  clearPanels: () => void;
-  selectedPanelId: string | null;
-  selectPanel: (id: string | null) => void;
 }
 
 /**
@@ -1121,32 +1111,5 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch (error) {
       console.error('❌ Failed to delete subtraction:', error);
     }
-  },
-
-  panels: [],
-  selectedPanelId: null,
-
-  addPanels: (panels) => set((state) => {
-    const uniquePanels = panels.filter(
-      newPanel => !state.panels.some(p => p.id === newPanel.id)
-    );
-    return {
-      panels: [...state.panels, ...uniquePanels]
-    };
-  }),
-
-  updatePanel: (id, updates) => set((state) => ({
-    panels: state.panels.map(panel =>
-      panel.id === id ? { ...panel, ...updates } : panel
-    )
-  })),
-
-  deletePanel: (id) => set((state) => ({
-    panels: state.panels.filter(panel => panel.id !== id),
-    selectedPanelId: state.selectedPanelId === id ? null : state.selectedPanelId
-  })),
-
-  clearPanels: () => set({ panels: [], selectedPanelId: null }),
-
-  selectPanel: (id) => set({ selectedPanelId: id })
+  }
 }));

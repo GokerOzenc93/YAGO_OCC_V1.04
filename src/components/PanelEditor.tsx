@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, GripVertical, Plus, Edit2, Save } from 'lucide-react';
+import { X, GripVertical, Plus } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
-import { panelGeneratorService } from '../services/PanelGeneratorService';
-import { PanelInstance } from '../types/Panel';
-import { useAppStore } from '../store';
-import { PanelFactory } from './panels/PanelFactory';
 
 interface PanelEditorProps {
   isOpen: boolean;
@@ -12,28 +8,18 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const addPanels = useAppStore((state) => state.addPanels);
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [profiles, setProfiles] = useState<GlobalSettingsProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [loading, setLoading] = useState(true);
-  const [panels, setPanels] = useState<PanelInstance[]>([]);
-  const [editingDescriptionId, setEditingDescriptionId] = useState<string | null>(null);
-  const [editingDescriptionValue, setEditingDescriptionValue] = useState<string>('');
 
   useEffect(() => {
     if (isOpen) {
       loadProfiles();
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    if (selectedProfile) {
-      loadPanels();
-    }
-  }, [selectedProfile]);
 
   const loadProfiles = async () => {
     try {
@@ -47,71 +33,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       console.error('Failed to load profiles:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loadPanels = async () => {
-    try {
-      const panelData = await panelGeneratorService.getPanelsForProfile(selectedProfile);
-      setPanels(panelData);
-    } catch (error) {
-      console.error('Failed to load panels:', error);
-    }
-  };
-
-  const startEditingDescription = (panel: PanelInstance) => {
-    setEditingDescriptionId(panel.id);
-    setEditingDescriptionValue(panel.customDescription || panel.panelGeometry.description);
-  };
-
-  const saveDescription = async (panel: PanelInstance) => {
-    try {
-      await panelGeneratorService.updatePanelDescription(
-        panel.panelGeometry.catalogId,
-        editingDescriptionValue
-      );
-
-      setPanels(panels.map(p =>
-        p.id === panel.id
-          ? { ...p, customDescription: editingDescriptionValue }
-          : p
-      ));
-
-      setEditingDescriptionId(null);
-    } catch (error) {
-      console.error('Failed to update description:', error);
-    }
-  };
-
-  const groupedPanels = panelGeneratorService.groupPanelsByRole(panels);
-
-  const handleAddPanels = async () => {
-    if (panels.length === 0) {
-      alert('No panels to add. Please select a profile with configured panels.');
-      return;
-    }
-
-    try {
-      const panelsWithPositions = await Promise.all(
-        panels.map(async (panel) => {
-          const panelGeometry = PanelFactory.createPanel(panel.panelGeometry);
-          const position = panelGeometry.getPosition();
-          const rotation = panelGeometry.getRotation();
-
-          return {
-            ...panel,
-            position,
-            rotation,
-          };
-        })
-      );
-
-      addPanels(panelsWithPositions);
-      console.log(`✅ Added ${panelsWithPositions.length} panels to scene`);
-      alert(`Successfully added ${panelsWithPositions.length} panels to the scene!`);
-    } catch (error) {
-      console.error('Failed to add panels:', error);
-      alert('Failed to add panels. Please try again.');
     }
   };
 
@@ -169,9 +90,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={handleAddPanels}
-            className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-orange-500 text-white hover:bg-orange-600"
-            title="Add Panels to Scene"
+            className="px-2 py-1 text-[10px] font-medium rounded transition-colors bg-stone-200 text-slate-700 hover:bg-stone-300"
+            title="Add Panel"
           >
             ADD
           </button>
@@ -209,78 +129,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             )}
           </div>
 
-          <div className="border-t border-stone-200 pt-3 mt-3">
-            {panels.length === 0 ? (
-              <div className="text-center text-stone-500 text-xs py-8">
-                No panels configured for this profile
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {Array.from(groupedPanels.entries()).map(([role, rolePanels]) => (
-                  <div key={role} className="space-y-2">
-                    <div className="text-xs font-semibold text-slate-800 uppercase tracking-wide">
-                      {role}
-                    </div>
-                    <div className="space-y-2">
-                      {rolePanels.map((panel, index) => (
-                        <div
-                          key={panel.id}
-                          className="bg-stone-50 border border-stone-200 rounded p-2 space-y-1"
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 flex-1">
-                              <span className="text-[10px] text-stone-500 font-mono">
-                                Face #{panel.panelGeometry.faceIndex}
-                              </span>
-                              <span className="text-xs text-stone-600">
-                                {panel.panelGeometry.name}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => startEditingDescription(panel)}
-                              className="p-1 hover:bg-stone-200 rounded transition-colors"
-                              title="Edit Description"
-                            >
-                              <Edit2 size={12} className="text-stone-600" />
-                            </button>
-                          </div>
-
-                          {editingDescriptionId === panel.id ? (
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="text"
-                                value={editingDescriptionValue}
-                                onChange={(e) => setEditingDescriptionValue(e.target.value)}
-                                className="flex-1 px-1.5 py-0.5 text-xs bg-white border border-orange-400 rounded focus:outline-none"
-                                autoFocus
-                              />
-                              <button
-                                onClick={() => saveDescription(panel)}
-                                className="p-1 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors"
-                                title="Save"
-                              >
-                                <Save size={12} />
-                              </button>
-                              <button
-                                onClick={() => setEditingDescriptionId(null)}
-                                className="p-1 bg-stone-200 rounded hover:bg-stone-300 transition-colors"
-                                title="Cancel"
-                              >
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="text-xs text-stone-500 italic">
-                              {panel.customDescription || panel.panelGeometry.description}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+          <div className="text-center text-stone-500 text-xs py-8 border-t border-stone-200">
+            Panel configuration
           </div>
         </div>
       </div>
