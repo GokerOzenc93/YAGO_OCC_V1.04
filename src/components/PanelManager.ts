@@ -431,14 +431,14 @@ export class PanelManagerService {
     }
 
     if (roleToFaceGroups['top']) {
-      let leftAdj = pt;
-      let rightAdj = pt;
+      let leftAdj = 0;
+      let rightAdj = 0;
 
-      if (config?.topLeftExpanded) {
-        leftAdj = 0;
+      if (!config?.topLeftExpanded && hasLeft) {
+        leftAdj = pt;
       }
-      if (config?.topRightExpanded) {
-        rightAdj = 0;
+      if (!config?.topRightExpanded && hasRight) {
+        rightAdj = pt;
       }
 
       const depthAdj = backConfig?.topPanelShorten || 0;
@@ -456,14 +456,14 @@ export class PanelManagerService {
     }
 
     if (roleToFaceGroups['bottom']) {
-      let leftAdj = pt;
-      let rightAdj = pt;
+      let leftAdj = 0;
+      let rightAdj = 0;
 
-      if (config?.bottomLeftExpanded) {
-        leftAdj = 0;
+      if (!config?.bottomLeftExpanded && hasLeft) {
+        leftAdj = pt;
       }
-      if (config?.bottomRightExpanded) {
-        rightAdj = 0;
+      if (!config?.bottomRightExpanded && hasRight) {
+        rightAdj = pt;
       }
 
       const depthAdj = backConfig?.bottomPanelShorten || 0;
