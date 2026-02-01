@@ -60,12 +60,23 @@ const GeometryPreview: React.FC<{ geometryData: any }> = ({ geometryData }) => {
   const [bounds, setBounds] = useState<THREE.Box3 | null>(null);
 
   const createGeometry = () => {
+    const parameters = {
+      width: geometryData.width,
+      height: geometryData.height,
+      depth: geometryData.depth,
+      radius: geometryData.radius,
+      segments: geometryData.segments,
+      widthSegments: geometryData.widthSegments,
+      heightSegments: geometryData.heightSegments,
+      ...geometryData.parameters
+    };
+
     console.log('Preview creating geometry:', {
       type: geometryData.type,
-      parameters: geometryData.parameters
+      parameters
     });
 
-    return createGeometryFromType(geometryData.type, geometryData.parameters);
+    return createGeometryFromType(geometryData.type, parameters);
   };
 
   const geometry = useMemo(() => createGeometry(), [geometryData]);
