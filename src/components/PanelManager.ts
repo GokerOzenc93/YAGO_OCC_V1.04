@@ -346,20 +346,17 @@ export class PanelManagerService {
     const hasBaza = config && config.selectedBodyType === 'bazali' && hasBottom;
     const bazaHeight = hasBaza ? config.bazaHeight : 0;
 
-    const topExpanded = config?.topLeftExpanded || config?.topRightExpanded;
-    const bottomExpanded = config?.bottomLeftExpanded || config?.bottomRightExpanded;
-
     if (hasLeft) {
       let panelHeight = size.y;
       let panelDepth = size.z - (backConfig?.leftPanelShorten || 0);
       let posZ = (backConfig?.leftPanelShorten || 0) / 2;
       let posY = 0;
 
-      if (topExpanded && hasTop) {
+      if (config?.topLeftExpanded && hasTop) {
         panelHeight -= pt;
         posY -= pt / 2;
       }
-      if (bottomExpanded && hasBottom && !hasBaza) {
+      if (config?.bottomLeftExpanded && hasBottom && !hasBaza) {
         panelHeight -= pt;
         posY += pt / 2;
       }
@@ -386,11 +383,11 @@ export class PanelManagerService {
       let posZ = (backConfig?.rightPanelShorten || 0) / 2;
       let posY = 0;
 
-      if (topExpanded && hasTop) {
+      if (config?.topRightExpanded && hasTop) {
         panelHeight -= pt;
         posY -= pt / 2;
       }
-      if (bottomExpanded && hasBottom && !hasBaza) {
+      if (config?.bottomRightExpanded && hasBottom && !hasBaza) {
         panelHeight -= pt;
         posY += pt / 2;
       }
