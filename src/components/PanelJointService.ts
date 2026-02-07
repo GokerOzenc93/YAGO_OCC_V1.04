@@ -184,6 +184,18 @@ export async function resolveAllPanelJoints(
   }
 }
 
+export async function restoreAllPanels(parentShapeId: string): Promise<void> {
+  const state = useAppStore.getState();
+  const panels = state.shapes.filter(
+    (s) =>
+      s.type === 'panel' &&
+      s.parameters?.parentShapeId === parentShapeId &&
+      s.parameters?.jointTrimmed &&
+      s.parameters?.originalReplicadShape
+  );
+  await restoreSinglePanels(panels);
+}
+
 async function restoreSinglePanels(panels: any[]) {
   for (const panel of panels) {
     if (panel.parameters?.jointTrimmed && panel.parameters?.originalReplicadShape) {

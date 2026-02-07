@@ -266,6 +266,8 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
 
+  const skipResetRef = React.useRef(false);
+
   React.useEffect(() => {
     loadProfileSettings();
   }, [profileId]);
@@ -277,6 +279,7 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
 
       if (settings && settings.settings) {
         setHasSettings(true);
+        skipResetRef.current = true;
         loadSettings(settings.settings as Record<string, unknown>);
       } else if (isDefaultProfile) {
         setHasSettings(true);
@@ -318,6 +321,11 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
 
   React.useEffect(() => {
     if (!hasSettings) return;
+
+    if (skipResetRef.current) {
+      skipResetRef.current = false;
+      return;
+    }
 
     setTopPanelWidth(0.45);
     setBottomPanelWidth(0.45);

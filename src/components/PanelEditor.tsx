@@ -4,7 +4,7 @@ import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDa
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 import { extractFacesFromGeometry, groupCoplanarFaces, FaceData, CoplanarFaceGroup } from './FaceEditor';
-import { resolveAllPanelJoints } from './PanelJointService';
+import { resolveAllPanelJoints, restoreAllPanels } from './PanelJointService';
 import * as THREE from 'three';
 
 interface PanelEditorProps {
@@ -34,11 +34,15 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   useEffect(() => {
     if (prevProfileRef.current === selectedProfile) return;
     prevProfileRef.current = selectedProfile;
-    if (selectedProfile !== 'none' && selectedShapeId) {
+    if (!selectedShapeId) return;
+
+    if (selectedProfile !== 'none') {
       setResolving(true);
       resolveAllPanelJoints(selectedShapeId, selectedProfile).finally(() =>
         setResolving(false)
       );
+    } else {
+      restoreAllPanels(selectedShapeId);
     }
   }, [selectedProfile, selectedShapeId]);
 
