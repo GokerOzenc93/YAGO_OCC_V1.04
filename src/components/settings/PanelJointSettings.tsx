@@ -261,8 +261,8 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
   const [rightPanelHeight, setRightPanelHeight] = React.useState(initialSidePanelHeight);
   const [rightPanelPositionY, setRightPanelPositionY] = React.useState(cabinetHeight / 2);
 
-  const [topLeftExpanded, setTopLeftExpanded] = React.useState(true);
-  const [topRightExpanded, setTopRightExpanded] = React.useState(true);
+  const [topLeftExpanded, setTopLeftExpanded] = React.useState(false);
+  const [topRightExpanded, setTopRightExpanded] = React.useState(false);
   const [bottomLeftExpanded, setBottomLeftExpanded] = React.useState(false);
   const [bottomRightExpanded, setBottomRightExpanded] = React.useState(false);
 
@@ -305,8 +305,8 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
     setBottomPanelWidth(0.45);
     setTopPanelPositionX(0);
     setBottomPanelPositionX(0);
-    setTopLeftExpanded(true);
-    setTopRightExpanded(true);
+    setTopLeftExpanded(false);
+    setTopRightExpanded(false);
     setBottomLeftExpanded(false);
     setBottomRightExpanded(false);
     setLeftPanelHeight(initialSidePanelHeight);
@@ -319,6 +319,14 @@ export function PanelJointSettings({ profileId, profiles, isDefaultProfile, onSe
   React.useEffect(() => {
     if (!hasSettings) return;
 
+    setTopPanelWidth(0.45);
+    setBottomPanelWidth(0.45);
+    setTopPanelPositionX(0);
+    setBottomPanelPositionX(0);
+    setTopLeftExpanded(false);
+    setTopRightExpanded(false);
+    setBottomLeftExpanded(false);
+    setBottomRightExpanded(false);
     setSelectedPanel(null);
 
     if (selectedBodyType === 'bazali') {

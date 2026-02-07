@@ -10,7 +10,6 @@ import { VertexEditor } from './VertexEditor';
 import { applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
-import { GeneratedPanelsMesh } from './PanelMesh';
 
 const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>(null);
@@ -577,8 +576,6 @@ const Scene: React.FC = () => {
           </React.Fragment>
         );
       })}
-
-      <GeneratedPanelsMesh />
 
       <mesh
         position={[0, -1, 0]}
