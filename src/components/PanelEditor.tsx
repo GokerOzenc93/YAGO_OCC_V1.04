@@ -3,7 +3,8 @@ import { X, GripVertical } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
-import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
+import { extractFacesFromGeometry, groupCoplanarFaces, FaceData, CoplanarFaceGroup } from './FaceEditor';
+import * as THREE from 'three';
 
 interface PanelEditorProps {
   isOpen: boolean;
@@ -11,7 +12,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -36,6 +37,90 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       console.error('Failed to load profiles:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const createPanelForFace = async (faceGroup: CoplanarFaceGroup, faces: FaceData[], faceIndex: number) => {
+    if (!selectedShape) return;
+
+    console.log(`📦 Creating panel for face ${faceIndex + 1}...`);
+
+    try {
+      const allVertices: THREE.Vector3[] = [];
+      faceGroup.faceIndices.forEach(idx => {
+        const face = faces[idx];
+        face.vertices.forEach(v => {
+          const worldVertex = v.clone().add(new THREE.Vector3(...selectedShape.position));
+          allVertices.push(worldVertex);
+        });
+      });
+
+      const box = new THREE.Box3().setFromPoints(allVertices);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+
+      const normal = faceGroup.normal.clone().normalize();
+      const panelThickness = 18;
+
+      let panelWidth, panelHeight, panelDepth;
+      const absX = Math.abs(normal.x);
+      const absY = Math.abs(normal.y);
+      const absZ = Math.abs(normal.z);
+
+      if (absX > 0.9) {
+        panelWidth = panelThickness;
+        panelHeight = size.y;
+        panelDepth = size.z;
+        center.x += normal.x * (panelThickness / 2);
+      } else if (absY > 0.9) {
+        panelWidth = size.x;
+        panelHeight = panelThickness;
+        panelDepth = size.z;
+        center.y += normal.y * (panelThickness / 2);
+      } else if (absZ > 0.9) {
+        panelWidth = size.x;
+        panelHeight = size.y;
+        panelDepth = panelThickness;
+        center.z += normal.z * (panelThickness / 2);
+      } else {
+        console.warn('Face normal is not axis-aligned, using default dimensions');
+        panelWidth = size.x;
+        panelHeight = size.y;
+        panelDepth = panelThickness;
+      }
+
+      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const replicadShape = await createReplicadBox({
+        width: panelWidth,
+        height: panelHeight,
+        depth: panelDepth
+      });
+      const geometry = convertReplicadToThreeGeometry(replicadShape);
+
+      const newPanel = {
+        id: `panel-${Date.now()}`,
+        type: 'panel',
+        geometry,
+        replicadShape,
+        position: [center.x, center.y, center.z] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
+        scale: [1, 1, 1] as [number, number, number],
+        color: '#8b5cf6',
+        parameters: {
+          width: panelWidth,
+          height: panelHeight,
+          depth: panelDepth,
+          parentShapeId: selectedShape.id,
+          faceIndex: faceIndex
+        }
+      };
+
+      addShape(newPanel);
+      console.log(`✅ Panel created for face ${faceIndex + 1}`);
+    } catch (error) {
+      console.error('❌ Failed to create panel:', error);
     }
   };
 
@@ -139,14 +224,27 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               const facePanels = selectedShape.facePanels || {};
               const roleOptions: FaceRole[] = ['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'];
 
-              const handleTogglePanel = (faceIndex: number) => {
+              const handleTogglePanel = async (faceIndex: number) => {
                 const newFacePanels = { ...facePanels };
                 if (newFacePanels[faceIndex]) {
                   delete newFacePanels[faceIndex];
                   console.log(`Panel removed from face ${faceIndex + 1}`);
+
+                  const panelToRemove = shapes.find(s =>
+                    s.type === 'panel' &&
+                    s.parameters?.parentShapeId === selectedShape.id &&
+                    s.parameters?.faceIndex === faceIndex
+                  );
+                  if (panelToRemove) {
+                    const { deleteShape } = useAppStore.getState();
+                    deleteShape(panelToRemove.id);
+                    console.log(`🗑️ Panel shape removed: ${panelToRemove.id}`);
+                  }
                 } else {
                   newFacePanels[faceIndex] = true;
                   console.log(`Panel added to face ${faceIndex + 1} with role: ${faceRoles[faceIndex] || 'none'}`);
+
+                  await createPanelForFace(faceGroups[faceIndex], faces, faceIndex);
                 }
                 updateShape(selectedShape.id, { facePanels: newFacePanels });
               };
