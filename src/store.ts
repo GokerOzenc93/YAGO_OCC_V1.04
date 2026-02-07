@@ -321,32 +321,6 @@ interface AppState {
   setBottomPanelBackShorten: (value: number) => void;
   showBottomPanelBackShorten: boolean;
   setShowBottomPanelBackShorten: (show: boolean) => void;
-
-  // Generated Panels
-  generatedPanels: GeneratedPanel[];
-  setGeneratedPanels: (panels: GeneratedPanel[]) => void;
-  selectedPanelId: string | null;
-  setSelectedPanelId: (id: string | null) => void;
-  hoveredPanelId: string | null;
-  setHoveredPanelId: (id: string | null) => void;
-  clearGeneratedPanels: () => void;
-
-  // Panel Mode
-  panelMode: boolean;
-  setPanelMode: (enabled: boolean) => void;
-  panelBasePosition: [number, number, number];
-  setPanelBasePosition: (position: [number, number, number]) => void;
-  updatePanelPositions: (delta: [number, number, number]) => void;
-}
-
-export interface GeneratedPanel {
-  id: string;
-  role: string;
-  geometry: THREE.BufferGeometry;
-  position: [number, number, number];
-  rotation: [number, number, number];
-  color: string;
-  dimensions: [number, number, number];
 }
 
 /**
@@ -481,31 +455,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBottomPanelBackShorten: (value) => set({ bottomPanelBackShorten: value }),
   showBottomPanelBackShorten: false,
   setShowBottomPanelBackShorten: (show) => set({ showBottomPanelBackShorten: show }),
-
-  // Generated Panels
-  generatedPanels: [],
-  setGeneratedPanels: (panels) => set({ generatedPanels: panels }),
-  selectedPanelId: null,
-  setSelectedPanelId: (id) => set({ selectedPanelId: id }),
-  hoveredPanelId: null,
-  setHoveredPanelId: (id) => set({ hoveredPanelId: id }),
-  clearGeneratedPanels: () => set({ generatedPanels: [], selectedPanelId: null, hoveredPanelId: null, panelMode: false }),
-
-  // Panel Mode
-  panelMode: false,
-  setPanelMode: (enabled) => set({ panelMode: enabled }),
-  panelBasePosition: [0, 0, 0],
-  setPanelBasePosition: (position) => set({ panelBasePosition: position }),
-  updatePanelPositions: (delta) => set((state) => ({
-    generatedPanels: state.generatedPanels.map(panel => ({
-      ...panel,
-      position: [
-        panel.position[0] + delta[0],
-        panel.position[1] + delta[1],
-        panel.position[2] + delta[2]
-      ] as [number, number, number]
-    }))
-  })),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
