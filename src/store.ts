@@ -227,6 +227,10 @@ interface AppState {
   showOutlines: boolean;
   setShowOutlines: (show: boolean) => void;
 
+  // Role Numbers Görünümü
+  showRoleNumbers: boolean;
+  setShowRoleNumbers: (show: boolean) => void;
+
   // Global Settings Paneli
   showGlobalSettingsPanel: boolean;
   setShowGlobalSettingsPanel: (show: boolean) => void;
@@ -341,6 +345,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   showOutlines: true,
   setShowOutlines: (show) => set({ showOutlines: show }),
+
+  showRoleNumbers: false,
+  setShowRoleNumbers: (show) => set({ showRoleNumbers: show }),
 
   showGlobalSettingsPanel: false,
   setShowGlobalSettingsPanel: (show) => set({ showGlobalSettingsPanel: show }),

@@ -33,7 +33,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
     setShowParametersPanel,
-    showOutlines
+    showOutlines,
+    showRoleNumbers
   } = useAppStore();
 
   const transformRef = useRef<any>(null);
@@ -500,7 +501,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             isActive={true}
           />
         )}
-        {isSelected && roleEditMode && (
+        {showRoleNumbers && (
           <RoleLabels
             key={`role-labels-${shape.id}-${shape.geometry?.uuid || ''}`}
             shape={shape}

@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -224,6 +224,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   type="checkbox"
                   checked={showOutlines}
                   onChange={(e) => setShowOutlines(e.target.checked)}
+                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap flex-1">
+                  Show Role Numbers
+                </label>
+                <input
+                  type="checkbox"
+                  checked={showRoleNumbers}
+                  onChange={(e) => setShowRoleNumbers(e.target.checked)}
                   className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                 />
               </div>
