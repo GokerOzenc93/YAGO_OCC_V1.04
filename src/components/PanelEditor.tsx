@@ -68,8 +68,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const box = new THREE.Box3().setFromPoints(worldVertices);
       const size = new THREE.Vector3();
       box.getSize(size);
-      const faceCenter = new THREE.Vector3();
-      box.getCenter(faceCenter);
+      const minPoint = box.min.clone();
+      const maxPoint = box.max.clone();
 
       const panelThickness = 18;
 
@@ -78,28 +78,35 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const absY = Math.abs(worldNormal.y);
       const absZ = Math.abs(worldNormal.z);
 
-      const panelCenter = faceCenter.clone();
+      let panelPosition = new THREE.Vector3();
 
       if (absX > 0.9) {
         panelWidth = panelThickness;
         panelHeight = size.y;
         panelDepth = size.z;
-        panelCenter.x += worldNormal.x * (panelThickness / 2);
+        panelPosition.x = (worldNormal.x > 0) ? maxPoint.x : minPoint.x - panelWidth;
+        panelPosition.y = minPoint.y;
+        panelPosition.z = minPoint.z;
       } else if (absY > 0.9) {
         panelWidth = size.x;
         panelHeight = panelThickness;
         panelDepth = size.z;
-        panelCenter.y += worldNormal.y * (panelThickness / 2);
+        panelPosition.x = minPoint.x;
+        panelPosition.y = (worldNormal.y > 0) ? maxPoint.y : minPoint.y - panelHeight;
+        panelPosition.z = minPoint.z;
       } else if (absZ > 0.9) {
         panelWidth = size.x;
         panelHeight = size.y;
         panelDepth = panelThickness;
-        panelCenter.z += worldNormal.z * (panelThickness / 2);
+        panelPosition.x = minPoint.x;
+        panelPosition.y = minPoint.y;
+        panelPosition.z = (worldNormal.z > 0) ? maxPoint.z : minPoint.z - panelDepth;
       } else {
         console.warn('Face normal is not axis-aligned, using default dimensions');
         panelWidth = size.x;
         panelHeight = size.y;
         panelDepth = panelThickness;
+        panelPosition = minPoint.clone();
       }
 
       const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
@@ -110,6 +117,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       });
       const geometry = convertReplicadToThreeGeometry(replicadShape);
 
+      geometry.translate(panelWidth / 2, panelHeight / 2, panelDepth / 2);
+
       const faceRole = selectedShape.faceRoles?.[faceIndex];
 
       const newPanel = {
@@ -117,7 +126,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         type: 'panel',
         geometry,
         replicadShape,
-        position: [panelCenter.x, panelCenter.y, panelCenter.z] as [number, number, number],
+        position: [panelPosition.x, panelPosition.y, panelPosition.z] as [number, number, number],
         rotation: [0, 0, 0] as [number, number, number],
         scale: [1, 1, 1] as [number, number, number],
         color: '#8b5cf6',
