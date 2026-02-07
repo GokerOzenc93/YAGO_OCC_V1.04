@@ -314,7 +314,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                 flatShading={false}
               />
             </mesh>
-            {showOutlines && !hasPanels && (
+            {showOutlines && (
               <lineSegments>
                 {edgeGeometry ? (
                   <bufferGeometry {...edgeGeometry} />
@@ -339,7 +339,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               geometry={localGeometry}
               visible={false}
             />
-            {showOutlines && !hasPanels && (
+            {showOutlines && (
               <>
                 <lineSegments>
                   {edgeGeometry ? (
@@ -391,7 +391,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                 flatShading={false}
               />
             </mesh>
-            {showOutlines && !hasPanels && (
+            {showOutlines && (
               <lineSegments>
                 {edgeGeometry ? (
                   <bufferGeometry {...edgeGeometry} />
