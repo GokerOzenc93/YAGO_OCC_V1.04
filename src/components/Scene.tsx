@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
 import * as THREE from 'three';
@@ -11,6 +11,7 @@ import { applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
 import { PanelDrawing } from './PanelDrawing';
+import { ErrorBoundary } from './ErrorBoundary';
 
 const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>(null);
@@ -490,8 +491,20 @@ const Scene: React.FC = () => {
     }
   };
 
+  const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    const canvas = gl.domElement;
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault();
+      console.warn('WebGL context lost - preventing page reload');
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      console.log('WebGL context restored');
+    });
+  }, []);
+
   return (
     <>
+      <ErrorBoundary>
       <Canvas
         shadows
         gl={{
@@ -502,6 +515,7 @@ const Scene: React.FC = () => {
         }}
         dpr={[1, 2]}
         onContextMenu={(e) => e.preventDefault()}
+        onCreated={handleCreated}
       >
         <color attach="background" args={['#f5f5f4']} />
 
@@ -605,6 +619,7 @@ const Scene: React.FC = () => {
         />
       </GizmoHelper>
     </Canvas>
+    </ErrorBoundary>
 
     {contextMenu && (
       <ContextMenu

@@ -14,6 +14,28 @@ function App() {
   const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
 
   useEffect(() => {
+    const onError = (e: ErrorEvent) => {
+      if (e.message?.includes('BindingError') || e.message?.includes('OpenCascade')) {
+        e.preventDefault();
+        console.error('Caught global error (prevented reload):', e.message);
+      }
+    };
+    const onUnhandledRejection = (e: PromiseRejectionEvent) => {
+      const msg = String(e.reason?.message || e.reason || '');
+      if (msg.includes('BindingError') || msg.includes('OpenCascade') || msg.includes('replicad')) {
+        e.preventDefault();
+        console.error('Caught unhandled rejection (prevented reload):', msg);
+      }
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
+    };
+  }, []);
+
+  useEffect(() => {
     loadCatalogItems();
   }, []);
 
