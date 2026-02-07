@@ -286,8 +286,9 @@ export const createPanelFromFace = async (
       const face = faces[i];
 
       try {
-        const normal = face.normalAt(0.5, 0.5);
+        const normalVec = face.normalAt(0.5, 0.5);
 
+        const normal = [normalVec.x, normalVec.y, normalVec.z];
         console.log(`Face ${i} normal:`, normal);
 
         const dot =
