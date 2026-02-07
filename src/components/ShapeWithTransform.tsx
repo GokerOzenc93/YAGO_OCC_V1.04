@@ -32,7 +32,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setHoveredSubtractionIndex,
     selectedSubtractionIndex,
     setSelectedSubtractionIndex,
-    setShowParametersPanel
+    setShowParametersPanel,
+    showOutlines
   } = useAppStore();
 
   const transformRef = useRef<any>(null);
@@ -233,6 +234,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
+  const isPanel = shape.type === 'panel';
+  const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
   const {
     faceEditMode,
@@ -301,29 +304,32 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               receiveShadow
             >
               <meshStandardMaterial
-                color="#94b8d9"
-                metalness={0.1}
-                roughness={0.6}
+                color={isPanel ? shape.color || '#8b5cf6' : "#94b8d9"}
+                metalness={isPanel ? 0.3 : 0.1}
+                roughness={isPanel ? 0.4 : 0.6}
                 transparent
-                opacity={0.12}
+                opacity={hasPanels ? 0 : isPanel ? 1 : 0.12}
                 side={THREE.DoubleSide}
-                depthWrite={false}
+                depthWrite={!hasPanels}
+                flatShading={false}
               />
             </mesh>
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, 5]} />
-              )}
-              <lineBasicMaterial
-                color="#000000"
-                linewidth={2}
-                opacity={1}
-                transparent={false}
-                depthTest={true}
-              />
-            </lineSegments>
+            {showOutlines && !hasPanels && (
+              <lineSegments>
+                {edgeGeometry ? (
+                  <bufferGeometry {...edgeGeometry} />
+                ) : (
+                  <edgesGeometry args={[localGeometry, 5]} />
+                )}
+                <lineBasicMaterial
+                  color="#000000"
+                  linewidth={2}
+                  opacity={1}
+                  transparent={false}
+                  depthTest={true}
+                />
+              </lineSegments>
+            )}
           </>
         )}
         {isWireframe && (
@@ -333,33 +339,37 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               geometry={localGeometry}
               visible={false}
             />
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, 5]} />
-              )}
-              <lineBasicMaterial
-                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
-                linewidth={isSelected || shouldShowAsReference ? 3.5 : 2.5}
-                depthTest={true}
-                depthWrite={true}
-              />
-            </lineSegments>
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, 5]} />
-              )}
-              <lineBasicMaterial
-                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
-                linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
-                transparent
-                opacity={0.4}
-                depthTest={true}
-              />
-            </lineSegments>
+            {showOutlines && !hasPanels && (
+              <>
+                <lineSegments>
+                  {edgeGeometry ? (
+                    <bufferGeometry {...edgeGeometry} />
+                  ) : (
+                    <edgesGeometry args={[localGeometry, 5]} />
+                  )}
+                  <lineBasicMaterial
+                    color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : '#1a1a1a'}
+                    linewidth={isSelected || shouldShowAsReference ? 3.5 : 2.5}
+                    depthTest={true}
+                    depthWrite={true}
+                  />
+                </lineSegments>
+                <lineSegments>
+                  {edgeGeometry ? (
+                    <bufferGeometry {...edgeGeometry} />
+                  ) : (
+                    <edgesGeometry args={[localGeometry, 5]} />
+                  )}
+                  <lineBasicMaterial
+                    color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#000000'}
+                    linewidth={isSelected || shouldShowAsReference ? 2 : 1.5}
+                    transparent
+                    opacity={0.4}
+                    depthTest={true}
+                  />
+                </lineSegments>
+              </>
+            )}
           </>
         )}
         {(isXray || shouldShowAsReference) && (
@@ -371,29 +381,32 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               receiveShadow
             >
               <meshStandardMaterial
-                color={isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
-                metalness={0.2}
-                roughness={0.5}
+                color={isPanel ? shape.color || '#8b5cf6' : isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
+                metalness={isPanel ? 0.3 : 0.2}
+                roughness={isPanel ? 0.4 : 0.5}
                 transparent
-                opacity={0.25}
+                opacity={hasPanels ? 0 : isPanel ? 1 : 0.25}
                 side={THREE.DoubleSide}
-                depthWrite={false}
+                depthWrite={!hasPanels}
+                flatShading={false}
               />
             </mesh>
-            <lineSegments>
-              {edgeGeometry ? (
-                <bufferGeometry {...edgeGeometry} />
-              ) : (
-                <edgesGeometry args={[localGeometry, 5]} />
-              )}
-              <lineBasicMaterial
-                color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
-                linewidth={isSelected || shouldShowAsReference ? 3 : 2.5}
-                depthTest={true}
-                transparent={false}
-                opacity={1}
-              />
-            </lineSegments>
+            {showOutlines && !hasPanels && (
+              <lineSegments>
+                {edgeGeometry ? (
+                  <bufferGeometry {...edgeGeometry} />
+                ) : (
+                  <edgesGeometry args={[localGeometry, 5]} />
+                )}
+                <lineBasicMaterial
+                  color={isSelected ? '#1e40af' : shouldShowAsReference ? '#991b1b' : '#0a0a0a'}
+                  linewidth={isSelected || shouldShowAsReference ? 3 : 2.5}
+                  depthTest={true}
+                  transparent={false}
+                  opacity={1}
+                />
+              </lineSegments>
+            )}
           </>
         )}
         {hasFillets && filletMode && (
