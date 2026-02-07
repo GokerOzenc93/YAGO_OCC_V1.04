@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, GripVertical } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 import { extractFacesFromGeometry, groupCoplanarFaces, FaceData, CoplanarFaceGroup } from './FaceEditor';
+import { resolveAllPanelJoints } from './PanelJointService';
 import * as THREE from 'three';
 
 interface PanelEditorProps {
@@ -19,6 +20,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [profiles, setProfiles] = useState<GlobalSettingsProfile[]>([]);
   const [selectedProfile, setSelectedProfile] = useState<string>('none');
   const [loading, setLoading] = useState(true);
+  const [resolving, setResolving] = useState(false);
+  const prevProfileRef = useRef<string>('none');
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
 
@@ -27,6 +30,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       loadProfiles();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (prevProfileRef.current === selectedProfile) return;
+    prevProfileRef.current = selectedProfile;
+    if (selectedProfile !== 'none' && selectedShapeId) {
+      setResolving(true);
+      resolveAllPanelJoints(selectedShapeId, selectedProfile).finally(() =>
+        setResolving(false)
+      );
+    }
+  }, [selectedProfile, selectedShapeId]);
 
   const loadProfiles = async () => {
     try {
@@ -243,12 +257,26 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   await createPanelForFace(faceGroups[faceIndex], faces, faceIndex);
                 }
                 updateShape(selectedShape.id, { facePanels: newFacePanels });
+
+                if (selectedProfile !== 'none') {
+                  setResolving(true);
+                  try {
+                    await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                  } finally {
+                    setResolving(false);
+                  }
+                }
               };
 
               return (
                 <div className={`space-y-2 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
-                  <div className={`text-xs font-semibold mb-1 ${isDisabled ? 'text-stone-400' : 'text-purple-700'}`}>
-                    Face Roles ({faceGroups.length} faces)
+                  <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-purple-700'}`}>
+                    <span>Face Roles ({faceGroups.length} faces)</span>
+                    {resolving && (
+                      <span className="text-[10px] font-normal text-orange-500 animate-pulse">
+                        resolving joints...
+                      </span>
+                    )}
                   </div>
                   {faceGroups.map((_group, i) => (
                     <div key={`face-${i}`} className="flex gap-1 items-center">
@@ -283,6 +311,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 faceRole: newRole
                               }
                             });
+                            if (selectedProfile !== 'none') {
+                              setResolving(true);
+                              resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
+                                setResolving(false)
+                              );
+                            }
                           }
                         }}
                         className={`w-20 px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
