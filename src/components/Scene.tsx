@@ -10,6 +10,7 @@ import { VertexEditor } from './VertexEditor';
 import { applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
+import { PanelDrawing } from './PanelDrawing';
 
 const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>(null);
@@ -554,6 +555,17 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
+
+        if (shape.type === 'panel') {
+          return (
+            <PanelDrawing
+              key={shape.id}
+              shape={shape}
+              isSelected={isSelected}
+            />
+          );
+        }
+
         return (
           <React.Fragment key={shape.id}>
             <ShapeWithTransform

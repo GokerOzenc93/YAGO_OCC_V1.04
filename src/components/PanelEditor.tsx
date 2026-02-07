@@ -12,7 +12,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showPanelOutlines, setShowPanelOutlines } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -99,6 +99,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       });
       const geometry = convertReplicadToThreeGeometry(replicadShape);
 
+      const faceRole = selectedShape.faceRoles?.[faceIndex];
+
       const newPanel = {
         id: `panel-${Date.now()}`,
         type: 'panel',
@@ -113,7 +115,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           height: panelHeight,
           depth: panelDepth,
           parentShapeId: selectedShape.id,
-          faceIndex: faceIndex
+          faceIndex: faceIndex,
+          faceRole: faceRole
         }
       };
 
@@ -216,12 +219,26 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             <div className="space-y-1.5">
               <div className="flex items-center gap-2">
                 <label className="text-xs font-semibold text-slate-800 whitespace-nowrap flex-1">
-                  Show Outline Edges
+                  Show Reference Volume Edges
                 </label>
                 <input
                   type="checkbox"
                   checked={showOutlines}
                   onChange={(e) => setShowOutlines(e.target.checked)}
+                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap flex-1">
+                  Show Panel Edges
+                </label>
+                <input
+                  type="checkbox"
+                  checked={showPanelOutlines}
+                  onChange={(e) => setShowPanelOutlines(e.target.checked)}
                   className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                 />
               </div>
@@ -284,6 +301,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             delete newFaceRoles[i];
                           }
                           updateShape(selectedShape.id, { faceRoles: newFaceRoles });
+
+                          const panelShape = shapes.find(s =>
+                            s.type === 'panel' &&
+                            s.parameters?.parentShapeId === selectedShape.id &&
+                            s.parameters?.faceIndex === i
+                          );
+                          if (panelShape) {
+                            updateShape(panelShape.id, {
+                              parameters: {
+                                ...panelShape.parameters,
+                                faceRole: newRole
+                              }
+                            });
+                          }
                         }}
                         className="w-20 px-1 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
                       >
