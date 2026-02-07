@@ -315,13 +315,6 @@ export const createPanelFromFace = async (
 
     console.log('✅ Found matching face with normal alignment:', maxDot);
 
-    const outerWire = matchingFace.outerWire();
-    console.log('📐 Extracted outer wire from face');
-
-    const { Drawing } = await import('replicad');
-    const drawing = new Drawing(outerWire);
-    console.log('📝 Created Drawing from wire');
-
     const normalVec = matchingFace.normalAt(0.5, 0.5);
     const extrusionDirection = [
       normalVec.x,
@@ -329,6 +322,13 @@ export const createPanelFromFace = async (
       normalVec.z
     ];
     console.log('🚀 Extruding in direction:', extrusionDirection);
+
+    const outerWire = matchingFace.outerWire();
+    console.log('📐 Extracted outer wire from face');
+
+    const { Drawing } = await import('replicad');
+    const drawing = new Drawing(outerWire);
+    console.log('📝 Created Drawing from wire');
 
     const panel = drawing.extrude(panelThickness, {
       extrusionDirection: extrusionDirection
