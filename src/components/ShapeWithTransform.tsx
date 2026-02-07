@@ -40,6 +40,16 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
   const isUpdatingRef = useRef(false);
+  const initialTransformRef = useRef<{
+    position: [number, number, number];
+    rotation: [number, number, number];
+    scale: [number, number, number];
+    childPanels: Map<string, {
+      position: [number, number, number];
+      rotation: [number, number, number];
+      scale: [number, number, number];
+    }>;
+  } | null>(null);
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
@@ -175,6 +185,34 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           orbitControlsRef.current.enabled = !event.value;
         }
 
+        if (event.value && groupRef.current) {
+          const allShapes = useAppStore.getState().shapes;
+          const childPanels = allShapes.filter(
+            s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id
+          );
+
+          const childPanelMap = new Map<string, {
+            position: [number, number, number];
+            rotation: [number, number, number];
+            scale: [number, number, number];
+          }>();
+
+          childPanels.forEach(panel => {
+            childPanelMap.set(panel.id, {
+              position: [...panel.position] as [number, number, number],
+              rotation: [...panel.rotation] as [number, number, number],
+              scale: [...panel.scale] as [number, number, number]
+            });
+          });
+
+          initialTransformRef.current = {
+            position: groupRef.current.position.toArray() as [number, number, number],
+            rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
+            scale: groupRef.current.scale.toArray() as [number, number, number],
+            childPanels: childPanelMap
+          };
+        }
+
         if (!event.value && groupRef.current) {
           const finalPosition = groupRef.current.position.toArray() as [number, number, number];
           const finalRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
@@ -189,6 +227,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             scale: finalScale
           });
 
+          initialTransformRef.current = null;
+
           requestAnimationFrame(() => {
             isUpdatingRef.current = false;
           });
@@ -196,12 +236,53 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
       };
 
       const onChange = () => {
-        if (groupRef.current && isDragging) {
+        if (groupRef.current && isDragging && initialTransformRef.current) {
           isUpdatingRef.current = true;
+
+          const currentPosition = groupRef.current.position.toArray() as [number, number, number];
+          const currentRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
+          const currentScale = groupRef.current.scale.toArray() as [number, number, number];
+
           updateShape(shape.id, {
-            position: groupRef.current.position.toArray() as [number, number, number],
-            rotation: groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number],
-            scale: groupRef.current.scale.toArray() as [number, number, number]
+            position: currentPosition,
+            rotation: currentRotation,
+            scale: currentScale
+          });
+
+          const positionDelta: [number, number, number] = [
+            currentPosition[0] - initialTransformRef.current.position[0],
+            currentPosition[1] - initialTransformRef.current.position[1],
+            currentPosition[2] - initialTransformRef.current.position[2]
+          ];
+          const rotationDelta: [number, number, number] = [
+            currentRotation[0] - initialTransformRef.current.rotation[0],
+            currentRotation[1] - initialTransformRef.current.rotation[1],
+            currentRotation[2] - initialTransformRef.current.rotation[2]
+          ];
+          const scaleDelta: [number, number, number] = [
+            currentScale[0] / initialTransformRef.current.scale[0],
+            currentScale[1] / initialTransformRef.current.scale[1],
+            currentScale[2] / initialTransformRef.current.scale[2]
+          ];
+
+          initialTransformRef.current.childPanels.forEach((initialState, panelId) => {
+            updateShape(panelId, {
+              position: [
+                initialState.position[0] + positionDelta[0],
+                initialState.position[1] + positionDelta[1],
+                initialState.position[2] + positionDelta[2]
+              ],
+              rotation: [
+                initialState.rotation[0] + rotationDelta[0],
+                initialState.rotation[1] + rotationDelta[1],
+                initialState.rotation[2] + rotationDelta[2]
+              ],
+              scale: [
+                initialState.scale[0] * scaleDelta[0],
+                initialState.scale[1] * scaleDelta[1],
+                initialState.scale[2] * scaleDelta[2]
+              ]
+            });
           });
         }
       };
