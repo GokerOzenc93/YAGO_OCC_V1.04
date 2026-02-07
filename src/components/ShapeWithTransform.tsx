@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { TransformControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, Tool, ViewMode } from '../store';
@@ -6,6 +6,7 @@ import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
+import { PanelMesh } from './PanelMesh';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -234,6 +235,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
+  const hasPanelRoles = useMemo(() => {
+    if (!shape.faceRoles) return false;
+    return Object.values(shape.faceRoles).some((r: any) => r !== null);
+  }, [shape.faceRoles]);
   const {
     faceEditMode,
     filletMode,
@@ -292,7 +297,21 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             />
           );
         })}
-        {!isWireframe && !isXray && !shouldShowAsReference && (
+        {hasPanelRoles && (
+          <>
+            <mesh
+              ref={meshRef}
+              geometry={localGeometry}
+              visible={false}
+            />
+            <PanelMesh
+              key={`panels-${geometryKey}`}
+              geometry={localGeometry}
+              faceRoles={shape.faceRoles || {}}
+            />
+          </>
+        )}
+        {!hasPanelRoles && !isWireframe && !isXray && !shouldShowAsReference && (
           <>
             <mesh
               ref={meshRef}
@@ -326,7 +345,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             </lineSegments>
           </>
         )}
-        {isWireframe && (
+        {!hasPanelRoles && isWireframe && (
           <>
             <mesh
               ref={meshRef}
@@ -362,7 +381,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             </lineSegments>
           </>
         )}
-        {(isXray || shouldShowAsReference) && (
+        {!hasPanelRoles && (isXray || shouldShowAsReference) && (
           <>
             <mesh
               ref={meshRef}
@@ -396,7 +415,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             </lineSegments>
           </>
         )}
-        {hasFillets && filletMode && (
+        {!hasPanelRoles && hasFillets && filletMode && (
           <FilletEdgeLines shape={shape} isSelected={isSelected} />
         )}
         {isSelected && faceEditMode && (
