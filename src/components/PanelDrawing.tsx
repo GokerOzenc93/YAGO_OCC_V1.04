@@ -11,7 +11,6 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   shape,
   isSelected
 }) => {
-  const { showPanelOutlines } = useAppStore();
   const meshRef = useRef<THREE.Mesh>(null);
 
   const edgeGeometry = useMemo(() => {
@@ -78,7 +77,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
           flatShading={false}
         />
       </mesh>
-      {showPanelOutlines && edgeGeometry && (
+      {edgeGeometry && (
         <lineSegments geometry={edgeGeometry}>
           <lineBasicMaterial
             color={isSelected ? '#1e40af' : '#000000'}

@@ -226,8 +226,6 @@ interface AppState {
   // Outline Çizgileri
   showOutlines: boolean;
   setShowOutlines: (show: boolean) => void;
-  showPanelOutlines: boolean;
-  setShowPanelOutlines: (show: boolean) => void;
 
   // Global Settings Paneli
   showGlobalSettingsPanel: boolean;
@@ -343,8 +341,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   showOutlines: true,
   setShowOutlines: (show) => set({ showOutlines: show }),
-  showPanelOutlines: true,
-  setShowPanelOutlines: (show) => set({ showPanelOutlines: show }),
 
   showGlobalSettingsPanel: false,
   setShowGlobalSettingsPanel: (show) => set({ showGlobalSettingsPanel: show }),

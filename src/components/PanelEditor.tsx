@@ -12,7 +12,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showPanelOutlines, setShowPanelOutlines } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -73,17 +73,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         panelWidth = panelThickness;
         panelHeight = size.y;
         panelDepth = size.z;
-        center.x += normal.x * (panelThickness / 2);
+        center.x -= normal.x * (panelThickness / 2);
       } else if (absY > 0.9) {
         panelWidth = size.x;
         panelHeight = panelThickness;
         panelDepth = size.z;
-        center.y += normal.y * (panelThickness / 2);
+        center.y -= normal.y * (panelThickness / 2);
       } else if (absZ > 0.9) {
         panelWidth = size.x;
         panelHeight = size.y;
         panelDepth = panelThickness;
-        center.z += normal.z * (panelThickness / 2);
+        center.z -= normal.z * (panelThickness / 2);
       } else {
         console.warn('Face normal is not axis-aligned, using default dimensions');
         panelWidth = size.x;
@@ -225,20 +225,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   type="checkbox"
                   checked={showOutlines}
                   onChange={(e) => setShowOutlines(e.target.checked)}
-                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap flex-1">
-                  Show Panel Edges
-                </label>
-                <input
-                  type="checkbox"
-                  checked={showPanelOutlines}
-                  onChange={(e) => setShowPanelOutlines(e.target.checked)}
                   className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                 />
               </div>
