@@ -321,6 +321,11 @@ interface AppState {
   setBottomPanelBackShorten: (value: number) => void;
   showBottomPanelBackShorten: boolean;
   setShowBottomPanelBackShorten: (show: boolean) => void;
+
+  // Panel Editor
+  selectedPanelProfileId: string | null;
+  setSelectedPanelProfileId: (id: string | null) => void;
+  autoAssignPanelRoles: (shapeId: string) => void;
 }
 
 /**
@@ -455,6 +460,44 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBottomPanelBackShorten: (value) => set({ bottomPanelBackShorten: value }),
   showBottomPanelBackShorten: false,
   setShowBottomPanelBackShorten: (show) => set({ showBottomPanelBackShorten: show }),
+
+  // Panel Editor
+  selectedPanelProfileId: null,
+  setSelectedPanelProfileId: (id) => set({ selectedPanelProfileId: id }),
+  autoAssignPanelRoles: (shapeId) => {
+    const state = get();
+    const shape = state.shapes.find(s => s.id === shapeId);
+    if (!shape || !shape.geometry) return;
+
+    const { extractFacesFromGeometry, groupCoplanarFaces } = require('./components/FaceEditor');
+    const faces = extractFacesFromGeometry(shape.geometry);
+    const groups = groupCoplanarFaces(faces);
+
+    const roles: Record<number, FaceRole> = {};
+
+    groups.forEach((group, index) => {
+      const n = group.normal;
+      const absX = Math.abs(n.x);
+      const absY = Math.abs(n.y);
+      const absZ = Math.abs(n.z);
+
+      if (absX > absY && absX > absZ) {
+        roles[index] = n.x > 0 ? 'Right' : 'Left';
+      } else if (absY > absX && absY > absZ) {
+        roles[index] = n.y > 0 ? 'Top' : 'Bottom';
+      } else if (absZ > absX && absZ > absY) {
+        roles[index] = n.z > 0 ? null : 'Back';
+      }
+    });
+
+    set((state) => ({
+      shapes: state.shapes.map(s =>
+        s.id === shapeId ? { ...s, faceRoles: roles } : s
+      )
+    }));
+
+    console.log('✅ Auto-assigned panel roles:', roles);
+  },
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

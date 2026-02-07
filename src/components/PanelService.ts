@@ -96,23 +96,23 @@ function adjustBoundaryForJoints(
   } else if (role === 'Left') {
     if (settings.topLeftExpanded) {
       allVerts.forEach(v => {
-        if (Math.abs(v.y - bbox.max.y) < tol) v.y -= thickness;
+        if (Math.abs(v.y - bbox.max.y) < tol) v.y += thickness;
       });
     }
     if (settings.bottomLeftExpanded) {
       allVerts.forEach(v => {
-        if (Math.abs(v.y - bbox.min.y) < tol) v.y += thickness;
+        if (Math.abs(v.y - bbox.min.y) < tol) v.y -= thickness;
       });
     }
   } else if (role === 'Right') {
     if (settings.topRightExpanded) {
       allVerts.forEach(v => {
-        if (Math.abs(v.y - bbox.max.y) < tol) v.y -= thickness;
+        if (Math.abs(v.y - bbox.max.y) < tol) v.y += thickness;
       });
     }
     if (settings.bottomRightExpanded) {
       allVerts.forEach(v => {
-        if (Math.abs(v.y - bbox.min.y) < tol) v.y += thickness;
+        if (Math.abs(v.y - bbox.min.y) < tol) v.y -= thickness;
       });
     }
   }

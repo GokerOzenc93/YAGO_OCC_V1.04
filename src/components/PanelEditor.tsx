@@ -1,10 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { X, GripVertical, Plus } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, GripVertical } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
+import { useAppStore } from '../store';
+import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
+import * as THREE from 'three';
 
 interface PanelEditorProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+interface PanelInfo {
+  role: string;
+  groupIndex: number;
+  dimensions: { width: number; height: number };
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
@@ -12,8 +21,15 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [profiles, setProfiles] = useState<GlobalSettingsProfile[]>([]);
-  const [selectedProfile, setSelectedProfile] = useState<string>('none');
   const [loading, setLoading] = useState(true);
+
+  const {
+    selectedShapeId,
+    shapes,
+    autoAssignPanelRoles,
+    selectedPanelProfileId,
+    setSelectedPanelProfileId
+  } = useAppStore();
 
   useEffect(() => {
     if (isOpen) {
@@ -32,6 +48,72 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       setLoading(false);
     }
   };
+
+  const handleProfileChange = (profileId: string) => {
+    setSelectedPanelProfileId(profileId === 'none' ? null : profileId);
+    if (profileId !== 'none' && selectedShapeId) {
+      autoAssignPanelRoles(selectedShapeId);
+    }
+  };
+
+  const selectedShape = useMemo(() => {
+    return shapes.find(s => s.id === selectedShapeId);
+  }, [shapes, selectedShapeId]);
+
+  const panelList = useMemo((): PanelInfo[] => {
+    if (!selectedShape || !selectedShape.geometry || !selectedShape.faceRoles) {
+      return [];
+    }
+
+    const faces = extractFacesFromGeometry(selectedShape.geometry);
+    const groups = groupCoplanarFaces(faces);
+    const panels: PanelInfo[] = [];
+
+    Object.entries(selectedShape.faceRoles).forEach(([idxStr, role]) => {
+      if (!role) return;
+      const gi = parseInt(idxStr);
+      const group = groups[gi];
+      if (!group) return;
+
+      const allVerts: THREE.Vector3[] = [];
+      group.faceIndices.forEach(faceIdx => {
+        const face = faces[faceIdx];
+        if (face) allVerts.push(...face.vertices);
+      });
+
+      if (allVerts.length === 0) return;
+
+      const bbox = new THREE.Box3();
+      allVerts.forEach(v => bbox.expandByPoint(v));
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+
+      const n = group.normal;
+      const absX = Math.abs(n.x);
+      const absY = Math.abs(n.y);
+      const absZ = Math.abs(n.z);
+
+      let width = 0, height = 0;
+      if (absX > absY && absX > absZ) {
+        width = size.z;
+        height = size.y;
+      } else if (absY > absX && absY > absZ) {
+        width = size.x;
+        height = size.z;
+      } else {
+        width = size.x;
+        height = size.y;
+      }
+
+      panels.push({
+        role: role,
+        groupIndex: gi,
+        dimensions: { width, height }
+      });
+    });
+
+    return panels;
+  }, [selectedShape]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -106,8 +188,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                 </div>
               ) : (
                 <select
-                  value={selectedProfile}
-                  onChange={(e) => setSelectedProfile(e.target.value)}
+                  value={selectedPanelProfileId || 'none'}
+                  onChange={(e) => handleProfileChange(e.target.value)}
                   className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
                 >
                   <option value="none">None</option>
@@ -121,9 +203,45 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             </div>
           </div>
 
-          <div className="text-center text-stone-500 text-xs py-8 border-t border-stone-200">
-            Panel configuration
-          </div>
+          {!selectedShapeId && (
+            <div className="text-center text-stone-500 text-xs py-8 border-t border-stone-200">
+              No shape selected
+            </div>
+          )}
+
+          {selectedShapeId && panelList.length === 0 && selectedPanelProfileId && (
+            <div className="text-center text-amber-600 text-xs py-8 border-t border-stone-200">
+              Select a profile to auto-assign panels
+            </div>
+          )}
+
+          {panelList.length > 0 && (
+            <div className="space-y-2 border-t border-stone-200 pt-3">
+              <div className="text-xs font-semibold text-slate-800 mb-2">
+                Panels ({panelList.length})
+              </div>
+              <div className="space-y-1">
+                {panelList.map((panel, idx) => (
+                  <div
+                    key={`panel-${panel.groupIndex}-${idx}`}
+                    className="flex items-center gap-2 px-2 py-1.5 bg-gray-50 border border-gray-200 rounded text-xs"
+                  >
+                    <div className="w-16 font-medium text-slate-700">
+                      {panel.role}
+                    </div>
+                    <div className="flex-1 flex items-center gap-2 text-stone-600">
+                      <span>W: {panel.dimensions.width.toFixed(1)}</span>
+                      <span className="text-stone-400">×</span>
+                      <span>H: {panel.dimensions.height.toFixed(1)}</span>
+                    </div>
+                    <div className="text-stone-400 text-[10px]">
+                      18mm
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { generatePanelsForShape, PanelData, JointSettings } from './PanelService';
 import { globalSettingsService } from './GlobalSettingsDatabase';
+import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 
 interface PanelMeshProps {
@@ -17,28 +18,30 @@ export const PanelMesh: React.FC<PanelMeshProps> = ({
 }) => {
   const [jointSettings, setJointSettings] = useState<JointSettings | undefined>();
   const [loaded, setLoaded] = useState(false);
+  const { selectedPanelProfileId } = useAppStore();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const profiles = await globalSettingsService.listProfiles();
+        if (!selectedPanelProfileId) {
+          if (!cancelled) setLoaded(true);
+          return;
+        }
+
+        const settings = await globalSettingsService.getProfileSettings(
+          selectedPanelProfileId,
+          'panel_joint'
+        );
         if (cancelled) return;
-        if (profiles.length > 0) {
-          const settings = await globalSettingsService.getProfileSettings(
-            profiles[0].id,
-            'panel_joint'
-          );
-          if (cancelled) return;
-          if (settings?.settings) {
-            const s = settings.settings as Record<string, unknown>;
-            setJointSettings({
-              topLeftExpanded: (s.topLeftExpanded as boolean) || false,
-              topRightExpanded: (s.topRightExpanded as boolean) || false,
-              bottomLeftExpanded: (s.bottomLeftExpanded as boolean) || false,
-              bottomRightExpanded: (s.bottomRightExpanded as boolean) || false
-            });
-          }
+        if (settings?.settings) {
+          const s = settings.settings as Record<string, unknown>;
+          setJointSettings({
+            topLeftExpanded: (s.topLeftExpanded as boolean) || false,
+            topRightExpanded: (s.topRightExpanded as boolean) || false,
+            bottomLeftExpanded: (s.bottomLeftExpanded as boolean) || false,
+            bottomRightExpanded: (s.bottomRightExpanded as boolean) || false
+          });
         }
       } catch {
         // defaults
@@ -46,7 +49,7 @@ export const PanelMesh: React.FC<PanelMeshProps> = ({
       if (!cancelled) setLoaded(true);
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [selectedPanelProfileId]);
 
   const rolesKey = useMemo(() => JSON.stringify(faceRoles), [faceRoles]);
 
