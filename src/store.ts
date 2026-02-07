@@ -86,6 +86,7 @@ export interface Shape {
   fillets?: FilletInfo[];                // Parametrik fillet bilgileri
   faceRoles?: Record<number, FaceRole>;  // Yüzey rolleri (indeks -> rol)
   faceDescriptions?: Record<number, string>; // Yüzey açıklamaları (indeks -> açıklama)
+  facePanels?: Record<number, boolean>;  // Yüzeye panel eklenmiş mi? (indeks -> boolean)
 }
 
 /**

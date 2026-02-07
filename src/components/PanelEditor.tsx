@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, GripVertical, Plus } from 'lucide-react';
+import { X, GripVertical } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -136,7 +136,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               const faceGroups = groupCoplanarFaces(faces);
               const faceRoles = selectedShape.faceRoles || {};
               const faceDescriptions = selectedShape.faceDescriptions || {};
+              const facePanels = selectedShape.facePanels || {};
               const roleOptions: FaceRole[] = ['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'];
+
+              const handleTogglePanel = (faceIndex: number) => {
+                const newFacePanels = { ...facePanels };
+                if (newFacePanels[faceIndex]) {
+                  delete newFacePanels[faceIndex];
+                  console.log(`Panel removed from face ${faceIndex + 1}`);
+                } else {
+                  newFacePanels[faceIndex] = true;
+                  console.log(`Panel added to face ${faceIndex + 1} with role: ${faceRoles[faceIndex] || 'none'}`);
+                }
+                updateShape(selectedShape.id, { facePanels: newFacePanels });
+              };
 
               return (
                 <div className="space-y-2 pt-2 border-t border-stone-300">
@@ -177,15 +190,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         placeholder="description"
                         className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
                       />
-                      <button
-                        onClick={() => {
-                          console.log(`Add panel to face ${i + 1} with role: ${faceRoles[i] || 'none'}`);
-                        }}
-                        className="px-2 py-0.5 text-[10px] font-medium bg-green-500 text-white rounded hover:bg-green-600 transition-colors whitespace-nowrap"
-                        title={`Add panel to face ${i + 1}`}
-                      >
-                        Add Panel
-                      </button>
+                      <input
+                        type="checkbox"
+                        checked={facePanels[i] || false}
+                        onChange={() => handleTogglePanel(i)}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+                        title={`Toggle panel for face ${i + 1}`}
+                      />
                     </div>
                   ))}
                 </div>
