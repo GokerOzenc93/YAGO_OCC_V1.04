@@ -331,7 +331,7 @@ export const createPanelFromFace = async (
     );
 
     const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
-    prismBuilder.Build();
+    prismBuilder.Build(new oc.Message_ProgressRange_1());
     const solid = prismBuilder.Shape();
 
     const { cast } = await import('replicad');
