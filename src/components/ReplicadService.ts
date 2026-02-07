@@ -280,20 +280,30 @@ export const createPanelFromFace = async (
     console.log(`📋 Found ${faces.length} faces in shape`);
 
     let matchingFace = null;
-    let minDot = -Infinity;
+    let maxDot = -Infinity;
 
     for (let i = 0; i < faces.length; i++) {
       const face = faces[i];
-      const normal = face.normalAt();
 
-      const dot =
-        normal[0] * faceNormal[0] +
-        normal[1] * faceNormal[1] +
-        normal[2] * faceNormal[2];
+      try {
+        const normal = face.normalAt(0.5, 0.5);
 
-      if (dot > minDot && dot > 0.9) {
-        minDot = dot;
-        matchingFace = face;
+        console.log(`Face ${i} normal:`, normal);
+
+        const dot =
+          normal[0] * faceNormal[0] +
+          normal[1] * faceNormal[1] +
+          normal[2] * faceNormal[2];
+
+        console.log(`Face ${i} dot product:`, dot);
+
+        if (dot > maxDot && dot > 0.7) {
+          maxDot = dot;
+          matchingFace = face;
+          console.log(`✅ New best match: Face ${i} with dot=${dot}`);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Could not get normal for face ${i}:`, err);
       }
     }
 
@@ -302,9 +312,9 @@ export const createPanelFromFace = async (
       return null;
     }
 
-    console.log('✅ Found matching face with normal alignment:', minDot);
+    console.log('✅ Found matching face with normal alignment:', maxDot);
 
-    const wire = matchingFace.outerWire;
+    const outerWire = matchingFace.outerWire;
     console.log('📐 Extracted outer wire from face');
 
     const normalizedNormal = [
@@ -321,17 +331,12 @@ export const createPanelFromFace = async (
     normalizedNormal[1] /= magnitude;
     normalizedNormal[2] /= magnitude;
 
-    const extrusionVector = [
-      normalizedNormal[0] * panelThickness,
-      normalizedNormal[1] * panelThickness,
-      normalizedNormal[2] * panelThickness
-    ];
+    console.log('🚀 Extruding wire by thickness:', panelThickness);
 
-    console.log('🚀 Extruding face by vector:', extrusionVector);
+    const { makeFace } = await import('replicad');
 
-    const { Blueprints } = await import('replicad');
-    const sketch = new Blueprints.Sketch(wire);
-    const panel = sketch.extrude(panelThickness);
+    const sketchFace = makeFace(outerWire);
+    const panel = sketchFace.extrude(panelThickness);
 
     console.log('✅ Panel created from face successfully');
     return panel;
