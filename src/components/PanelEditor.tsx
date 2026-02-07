@@ -46,44 +46,55 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     console.log(`📦 Creating panel for face ${faceIndex + 1}...`);
 
     try {
-      const allVertices: THREE.Vector3[] = [];
+      const localVertices: THREE.Vector3[] = [];
       faceGroup.faceIndices.forEach(idx => {
         const face = faces[idx];
         face.vertices.forEach(v => {
-          const worldVertex = v.clone().add(new THREE.Vector3(...selectedShape.position));
-          allVertices.push(worldVertex);
+          localVertices.push(v.clone());
         });
       });
 
-      const box = new THREE.Box3().setFromPoints(allVertices);
+      const quaternion = new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(selectedShape.rotation[0], selectedShape.rotation[1], selectedShape.rotation[2])
+      );
+      const worldNormal = faceGroup.normal.clone().normalize().applyQuaternion(quaternion);
+
+      const worldVertices: THREE.Vector3[] = localVertices.map(v => {
+        const rotated = v.clone().applyQuaternion(quaternion);
+        const scaled = rotated.multiply(new THREE.Vector3(...selectedShape.scale));
+        return scaled.add(new THREE.Vector3(...selectedShape.position));
+      });
+
+      const box = new THREE.Box3().setFromPoints(worldVertices);
       const size = new THREE.Vector3();
       box.getSize(size);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
+      const faceCenter = new THREE.Vector3();
+      box.getCenter(faceCenter);
 
-      const normal = faceGroup.normal.clone().normalize();
       const panelThickness = 18;
 
       let panelWidth, panelHeight, panelDepth;
-      const absX = Math.abs(normal.x);
-      const absY = Math.abs(normal.y);
-      const absZ = Math.abs(normal.z);
+      const absX = Math.abs(worldNormal.x);
+      const absY = Math.abs(worldNormal.y);
+      const absZ = Math.abs(worldNormal.z);
+
+      const panelCenter = faceCenter.clone();
 
       if (absX > 0.9) {
         panelWidth = panelThickness;
         panelHeight = size.y;
         panelDepth = size.z;
-        center.x -= normal.x * (panelThickness / 2);
+        panelCenter.x += worldNormal.x * (panelThickness / 2);
       } else if (absY > 0.9) {
         panelWidth = size.x;
         panelHeight = panelThickness;
         panelDepth = size.z;
-        center.y -= normal.y * (panelThickness / 2);
+        panelCenter.y += worldNormal.y * (panelThickness / 2);
       } else if (absZ > 0.9) {
         panelWidth = size.x;
         panelHeight = size.y;
         panelDepth = panelThickness;
-        center.z -= normal.z * (panelThickness / 2);
+        panelCenter.z += worldNormal.z * (panelThickness / 2);
       } else {
         console.warn('Face normal is not axis-aligned, using default dimensions');
         panelWidth = size.x;
@@ -106,7 +117,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         type: 'panel',
         geometry,
         replicadShape,
-        position: [center.x, center.y, center.z] as [number, number, number],
+        position: [panelCenter.x, panelCenter.y, panelCenter.z] as [number, number, number],
         rotation: [0, 0, 0] as [number, number, number],
         scale: [1, 1, 1] as [number, number, number],
         color: '#8b5cf6',
