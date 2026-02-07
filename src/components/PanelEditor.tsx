@@ -71,6 +71,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const minPoint = box.min.clone();
       const maxPoint = box.max.clone();
 
+      console.log('📐 Face bounding box:', {
+        min: minPoint,
+        max: maxPoint,
+        size: size,
+        worldNormal: worldNormal
+      });
+
       const panelThickness = 18;
 
       let panelWidth, panelHeight, panelDepth;
@@ -87,6 +94,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         panelPosition.x = (worldNormal.x > 0) ? maxPoint.x : minPoint.x - panelWidth;
         panelPosition.y = minPoint.y;
         panelPosition.z = minPoint.z;
+        console.log('📦 X-facing panel:', {
+          normalDirection: worldNormal.x > 0 ? '+X' : '-X',
+          dimensions: { width: panelWidth, height: panelHeight, depth: panelDepth },
+          position: panelPosition
+        });
       } else if (absY > 0.9) {
         panelWidth = size.x;
         panelHeight = panelThickness;
@@ -94,6 +106,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         panelPosition.x = minPoint.x;
         panelPosition.y = (worldNormal.y > 0) ? maxPoint.y : minPoint.y - panelHeight;
         panelPosition.z = minPoint.z;
+        console.log('📦 Y-facing panel:', {
+          normalDirection: worldNormal.y > 0 ? '+Y' : '-Y',
+          dimensions: { width: panelWidth, height: panelHeight, depth: panelDepth },
+          position: panelPosition
+        });
       } else if (absZ > 0.9) {
         panelWidth = size.x;
         panelHeight = size.y;
@@ -101,6 +118,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         panelPosition.x = minPoint.x;
         panelPosition.y = minPoint.y;
         panelPosition.z = (worldNormal.z > 0) ? maxPoint.z : minPoint.z - panelDepth;
+        console.log('📦 Z-facing panel:', {
+          normalDirection: worldNormal.z > 0 ? '+Z' : '-Z',
+          dimensions: { width: panelWidth, height: panelHeight, depth: panelDepth },
+          position: panelPosition
+        });
       } else {
         console.warn('Face normal is not axis-aligned, using default dimensions');
         panelWidth = size.x;
@@ -116,8 +138,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         depth: panelDepth
       });
       const geometry = convertReplicadToThreeGeometry(replicadShape);
-
-      geometry.translate(panelWidth / 2, panelHeight / 2, panelDepth / 2);
 
       const faceRole = selectedShape.faceRoles?.[faceIndex];
 
