@@ -260,3 +260,83 @@ export const performBooleanIntersection = async (
     throw error;
   }
 };
+
+export const createPanelFromFace = async (
+  replicadShape: any,
+  faceNormal: [number, number, number],
+  faceCenter: [number, number, number],
+  panelThickness: number
+): Promise<any> => {
+  await initReplicad();
+
+  console.log('🎨 Creating panel from face...', {
+    faceNormal,
+    faceCenter,
+    panelThickness
+  });
+
+  try {
+    const faces = replicadShape.faces;
+    console.log(`📋 Found ${faces.length} faces in shape`);
+
+    let matchingFace = null;
+    let minDot = -Infinity;
+
+    for (let i = 0; i < faces.length; i++) {
+      const face = faces[i];
+      const normal = face.normalAt();
+
+      const dot =
+        normal[0] * faceNormal[0] +
+        normal[1] * faceNormal[1] +
+        normal[2] * faceNormal[2];
+
+      if (dot > minDot && dot > 0.9) {
+        minDot = dot;
+        matchingFace = face;
+      }
+    }
+
+    if (!matchingFace) {
+      console.warn('⚠️ No matching face found, falling back to box method');
+      return null;
+    }
+
+    console.log('✅ Found matching face with normal alignment:', minDot);
+
+    const wire = matchingFace.outerWire;
+    console.log('📐 Extracted outer wire from face');
+
+    const normalizedNormal = [
+      faceNormal[0],
+      faceNormal[1],
+      faceNormal[2]
+    ];
+    const magnitude = Math.sqrt(
+      normalizedNormal[0] ** 2 +
+      normalizedNormal[1] ** 2 +
+      normalizedNormal[2] ** 2
+    );
+    normalizedNormal[0] /= magnitude;
+    normalizedNormal[1] /= magnitude;
+    normalizedNormal[2] /= magnitude;
+
+    const extrusionVector = [
+      normalizedNormal[0] * panelThickness,
+      normalizedNormal[1] * panelThickness,
+      normalizedNormal[2] * panelThickness
+    ];
+
+    console.log('🚀 Extruding face by vector:', extrusionVector);
+
+    const { Blueprints } = await import('replicad');
+    const sketch = new Blueprints.Sketch(wire);
+    const panel = sketch.extrude(panelThickness);
+
+    console.log('✅ Panel created from face successfully');
+    return panel;
+  } catch (error) {
+    console.error('❌ Failed to create panel from face:', error);
+    throw error;
+  }
+};

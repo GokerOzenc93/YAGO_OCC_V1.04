@@ -41,9 +41,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   };
 
   const createPanelForFace = async (faceGroup: CoplanarFaceGroup, faces: FaceData[], faceIndex: number) => {
-    if (!selectedShape) return;
+    if (!selectedShape || !selectedShape.replicadShape) {
+      console.error('❌ No replicad shape available for panel creation');
+      return;
+    }
 
-    console.log(`📦 Creating panel for face ${faceIndex + 1}...`);
+    console.log(`📦 Creating panel from face ${faceIndex + 1}...`);
 
     try {
       const localVertices: THREE.Vector3[] = [];
@@ -66,78 +69,62 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       });
 
       const box = new THREE.Box3().setFromPoints(worldVertices);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      const minPoint = box.min.clone();
-      const maxPoint = box.max.clone();
+      const center = new THREE.Vector3();
+      box.getCenter(center);
 
-      console.log('📐 Face bounding box:', {
-        min: minPoint,
-        max: maxPoint,
-        size: size,
+      console.log('📐 Face center and normal:', {
+        center: center,
         worldNormal: worldNormal
       });
 
       const panelThickness = 18;
 
-      let panelWidth, panelHeight, panelDepth;
-      const absX = Math.abs(worldNormal.x);
-      const absY = Math.abs(worldNormal.y);
-      const absZ = Math.abs(worldNormal.z);
+      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-      let panelPosition = new THREE.Vector3();
+      const localNormal = worldNormal.clone()
+        .applyQuaternion(quaternion.clone().invert())
+        .normalize();
 
-      if (absX > 0.9) {
-        panelWidth = panelThickness;
-        panelHeight = size.y;
-        panelDepth = size.z;
-        panelPosition.x = (worldNormal.x > 0) ? maxPoint.x : minPoint.x - panelWidth;
-        panelPosition.y = minPoint.y;
-        panelPosition.z = minPoint.z;
-        console.log('📦 X-facing panel:', {
-          normalDirection: worldNormal.x > 0 ? '+X' : '-X',
-          dimensions: { width: panelWidth, height: panelHeight, depth: panelDepth },
-          position: panelPosition
-        });
-      } else if (absY > 0.9) {
-        panelWidth = size.x;
-        panelHeight = panelThickness;
-        panelDepth = size.z;
-        panelPosition.x = minPoint.x;
-        panelPosition.y = (worldNormal.y > 0) ? maxPoint.y : minPoint.y - panelHeight;
-        panelPosition.z = minPoint.z;
-        console.log('📦 Y-facing panel:', {
-          normalDirection: worldNormal.y > 0 ? '+Y' : '-Y',
-          dimensions: { width: panelWidth, height: panelHeight, depth: panelDepth },
-          position: panelPosition
-        });
-      } else if (absZ > 0.9) {
-        panelWidth = size.x;
-        panelHeight = size.y;
-        panelDepth = panelThickness;
-        panelPosition.x = minPoint.x;
-        panelPosition.y = minPoint.y;
-        panelPosition.z = (worldNormal.z > 0) ? maxPoint.z : minPoint.z - panelDepth;
-        console.log('📦 Z-facing panel:', {
-          normalDirection: worldNormal.z > 0 ? '+Z' : '-Z',
-          dimensions: { width: panelWidth, height: panelHeight, depth: panelDepth },
-          position: panelPosition
-        });
-      } else {
-        console.warn('Face normal is not axis-aligned, using default dimensions');
-        panelWidth = size.x;
-        panelHeight = size.y;
-        panelDepth = panelThickness;
-        panelPosition = minPoint.clone();
+      console.log('🔄 Using local normal for face matching:', localNormal);
+
+      let replicadPanel = await createPanelFromFace(
+        selectedShape.replicadShape,
+        [localNormal.x, localNormal.y, localNormal.z],
+        [center.x, center.y, center.z],
+        panelThickness
+      );
+
+      if (!replicadPanel) {
+        console.warn('⚠️ Panel creation from face failed, skipping...');
+        return;
       }
 
-      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-      const replicadShape = await createReplicadBox({
-        width: panelWidth,
-        height: panelHeight,
-        depth: panelDepth
+      const geometry = convertReplicadToThreeGeometry(replicadPanel);
+
+      const geometryBox = new THREE.Box3().setFromBufferAttribute(
+        geometry.getAttribute('position')
+      );
+      const geometryCenter = new THREE.Vector3();
+      geometryBox.getCenter(geometryCenter);
+
+      const offsetToFaceCenter = new THREE.Vector3(
+        center.x - geometryCenter.x,
+        center.y - geometryCenter.y,
+        center.z - geometryCenter.z
+      );
+
+      const panelPosition = new THREE.Vector3(
+        selectedShape.position[0] + offsetToFaceCenter.x,
+        selectedShape.position[1] + offsetToFaceCenter.y,
+        selectedShape.position[2] + offsetToFaceCenter.z
+      );
+
+      console.log('📍 Panel positioning:', {
+        geometryCenter,
+        faceCenter: center,
+        offset: offsetToFaceCenter,
+        finalPosition: panelPosition
       });
-      const geometry = convertReplicadToThreeGeometry(replicadShape);
 
       const faceRole = selectedShape.faceRoles?.[faceIndex];
 
@@ -145,15 +132,15 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         id: `panel-${Date.now()}`,
         type: 'panel',
         geometry,
-        replicadShape,
+        replicadShape: replicadPanel,
         position: [panelPosition.x, panelPosition.y, panelPosition.z] as [number, number, number],
-        rotation: [0, 0, 0] as [number, number, number],
+        rotation: selectedShape.rotation,
         scale: [1, 1, 1] as [number, number, number],
         color: '#8b5cf6',
         parameters: {
-          width: panelWidth,
-          height: panelHeight,
-          depth: panelDepth,
+          width: 0,
+          height: 0,
+          depth: panelThickness,
           parentShapeId: selectedShape.id,
           faceIndex: faceIndex,
           faceRole: faceRole
@@ -161,7 +148,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       };
 
       addShape(newPanel);
-      console.log(`✅ Panel created for face ${faceIndex + 1}`);
+      console.log(`✅ Panel created from face ${faceIndex + 1}`);
     } catch (error) {
       console.error('❌ Failed to create panel:', error);
     }
