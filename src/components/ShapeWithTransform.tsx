@@ -235,17 +235,19 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
-  const hasPanelRoles = useMemo(() => {
-    if (!shape.faceRoles) return false;
-    return Object.values(shape.faceRoles).some((r: any) => r !== null);
-  }, [shape.faceRoles]);
   const {
     faceEditMode,
     filletMode,
     roleEditMode,
     setSelectedVertexIndex,
-    setVertexDirection
+    setVertexDirection,
+    selectedPanelProfileId
   } = useAppStore();
+  const hasPanelRoles = useMemo(() => {
+    if (!selectedPanelProfileId) return false;
+    if (!shape.faceRoles) return false;
+    return Object.values(shape.faceRoles).some((r: any) => r !== null);
+  }, [shape.faceRoles, selectedPanelProfileId]);
 
   if (shape.isolated === false) {
     return null;

@@ -50,8 +50,10 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   };
 
   const handleProfileChange = (profileId: string) => {
-    setSelectedPanelProfileId(profileId === 'none' ? null : profileId);
-    if (profileId !== 'none' && selectedShapeId) {
+    const newProfileId = profileId === 'none' ? null : profileId;
+    setSelectedPanelProfileId(newProfileId);
+
+    if (newProfileId && selectedShapeId) {
       autoAssignPanelRoles(selectedShapeId);
     }
   };

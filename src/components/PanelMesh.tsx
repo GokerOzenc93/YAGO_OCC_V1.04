@@ -54,11 +54,12 @@ export const PanelMesh: React.FC<PanelMeshProps> = ({
   const rolesKey = useMemo(() => JSON.stringify(faceRoles), [faceRoles]);
 
   const panels: PanelData[] = useMemo(() => {
+    if (!selectedPanelProfileId) return [];
     if (!loaded || !geometry || !faceRoles) return [];
     const hasRoles = Object.values(faceRoles).some(r => r !== null);
     if (!hasRoles) return [];
     return generatePanelsForShape(geometry, faceRoles, panelThickness, jointSettings);
-  }, [geometry, rolesKey, panelThickness, jointSettings, loaded]);
+  }, [geometry, rolesKey, panelThickness, jointSettings, loaded, selectedPanelProfileId]);
 
   if (panels.length === 0) return null;
 

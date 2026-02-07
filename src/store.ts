@@ -463,7 +463,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Panel Editor
   selectedPanelProfileId: null,
-  setSelectedPanelProfileId: (id) => set({ selectedPanelProfileId: id }),
+  setSelectedPanelProfileId: (id) => {
+    set({ selectedPanelProfileId: id });
+    if (!id) {
+      set((state) => ({
+        shapes: state.shapes.map(s => ({ ...s, faceRoles: {} }))
+      }));
+    }
+  },
   autoAssignPanelRoles: (shapeId) => {
     const state = get();
     const shape = state.shapes.find(s => s.id === shapeId);
@@ -487,6 +494,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         roles[index] = n.y > 0 ? 'Top' : 'Bottom';
       } else if (absZ > absX && absZ > absY) {
         roles[index] = n.z > 0 ? null : 'Back';
+      } else {
+        roles[index] = null;
       }
     });
 
@@ -496,7 +505,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       )
     }));
 
-    console.log('✅ Auto-assigned panel roles:', roles);
+    console.log('✅ Auto-assigned panel roles (no Door):', roles);
   },
 
   // Yeni şekil ekleme
