@@ -323,16 +323,19 @@ export const createPanelFromFace = async (
     ];
     console.log('🚀 Extruding in direction:', extrusionDirection);
 
-    const outerWire = matchingFace.outerWire();
-    console.log('📐 Extracted outer wire from face');
+    const oc = await initReplicad();
+    const vec = new oc.gp_Vec_4(
+      extrusionDirection[0] * panelThickness,
+      extrusionDirection[1] * panelThickness,
+      extrusionDirection[2] * panelThickness
+    );
 
-    const { Drawing } = await import('replicad');
-    const drawing = new Drawing(outerWire);
-    console.log('📝 Created Drawing from wire');
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
+    prismBuilder.Build();
+    const solid = prismBuilder.Shape();
 
-    const panel = drawing.extrude(panelThickness, {
-      extrusionDirection: extrusionDirection
-    });
+    const { cast } = await import('replicad');
+    const panel = cast(solid);
 
     console.log('✅ Panel created from face successfully');
     return panel;
