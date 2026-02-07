@@ -101,31 +101,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
-      const geometryBox = new THREE.Box3().setFromBufferAttribute(
-        geometry.getAttribute('position')
-      );
-      const geometryCenter = new THREE.Vector3();
-      geometryBox.getCenter(geometryCenter);
-
-      const offsetToFaceCenter = new THREE.Vector3(
-        center.x - geometryCenter.x,
-        center.y - geometryCenter.y,
-        center.z - geometryCenter.z
-      );
-
-      const panelPosition = new THREE.Vector3(
-        selectedShape.position[0] + offsetToFaceCenter.x,
-        selectedShape.position[1] + offsetToFaceCenter.y,
-        selectedShape.position[2] + offsetToFaceCenter.z
-      );
-
-      console.log('📍 Panel positioning:', {
-        geometryCenter,
-        faceCenter: center,
-        offset: offsetToFaceCenter,
-        finalPosition: panelPosition
-      });
-
       const faceRole = selectedShape.faceRoles?.[faceIndex];
 
       const newPanel = {
@@ -133,9 +108,9 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         type: 'panel',
         geometry,
         replicadShape: replicadPanel,
-        position: [panelPosition.x, panelPosition.y, panelPosition.z] as [number, number, number],
+        position: [...selectedShape.position] as [number, number, number],
         rotation: selectedShape.rotation,
-        scale: [1, 1, 1] as [number, number, number],
+        scale: [...selectedShape.scale] as [number, number, number],
         color: '#8b5cf6',
         parameters: {
           width: 0,
