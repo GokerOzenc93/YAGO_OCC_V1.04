@@ -317,11 +317,10 @@ export const createPanelFromFace = async (
 
     const normalVec = matchingFace.normalAt(0.5, 0.5);
     const extrusionDirection = [
-      normalVec.x,
-      normalVec.y,
-      normalVec.z
+      -normalVec.x,
+      -normalVec.y,
+      -normalVec.z
     ];
-    console.log('🚀 Extruding in direction:', extrusionDirection);
 
     const oc = await initReplicad();
     const vec = new oc.gp_Vec_4(
