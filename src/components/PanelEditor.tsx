@@ -57,40 +57,19 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         });
       });
 
-      const quaternion = new THREE.Quaternion().setFromEuler(
-        new THREE.Euler(selectedShape.rotation[0], selectedShape.rotation[1], selectedShape.rotation[2])
-      );
-      const worldNormal = faceGroup.normal.clone().normalize().applyQuaternion(quaternion);
-
-      const worldVertices: THREE.Vector3[] = localVertices.map(v => {
-        const rotated = v.clone().applyQuaternion(quaternion);
-        const scaled = rotated.multiply(new THREE.Vector3(...selectedShape.scale));
-        return scaled.add(new THREE.Vector3(...selectedShape.position));
-      });
-
-      const box = new THREE.Box3().setFromPoints(worldVertices);
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-
-      console.log('📐 Face center and normal:', {
-        center: center,
-        worldNormal: worldNormal
-      });
+      const localNormal = faceGroup.normal.clone().normalize();
+      const localBox = new THREE.Box3().setFromPoints(localVertices);
+      const localCenter = new THREE.Vector3();
+      localBox.getCenter(localCenter);
 
       const panelThickness = 18;
 
       const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-      const localNormal = worldNormal.clone()
-        .applyQuaternion(quaternion.clone().invert())
-        .normalize();
-
-      console.log('🔄 Using local normal for face matching:', localNormal);
-
       let replicadPanel = await createPanelFromFace(
         selectedShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
-        [center.x, center.y, center.z],
+        [localCenter.x, localCenter.y, localCenter.z],
         panelThickness
       );
 

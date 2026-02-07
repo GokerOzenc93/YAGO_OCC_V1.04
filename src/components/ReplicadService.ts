@@ -279,41 +279,78 @@ export const createPanelFromFace = async (
     const faces = replicadShape.faces;
     console.log(`📋 Found ${faces.length} faces in shape`);
 
-    let matchingFace = null;
-    let maxDot = -Infinity;
+    interface FaceCandidate {
+      face: any;
+      dot: number;
+      center: [number, number, number] | null;
+    }
+
+    const candidates: FaceCandidate[] = [];
 
     for (let i = 0; i < faces.length; i++) {
       const face = faces[i];
 
       try {
         const normalVec = face.normalAt(0.5, 0.5);
-
         const normal = [normalVec.x, normalVec.y, normalVec.z];
-        console.log(`Face ${i} normal:`, normal);
-
         const dot =
           normal[0] * faceNormal[0] +
           normal[1] * faceNormal[1] +
           normal[2] * faceNormal[2];
 
-        console.log(`Face ${i} dot product:`, dot);
-
-        if (dot > maxDot && dot > 0.7) {
-          maxDot = dot;
-          matchingFace = face;
-          console.log(`✅ New best match: Face ${i} with dot=${dot}`);
+        if (dot > 0.7) {
+          let center: [number, number, number] | null = null;
+          try {
+            const faceMesh = face.mesh({ tolerance: 0.5, angularTolerance: 30 });
+            if (faceMesh.vertices && faceMesh.vertices.length >= 3) {
+              let sx = 0, sy = 0, sz = 0;
+              const nv = faceMesh.vertices.length / 3;
+              for (let j = 0; j < faceMesh.vertices.length; j += 3) {
+                sx += faceMesh.vertices[j];
+                sy += faceMesh.vertices[j + 1];
+                sz += faceMesh.vertices[j + 2];
+              }
+              center = [sx / nv, sy / nv, sz / nv];
+            }
+          } catch (meshErr) {
+            console.warn(`Could not mesh face ${i} for center:`, meshErr);
+          }
+          candidates.push({ face, dot, center });
+          console.log(`Face ${i} candidate: dot=${dot.toFixed(4)}, center=`, center);
         }
       } catch (err) {
         console.warn(`⚠️ Could not get normal for face ${i}:`, err);
       }
     }
 
-    if (!matchingFace) {
-      console.warn('⚠️ No matching face found, falling back to box method');
+    let matchingFace = null;
+
+    if (candidates.length === 0) {
+      console.warn('⚠️ No matching face found');
       return null;
+    } else if (candidates.length === 1) {
+      matchingFace = candidates[0].face;
+    } else {
+      let bestDist = Infinity;
+      for (const candidate of candidates) {
+        if (candidate.center) {
+          const dist = Math.sqrt(
+            (candidate.center[0] - faceCenter[0]) ** 2 +
+            (candidate.center[1] - faceCenter[1]) ** 2 +
+            (candidate.center[2] - faceCenter[2]) ** 2
+          );
+          if (dist < bestDist) {
+            bestDist = dist;
+            matchingFace = candidate.face;
+          }
+        }
+      }
+      if (!matchingFace) {
+        matchingFace = candidates[0].face;
+      }
     }
 
-    console.log('✅ Found matching face with normal alignment:', maxDot);
+    console.log('✅ Found matching face from', candidates.length, 'candidates');
 
     const normalVec = matchingFace.normalAt(0.5, 0.5);
     const extrusionDirection = [
