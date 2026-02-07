@@ -315,29 +315,9 @@ export const createPanelFromFace = async (
 
     console.log('✅ Found matching face with normal alignment:', maxDot);
 
-    const outerWire = matchingFace.outerWire();
-    console.log('📐 Extracted outer wire from face');
+    console.log('🚀 Extruding face by thickness:', panelThickness);
 
-    const normalizedNormal = [
-      faceNormal[0],
-      faceNormal[1],
-      faceNormal[2]
-    ];
-    const magnitude = Math.sqrt(
-      normalizedNormal[0] ** 2 +
-      normalizedNormal[1] ** 2 +
-      normalizedNormal[2] ** 2
-    );
-    normalizedNormal[0] /= magnitude;
-    normalizedNormal[1] /= magnitude;
-    normalizedNormal[2] /= magnitude;
-
-    console.log('🚀 Extruding wire by thickness:', panelThickness);
-
-    const { Face } = await import('replicad');
-
-    const sketchFace = new Face(outerWire);
-    const panel = sketchFace.extrude(panelThickness);
+    const panel = matchingFace.extrude(panelThickness);
 
     console.log('✅ Panel created from face successfully');
     return panel;
