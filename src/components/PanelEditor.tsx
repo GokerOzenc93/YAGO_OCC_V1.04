@@ -221,12 +221,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               const faceDescriptions = selectedShape.faceDescriptions || {};
               const facePanels = selectedShape.facePanels || {};
               const roleOptions: FaceRole[] = ['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'];
+              const isDisabled = selectedProfile === 'none';
 
               const handleTogglePanel = async (faceIndex: number) => {
+                if (isDisabled) return;
                 const newFacePanels = { ...facePanels };
                 if (newFacePanels[faceIndex]) {
                   delete newFacePanels[faceIndex];
-                  console.log(`Panel removed from face ${faceIndex + 1}`);
 
                   const panelToRemove = shapes.find(s =>
                     s.type === 'panel' &&
@@ -236,31 +237,32 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   if (panelToRemove) {
                     const { deleteShape } = useAppStore.getState();
                     deleteShape(panelToRemove.id);
-                    console.log(`🗑️ Panel shape removed: ${panelToRemove.id}`);
                   }
                 } else {
                   newFacePanels[faceIndex] = true;
-                  console.log(`Panel added to face ${faceIndex + 1} with role: ${faceRoles[faceIndex] || 'none'}`);
-
                   await createPanelForFace(faceGroups[faceIndex], faces, faceIndex);
                 }
                 updateShape(selectedShape.id, { facePanels: newFacePanels });
               };
 
               return (
-                <div className="space-y-2 pt-2 border-t border-stone-300">
-                  <div className="text-xs font-semibold text-purple-700 mb-1">Face Roles ({faceGroups.length} faces)</div>
-                  {faceGroups.map((group, i) => (
+                <div className={`space-y-2 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
+                  <div className={`text-xs font-semibold mb-1 ${isDisabled ? 'text-stone-400' : 'text-purple-700'}`}>
+                    Face Roles ({faceGroups.length} faces)
+                  </div>
+                  {faceGroups.map((_group, i) => (
                     <div key={`face-${i}`} className="flex gap-1 items-center">
                       <input
                         type="text"
                         value={i + 1}
                         readOnly
                         tabIndex={-1}
-                        className="w-10 px-1 py-0.5 text-xs font-mono bg-white text-gray-800 border border-gray-300 rounded text-center"
+                        disabled={isDisabled}
+                        className={`w-10 px-1 py-0.5 text-xs font-mono border rounded text-center ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
                       />
                       <select
                         value={faceRoles[i] || ''}
+                        disabled={isDisabled}
                         onChange={(e) => {
                           const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
                           const newFaceRoles = { ...faceRoles, [i]: newRole };
@@ -283,7 +285,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             });
                           }
                         }}
-                        className="w-20 px-1 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
+                        className={`w-20 px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
                       >
                         <option value="">none</option>
                         {roleOptions.map(role => (
@@ -293,18 +295,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                       <input
                         type="text"
                         value={faceDescriptions[i] || ''}
+                        disabled={isDisabled}
                         onChange={(e) => {
                           const newDescriptions = { ...faceDescriptions, [i]: e.target.value };
                           updateShape(selectedShape.id, { faceDescriptions: newDescriptions });
                         }}
                         placeholder="description"
-                        className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded"
+                        className={`flex-1 px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
                       />
                       <input
                         type="checkbox"
                         checked={facePanels[i] || false}
+                        disabled={isDisabled}
                         onChange={() => handleTogglePanel(i)}
-                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+                        className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
                         title={`Toggle panel for face ${i + 1}`}
                       />
                     </div>
