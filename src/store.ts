@@ -543,11 +543,21 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   // Şekil silme
   deleteShape: (id) =>
-    set((state) => ({
-      shapes: state.shapes.filter((s) => s.id !== id),
-      // Eğer silinen şekil seçiliyse, seçimi kaldır
-      selectedShapeId: state.selectedShapeId === id ? null : state.selectedShapeId
-    })),
+    set((state) => {
+      const childPanelIds = state.shapes
+        .filter(s => s.type === 'panel' && s.parameters?.parentShapeId === id)
+        .map(s => s.id);
+
+      const allIdsToDelete = new Set([id, ...childPanelIds]);
+
+      console.log(`🗑️ Deleting shape ${id} and ${childPanelIds.length} child panels`);
+
+      return {
+        shapes: state.shapes.filter((s) => !allIdsToDelete.has(s.id)),
+        selectedShapeId: allIdsToDelete.has(state.selectedShapeId || '') ? null : state.selectedShapeId,
+        secondarySelectedShapeId: allIdsToDelete.has(state.secondarySelectedShapeId || '') ? null : state.secondarySelectedShapeId
+      };
+    }),
 
   // Kopyalama: Orijinal şeklin 100 birim ötesinde bir klon oluşturur
   copyShape: (id) => {
