@@ -8,7 +8,7 @@ interface RoleLabelsProps {
   isActive: boolean;
 }
 
-export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
+export const RoleLabels: React.FC<RoleLabelsProps> = React.memo(({ shape, isActive }) => {
   const faceLabels = useMemo(() => {
     if (!isActive || !shape.geometry) return [];
 
@@ -44,9 +44,11 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
           center
           occlude={false}
           zIndexRange={[0, 0]}
+          distanceFactor={10}
           style={{
             pointerEvents: 'none',
-            userSelect: 'none'
+            userSelect: 'none',
+            willChange: 'transform'
           }}
         >
           <div
@@ -71,4 +73,13 @@ export const RoleLabels: React.FC<RoleLabelsProps> = ({ shape, isActive }) => {
       ))}
     </>
   );
-};
+}, (prevProps, nextProps) => {
+  return (
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.shape.id === nextProps.shape.id &&
+    prevProps.shape.geometry?.uuid === nextProps.shape.geometry?.uuid &&
+    JSON.stringify(prevProps.shape.faceRoles) === JSON.stringify(nextProps.shape.faceRoles)
+  );
+});
+
+RoleLabels.displayName = 'RoleLabels';

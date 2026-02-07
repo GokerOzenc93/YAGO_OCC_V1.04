@@ -62,13 +62,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
       const shouldUpdate = (shape.geometry && shape.geometry !== localGeometry) || hasVertexMods;
 
       if (shouldUpdate && shape.geometry) {
-        console.log(`🔄 Geometry update for shape ${shape.id}`, { hasVertexMods, vertexModCount: shape.vertexModifications?.length || 0 });
 
         let geom = shape.geometry.clone();
 
         if (hasVertexMods) {
-          console.log(`🔧 Applying ${shape.vertexModifications.length} vertex modifications to geometry`);
-
           const positionAttribute = geom.getAttribute('position');
           const positions = positionAttribute.array as Float32Array;
 
@@ -89,16 +86,12 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           let baseVertices: THREE.Vector3[] = [];
 
           if (shape.parameters?.scaledBaseVertices && shape.parameters.scaledBaseVertices.length > 0) {
-            console.log('📍 Using pre-computed scaled base vertices for vertex modifications...');
             baseVertices = shape.parameters.scaledBaseVertices.map((v: number[]) =>
               new THREE.Vector3(v[0], v[1], v[2])
             );
-            console.log(`✅ Loaded ${baseVertices.length} scaled base vertices for modifications`);
           } else if (shape.replicadShape) {
-            console.log('📍 Loading base vertices from replicadShape...');
             baseVertices = await getReplicadVertices(shape.replicadShape);
           } else if (shape.type === 'box' && shape.parameters) {
-            console.log('📦 Loading base vertices from box parameters...');
             baseVertices = getBoxVertices(
               shape.parameters.width,
               shape.parameters.height,
@@ -108,28 +101,17 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
 
           shape.vertexModifications.forEach((mod: any) => {
             const baseVertex = baseVertices[mod.vertexIndex];
-            if (!baseVertex) {
-              console.warn(`⚠️ Base vertex ${mod.vertexIndex} not found`);
-              return;
-            }
+            if (!baseVertex) return;
 
             const key = `${Math.round(baseVertex.x * 100) / 100},${Math.round(baseVertex.y * 100) / 100},${Math.round(baseVertex.z * 100) / 100}`;
             const indices = vertexMap.get(key);
 
             if (indices) {
-              console.log(`✅ Applying modification to vertex ${mod.vertexIndex}:`, {
-                baseVertexPos: [baseVertex.x.toFixed(1), baseVertex.y.toFixed(1), baseVertex.z.toFixed(1)],
-                targetPos: [mod.newPosition[0].toFixed(1), mod.newPosition[1].toFixed(1), mod.newPosition[2].toFixed(1)],
-                affectedMeshVertices: indices.length
-              });
-
               indices.forEach(idx => {
                 positions[idx] = mod.newPosition[0];
                 positions[idx + 1] = mod.newPosition[1];
                 positions[idx + 2] = mod.newPosition[2];
               });
-            } else {
-              console.warn(`⚠️ No mesh vertices found for base vertex ${mod.vertexIndex} at position [${baseVertex.x.toFixed(1)}, ${baseVertex.y.toFixed(1)}, ${baseVertex.z.toFixed(1)}] (key: ${key})`);
             }
           });
 
@@ -147,7 +129,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
       }
 
       if (shape.parameters?.modified && shape.geometry) {
-        console.log(`🔄 Using CSG-modified geometry for shape ${shape.id}`);
         let geom = shape.geometry.clone();
 
         geom.computeVertexNormals();
@@ -218,8 +199,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           const finalPosition = groupRef.current.position.toArray() as [number, number, number];
           const finalRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
           const finalScale = groupRef.current.scale.toArray() as [number, number, number];
-
-          console.log('🎯 Transform COMPLETED - Final position:', finalPosition);
 
           isUpdatingRef.current = true;
           updateShape(shape.id, {
