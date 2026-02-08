@@ -118,7 +118,13 @@ interface DirectionalFaceInfo {
   direction: THREE.Vector3;
 }
 
-function getDoorFrontDirections(parentShapeId: string): THREE.Vector3[] {
+interface DoorFaceRegion {
+  direction: THREE.Vector3;
+  widthMin: number;
+  widthMax: number;
+}
+
+function getDoorFaceRegions(parentShapeId: string): DoorFaceRegion[] {
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
   if (!parentShape?.geometry) return [];
@@ -135,7 +141,7 @@ function getDoorFrontDirections(parentShapeId: string): THREE.Vector3[] {
   const faces = extractFacesFromGeometry(parentShape.geometry);
   const groups = groupCoplanarFaces(faces);
 
-  const directions: THREE.Vector3[] = [];
+  const regions: DoorFaceRegion[] = [];
 
   for (const groupIdx of doorGroupIndices) {
     if (groupIdx >= groups.length) continue;
@@ -147,21 +153,31 @@ function getDoorFrontDirections(parentShapeId: string): THREE.Vector3[] {
     const absZ = Math.abs(normal.z);
 
     let dir: THREE.Vector3;
+    let isXDir: boolean;
     if (absX > absY && absX > absZ) {
       dir = new THREE.Vector3(Math.sign(normal.x), 0, 0);
+      isXDir = true;
     } else if (absZ > absY) {
       dir = new THREE.Vector3(0, 0, Math.sign(normal.z));
+      isXDir = false;
     } else {
       continue;
     }
 
-    const isDuplicate = directions.some(d => d.dot(dir) > 0.9);
-    if (!isDuplicate) {
-      directions.push(dir);
+    let wMin = Infinity, wMax = -Infinity;
+    for (const faceIdx of group.faceIndices) {
+      const face = faces[faceIdx];
+      for (const v of face.vertices) {
+        const w = isXDir ? v.z : v.x;
+        if (w < wMin) wMin = w;
+        if (w > wMax) wMax = w;
+      }
     }
+
+    regions.push({ direction: dir, widthMin: wMin, widthMax: wMax });
   }
 
-  return directions;
+  return regions;
 }
 
 function analyzeFacesInDirection(
@@ -290,17 +306,34 @@ function createFrontBazaPanels(
   );
   if (!bottomPanel?.geometry) return;
 
-  const frontDirections = getDoorFrontDirections(parentShapeId);
+  const doorRegions = getDoorFaceRegions(parentShapeId);
+  if (doorRegions.length === 0) return;
+
+  const uniqueDirections: THREE.Vector3[] = [];
+  for (const region of doorRegions) {
+    if (!uniqueDirections.some(d => d.dot(region.direction) > 0.9)) {
+      uniqueDirections.push(region.direction);
+    }
+  }
+
   const panelThickness = 18;
   const newShapes: any[] = [];
   const timestamp = Date.now();
   let counter = 0;
+  const overlapTolerance = 5;
 
-  for (const dir of frontDirections) {
+  for (const dir of uniqueDirections) {
     const faces = analyzeFacesInDirection(bottomPanel.geometry, dir, panelThickness);
     const isXDir = Math.abs(dir.x) > 0.5;
+    const dirRegions = doorRegions.filter(r => r.direction.dot(dir) > 0.9);
 
     for (const face of faces) {
+      const hasMatchingDoor = dirRegions.some(door =>
+        face.widthMin < door.widthMax + overlapTolerance &&
+        face.widthMax > door.widthMin - overlapTolerance
+      );
+      if (!hasMatchingDoor) continue;
+
       const bazaWidth = face.width;
       const widthCenter = (face.widthMin + face.widthMax) / 2;
 
