@@ -453,7 +453,9 @@ export function findFaceByDescriptor(
     }
   }
 
-  if (!bestMatch) {
+  if (bestMatch) {
+    console.log(`Face match - Score: ${bestScore.toFixed(4)}, AxisDir: ${targetAxisDir}, Normal: [${descriptor.normal.map(n => n.toFixed(2)).join(', ')}]`);
+  } else {
     console.warn(`No face match found for normal: [${descriptor.normal.map(n => n.toFixed(2)).join(', ')}], AxisDir: ${targetAxisDir}`);
   }
 
@@ -486,10 +488,15 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   useEffect(() => {
     if (!shape.geometry) return;
 
+    console.log('🔍 Extracting faces from geometry...', geometryUuid);
     const extractedFaces = extractFacesFromGeometry(shape.geometry);
+    console.log(`✅ Extracted ${extractedFaces.length} faces`);
+
     setFaces(extractedFaces);
 
     const groups = groupCoplanarFaces(extractedFaces);
+    console.log(`✅ Grouped into ${groups.length} coplanar face groups`);
+
     setFaceGroups(groups);
   }, [shape.geometry, shape.id, geometryUuid]);
 
@@ -502,9 +509,17 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
           normal: [group.normal.x, group.normal.y, group.normal.z],
           center: [group.center.x, group.center.y, group.center.z]
         });
+        console.log(`✅ Fillet face ${selectedFilletFaces.length + 1} selected:`, groupIndex);
+        console.log('   Normal:', [group.normal.x.toFixed(2), group.normal.y.toFixed(2), group.normal.z.toFixed(2)]);
+        console.log('   Center:', [group.center.x.toFixed(2), group.center.y.toFixed(2), group.center.z.toFixed(2)]);
+
+        if (selectedFilletFaces.length === 1) {
+          console.log('🎯 Two faces selected! Ready for fillet operation. Enter radius in terminal.');
+        }
       }
     } else {
       setSelectedFaceIndex(groupIndex);
+      console.log('✅ Face group selected:', groupIndex);
     }
   };
 
