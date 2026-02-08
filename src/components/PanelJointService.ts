@@ -184,66 +184,41 @@ async function generateFrontBazaPanels(
 
   console.log('BAZA: parentGroups:', parentGroups.length, 'faceRoles:', JSON.stringify(parentShape.faceRoles));
 
-  const doorNormals: THREE.Vector3[] = [];
-  for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
-    if (role !== 'Door') continue;
-    const idx = parseInt(indexStr);
-    if (idx >= parentGroups.length) {
-      console.log('BAZA: Door faceRole index', idx, 'out of range (groups:', parentGroups.length, ')');
-      continue;
-    }
-    const n = parentGroups[idx].normal.clone().normalize();
-    console.log('BAZA: Door normal at group', idx, ':', n.x.toFixed(3), n.y.toFixed(3), n.z.toFixed(3));
-    doorNormals.push(n);
-  }
-
-  if (doorNormals.length === 0) {
-    console.log('BAZA: no Door normals found');
+  const hasDoorRole = Object.values(parentShape.faceRoles).some(r => r === 'Door');
+  if (!hasDoorRole) {
+    console.log('BAZA: no Door faceRoles found');
     return;
   }
 
-  const bottomPanels = state.shapes.filter(
-    s => s.type === 'panel' &&
-    s.parameters?.parentShapeId === parentShapeId &&
-    s.parameters?.faceRole === 'Bottom' &&
-    !s.parameters?.isBaza
-  );
-
-  console.log('BAZA: bottomPanels:', bottomPanels.length);
-  if (bottomPanels.length === 0) return;
-
   const panelThickness = 18;
   const newShapes: any[] = [];
+  const processedDirs: string[] = [];
 
-  const combinedBbox = new THREE.Box3();
-  for (const bp of bottomPanels) {
-    if (!bp.geometry) continue;
-    const bpBbox = new THREE.Box3();
-    const pos = bp.geometry.attributes.position;
-    for (let i = 0; i < pos.count; i++) {
-      const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
-      bpBbox.expandByPoint(v);
-    }
-    combinedBbox.union(bpBbox);
-  }
+  for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
+    if (role !== 'Door') continue;
+    const idx = parseInt(indexStr);
+    if (idx >= parentGroups.length) continue;
 
-  const bboxSize = new THREE.Vector3();
-  combinedBbox.getSize(bboxSize);
-  console.log('BAZA: combined bottom bbox min:', combinedBbox.min.x.toFixed(1), combinedBbox.min.y.toFixed(1), combinedBbox.min.z.toFixed(1),
-    'max:', combinedBbox.max.x.toFixed(1), combinedBbox.max.y.toFixed(1), combinedBbox.max.z.toFixed(1),
-    'size:', bboxSize.x.toFixed(1), bboxSize.y.toFixed(1), bboxSize.z.toFixed(1));
+    const doorGroup = parentGroups[idx];
+    const doorNormal = doorGroup.normal.clone().normalize();
 
-  const uniqueDoorNormals: THREE.Vector3[] = [];
-  for (const dn of doorNormals) {
-    const isDuplicate = uniqueDoorNormals.some(existing => existing.dot(dn) > 0.9);
-    if (!isDuplicate) uniqueDoorNormals.push(dn);
-  }
+    const dirKey = `${Math.round(doorNormal.x)}_${Math.round(doorNormal.y)}_${Math.round(doorNormal.z)}`;
+    if (processedDirs.includes(dirKey)) continue;
+    processedDirs.push(dirKey);
 
-  console.log('BAZA: unique door normals:', uniqueDoorNormals.length);
+    const doorVertices: THREE.Vector3[] = [];
+    doorGroup.faceIndices.forEach(fi => {
+      parentFaces[fi].vertices.forEach(v => doorVertices.push(v.clone()));
+    });
+    const doorBbox = new THREE.Box3().setFromPoints(doorVertices);
+    const doorSize = new THREE.Vector3();
+    doorBbox.getSize(doorSize);
 
-  for (const doorNormal of uniqueDoorNormals) {
+    console.log('BAZA: Door face bbox min:', doorBbox.min.x.toFixed(1), doorBbox.min.y.toFixed(1), doorBbox.min.z.toFixed(1),
+      'max:', doorBbox.max.x.toFixed(1), doorBbox.max.y.toFixed(1), doorBbox.max.z.toFixed(1),
+      'size:', doorSize.x.toFixed(1), doorSize.y.toFixed(1), doorSize.z.toFixed(1));
+
     const absNx = Math.abs(doorNormal.x);
-    const absNy = Math.abs(doorNormal.y);
     const absNz = Math.abs(doorNormal.z);
 
     let bazaWidth: number;
@@ -251,38 +226,33 @@ async function generateFrontBazaPanels(
     let translateX: number;
     let translateZ: number;
 
-    if (absNz >= absNx && absNz >= absNy && absNz > 0.5) {
-      bazaWidth = bboxSize.x;
+    if (absNz >= absNx && absNz > 0.5) {
+      bazaWidth = doorSize.x;
       bazaDepth = panelThickness;
-      translateX = combinedBbox.min.x;
-
+      translateX = doorBbox.min.x;
       if (doorNormal.z > 0) {
-        translateZ = combinedBbox.max.z - frontBaseDistance - panelThickness;
+        translateZ = doorBbox.min.z - frontBaseDistance - panelThickness;
       } else {
-        translateZ = combinedBbox.min.z + frontBaseDistance;
+        translateZ = doorBbox.max.z + frontBaseDistance;
       }
-    } else if (absNx >= absNz && absNx >= absNy && absNx > 0.5) {
+    } else if (absNx > 0.5) {
       bazaWidth = panelThickness;
-      bazaDepth = bboxSize.z;
-      translateZ = combinedBbox.min.z;
-
+      bazaDepth = doorSize.z;
+      translateZ = doorBbox.min.z;
       if (doorNormal.x > 0) {
-        translateX = combinedBbox.max.x - frontBaseDistance - panelThickness;
+        translateX = doorBbox.min.x - frontBaseDistance - panelThickness;
       } else {
-        translateX = combinedBbox.min.x + frontBaseDistance;
+        translateX = doorBbox.max.x + frontBaseDistance;
       }
     } else {
-      console.log('BAZA: door normal not aligned to axis, skipping:', doorNormal.x.toFixed(3), doorNormal.y.toFixed(3), doorNormal.z.toFixed(3));
+      console.log('BAZA: door normal not axis-aligned, skipping');
       continue;
     }
 
-    if (bazaWidth < 1 || bazaDepth < 1) {
-      console.log('BAZA: dimensions too small w:', bazaWidth, 'd:', bazaDepth, ', skipping');
-      continue;
-    }
+    if (bazaWidth < 1 || bazaDepth < 1) continue;
 
-    console.log('BAZA: creating baza from door normal', doorNormal.x.toFixed(3), doorNormal.y.toFixed(3), doorNormal.z.toFixed(3),
-      'w:', bazaWidth.toFixed(1), 'h:', bazaHeight, 'd:', bazaDepth.toFixed(1), 'tx:', translateX.toFixed(1), 'tz:', translateZ.toFixed(1));
+    console.log('BAZA: creating w:', bazaWidth.toFixed(1), 'h:', bazaHeight, 'd:', bazaDepth.toFixed(1),
+      'tx:', translateX.toFixed(1), 'tz:', translateZ.toFixed(1));
 
     try {
       const bazaBox = await createReplicadBox({
