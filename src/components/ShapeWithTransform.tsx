@@ -365,9 +365,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               receiveShadow
             >
               <meshStandardMaterial
-                color={isPanel ? shape.color || '#8b5cf6' : "#94b8d9"}
-                metalness={isPanel ? 0.3 : 0.1}
-                roughness={isPanel ? 0.4 : 0.6}
+                color={isPanel ? shape.color || '#ffffff' : "#94b8d9"}
+                emissive={isPanel ? (shape.color || '#ffffff') : undefined}
+                emissiveIntensity={isPanel ? 0.15 : 0}
+                metalness={isPanel ? 0 : 0.1}
+                roughness={isPanel ? 0.85 : 0.6}
                 transparent
                 opacity={hasPanels ? 0 : isPanel ? 1 : 0.12}
                 side={THREE.DoubleSide}
@@ -442,9 +444,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               receiveShadow
             >
               <meshStandardMaterial
-                color={isPanel ? shape.color || '#8b5cf6' : isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
-                metalness={isPanel ? 0.3 : 0.2}
-                roughness={isPanel ? 0.4 : 0.5}
+                color={isPanel ? shape.color || '#ffffff' : isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
+                emissive={isPanel ? (shape.color || '#ffffff') : undefined}
+                emissiveIntensity={isPanel ? 0.15 : 0}
+                metalness={isPanel ? 0 : 0.2}
+                roughness={isPanel ? 0.85 : 0.5}
                 transparent
                 opacity={hasPanels ? 0 : isPanel ? 1 : 0.25}
                 side={THREE.DoubleSide}

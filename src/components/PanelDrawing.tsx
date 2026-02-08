@@ -26,7 +26,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
 
   if (!shape.geometry) return null;
 
-  const panelColor = shape.color || '#8b5cf6';
+  const panelColor = shape.color || '#ffffff';
   const faceRole = shape.parameters?.faceRole;
 
   const getRoleColor = (role: string | undefined): string => {
@@ -68,8 +68,10 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
       >
         <meshStandardMaterial
           color={materialColor}
-          metalness={0.3}
-          roughness={0.4}
+          emissive={materialColor}
+          emissiveIntensity={0.15}
+          metalness={0}
+          roughness={0.85}
           transparent={false}
           opacity={1}
           side={THREE.DoubleSide}

@@ -143,7 +143,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         position: [...selectedShape.position] as [number, number, number],
         rotation: selectedShape.rotation,
         scale: [...selectedShape.scale] as [number, number, number],
-        color: '#8b5cf6',
+        color: '#ffffff',
         parameters: {
           width: 0,
           height: 0,
