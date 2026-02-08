@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, Environment } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, CameraType } from '../store';
 import ContextMenu from './ContextMenu';
@@ -525,16 +525,14 @@ const Scene: React.FC = () => {
 
       <CameraController controlsRef={controlsRef} cameraType={cameraType} />
 
-      <Environment preset="studio" background={false} />
-
-      <ambientLight intensity={0.6} />
-      <hemisphereLight intensity={0.4} groundColor="#888888" color="#ffffff" />
+      <ambientLight intensity={0.7} />
+      <hemisphereLight intensity={0.5} groundColor="#888888" color="#ffffff" />
       <directionalLight
         position={[2000, 3000, 2000]}
-        intensity={1.5}
+        intensity={1.6}
         castShadow
-        shadow-mapSize-width={4096}
-        shadow-mapSize-height={4096}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
         shadow-bias={-0.0001}
         shadow-camera-far={20000}
         shadow-camera-left={-5000}

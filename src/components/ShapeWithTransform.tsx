@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { TransformControls } from '@react-three/drei';
+import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore, Tool, ViewMode } from '../store';
 import { SubtractionMesh } from './SubtractionMesh';
@@ -37,6 +38,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     showRoleNumbers
   } = useAppStore();
 
+  const { scene } = useThree();
   const transformRef = useRef<any>(null);
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -195,54 +197,33 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           };
         }
 
-        if (!event.value && groupRef.current) {
+        if (!event.value && groupRef.current && initialTransformRef.current) {
           const finalPosition = groupRef.current.position.toArray() as [number, number, number];
           const finalRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
           const finalScale = groupRef.current.scale.toArray() as [number, number, number];
 
           isUpdatingRef.current = true;
+
           updateShape(shape.id, {
             position: finalPosition,
             rotation: finalRotation,
             scale: finalScale
           });
 
-          initialTransformRef.current = null;
-
-          requestAnimationFrame(() => {
-            isUpdatingRef.current = false;
-          });
-        }
-      };
-
-      const onChange = () => {
-        if (groupRef.current && isDragging && initialTransformRef.current) {
-          isUpdatingRef.current = true;
-
-          const currentPosition = groupRef.current.position.toArray() as [number, number, number];
-          const currentRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
-          const currentScale = groupRef.current.scale.toArray() as [number, number, number];
-
-          updateShape(shape.id, {
-            position: currentPosition,
-            rotation: currentRotation,
-            scale: currentScale
-          });
-
           const positionDelta: [number, number, number] = [
-            currentPosition[0] - initialTransformRef.current.position[0],
-            currentPosition[1] - initialTransformRef.current.position[1],
-            currentPosition[2] - initialTransformRef.current.position[2]
+            finalPosition[0] - initialTransformRef.current.position[0],
+            finalPosition[1] - initialTransformRef.current.position[1],
+            finalPosition[2] - initialTransformRef.current.position[2]
           ];
           const rotationDelta: [number, number, number] = [
-            currentRotation[0] - initialTransformRef.current.rotation[0],
-            currentRotation[1] - initialTransformRef.current.rotation[1],
-            currentRotation[2] - initialTransformRef.current.rotation[2]
+            finalRotation[0] - initialTransformRef.current.rotation[0],
+            finalRotation[1] - initialTransformRef.current.rotation[1],
+            finalRotation[2] - initialTransformRef.current.rotation[2]
           ];
           const scaleDelta: [number, number, number] = [
-            currentScale[0] / initialTransformRef.current.scale[0],
-            currentScale[1] / initialTransformRef.current.scale[1],
-            currentScale[2] / initialTransformRef.current.scale[2]
+            finalScale[0] / initialTransformRef.current.scale[0],
+            finalScale[1] / initialTransformRef.current.scale[1],
+            finalScale[2] / initialTransformRef.current.scale[2]
           ];
 
           initialTransformRef.current.childPanels.forEach((initialState, panelId) => {
@@ -264,6 +245,59 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               ]
             });
           });
+
+          initialTransformRef.current = null;
+
+          requestAnimationFrame(() => {
+            isUpdatingRef.current = false;
+          });
+        }
+      };
+
+      const onChange = () => {
+        if (groupRef.current && isDragging && initialTransformRef.current) {
+          isUpdatingRef.current = true;
+
+          const currentPosition = groupRef.current.position.toArray() as [number, number, number];
+          const currentRotation = groupRef.current.rotation.toArray().slice(0, 3) as [number, number, number];
+          const currentScale = groupRef.current.scale.toArray() as [number, number, number];
+
+          const positionDelta: [number, number, number] = [
+            currentPosition[0] - initialTransformRef.current.position[0],
+            currentPosition[1] - initialTransformRef.current.position[1],
+            currentPosition[2] - initialTransformRef.current.position[2]
+          ];
+          const rotationDelta: [number, number, number] = [
+            currentRotation[0] - initialTransformRef.current.rotation[0],
+            currentRotation[1] - initialTransformRef.current.rotation[1],
+            currentRotation[2] - initialTransformRef.current.rotation[2]
+          ];
+          const scaleDelta: [number, number, number] = [
+            currentScale[0] / initialTransformRef.current.scale[0],
+            currentScale[1] / initialTransformRef.current.scale[1],
+            currentScale[2] / initialTransformRef.current.scale[2]
+          ];
+
+          initialTransformRef.current.childPanels.forEach((initialState, panelId) => {
+            const childGroup = scene.getObjectByName(`shape-${panelId}`);
+            if (childGroup) {
+              childGroup.position.set(
+                initialState.position[0] + positionDelta[0],
+                initialState.position[1] + positionDelta[1],
+                initialState.position[2] + positionDelta[2]
+              );
+              childGroup.rotation.set(
+                initialState.rotation[0] + rotationDelta[0],
+                initialState.rotation[1] + rotationDelta[1],
+                initialState.rotation[2] + rotationDelta[2]
+              );
+              childGroup.scale.set(
+                initialState.scale[0] * scaleDelta[0],
+                initialState.scale[1] * scaleDelta[1],
+                initialState.scale[2] * scaleDelta[2]
+              );
+            }
+          });
         }
       };
 
@@ -275,7 +309,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         controls.removeEventListener('change', onChange);
       };
     }
-  }, [isSelected, shape.id, updateShape, orbitControlsRef, geometryKey]);
+  }, [isSelected, shape.id, updateShape, orbitControlsRef, geometryKey, scene]);
 
   const getTransformMode = () => {
     switch (activeTool) {
@@ -314,6 +348,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     <>
       <group
         ref={groupRef}
+        name={`shape-${shape.id}`}
         onClick={(e) => {
           e.stopPropagation();
           if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
@@ -364,15 +399,12 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               castShadow
               receiveShadow
             >
-              <meshPhysicalMaterial
+              <meshStandardMaterial
                 color={isPanel ? shape.color || '#ffffff' : "#94b8d9"}
                 emissive={isPanel ? (shape.color || '#ffffff') : undefined}
-                emissiveIntensity={isPanel ? 0.06 : 0}
+                emissiveIntensity={isPanel ? 0.1 : 0}
                 metalness={isPanel ? 0 : 0.1}
-                roughness={isPanel ? 0.35 : 0.6}
-                clearcoat={isPanel ? 0.12 : 0}
-                clearcoatRoughness={isPanel ? 0.25 : 0}
-                envMapIntensity={isPanel ? 0.5 : 0.3}
+                roughness={isPanel ? 0.4 : 0.6}
                 transparent
                 opacity={hasPanels ? 0 : isPanel ? 1 : 0.12}
                 side={THREE.DoubleSide}
@@ -446,15 +478,12 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               castShadow
               receiveShadow
             >
-              <meshPhysicalMaterial
+              <meshStandardMaterial
                 color={isPanel ? shape.color || '#ffffff' : isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
                 emissive={isPanel ? (shape.color || '#ffffff') : undefined}
-                emissiveIntensity={isPanel ? 0.06 : 0}
+                emissiveIntensity={isPanel ? 0.1 : 0}
                 metalness={isPanel ? 0 : 0.2}
-                roughness={isPanel ? 0.35 : 0.5}
-                clearcoat={isPanel ? 0.12 : 0}
-                clearcoatRoughness={isPanel ? 0.25 : 0}
-                envMapIntensity={isPanel ? 0.5 : 0.3}
+                roughness={isPanel ? 0.4 : 0.5}
                 transparent
                 opacity={hasPanels ? 0 : isPanel ? 1 : 0.25}
                 side={THREE.DoubleSide}

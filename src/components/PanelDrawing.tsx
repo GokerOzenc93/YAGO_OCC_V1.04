@@ -56,6 +56,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
 
   return (
     <group
+      name={`shape-${shape.id}`}
       position={shape.position}
       rotation={shape.rotation}
       scale={shape.scale}
@@ -66,15 +67,12 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         castShadow
         receiveShadow
       >
-        <meshPhysicalMaterial
+        <meshStandardMaterial
           color={materialColor}
           emissive={materialColor}
-          emissiveIntensity={0.06}
+          emissiveIntensity={0.1}
           metalness={0}
-          roughness={0.35}
-          clearcoat={0.12}
-          clearcoatRoughness={0.25}
-          envMapIntensity={0.5}
+          roughness={0.4}
           transparent={false}
           opacity={1}
           side={THREE.DoubleSide}
