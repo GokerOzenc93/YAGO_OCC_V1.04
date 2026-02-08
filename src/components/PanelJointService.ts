@@ -214,141 +214,106 @@ async function generateFrontBazaPanels(
 
   const panelThickness = 18;
   const newShapes: any[] = [];
-  const usedDoorDirections: string[] = [];
 
-  for (const bottomPanel of bottomPanels) {
-    if (!bottomPanel.geometry) continue;
+  const combinedBbox = new THREE.Box3();
+  for (const bp of bottomPanels) {
+    if (!bp.geometry) continue;
+    const bpBbox = new THREE.Box3();
+    const pos = bp.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const v = new THREE.Vector3(pos.getX(i), pos.getY(i), pos.getZ(i));
+      bpBbox.expandByPoint(v);
+    }
+    combinedBbox.union(bpBbox);
+  }
 
-    const faces = extractFacesFromGeometry(bottomPanel.geometry);
-    const groups = groupCoplanarFaces(faces);
+  const bboxSize = new THREE.Vector3();
+  combinedBbox.getSize(bboxSize);
+  console.log('BAZA: combined bottom bbox min:', combinedBbox.min.x.toFixed(1), combinedBbox.min.y.toFixed(1), combinedBbox.min.z.toFixed(1),
+    'max:', combinedBbox.max.x.toFixed(1), combinedBbox.max.y.toFixed(1), combinedBbox.max.z.toFixed(1),
+    'size:', bboxSize.x.toFixed(1), bboxSize.y.toFixed(1), bboxSize.z.toFixed(1));
 
-    console.log('BAZA: bottom panel has', groups.length, 'face groups');
+  const uniqueDoorNormals: THREE.Vector3[] = [];
+  for (const dn of doorNormals) {
+    const isDuplicate = uniqueDoorNormals.some(existing => existing.dot(dn) > 0.9);
+    if (!isDuplicate) uniqueDoorNormals.push(dn);
+  }
 
-    for (const group of groups) {
-      const normal = group.normal.clone().normalize();
+  console.log('BAZA: unique door normals:', uniqueDoorNormals.length);
 
-      const matchedDoorIdx = doorNormals.findIndex(dn => normal.dot(dn) > 0.9);
-      if (matchedDoorIdx === -1) continue;
+  for (const doorNormal of uniqueDoorNormals) {
+    const absNx = Math.abs(doorNormal.x);
+    const absNy = Math.abs(doorNormal.y);
+    const absNz = Math.abs(doorNormal.z);
 
-      const dirKey = `${Math.round(normal.x)}_${Math.round(normal.y)}_${Math.round(normal.z)}`;
-      if (usedDoorDirections.includes(dirKey)) {
-        console.log('BAZA: direction', dirKey, 'already used, skipping duplicate');
-        continue;
+    let bazaWidth: number;
+    let bazaDepth: number;
+    let translateX: number;
+    let translateZ: number;
+
+    if (absNz >= absNx && absNz >= absNy && absNz > 0.5) {
+      bazaWidth = bboxSize.x;
+      bazaDepth = panelThickness;
+      translateX = combinedBbox.min.x;
+
+      if (doorNormal.z > 0) {
+        translateZ = combinedBbox.max.z - frontBaseDistance - panelThickness;
+      } else {
+        translateZ = combinedBbox.min.z + frontBaseDistance;
       }
+    } else if (absNx >= absNz && absNx >= absNy && absNx > 0.5) {
+      bazaWidth = panelThickness;
+      bazaDepth = bboxSize.z;
+      translateZ = combinedBbox.min.z;
 
-      console.log('BAZA: found Door-facing face, normal:', normal.x.toFixed(3), normal.y.toFixed(3), normal.z.toFixed(3));
+      if (doorNormal.x > 0) {
+        translateX = combinedBbox.max.x - frontBaseDistance - panelThickness;
+      } else {
+        translateX = combinedBbox.min.x + frontBaseDistance;
+      }
+    } else {
+      console.log('BAZA: door normal not aligned to axis, skipping:', doorNormal.x.toFixed(3), doorNormal.y.toFixed(3), doorNormal.z.toFixed(3));
+      continue;
+    }
 
-      const vertices: THREE.Vector3[] = [];
-      group.faceIndices.forEach(idx => {
-        const face = faces[idx];
-        face.vertices.forEach(v => vertices.push(v.clone()));
+    if (bazaWidth < 1 || bazaDepth < 1) {
+      console.log('BAZA: dimensions too small w:', bazaWidth, 'd:', bazaDepth, ', skipping');
+      continue;
+    }
+
+    console.log('BAZA: creating baza from door normal', doorNormal.x.toFixed(3), doorNormal.y.toFixed(3), doorNormal.z.toFixed(3),
+      'w:', bazaWidth.toFixed(1), 'h:', bazaHeight, 'd:', bazaDepth.toFixed(1), 'tx:', translateX.toFixed(1), 'tz:', translateZ.toFixed(1));
+
+    try {
+      const bazaBox = await createReplicadBox({
+        width: bazaWidth,
+        height: bazaHeight,
+        depth: bazaDepth
       });
 
-      const bbox = new THREE.Box3().setFromPoints(vertices);
-      const size = new THREE.Vector3();
-      bbox.getSize(size);
+      const positioned = bazaBox.translate(translateX, 0, translateZ);
+      const geometry = convertReplicadToThreeGeometry(positioned);
 
-      console.log('BAZA: face bbox min:', bbox.min.x.toFixed(1), bbox.min.y.toFixed(1), bbox.min.z.toFixed(1),
-        'max:', bbox.max.x.toFixed(1), bbox.max.y.toFixed(1), bbox.max.z.toFixed(1),
-        'size:', size.x.toFixed(1), size.y.toFixed(1), size.z.toFixed(1));
-
-      if (size.y < 5 || size.y > 30) {
-        console.log('BAZA: face height', size.y.toFixed(1), 'out of range, skipping');
-        continue;
-      }
-
-      const dimensions = [size.x, size.y, size.z].sort((a, b) => a - b);
-      const thickness = dimensions[0];
-      const width = dimensions[1];
-      const length = dimensions[2];
-
-      if (thickness > panelThickness + 5) {
-        console.log('BAZA: smallest dimension', thickness.toFixed(1), 'mm too large to be panel edge, skipping');
-        continue;
-      }
-
-      const faceArea = width * length;
-      if (faceArea < 1000) {
-        console.log('BAZA: face area', faceArea.toFixed(1), 'mm² too small, skipping');
-        continue;
-      }
-
-      console.log('BAZA: valid face area:', faceArea.toFixed(1), 'mm²');
-
-      const absNx = Math.abs(normal.x);
-      const absNy = Math.abs(normal.y);
-      const absNz = Math.abs(normal.z);
-
-      let bazaWidth: number;
-      let bazaDepth: number;
-      let translateX: number;
-      let translateZ: number;
-
-      if (absNz >= absNx && absNz >= absNy && absNz > 0.5) {
-        bazaWidth = size.x;
-        bazaDepth = panelThickness;
-        translateX = bbox.min.x;
-
-        if (normal.z > 0) {
-          translateZ = bbox.max.z - frontBaseDistance - panelThickness;
-        } else {
-          translateZ = bbox.min.z + frontBaseDistance;
-        }
-      } else if (absNx >= absNz && absNx >= absNy && absNx > 0.5) {
-        bazaWidth = panelThickness;
-        bazaDepth = size.z;
-        translateZ = bbox.min.z;
-
-        if (normal.x > 0) {
-          translateX = bbox.max.x - frontBaseDistance - panelThickness;
-        } else {
-          translateX = bbox.min.x + frontBaseDistance;
-        }
-      } else {
-        console.log('BAZA: face normal not aligned to axis, skipping');
-        continue;
-      }
-
-      if (bazaWidth < 1) {
-        console.log('BAZA: bazaWidth', bazaWidth, 'too small, skipping');
-        continue;
-      }
-
-      console.log('BAZA: creating baza w:', bazaWidth, 'h:', bazaHeight, 'd:', bazaDepth, 'tx:', translateX, 'tz:', translateZ);
-
-      usedDoorDirections.push(dirKey);
-
-      try {
-        const bazaBox = await createReplicadBox({
+      newShapes.push({
+        id: `baza-front-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: 'panel',
+        geometry,
+        replicadShape: positioned,
+        position: [parentShape.position[0], parentShape.position[1], parentShape.position[2]] as [number, number, number],
+        rotation: parentShape.rotation,
+        scale: [...parentShape.scale] as [number, number, number],
+        color: '#ffffff',
+        parameters: {
+          parentShapeId,
+          isBaza: true,
+          bazaType: 'front',
           width: bazaWidth,
           height: bazaHeight,
           depth: bazaDepth
-        });
-
-        const positioned = bazaBox.translate(translateX, 0, translateZ);
-        const geometry = convertReplicadToThreeGeometry(positioned);
-
-        newShapes.push({
-          id: `baza-front-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: 'panel',
-          geometry,
-          replicadShape: positioned,
-          position: [parentShape.position[0], parentShape.position[1], parentShape.position[2]] as [number, number, number],
-          rotation: parentShape.rotation,
-          scale: [...parentShape.scale] as [number, number, number],
-          color: '#ffffff',
-          parameters: {
-            parentShapeId,
-            isBaza: true,
-            bazaType: 'front',
-            width: bazaWidth,
-            height: bazaHeight,
-            depth: bazaDepth
-          }
-        });
-      } catch (err) {
-        console.error('BAZA: failed to create:', err);
-      }
+        }
+      });
+    } catch (err) {
+      console.error('BAZA: failed to create:', err);
     }
   }
 
