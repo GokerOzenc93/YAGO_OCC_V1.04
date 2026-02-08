@@ -31,7 +31,7 @@ export const RoleLabels: React.FC<RoleLabelsProps> = React.memo(({ shape, isActi
         hasRole: !!role
       };
     });
-  }, [shape.geometry, shape.faceRoles, isActive, shape.id]);
+  }, [shape.geometry?.uuid, JSON.stringify(shape.faceRoles), isActive]);
 
   if (!isActive || faceLabels.length === 0) return null;
 
@@ -72,13 +72,6 @@ export const RoleLabels: React.FC<RoleLabelsProps> = React.memo(({ shape, isActi
         </Html>
       ))}
     </>
-  );
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.isActive === nextProps.isActive &&
-    prevProps.shape.id === nextProps.shape.id &&
-    prevProps.shape.geometry?.uuid === nextProps.shape.geometry?.uuid &&
-    JSON.stringify(prevProps.shape.faceRoles) === JSON.stringify(nextProps.shape.faceRoles)
   );
 });
 
