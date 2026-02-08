@@ -254,6 +254,12 @@ async function generateFrontBazaPanels(
         continue;
       }
 
+      const faceArea = size.x * size.z;
+      if (faceArea < 1000) {
+        console.log('BAZA: face area', faceArea.toFixed(1), 'mm² too small, skipping');
+        continue;
+      }
+
       const absNx = Math.abs(normal.x);
       const absNy = Math.abs(normal.y);
       const absNz = Math.abs(normal.z);
