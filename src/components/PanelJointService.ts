@@ -71,13 +71,85 @@ export async function loadJointConfig(profileId: string): Promise<PanelJointConf
   return DEFAULT_CONFIG;
 }
 
+interface FullProfileSettings {
+  jointConfig: PanelJointConfig;
+  selectedBodyType: string | null;
+  bazaHeight: number;
+}
+
+async function loadFullProfileSettings(profileId: string): Promise<FullProfileSettings> {
+  try {
+    const settings = await globalSettingsService.getProfileSettings(profileId, 'panel_joint');
+    if (settings?.settings) {
+      const s = settings.settings as Record<string, unknown>;
+      return {
+        jointConfig: {
+          topLeftExpanded: Boolean(s.topLeftExpanded),
+          topRightExpanded: Boolean(s.topRightExpanded),
+          bottomLeftExpanded: Boolean(s.bottomLeftExpanded),
+          bottomRightExpanded: Boolean(s.bottomRightExpanded),
+        },
+        selectedBodyType: (s.selectedBodyType as string) || null,
+        bazaHeight: typeof s.bazaHeight === 'number' ? s.bazaHeight : 100,
+      };
+    }
+  } catch (err) {
+    console.error('Failed to load full profile settings:', err);
+  }
+  return {
+    jointConfig: DEFAULT_CONFIG,
+    selectedBodyType: null,
+    bazaHeight: 100,
+  };
+}
+
+function applyBazaOffset(parentShapeId: string, selectedBodyType: string | null, bazaHeight: number) {
+  const state = useAppStore.getState();
+  const parentShape = state.shapes.find(s => s.id === parentShapeId);
+  if (!parentShape) return;
+
+  const hasBottomPanels = state.shapes.some(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Bottom'
+  );
+  if (!hasBottomPanels) return;
+
+  const yOffset = selectedBodyType === 'bazali' ? bazaHeight : 0;
+
+  useAppStore.setState((st) => ({
+    shapes: st.shapes.map(s => {
+      if (s.type === 'panel' &&
+          s.parameters?.parentShapeId === parentShapeId &&
+          s.parameters?.faceRole === 'Bottom') {
+        const parent = st.shapes.find(p => p.id === parentShapeId);
+        if (!parent) return s;
+        return {
+          ...s,
+          position: [
+            parent.position[0],
+            parent.position[1] + yOffset,
+            parent.position[2]
+          ] as [number, number, number],
+          parameters: {
+            ...s.parameters,
+            bazaOffset: yOffset
+          }
+        };
+      }
+      return s;
+    })
+  }));
+}
+
 export async function resolveAllPanelJoints(
   parentShapeId: string,
   profileId: string,
   config?: PanelJointConfig
 ): Promise<void> {
   const state = useAppStore.getState();
-  const jointConfig = config || (await loadJointConfig(profileId));
+  const fullSettings = await loadFullProfileSettings(profileId);
+  const jointConfig = config || fullSettings.jointConfig;
 
   const panels = state.shapes.filter(
     (s) =>
@@ -90,6 +162,7 @@ export async function resolveAllPanelJoints(
 
   if (panels.length < 2) {
     await restoreSinglePanels(panels);
+    applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
     return;
   }
 
@@ -182,6 +255,8 @@ export async function resolveAllPanelJoints(
   } else {
     saveOriginalShapes(panels, parentShapeId);
   }
+
+  applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
 }
 
 export async function restoreAllPanels(parentShapeId: string): Promise<void> {
@@ -194,6 +269,7 @@ export async function restoreAllPanels(parentShapeId: string): Promise<void> {
       s.parameters?.originalReplicadShape
   );
   await restoreSinglePanels(panels);
+  applyBazaOffset(parentShapeId, null, 0);
 }
 
 async function restoreSinglePanels(panels: any[]) {
