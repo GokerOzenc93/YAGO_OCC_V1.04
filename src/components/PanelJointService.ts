@@ -214,6 +214,7 @@ async function generateFrontBazaPanels(
 
   const panelThickness = 18;
   const newShapes: any[] = [];
+  const usedDoorDirections: string[] = [];
 
   for (const bottomPanel of bottomPanels) {
     if (!bottomPanel.geometry) continue;
@@ -226,12 +227,14 @@ async function generateFrontBazaPanels(
     for (const group of groups) {
       const normal = group.normal.clone().normalize();
 
-      const matchesDoor = doorNormals.some(dn => {
-        const dot = normal.dot(dn);
-        return dot > 0.9;
-      });
+      const matchedDoorIdx = doorNormals.findIndex(dn => normal.dot(dn) > 0.9);
+      if (matchedDoorIdx === -1) continue;
 
-      if (!matchesDoor) continue;
+      const dirKey = `${Math.round(normal.x)}_${Math.round(normal.y)}_${Math.round(normal.z)}`;
+      if (usedDoorDirections.includes(dirKey)) {
+        console.log('BAZA: direction', dirKey, 'already used, skipping duplicate');
+        continue;
+      }
 
       console.log('BAZA: found Door-facing face, normal:', normal.x.toFixed(3), normal.y.toFixed(3), normal.z.toFixed(3));
 
@@ -312,6 +315,8 @@ async function generateFrontBazaPanels(
       }
 
       console.log('BAZA: creating baza w:', bazaWidth, 'h:', bazaHeight, 'd:', bazaDepth, 'tx:', translateX, 'tz:', translateZ);
+
+      usedDoorDirections.push(dirKey);
 
       try {
         const bazaBox = await createReplicadBox({
