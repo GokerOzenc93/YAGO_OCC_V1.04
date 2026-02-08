@@ -16,13 +16,21 @@ export const RoleLabels: React.FC<RoleLabelsProps> = React.memo(({ shape, isActi
     const faceGroups = groupCoplanarFaces(faces);
     const faceRoles = shape.faceRoles || {};
 
+    const bbox = new THREE.Box3().setFromBufferAttribute(
+      shape.geometry.getAttribute('position')
+    );
+    const size = new THREE.Vector3();
+    bbox.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const offsetAmount = Math.max(maxDim * 0.02, 2);
+
     return faceGroups.map((group, index) => {
       const role = faceRoles[index];
       const label = `${index + 1}`;
 
       const offsetPosition = new THREE.Vector3()
         .copy(group.center)
-        .add(group.normal.clone().multiplyScalar(0.01));
+        .add(group.normal.clone().multiplyScalar(offsetAmount));
 
       return {
         position: offsetPosition,
@@ -43,28 +51,28 @@ export const RoleLabels: React.FC<RoleLabelsProps> = React.memo(({ shape, isActi
           position={[item.position.x, item.position.y, item.position.z]}
           center
           occlude={false}
-          zIndexRange={[0, 0]}
-          distanceFactor={10}
+          zIndexRange={[100, 0]}
           style={{
             pointerEvents: 'none',
-            userSelect: 'none',
-            willChange: 'transform'
+            userSelect: 'none'
           }}
         >
           <div
             style={{
-              background: item.hasRole ? 'rgba(5, 150, 105, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-              color: item.hasRole ? 'white' : '#000',
-              width: '16px',
-              height: '16px',
+              background: item.hasRole ? 'rgba(5, 150, 105, 0.95)' : 'rgba(30, 41, 59, 0.9)',
+              color: 'white',
+              minWidth: '22px',
+              height: '22px',
               borderRadius: '50%',
-              fontSize: '9px',
+              fontSize: '11px',
               fontWeight: '700',
               fontFamily: 'system-ui, sans-serif',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: item.hasRole ? '1px solid rgba(255,255,255,0.5)' : '1px solid rgba(0,0,0,0.3)'
+              border: item.hasRole ? '2px solid rgba(255,255,255,0.7)' : '2px solid rgba(255,255,255,0.4)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+              padding: '0 2px'
             }}
           >
             {item.label}
