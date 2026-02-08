@@ -66,12 +66,15 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial
+        <meshPhysicalMaterial
           color={materialColor}
           emissive={materialColor}
-          emissiveIntensity={0.15}
+          emissiveIntensity={0.06}
           metalness={0}
-          roughness={0.85}
+          roughness={0.35}
+          clearcoat={0.12}
+          clearcoatRoughness={0.25}
+          envMapIntensity={0.5}
           transparent={false}
           opacity={1}
           side={THREE.DoubleSide}

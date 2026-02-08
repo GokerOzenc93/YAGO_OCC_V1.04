@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
+import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, CameraType } from '../store';
 import ContextMenu from './ContextMenu';
@@ -491,6 +491,11 @@ const Scene: React.FC = () => {
   };
 
   const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
+    gl.toneMapping = THREE.ACESFilmicToneMapping;
+    gl.toneMappingExposure = 1.0;
+    gl.shadowMap.type = THREE.PCFSoftShadowMap;
+    gl.outputColorSpace = THREE.SRGBColorSpace;
+
     const canvas = gl.domElement;
     canvas.addEventListener('webglcontextlost', (e) => {
       e.preventDefault();
@@ -520,25 +525,35 @@ const Scene: React.FC = () => {
 
       <CameraController controlsRef={controlsRef} cameraType={cameraType} />
 
-      <ambientLight intensity={0.8} />
-      <hemisphereLight intensity={0.5} groundColor="#666666" />
+      <Environment preset="studio" background={false} />
+
+      <ambientLight intensity={0.6} />
+      <hemisphereLight intensity={0.4} groundColor="#888888" color="#ffffff" />
       <directionalLight
         position={[2000, 3000, 2000]}
-        intensity={1.8}
+        intensity={1.5}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={4096}
+        shadow-mapSize-height={4096}
+        shadow-bias={-0.0001}
+        shadow-camera-far={20000}
+        shadow-camera-left={-5000}
+        shadow-camera-right={5000}
+        shadow-camera-top={5000}
+        shadow-camera-bottom={-5000}
       />
       <directionalLight
         position={[-1000, 1500, -1000]}
-        intensity={0.6}
+        intensity={0.5}
       />
       <directionalLight
         position={[0, 2000, -2000]}
-        intensity={0.5}
+        intensity={0.4}
       />
-      <pointLight position={[1000, 1500, 1000]} intensity={0.4} />
-      <pointLight position={[-1000, 1500, -1000]} intensity={0.3} />
+      <directionalLight
+        position={[500, 500, 3000]}
+        intensity={0.3}
+      />
 
       <OrbitControls
         ref={controlsRef}
