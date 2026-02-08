@@ -1,5 +1,6 @@
 import { globalSettingsService } from './GlobalSettingsDatabase';
 import { useAppStore, FaceRole } from '../store';
+import * as THREE from 'three';
 
 export interface PanelJointConfig {
   topLeftExpanded: boolean;
@@ -75,6 +76,7 @@ interface FullProfileSettings {
   jointConfig: PanelJointConfig;
   selectedBodyType: string | null;
   bazaHeight: number;
+  frontBaseDistance: number;
 }
 
 async function loadFullProfileSettings(profileId: string): Promise<FullProfileSettings> {
@@ -91,6 +93,7 @@ async function loadFullProfileSettings(profileId: string): Promise<FullProfileSe
         },
         selectedBodyType: (s.selectedBodyType as string) || null,
         bazaHeight: typeof s.bazaHeight === 'number' ? s.bazaHeight : 100,
+        frontBaseDistance: typeof s.frontBaseDistance === 'number' ? s.frontBaseDistance : 10,
       };
     }
   } catch (err) {
@@ -100,6 +103,7 @@ async function loadFullProfileSettings(profileId: string): Promise<FullProfileSe
     jointConfig: DEFAULT_CONFIG,
     selectedBodyType: null,
     bazaHeight: 100,
+    frontBaseDistance: 10,
   };
 }
 
@@ -142,6 +146,162 @@ function applyBazaOffset(parentShapeId: string, selectedBodyType: string | null,
   }));
 }
 
+function removeExistingBazaPanels(parentShapeId: string) {
+  const state = useAppStore.getState();
+  const bazaIds = state.shapes
+    .filter(s => s.type === 'panel' && s.parameters?.parentShapeId === parentShapeId && s.parameters?.isBaza)
+    .map(s => s.id);
+
+  if (bazaIds.length > 0) {
+    useAppStore.setState(st => ({
+      shapes: st.shapes.filter(s => !bazaIds.includes(s.id))
+    }));
+  }
+}
+
+async function generateFrontBazaPanels(
+  parentShapeId: string,
+  selectedBodyType: string | null,
+  bazaHeight: number,
+  frontBaseDistance: number
+) {
+  removeExistingBazaPanels(parentShapeId);
+
+  if (selectedBodyType !== 'bazali') return;
+
+  const state = useAppStore.getState();
+  const parentShape = state.shapes.find(s => s.id === parentShapeId);
+  if (!parentShape || !parentShape.geometry || !parentShape.faceRoles) return;
+
+  const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
+  const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+  const parentFaces = extractFacesFromGeometry(parentShape.geometry);
+  const parentGroups = groupCoplanarFaces(parentFaces);
+
+  const doorNormals: THREE.Vector3[] = [];
+  for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
+    if (role === 'Door') {
+      const idx = parseInt(indexStr);
+      if (idx < parentGroups.length) {
+        doorNormals.push(parentGroups[idx].normal.clone().normalize());
+      }
+    }
+  }
+
+  if (doorNormals.length === 0) return;
+
+  const bottomPanels = state.shapes.filter(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Bottom'
+  );
+
+  if (bottomPanels.length === 0) return;
+
+  const panelThickness = 18;
+  const newShapes: any[] = [];
+
+  for (const bottomPanel of bottomPanels) {
+    if (!bottomPanel.geometry) continue;
+
+    const faces = extractFacesFromGeometry(bottomPanel.geometry);
+    const groups = groupCoplanarFaces(faces);
+
+    for (const group of groups) {
+      const normal = group.normal.clone().normalize();
+
+      const matchesDoor = doorNormals.some(dn => normal.dot(dn) > 0.9);
+      if (!matchesDoor) continue;
+
+      const vertices: THREE.Vector3[] = [];
+      group.faceIndices.forEach(idx => {
+        const face = faces[idx];
+        face.vertices.forEach(v => vertices.push(v.clone()));
+      });
+
+      const bbox = new THREE.Box3().setFromPoints(vertices);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+
+      if (size.y < 5 || size.y > 30) continue;
+
+      const absNx = Math.abs(normal.x);
+      const absNz = Math.abs(normal.z);
+
+      let bazaWidth: number;
+      let bazaDepth: number;
+      let translateX: number;
+      let translateZ: number;
+
+      if (absNz > absNx && absNz > 0.9) {
+        bazaWidth = size.x;
+        bazaDepth = panelThickness;
+        translateX = bbox.min.x;
+
+        if (normal.z > 0) {
+          translateZ = bbox.max.z - frontBaseDistance - panelThickness;
+        } else {
+          continue;
+        }
+      } else if (absNx > absNz && absNx > 0.9) {
+        bazaWidth = panelThickness;
+        bazaDepth = size.z;
+        translateZ = bbox.min.z;
+
+        if (normal.x > 0) {
+          translateX = bbox.max.x - frontBaseDistance - panelThickness;
+        } else {
+          translateX = bbox.min.x + frontBaseDistance;
+        }
+      } else {
+        continue;
+      }
+
+      if (bazaWidth < 1 && bazaDepth < 1) continue;
+
+      try {
+        const bazaBox = await createReplicadBox({
+          width: bazaWidth,
+          height: bazaHeight,
+          depth: bazaDepth
+        });
+
+        const positioned = bazaBox.translate(translateX, 0, translateZ);
+        const geometry = convertReplicadToThreeGeometry(positioned);
+
+        newShapes.push({
+          id: `baza-front-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          type: 'panel',
+          geometry,
+          replicadShape: positioned,
+          position: [parentShape.position[0], parentShape.position[1], parentShape.position[2]] as [number, number, number],
+          rotation: parentShape.rotation,
+          scale: [...parentShape.scale] as [number, number, number],
+          color: '#ffffff',
+          parameters: {
+            parentShapeId,
+            isBaza: true,
+            bazaType: 'front',
+            width: bazaWidth,
+            height: bazaHeight,
+            depth: bazaDepth
+          }
+        });
+      } catch (err) {
+        console.error('Failed to create baza panel:', err);
+      }
+    }
+  }
+
+  if (newShapes.length > 0) {
+    useAppStore.setState(st => ({
+      shapes: [...st.shapes, ...newShapes]
+    }));
+    console.log(`Created ${newShapes.length} front baza panel(s)`);
+  }
+}
+
 export async function resolveAllPanelJoints(
   parentShapeId: string,
   profileId: string,
@@ -163,6 +323,7 @@ export async function resolveAllPanelJoints(
   if (panels.length < 2) {
     await restoreSinglePanels(panels);
     applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
+    await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
     return;
   }
 
@@ -257,6 +418,7 @@ export async function resolveAllPanelJoints(
   }
 
   applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
+  await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
 }
 
 export async function restoreAllPanels(parentShapeId: string): Promise<void> {
@@ -270,6 +432,7 @@ export async function restoreAllPanels(parentShapeId: string): Promise<void> {
   );
   await restoreSinglePanels(panels);
   applyBazaOffset(parentShapeId, null, 0);
+  removeExistingBazaPanels(parentShapeId);
 }
 
 async function restoreSinglePanels(panels: any[]) {
