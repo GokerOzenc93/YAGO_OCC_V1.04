@@ -172,7 +172,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         if (event.value && groupRef.current) {
           const allShapes = useAppStore.getState().shapes;
           const childPanels = allShapes.filter(
-            s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id
+            s => (s.type === 'panel' || s.type === 'baza') && s.parameters?.parentShapeId === shape.id
           );
 
           const childPanelMap = new Map<string, {
@@ -329,7 +329,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isSecondarySelected = shape.id === secondarySelectedShapeId;
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
-  const isPanel = shape.type === 'panel';
+  const isPanel = shape.type === 'panel' || shape.type === 'baza';
   const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
   const {

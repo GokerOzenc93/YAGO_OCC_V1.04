@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { globalSettingsService } from './GlobalSettingsDatabase';
 import { useAppStore, FaceRole } from '../store';
 
@@ -75,6 +76,7 @@ interface FullProfileSettings {
   jointConfig: PanelJointConfig;
   selectedBodyType: string | null;
   bazaHeight: number;
+  frontBaseDistance: number;
 }
 
 async function loadFullProfileSettings(profileId: string): Promise<FullProfileSettings> {
@@ -91,6 +93,7 @@ async function loadFullProfileSettings(profileId: string): Promise<FullProfileSe
         },
         selectedBodyType: (s.selectedBodyType as string) || null,
         bazaHeight: typeof s.bazaHeight === 'number' ? s.bazaHeight : 100,
+        frontBaseDistance: typeof s.frontBaseDistance === 'number' ? s.frontBaseDistance : 10,
       };
     }
   } catch (err) {
@@ -100,7 +103,159 @@ async function loadFullProfileSettings(profileId: string): Promise<FullProfileSe
     jointConfig: DEFAULT_CONFIG,
     selectedBodyType: null,
     bazaHeight: 100,
+    frontBaseDistance: 10,
   };
+}
+
+interface FrontFaceInfo {
+  zPosition: number;
+  xMin: number;
+  xMax: number;
+  yMin: number;
+  yMax: number;
+  width: number;
+}
+
+function analyzeFrontFaces(geometry: THREE.BufferGeometry, panelThickness: number = 18): FrontFaceInfo[] {
+  const position = geometry.getAttribute('position');
+  const index = geometry.getIndex();
+  const triangleCount = index ? index.count / 3 : position.count / 3;
+  const frontTriangles: Array<{ z: number; xMin: number; xMax: number; yMin: number; yMax: number }> = [];
+
+  for (let i = 0; i < triangleCount; i++) {
+    let i0: number, i1: number, i2: number;
+    if (index) {
+      i0 = index.getX(i * 3);
+      i1 = index.getX(i * 3 + 1);
+      i2 = index.getX(i * 3 + 2);
+    } else {
+      i0 = i * 3;
+      i1 = i * 3 + 1;
+      i2 = i * 3 + 2;
+    }
+
+    const v0x = position.getX(i0), v0y = position.getY(i0), v0z = position.getZ(i0);
+    const v1x = position.getX(i1), v1y = position.getY(i1), v1z = position.getZ(i1);
+    const v2x = position.getX(i2), v2y = position.getY(i2), v2z = position.getZ(i2);
+
+    const e1x = v1x - v0x, e1y = v1y - v0y, e1z = v1z - v0z;
+    const e2x = v2x - v0x, e2y = v2y - v0y, e2z = v2z - v0z;
+    const nx = e1y * e2z - e1z * e2y;
+    const ny = e1z * e2x - e1x * e2z;
+    const nz = e1x * e2y - e1y * e2x;
+    const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+    if (len < 0.001) continue;
+
+    if (nz / len > 0.9) {
+      frontTriangles.push({
+        z: (v0z + v1z + v2z) / 3,
+        xMin: Math.min(v0x, v1x, v2x),
+        xMax: Math.max(v0x, v1x, v2x),
+        yMin: Math.min(v0y, v1y, v2y),
+        yMax: Math.max(v0y, v1y, v2y),
+      });
+    }
+  }
+
+  if (frontTriangles.length === 0) return [];
+
+  const tolerance = 1;
+  const groups = new Map<number, typeof frontTriangles>();
+
+  for (const tri of frontTriangles) {
+    let assigned = false;
+    for (const [groupZ, group] of groups.entries()) {
+      if (Math.abs(tri.z - groupZ) < tolerance) {
+        group.push(tri);
+        assigned = true;
+        break;
+      }
+    }
+    if (!assigned) {
+      groups.set(tri.z, [tri]);
+    }
+  }
+
+  const result: FrontFaceInfo[] = [];
+
+  for (const [z, group] of groups.entries()) {
+    const xMin = Math.min(...group.map(t => t.xMin));
+    const xMax = Math.max(...group.map(t => t.xMax));
+    const yMin = Math.min(...group.map(t => t.yMin));
+    const yMax = Math.max(...group.map(t => t.yMax));
+    const yExtent = yMax - yMin;
+
+    if (Math.abs(yExtent - panelThickness) < 3) {
+      result.push({ zPosition: z, xMin, xMax, yMin, yMax, width: xMax - xMin });
+    }
+  }
+
+  return result;
+}
+
+function removeBazaShapes(parentShapeId: string) {
+  useAppStore.setState((st) => ({
+    shapes: st.shapes.filter(s =>
+      !(s.type === 'baza' && s.parameters?.parentShapeId === parentShapeId)
+    )
+  }));
+}
+
+function createFrontBazaPanels(
+  parentShapeId: string,
+  bazaHeight: number,
+  frontBaseDistance: number
+) {
+  const state = useAppStore.getState();
+  const bottomPanel = state.shapes.find(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Bottom'
+  );
+  if (!bottomPanel?.geometry) return;
+
+  const panelThickness = 18;
+  const frontFaces = analyzeFrontFaces(bottomPanel.geometry, panelThickness);
+  if (frontFaces.length === 0) return;
+
+  const newShapes: any[] = [];
+  const timestamp = Date.now();
+
+  for (let i = 0; i < frontFaces.length; i++) {
+    const face = frontFaces[i];
+    const bazaWidth = face.width;
+    const centerX = (face.xMin + face.xMax) / 2;
+    const geometry = new THREE.BoxGeometry(bazaWidth, bazaHeight, panelThickness);
+
+    const bazaPosition: [number, number, number] = [
+      bottomPanel.position[0] + centerX,
+      bottomPanel.position[1] + face.yMin - bazaHeight / 2,
+      bottomPanel.position[2] + face.zPosition - frontBaseDistance - panelThickness / 2
+    ];
+
+    newShapes.push({
+      id: `baza-front-${timestamp}-${i}`,
+      type: 'baza',
+      geometry,
+      position: bazaPosition,
+      rotation: [...bottomPanel.rotation] as [number, number, number],
+      scale: [1, 1, 1] as [number, number, number],
+      color: '#f5f5f4',
+      parameters: {
+        width: bazaWidth,
+        height: bazaHeight,
+        depth: panelThickness,
+        parentShapeId,
+        bazaType: 'front',
+      }
+    });
+  }
+
+  if (newShapes.length > 0) {
+    useAppStore.setState((st) => ({
+      shapes: [...st.shapes, ...newShapes]
+    }));
+  }
 }
 
 function applyBazaOffset(parentShapeId: string, selectedBodyType: string | null, bazaHeight: number) {
@@ -163,6 +318,10 @@ export async function resolveAllPanelJoints(
   if (panels.length < 2) {
     await restoreSinglePanels(panels);
     applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
+    removeBazaShapes(parentShapeId);
+    if (fullSettings.selectedBodyType === 'bazali' && fullSettings.bazaHeight > 0) {
+      createFrontBazaPanels(parentShapeId, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
+    }
     return;
   }
 
@@ -257,6 +416,11 @@ export async function resolveAllPanelJoints(
   }
 
   applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
+
+  removeBazaShapes(parentShapeId);
+  if (fullSettings.selectedBodyType === 'bazali' && fullSettings.bazaHeight > 0) {
+    createFrontBazaPanels(parentShapeId, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
+  }
 }
 
 export async function restoreAllPanels(parentShapeId: string): Promise<void> {
@@ -270,6 +434,7 @@ export async function restoreAllPanels(parentShapeId: string): Promise<void> {
   );
   await restoreSinglePanels(panels);
   applyBazaOffset(parentShapeId, null, 0);
+  removeBazaShapes(parentShapeId);
 }
 
 async function restoreSinglePanels(panels: any[]) {

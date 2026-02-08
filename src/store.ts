@@ -552,7 +552,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   deleteShape: (id) =>
     set((state) => {
       const childPanelIds = state.shapes
-        .filter(s => s.type === 'panel' && s.parameters?.parentShapeId === id)
+        .filter(s => (s.type === 'panel' || s.type === 'baza') && s.parameters?.parentShapeId === id)
         .map(s => s.id);
 
       const allIdsToDelete = new Set([id, ...childPanelIds]);
