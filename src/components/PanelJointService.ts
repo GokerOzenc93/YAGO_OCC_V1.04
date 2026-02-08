@@ -218,50 +218,82 @@ async function generateFrontBazaPanels(
   for (const bottomPanel of bottomPanels) {
     if (!bottomPanel.geometry) continue;
 
-    const posAttr = bottomPanel.geometry.getAttribute('position');
-    if (!posAttr) continue;
+    const faces = extractFacesFromGeometry(bottomPanel.geometry);
+    const groups = groupCoplanarFaces(faces);
 
-    const bbox = new THREE.Box3();
-    for (let i = 0; i < posAttr.count; i++) {
-      bbox.expandByPoint(new THREE.Vector3(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)));
-    }
-    const bpSize = new THREE.Vector3();
-    bbox.getSize(bpSize);
+    console.log('BAZA: bottom panel has', groups.length, 'face groups');
 
-    console.log('BAZA: bottom panel bbox min:', bbox.min.x.toFixed(1), bbox.min.y.toFixed(1), bbox.min.z.toFixed(1),
-      'max:', bbox.max.x.toFixed(1), bbox.max.y.toFixed(1), bbox.max.z.toFixed(1),
-      'size:', bpSize.x.toFixed(1), bpSize.y.toFixed(1), bpSize.z.toFixed(1));
+    for (const group of groups) {
+      const normal = group.normal.clone().normalize();
 
-    const processedDirs = new Set<string>();
+      const matchesDoor = doorNormals.some(dn => {
+        const dot = normal.dot(dn);
+        return dot > 0.9;
+      });
 
-    for (const doorNormal of doorNormals) {
-      const absNx = Math.abs(doorNormal.x);
-      const absNy = Math.abs(doorNormal.y);
-      const absNz = Math.abs(doorNormal.z);
+      if (!matchesDoor) continue;
+
+      console.log('BAZA: found Door-facing face, normal:', normal.x.toFixed(3), normal.y.toFixed(3), normal.z.toFixed(3));
+
+      const vertices: THREE.Vector3[] = [];
+      group.faceIndices.forEach(idx => {
+        const face = faces[idx];
+        face.vertices.forEach(v => vertices.push(v.clone()));
+      });
+
+      const bbox = new THREE.Box3().setFromPoints(vertices);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+
+      console.log('BAZA: face bbox min:', bbox.min.x.toFixed(1), bbox.min.y.toFixed(1), bbox.min.z.toFixed(1),
+        'max:', bbox.max.x.toFixed(1), bbox.max.y.toFixed(1), bbox.max.z.toFixed(1),
+        'size:', size.x.toFixed(1), size.y.toFixed(1), size.z.toFixed(1));
+
+      if (size.y < 5 || size.y > 30) {
+        console.log('BAZA: face height', size.y.toFixed(1), 'out of range, skipping');
+        continue;
+      }
+
+      const absNx = Math.abs(normal.x);
+      const absNy = Math.abs(normal.y);
+      const absNz = Math.abs(normal.z);
 
       let bazaWidth: number;
       let bazaDepth: number;
       let translateX: number;
       let translateZ: number;
-      let dirKey: string;
 
       if (absNz >= absNx && absNz >= absNy && absNz > 0.5) {
-        if (doorNormal.z <= 0) continue;
-        dirKey = '+z';
-        if (processedDirs.has(dirKey)) continue;
-        processedDirs.add(dirKey);
-
-        bazaWidth = bpSize.x;
+        bazaWidth = size.x;
         bazaDepth = panelThickness;
         translateX = bbox.min.x;
-        translateZ = bbox.max.z - frontBaseDistance - panelThickness;
+
+        if (normal.z > 0) {
+          translateZ = bbox.max.z - frontBaseDistance - panelThickness;
+        } else {
+          translateZ = bbox.min.z + frontBaseDistance;
+        }
+      } else if (absNx >= absNz && absNx >= absNy && absNx > 0.5) {
+        bazaWidth = panelThickness;
+        bazaDepth = size.z;
+        translateZ = bbox.min.z;
+
+        if (normal.x > 0) {
+          translateX = bbox.max.x - frontBaseDistance - panelThickness;
+        } else {
+          translateX = bbox.min.x + frontBaseDistance;
+        }
       } else {
+        console.log('BAZA: face normal not aligned to axis, skipping');
         continue;
       }
 
-      if (bazaWidth < 1) continue;
+      if (bazaWidth < 1) {
+        console.log('BAZA: bazaWidth', bazaWidth, 'too small, skipping');
+        continue;
+      }
 
-      console.log('BAZA: creating baza dir:', dirKey, 'w:', bazaWidth, 'h:', bazaHeight, 'd:', bazaDepth, 'tx:', translateX, 'tz:', translateZ);
+      console.log('BAZA: creating baza w:', bazaWidth, 'h:', bazaHeight, 'd:', bazaDepth, 'tx:', translateX, 'tz:', translateZ);
 
       try {
         const bazaBox = await createReplicadBox({
