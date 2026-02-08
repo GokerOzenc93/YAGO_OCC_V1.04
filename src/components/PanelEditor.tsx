@@ -226,7 +226,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           <div className="space-y-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
+                <label className="text-xs font-semibold text-orange-700 whitespace-nowrap">
                   Select Body Profile
                 </label>
                 {loading ? (
@@ -320,7 +320,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
               return (
                 <div className={`space-y-2 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
-                  <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-purple-700'}`}>
+                  <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-orange-700'}`}>
                     <span>Face Roles ({faceGroups.length} faces)</span>
                     {resolving && (
                       <span className="text-[10px] font-normal text-orange-500 animate-pulse">

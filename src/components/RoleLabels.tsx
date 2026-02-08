@@ -51,7 +51,7 @@ export const RoleLabels: React.FC<RoleLabelsProps> = React.memo(({ shape, isActi
           position={[item.position.x, item.position.y, item.position.z]}
           center
           occlude={false}
-          zIndexRange={[100, 0]}
+          zIndexRange={[10, 0]}
           style={{
             pointerEvents: 'none',
             userSelect: 'none'
