@@ -121,16 +121,16 @@ interface DirectionalFaceInfo {
 function getDoorFrontDirections(parentShapeId: string): THREE.Vector3[] {
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  if (!parentShape?.geometry) return [new THREE.Vector3(0, 0, 1)];
+  if (!parentShape?.geometry) return [];
 
   const faceRoles = parentShape.faceRoles;
-  if (!faceRoles) return [new THREE.Vector3(0, 0, 1)];
+  if (!faceRoles) return [];
 
   const doorGroupIndices = Object.entries(faceRoles)
     .filter(([_, role]) => role === 'Door')
     .map(([idx]) => parseInt(idx));
 
-  if (doorGroupIndices.length === 0) return [new THREE.Vector3(0, 0, 1)];
+  if (doorGroupIndices.length === 0) return [];
 
   const faces = extractFacesFromGeometry(parentShape.geometry);
   const groups = groupCoplanarFaces(faces);
@@ -161,7 +161,7 @@ function getDoorFrontDirections(parentShapeId: string): THREE.Vector3[] {
     }
   }
 
-  return directions.length > 0 ? directions : [new THREE.Vector3(0, 0, 1)];
+  return directions;
 }
 
 function analyzeFacesInDirection(
