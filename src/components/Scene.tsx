@@ -32,7 +32,6 @@ const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType
       }
 
       controlsRef.current.update();
-      console.log('📷 Camera state restored after type change');
     }
     prevCameraTypeRef.current = cameraType;
   }, [cameraType, controlsRef]);
@@ -546,7 +545,8 @@ const Scene: React.FC = () => {
         makeDefault
         target={[0, 0, 0]}
         enableDamping
-        dampingFactor={0.1}
+        dampingFactor={0.05}
+        rotateSpeed={0.8}
         maxDistance={25000}
         minDistance={50}
       />

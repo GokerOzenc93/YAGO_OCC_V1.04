@@ -22,6 +22,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState(false);
   const prevProfileRef = useRef<string>('none');
+  const prevGeometryRef = useRef<string>('');
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
 
@@ -45,6 +46,40 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       restoreAllPanels(selectedShapeId);
     }
   }, [selectedProfile, selectedShapeId]);
+
+  useEffect(() => {
+    if (!selectedShape || !selectedShapeId || selectedProfile === 'none') return;
+
+    const geometryKey = [
+      selectedShape.parameters?.width,
+      selectedShape.parameters?.height,
+      selectedShape.parameters?.depth,
+      selectedShape.geometry?.uuid,
+      (selectedShape.subtractionGeometries || []).length,
+      JSON.stringify(selectedShape.position),
+      JSON.stringify(selectedShape.scale)
+    ].join('|');
+
+    if (prevGeometryRef.current && prevGeometryRef.current !== geometryKey) {
+      console.log('🔄 Geometry changed, updating panels...');
+      setResolving(true);
+      resolveAllPanelJoints(selectedShapeId, selectedProfile).finally(() =>
+        setResolving(false)
+      );
+    }
+
+    prevGeometryRef.current = geometryKey;
+  }, [
+    selectedShape?.parameters?.width,
+    selectedShape?.parameters?.height,
+    selectedShape?.parameters?.depth,
+    selectedShape?.geometry?.uuid,
+    selectedShape?.subtractionGeometries?.length,
+    selectedShape?.position,
+    selectedShape?.scale,
+    selectedShapeId,
+    selectedProfile
+  ]);
 
   const loadProfiles = async () => {
     try {
