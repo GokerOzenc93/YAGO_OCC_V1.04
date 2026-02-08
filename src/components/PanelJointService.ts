@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { globalSettingsService } from './GlobalSettingsDatabase';
 import { useAppStore, FaceRole } from '../store';
+import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
 
 export interface PanelJointConfig {
   topLeftExpanded: boolean;
@@ -122,38 +123,34 @@ function getDoorFrontDirections(parentShapeId: string): THREE.Vector3[] {
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
   if (!parentShape?.geometry) return [new THREE.Vector3(0, 0, 1)];
 
-  const doorPanels = state.shapes.filter(
-    s => s.type === 'panel' &&
-    s.parameters?.parentShapeId === parentShapeId &&
-    s.parameters?.faceRole === 'Door'
-  );
+  const faceRoles = parentShape.faceRoles;
+  if (!faceRoles) return [new THREE.Vector3(0, 0, 1)];
 
-  if (doorPanels.length === 0) return [new THREE.Vector3(0, 0, 1)];
+  const doorGroupIndices = Object.entries(faceRoles)
+    .filter(([_, role]) => role === 'Door')
+    .map(([idx]) => parseInt(idx));
 
-  const parentBbox = new THREE.Box3();
-  parentBbox.setFromBufferAttribute(parentShape.geometry.getAttribute('position') as THREE.BufferAttribute);
-  const parentCenter = new THREE.Vector3();
-  parentBbox.getCenter(parentCenter);
+  if (doorGroupIndices.length === 0) return [new THREE.Vector3(0, 0, 1)];
+
+  const faces = extractFacesFromGeometry(parentShape.geometry);
+  const groups = groupCoplanarFaces(faces);
 
   const directions: THREE.Vector3[] = [];
 
-  for (const door of doorPanels) {
-    if (!door.geometry) continue;
+  for (const groupIdx of doorGroupIndices) {
+    if (groupIdx >= groups.length) continue;
+    const group = groups[groupIdx];
+    const normal = group.normal.clone().normalize();
 
-    const doorBbox = new THREE.Box3();
-    doorBbox.setFromBufferAttribute(door.geometry.getAttribute('position') as THREE.BufferAttribute);
-    const doorSize = new THREE.Vector3();
-    doorBbox.getSize(doorSize);
-    const doorCenter = new THREE.Vector3();
-    doorBbox.getCenter(doorCenter);
+    const absX = Math.abs(normal.x);
+    const absY = Math.abs(normal.y);
+    const absZ = Math.abs(normal.z);
 
-    const diff = doorCenter.clone().sub(parentCenter);
     let dir: THREE.Vector3;
-
-    if (doorSize.x < doorSize.y && doorSize.x < doorSize.z) {
-      dir = new THREE.Vector3(diff.x >= 0 ? 1 : -1, 0, 0);
-    } else if (doorSize.z < doorSize.x && doorSize.z < doorSize.y) {
-      dir = new THREE.Vector3(0, 0, diff.z >= 0 ? 1 : -1);
+    if (absX > absY && absX > absZ) {
+      dir = new THREE.Vector3(Math.sign(normal.x), 0, 0);
+    } else if (absZ > absY) {
+      dir = new THREE.Vector3(0, 0, Math.sign(normal.z));
     } else {
       continue;
     }
