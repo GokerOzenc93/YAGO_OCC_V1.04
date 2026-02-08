@@ -171,7 +171,10 @@ async function generateFrontBazaPanels(
 
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  if (!parentShape || !parentShape.geometry || !parentShape.faceRoles) return;
+  if (!parentShape || !parentShape.geometry || !parentShape.faceRoles) {
+    console.log('BAZA: no parent, geometry or faceRoles');
+    return;
+  }
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
   const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
@@ -179,27 +182,34 @@ async function generateFrontBazaPanels(
   const parentFaces = extractFacesFromGeometry(parentShape.geometry);
   const parentGroups = groupCoplanarFaces(parentFaces);
 
+  console.log('BAZA: parentGroups:', parentGroups.length, 'faceRoles:', JSON.stringify(parentShape.faceRoles));
+
   const doorNormals: THREE.Vector3[] = [];
-  const sideNormals: THREE.Vector3[] = [];
   for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
+    if (role !== 'Door') continue;
     const idx = parseInt(indexStr);
-    if (idx >= parentGroups.length) continue;
-    const n = parentGroups[idx].normal.clone().normalize();
-    if (role === 'Door') {
-      doorNormals.push(n);
-    } else if (role === 'Left' || role === 'Right') {
-      sideNormals.push(n);
+    if (idx >= parentGroups.length) {
+      console.log('BAZA: Door faceRole index', idx, 'out of range (groups:', parentGroups.length, ')');
+      continue;
     }
+    const n = parentGroups[idx].normal.clone().normalize();
+    console.log('BAZA: Door normal at group', idx, ':', n.x.toFixed(3), n.y.toFixed(3), n.z.toFixed(3));
+    doorNormals.push(n);
   }
 
-  if (doorNormals.length === 0) return;
+  if (doorNormals.length === 0) {
+    console.log('BAZA: no Door normals found');
+    return;
+  }
 
   const bottomPanels = state.shapes.filter(
     s => s.type === 'panel' &&
     s.parameters?.parentShapeId === parentShapeId &&
-    s.parameters?.faceRole === 'Bottom'
+    s.parameters?.faceRole === 'Bottom' &&
+    !s.parameters?.isBaza
   );
 
+  console.log('BAZA: bottomPanels:', bottomPanels.length);
   if (bottomPanels.length === 0) return;
 
   const panelThickness = 18;
@@ -208,63 +218,50 @@ async function generateFrontBazaPanels(
   for (const bottomPanel of bottomPanels) {
     if (!bottomPanel.geometry) continue;
 
-    const faces = extractFacesFromGeometry(bottomPanel.geometry);
-    const groups = groupCoplanarFaces(faces);
+    const posAttr = bottomPanel.geometry.getAttribute('position');
+    if (!posAttr) continue;
 
-    for (const group of groups) {
-      const normal = group.normal.clone().normalize();
+    const bbox = new THREE.Box3();
+    for (let i = 0; i < posAttr.count; i++) {
+      bbox.expandByPoint(new THREE.Vector3(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)));
+    }
+    const bpSize = new THREE.Vector3();
+    bbox.getSize(bpSize);
 
-      const matchesDoor = doorNormals.some(dn => normal.dot(dn) > 0.9);
-      if (!matchesDoor) continue;
+    console.log('BAZA: bottom panel bbox min:', bbox.min.x.toFixed(1), bbox.min.y.toFixed(1), bbox.min.z.toFixed(1),
+      'max:', bbox.max.x.toFixed(1), bbox.max.y.toFixed(1), bbox.max.z.toFixed(1),
+      'size:', bpSize.x.toFixed(1), bpSize.y.toFixed(1), bpSize.z.toFixed(1));
 
-      const matchesSide = sideNormals.some(sn => Math.abs(normal.dot(sn)) > 0.9);
-      if (matchesSide) continue;
+    const processedDirs = new Set<string>();
 
-      const vertices: THREE.Vector3[] = [];
-      group.faceIndices.forEach(idx => {
-        const face = faces[idx];
-        face.vertices.forEach(v => vertices.push(v.clone()));
-      });
-
-      const bbox = new THREE.Box3().setFromPoints(vertices);
-      const size = new THREE.Vector3();
-      bbox.getSize(size);
-
-      if (size.y < 5 || size.y > 30) continue;
-
-      const absNx = Math.abs(normal.x);
-      const absNz = Math.abs(normal.z);
+    for (const doorNormal of doorNormals) {
+      const absNx = Math.abs(doorNormal.x);
+      const absNy = Math.abs(doorNormal.y);
+      const absNz = Math.abs(doorNormal.z);
 
       let bazaWidth: number;
       let bazaDepth: number;
       let translateX: number;
       let translateZ: number;
+      let dirKey: string;
 
-      if (absNz > absNx && absNz > 0.9) {
-        bazaWidth = size.x;
+      if (absNz >= absNx && absNz >= absNy && absNz > 0.5) {
+        if (doorNormal.z <= 0) continue;
+        dirKey = '+z';
+        if (processedDirs.has(dirKey)) continue;
+        processedDirs.add(dirKey);
+
+        bazaWidth = bpSize.x;
         bazaDepth = panelThickness;
         translateX = bbox.min.x;
-
-        if (normal.z > 0) {
-          translateZ = bbox.max.z - frontBaseDistance - panelThickness;
-        } else {
-          continue;
-        }
-      } else if (absNx > absNz && absNx > 0.9) {
-        bazaWidth = panelThickness;
-        bazaDepth = size.z;
-        translateZ = bbox.min.z;
-
-        if (normal.x > 0) {
-          translateX = bbox.max.x - frontBaseDistance - panelThickness;
-        } else {
-          translateX = bbox.min.x + frontBaseDistance;
-        }
+        translateZ = bbox.max.z - frontBaseDistance - panelThickness;
       } else {
         continue;
       }
 
-      if (bazaWidth < 1 && bazaDepth < 1) continue;
+      if (bazaWidth < 1) continue;
+
+      console.log('BAZA: creating baza dir:', dirKey, 'w:', bazaWidth, 'h:', bazaHeight, 'd:', bazaDepth, 'tx:', translateX, 'tz:', translateZ);
 
       try {
         const bazaBox = await createReplicadBox({
@@ -295,16 +292,16 @@ async function generateFrontBazaPanels(
           }
         });
       } catch (err) {
-        console.error('Failed to create baza panel:', err);
+        console.error('BAZA: failed to create:', err);
       }
     }
   }
 
+  console.log('BAZA: total new shapes:', newShapes.length);
   if (newShapes.length > 0) {
     useAppStore.setState(st => ({
       shapes: [...st.shapes, ...newShapes]
     }));
-    console.log(`Created ${newShapes.length} front baza panel(s)`);
   }
 }
 
