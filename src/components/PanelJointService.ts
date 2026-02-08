@@ -180,12 +180,15 @@ async function generateFrontBazaPanels(
   const parentGroups = groupCoplanarFaces(parentFaces);
 
   const doorNormals: THREE.Vector3[] = [];
+  const sideNormals: THREE.Vector3[] = [];
   for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
+    const idx = parseInt(indexStr);
+    if (idx >= parentGroups.length) continue;
+    const n = parentGroups[idx].normal.clone().normalize();
     if (role === 'Door') {
-      const idx = parseInt(indexStr);
-      if (idx < parentGroups.length) {
-        doorNormals.push(parentGroups[idx].normal.clone().normalize());
-      }
+      doorNormals.push(n);
+    } else if (role === 'Left' || role === 'Right') {
+      sideNormals.push(n);
     }
   }
 
@@ -213,6 +216,9 @@ async function generateFrontBazaPanels(
 
       const matchesDoor = doorNormals.some(dn => normal.dot(dn) > 0.9);
       if (!matchesDoor) continue;
+
+      const matchesSide = sideNormals.some(sn => Math.abs(normal.dot(sn)) > 0.9);
+      if (matchesSide) continue;
 
       const vertices: THREE.Vector3[] = [];
       group.faceIndices.forEach(idx => {
