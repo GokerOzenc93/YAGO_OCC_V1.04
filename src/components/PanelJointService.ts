@@ -1,7 +1,5 @@
-import * as THREE from 'three';
 import { globalSettingsService } from './GlobalSettingsDatabase';
 import { useAppStore, FaceRole } from '../store';
-import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
 
 export interface PanelJointConfig {
   topLeftExpanded: boolean;
@@ -77,7 +75,6 @@ interface FullProfileSettings {
   jointConfig: PanelJointConfig;
   selectedBodyType: string | null;
   bazaHeight: number;
-  frontBaseDistance: number;
 }
 
 async function loadFullProfileSettings(profileId: string): Promise<FullProfileSettings> {
@@ -94,7 +91,6 @@ async function loadFullProfileSettings(profileId: string): Promise<FullProfileSe
         },
         selectedBodyType: (s.selectedBodyType as string) || null,
         bazaHeight: typeof s.bazaHeight === 'number' ? s.bazaHeight : 100,
-        frontBaseDistance: typeof s.frontBaseDistance === 'number' ? s.frontBaseDistance : 10,
       };
     }
   } catch (err) {
@@ -104,282 +100,7 @@ async function loadFullProfileSettings(profileId: string): Promise<FullProfileSe
     jointConfig: DEFAULT_CONFIG,
     selectedBodyType: null,
     bazaHeight: 100,
-    frontBaseDistance: 10,
   };
-}
-
-interface DirectionalFaceInfo {
-  depthPosition: number;
-  widthMin: number;
-  widthMax: number;
-  heightMin: number;
-  heightMax: number;
-  width: number;
-  direction: THREE.Vector3;
-}
-
-interface DoorFaceRegion {
-  direction: THREE.Vector3;
-  widthMin: number;
-  widthMax: number;
-}
-
-function getDoorFaceRegions(parentShapeId: string): DoorFaceRegion[] {
-  const state = useAppStore.getState();
-  const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  if (!parentShape?.geometry) return [];
-
-  const faceRoles = parentShape.faceRoles;
-  if (!faceRoles) return [];
-
-  const doorGroupIndices = Object.entries(faceRoles)
-    .filter(([_, role]) => role === 'Door')
-    .map(([idx]) => parseInt(idx));
-
-  if (doorGroupIndices.length === 0) return [];
-
-  const faces = extractFacesFromGeometry(parentShape.geometry);
-  const groups = groupCoplanarFaces(faces);
-
-  const regions: DoorFaceRegion[] = [];
-
-  for (const groupIdx of doorGroupIndices) {
-    if (groupIdx >= groups.length) continue;
-    const group = groups[groupIdx];
-    const normal = group.normal.clone().normalize();
-
-    const absX = Math.abs(normal.x);
-    const absY = Math.abs(normal.y);
-    const absZ = Math.abs(normal.z);
-
-    let dir: THREE.Vector3;
-    let isXDir: boolean;
-    if (absX > absY && absX > absZ) {
-      dir = new THREE.Vector3(Math.sign(normal.x), 0, 0);
-      isXDir = true;
-    } else if (absZ > absY) {
-      dir = new THREE.Vector3(0, 0, Math.sign(normal.z));
-      isXDir = false;
-    } else {
-      continue;
-    }
-
-    let wMin = Infinity, wMax = -Infinity;
-    for (const faceIdx of group.faceIndices) {
-      const face = faces[faceIdx];
-      for (const v of face.vertices) {
-        const w = isXDir ? v.z : v.x;
-        if (w < wMin) wMin = w;
-        if (w > wMax) wMax = w;
-      }
-    }
-
-    regions.push({ direction: dir, widthMin: wMin, widthMax: wMax });
-  }
-
-  return regions;
-}
-
-function analyzeFacesInDirection(
-  geometry: THREE.BufferGeometry,
-  direction: THREE.Vector3,
-  panelThickness: number = 18
-): DirectionalFaceInfo[] {
-  const position = geometry.getAttribute('position');
-  const index = geometry.getIndex();
-  const triangleCount = index ? index.count / 3 : position.count / 3;
-  const dir = direction.clone().normalize();
-  const isXDir = Math.abs(dir.x) > 0.5;
-
-  const triangles: Array<{
-    depth: number; wMin: number; wMax: number; hMin: number; hMax: number;
-  }> = [];
-
-  for (let i = 0; i < triangleCount; i++) {
-    let i0: number, i1: number, i2: number;
-    if (index) {
-      i0 = index.getX(i * 3);
-      i1 = index.getX(i * 3 + 1);
-      i2 = index.getX(i * 3 + 2);
-    } else {
-      i0 = i * 3;
-      i1 = i * 3 + 1;
-      i2 = i * 3 + 2;
-    }
-
-    const v0x = position.getX(i0), v0y = position.getY(i0), v0z = position.getZ(i0);
-    const v1x = position.getX(i1), v1y = position.getY(i1), v1z = position.getZ(i1);
-    const v2x = position.getX(i2), v2y = position.getY(i2), v2z = position.getZ(i2);
-
-    const e1x = v1x - v0x, e1y = v1y - v0y, e1z = v1z - v0z;
-    const e2x = v2x - v0x, e2y = v2y - v0y, e2z = v2z - v0z;
-    const nx = e1y * e2z - e1z * e2y;
-    const ny = e1z * e2x - e1x * e2z;
-    const nz = e1x * e2y - e1y * e2x;
-    const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
-    if (len < 0.001) continue;
-
-    const dot = (nx * dir.x + ny * dir.y + nz * dir.z) / len;
-    if (dot > 0.9) {
-      if (isXDir) {
-        triangles.push({
-          depth: (v0x + v1x + v2x) / 3,
-          wMin: Math.min(v0z, v1z, v2z),
-          wMax: Math.max(v0z, v1z, v2z),
-          hMin: Math.min(v0y, v1y, v2y),
-          hMax: Math.max(v0y, v1y, v2y),
-        });
-      } else {
-        triangles.push({
-          depth: (v0z + v1z + v2z) / 3,
-          wMin: Math.min(v0x, v1x, v2x),
-          wMax: Math.max(v0x, v1x, v2x),
-          hMin: Math.min(v0y, v1y, v2y),
-          hMax: Math.max(v0y, v1y, v2y),
-        });
-      }
-    }
-  }
-
-  if (triangles.length === 0) return [];
-
-  const tolerance = 1;
-  const groups = new Map<number, typeof triangles>();
-
-  for (const tri of triangles) {
-    let assigned = false;
-    for (const [groupDepth, group] of groups.entries()) {
-      if (Math.abs(tri.depth - groupDepth) < tolerance) {
-        group.push(tri);
-        assigned = true;
-        break;
-      }
-    }
-    if (!assigned) {
-      groups.set(tri.depth, [tri]);
-    }
-  }
-
-  const result: DirectionalFaceInfo[] = [];
-
-  for (const [depth, group] of groups.entries()) {
-    const wMin = Math.min(...group.map(t => t.wMin));
-    const wMax = Math.max(...group.map(t => t.wMax));
-    const hMin = Math.min(...group.map(t => t.hMin));
-    const hMax = Math.max(...group.map(t => t.hMax));
-    const hExtent = hMax - hMin;
-
-    if (Math.abs(hExtent - panelThickness) < 3) {
-      result.push({
-        depthPosition: depth,
-        widthMin: wMin,
-        widthMax: wMax,
-        heightMin: hMin,
-        heightMax: hMax,
-        width: wMax - wMin,
-        direction: dir.clone(),
-      });
-    }
-  }
-
-  return result;
-}
-
-function removeBazaShapes(parentShapeId: string) {
-  useAppStore.setState((st) => ({
-    shapes: st.shapes.filter(s =>
-      !(s.type === 'baza' && s.parameters?.parentShapeId === parentShapeId)
-    )
-  }));
-}
-
-function createFrontBazaPanels(
-  parentShapeId: string,
-  bazaHeight: number,
-  frontBaseDistance: number
-) {
-  const state = useAppStore.getState();
-  const bottomPanel = state.shapes.find(
-    s => s.type === 'panel' &&
-    s.parameters?.parentShapeId === parentShapeId &&
-    s.parameters?.faceRole === 'Bottom'
-  );
-  if (!bottomPanel?.geometry) return;
-
-  const doorRegions = getDoorFaceRegions(parentShapeId);
-  if (doorRegions.length === 0) return;
-
-  const uniqueDirections: THREE.Vector3[] = [];
-  for (const region of doorRegions) {
-    if (!uniqueDirections.some(d => d.dot(region.direction) > 0.9)) {
-      uniqueDirections.push(region.direction);
-    }
-  }
-
-  const panelThickness = 18;
-  const newShapes: any[] = [];
-  const timestamp = Date.now();
-  let counter = 0;
-  const overlapTolerance = 5;
-
-  for (const dir of uniqueDirections) {
-    const faces = analyzeFacesInDirection(bottomPanel.geometry, dir, panelThickness);
-    const isXDir = Math.abs(dir.x) > 0.5;
-    const dirRegions = doorRegions.filter(r => r.direction.dot(dir) > 0.9);
-
-    for (const face of faces) {
-      const hasMatchingDoor = dirRegions.some(door =>
-        face.widthMin < door.widthMax + overlapTolerance &&
-        face.widthMax > door.widthMin - overlapTolerance
-      );
-      if (!hasMatchingDoor) continue;
-
-      const bazaWidth = face.width;
-      const widthCenter = (face.widthMin + face.widthMax) / 2;
-
-      let geometry: THREE.BoxGeometry;
-      let bazaPosition: [number, number, number];
-
-      if (isXDir) {
-        geometry = new THREE.BoxGeometry(panelThickness, bazaHeight, bazaWidth);
-        bazaPosition = [
-          bottomPanel.position[0] + face.depthPosition + dir.x * (-frontBaseDistance - panelThickness / 2),
-          bottomPanel.position[1] + face.heightMin - bazaHeight / 2,
-          bottomPanel.position[2] + widthCenter,
-        ];
-      } else {
-        geometry = new THREE.BoxGeometry(bazaWidth, bazaHeight, panelThickness);
-        bazaPosition = [
-          bottomPanel.position[0] + widthCenter,
-          bottomPanel.position[1] + face.heightMin - bazaHeight / 2,
-          bottomPanel.position[2] + face.depthPosition + dir.z * (-frontBaseDistance - panelThickness / 2),
-        ];
-      }
-
-      newShapes.push({
-        id: `baza-front-${timestamp}-${counter++}`,
-        type: 'baza',
-        geometry,
-        position: bazaPosition,
-        rotation: [...bottomPanel.rotation] as [number, number, number],
-        scale: [1, 1, 1] as [number, number, number],
-        color: '#f5f5f4',
-        parameters: {
-          width: bazaWidth,
-          height: bazaHeight,
-          depth: panelThickness,
-          parentShapeId,
-          bazaType: 'front',
-        }
-      });
-    }
-  }
-
-  if (newShapes.length > 0) {
-    useAppStore.setState((st) => ({
-      shapes: [...st.shapes, ...newShapes]
-    }));
-  }
 }
 
 function applyBazaOffset(parentShapeId: string, selectedBodyType: string | null, bazaHeight: number) {
@@ -442,10 +163,6 @@ export async function resolveAllPanelJoints(
   if (panels.length < 2) {
     await restoreSinglePanels(panels);
     applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
-    removeBazaShapes(parentShapeId);
-    if (fullSettings.selectedBodyType === 'bazali' && fullSettings.bazaHeight > 0) {
-      createFrontBazaPanels(parentShapeId, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
-    }
     return;
   }
 
@@ -540,11 +257,6 @@ export async function resolveAllPanelJoints(
   }
 
   applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
-
-  removeBazaShapes(parentShapeId);
-  if (fullSettings.selectedBodyType === 'bazali' && fullSettings.bazaHeight > 0) {
-    createFrontBazaPanels(parentShapeId, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
-  }
 }
 
 export async function restoreAllPanels(parentShapeId: string): Promise<void> {
@@ -558,7 +270,6 @@ export async function restoreAllPanels(parentShapeId: string): Promise<void> {
   );
   await restoreSinglePanels(panels);
   applyBazaOffset(parentShapeId, null, 0);
-  removeBazaShapes(parentShapeId);
 }
 
 async function restoreSinglePanels(panels: any[]) {
