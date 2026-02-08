@@ -254,11 +254,23 @@ async function generateFrontBazaPanels(
         continue;
       }
 
-      const faceArea = size.x * size.z;
+      const dimensions = [size.x, size.y, size.z].sort((a, b) => a - b);
+      const thickness = dimensions[0];
+      const width = dimensions[1];
+      const length = dimensions[2];
+
+      if (thickness > panelThickness + 5) {
+        console.log('BAZA: smallest dimension', thickness.toFixed(1), 'mm too large to be panel edge, skipping');
+        continue;
+      }
+
+      const faceArea = width * length;
       if (faceArea < 1000) {
         console.log('BAZA: face area', faceArea.toFixed(1), 'mm² too small, skipping');
         continue;
       }
+
+      console.log('BAZA: valid face area:', faceArea.toFixed(1), 'mm²');
 
       const absNx = Math.abs(normal.x);
       const absNy = Math.abs(normal.y);
