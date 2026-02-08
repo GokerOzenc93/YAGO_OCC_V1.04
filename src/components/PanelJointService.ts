@@ -355,138 +355,6 @@ async function generateFrontBazaPanels(
   }
 }
 
-async function generateBottomBazaPanels(
-  parentShapeId: string,
-  selectedBodyType: string | null,
-  bazaHeight: number,
-  frontBaseDistance: number
-) {
-  if (selectedBodyType !== 'bazali') return;
-
-  const state = useAppStore.getState();
-  const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  if (!parentShape || !parentShape.geometry) {
-    console.log('BOTTOM BAZA: no parent or geometry');
-    return;
-  }
-
-  const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
-  const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-
-  const bottomPanels = state.shapes.filter(
-    s => s.type === 'panel' &&
-    s.parameters?.parentShapeId === parentShapeId &&
-    s.parameters?.faceRole === 'Bottom' &&
-    !s.parameters?.isBaza
-  );
-
-  console.log('BOTTOM BAZA: bottomPanels:', bottomPanels.length);
-  if (bottomPanels.length === 0) return;
-
-  const panelThickness = 18;
-  const newShapes: any[] = [];
-
-  for (const bottomPanel of bottomPanels) {
-    if (!bottomPanel.geometry) continue;
-
-    const faces = extractFacesFromGeometry(bottomPanel.geometry);
-    const groups = groupCoplanarFaces(faces);
-
-    console.log('BOTTOM BAZA: bottom panel has', groups.length, 'face groups');
-
-    for (const group of groups) {
-      const normal = group.normal.clone().normalize();
-
-      const isDownwardFacing = Math.abs(normal.y + 1) < 0.1;
-      if (!isDownwardFacing) continue;
-
-      console.log('BOTTOM BAZA: found downward-facing face, normal:', normal.x.toFixed(3), normal.y.toFixed(3), normal.z.toFixed(3));
-
-      const vertices: THREE.Vector3[] = [];
-      group.faceIndices.forEach(idx => {
-        const face = faces[idx];
-        face.vertices.forEach(v => vertices.push(v.clone()));
-      });
-
-      const bbox = new THREE.Box3().setFromPoints(vertices);
-      const size = new THREE.Vector3();
-      bbox.getSize(size);
-
-      console.log('BOTTOM BAZA: face bbox size:', size.x.toFixed(1), size.y.toFixed(1), size.z.toFixed(1));
-
-      const dimensions = [size.x, size.y, size.z].sort((a, b) => a - b);
-      const thickness = dimensions[0];
-      const width = dimensions[1];
-      const length = dimensions[2];
-
-      if (thickness > panelThickness + 5) {
-        console.log('BOTTOM BAZA: smallest dimension', thickness.toFixed(1), 'mm too large, skipping');
-        continue;
-      }
-
-      const faceArea = width * length;
-      if (faceArea < 1000) {
-        console.log('BOTTOM BAZA: face area', faceArea.toFixed(1), 'mm² too small, skipping');
-        continue;
-      }
-
-      console.log('BOTTOM BAZA: valid face area:', faceArea.toFixed(1), 'mm²');
-
-      const bazaWidth = size.x;
-      const bazaDepth = size.z;
-      const translateX = bbox.min.x;
-      const translateY = bbox.min.y - bazaHeight;
-      const translateZ = bbox.min.z;
-
-      if (bazaWidth < 1 || bazaDepth < 1) {
-        console.log('BOTTOM BAZA: dimensions too small, skipping');
-        continue;
-      }
-
-      console.log('BOTTOM BAZA: creating baza w:', bazaWidth, 'h:', bazaHeight, 'd:', bazaDepth, 'tx:', translateX, 'ty:', translateY, 'tz:', translateZ);
-
-      try {
-        const bazaBox = await createReplicadBox({
-          width: bazaWidth,
-          height: bazaHeight,
-          depth: bazaDepth
-        });
-
-        const positioned = bazaBox.translate(translateX, translateY, translateZ);
-        const geometry = convertReplicadToThreeGeometry(positioned);
-
-        newShapes.push({
-          id: `baza-bottom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: 'panel',
-          geometry,
-          replicadShape: positioned,
-          position: [parentShape.position[0], parentShape.position[1], parentShape.position[2]] as [number, number, number],
-          rotation: parentShape.rotation,
-          scale: [...parentShape.scale] as [number, number, number],
-          color: '#ffffff',
-          parameters: {
-            parentShapeId,
-            isBaza: true,
-            bazaType: 'bottom',
-            width: bazaWidth,
-            height: bazaHeight,
-            depth: bazaDepth
-          }
-        });
-      } catch (err) {
-        console.error('BOTTOM BAZA: failed to create:', err);
-      }
-    }
-  }
-
-  console.log('BOTTOM BAZA: total new shapes:', newShapes.length);
-  if (newShapes.length > 0) {
-    useAppStore.setState(st => ({
-      shapes: [...st.shapes, ...newShapes]
-    }));
-  }
-}
-
 export async function resolveAllPanelJoints(
   parentShapeId: string,
   profileId: string,
@@ -509,7 +377,6 @@ export async function resolveAllPanelJoints(
     await restoreSinglePanels(panels);
     applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
     await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
-    await generateBottomBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
     return;
   }
 
@@ -605,7 +472,6 @@ export async function resolveAllPanelJoints(
 
   applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
   await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
-  await generateBottomBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
 }
 
 export async function restoreAllPanels(parentShapeId: string): Promise<void> {
