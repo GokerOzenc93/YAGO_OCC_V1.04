@@ -107,20 +107,80 @@ async function loadFullProfileSettings(profileId: string): Promise<FullProfileSe
   };
 }
 
-interface FrontFaceInfo {
-  zPosition: number;
-  xMin: number;
-  xMax: number;
-  yMin: number;
-  yMax: number;
+interface DirectionalFaceInfo {
+  depthPosition: number;
+  widthMin: number;
+  widthMax: number;
+  heightMin: number;
+  heightMax: number;
   width: number;
+  direction: THREE.Vector3;
 }
 
-function analyzeFrontFaces(geometry: THREE.BufferGeometry, panelThickness: number = 18): FrontFaceInfo[] {
+function getDoorFrontDirections(parentShapeId: string): THREE.Vector3[] {
+  const state = useAppStore.getState();
+  const parentShape = state.shapes.find(s => s.id === parentShapeId);
+  if (!parentShape?.geometry) return [new THREE.Vector3(0, 0, 1)];
+
+  const doorPanels = state.shapes.filter(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Door'
+  );
+
+  if (doorPanels.length === 0) return [new THREE.Vector3(0, 0, 1)];
+
+  const parentBbox = new THREE.Box3();
+  parentBbox.setFromBufferAttribute(parentShape.geometry.getAttribute('position') as THREE.BufferAttribute);
+  const parentCenter = new THREE.Vector3();
+  parentBbox.getCenter(parentCenter);
+
+  const directions: THREE.Vector3[] = [];
+
+  for (const door of doorPanels) {
+    if (!door.geometry) continue;
+
+    const doorBbox = new THREE.Box3();
+    doorBbox.setFromBufferAttribute(door.geometry.getAttribute('position') as THREE.BufferAttribute);
+    const doorSize = new THREE.Vector3();
+    doorBbox.getSize(doorSize);
+    const doorCenter = new THREE.Vector3();
+    doorBbox.getCenter(doorCenter);
+
+    const diff = doorCenter.clone().sub(parentCenter);
+    let dir: THREE.Vector3;
+
+    if (doorSize.x < doorSize.y && doorSize.x < doorSize.z) {
+      dir = new THREE.Vector3(diff.x >= 0 ? 1 : -1, 0, 0);
+    } else if (doorSize.z < doorSize.x && doorSize.z < doorSize.y) {
+      dir = new THREE.Vector3(0, 0, diff.z >= 0 ? 1 : -1);
+    } else {
+      continue;
+    }
+
+    const isDuplicate = directions.some(d => d.dot(dir) > 0.9);
+    if (!isDuplicate) {
+      directions.push(dir);
+    }
+  }
+
+  return directions.length > 0 ? directions : [new THREE.Vector3(0, 0, 1)];
+}
+
+function analyzeFacesInDirection(
+  geometry: THREE.BufferGeometry,
+  direction: THREE.Vector3,
+  panelThickness: number = 18
+): DirectionalFaceInfo[] {
   const position = geometry.getAttribute('position');
   const index = geometry.getIndex();
   const triangleCount = index ? index.count / 3 : position.count / 3;
-  const frontTriangles: Array<{ z: number; xMin: number; xMax: number; yMin: number; yMax: number }> = [];
+  const dir = direction.clone().normalize();
+  const isXDir = Math.abs(dir.x) > 0.5;
+
+  const triangles: Array<{
+    depth: number; wMin: number; wMax: number; hMin: number; hMax: number;
+  }> = [];
 
   for (let i = 0; i < triangleCount; i++) {
     let i0: number, i1: number, i2: number;
@@ -146,47 +206,66 @@ function analyzeFrontFaces(geometry: THREE.BufferGeometry, panelThickness: numbe
     const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
     if (len < 0.001) continue;
 
-    if (nz / len > 0.9) {
-      frontTriangles.push({
-        z: (v0z + v1z + v2z) / 3,
-        xMin: Math.min(v0x, v1x, v2x),
-        xMax: Math.max(v0x, v1x, v2x),
-        yMin: Math.min(v0y, v1y, v2y),
-        yMax: Math.max(v0y, v1y, v2y),
-      });
+    const dot = (nx * dir.x + ny * dir.y + nz * dir.z) / len;
+    if (dot > 0.9) {
+      if (isXDir) {
+        triangles.push({
+          depth: (v0x + v1x + v2x) / 3,
+          wMin: Math.min(v0z, v1z, v2z),
+          wMax: Math.max(v0z, v1z, v2z),
+          hMin: Math.min(v0y, v1y, v2y),
+          hMax: Math.max(v0y, v1y, v2y),
+        });
+      } else {
+        triangles.push({
+          depth: (v0z + v1z + v2z) / 3,
+          wMin: Math.min(v0x, v1x, v2x),
+          wMax: Math.max(v0x, v1x, v2x),
+          hMin: Math.min(v0y, v1y, v2y),
+          hMax: Math.max(v0y, v1y, v2y),
+        });
+      }
     }
   }
 
-  if (frontTriangles.length === 0) return [];
+  if (triangles.length === 0) return [];
 
   const tolerance = 1;
-  const groups = new Map<number, typeof frontTriangles>();
+  const groups = new Map<number, typeof triangles>();
 
-  for (const tri of frontTriangles) {
+  for (const tri of triangles) {
     let assigned = false;
-    for (const [groupZ, group] of groups.entries()) {
-      if (Math.abs(tri.z - groupZ) < tolerance) {
+    for (const [groupDepth, group] of groups.entries()) {
+      if (Math.abs(tri.depth - groupDepth) < tolerance) {
         group.push(tri);
         assigned = true;
         break;
       }
     }
     if (!assigned) {
-      groups.set(tri.z, [tri]);
+      groups.set(tri.depth, [tri]);
     }
   }
 
-  const result: FrontFaceInfo[] = [];
+  const result: DirectionalFaceInfo[] = [];
 
-  for (const [z, group] of groups.entries()) {
-    const xMin = Math.min(...group.map(t => t.xMin));
-    const xMax = Math.max(...group.map(t => t.xMax));
-    const yMin = Math.min(...group.map(t => t.yMin));
-    const yMax = Math.max(...group.map(t => t.yMax));
-    const yExtent = yMax - yMin;
+  for (const [depth, group] of groups.entries()) {
+    const wMin = Math.min(...group.map(t => t.wMin));
+    const wMax = Math.max(...group.map(t => t.wMax));
+    const hMin = Math.min(...group.map(t => t.hMin));
+    const hMax = Math.max(...group.map(t => t.hMax));
+    const hExtent = hMax - hMin;
 
-    if (Math.abs(yExtent - panelThickness) < 3) {
-      result.push({ zPosition: z, xMin, xMax, yMin, yMax, width: xMax - xMin });
+    if (Math.abs(hExtent - panelThickness) < 3) {
+      result.push({
+        depthPosition: depth,
+        widthMin: wMin,
+        widthMax: wMax,
+        heightMin: hMin,
+        heightMax: hMax,
+        width: wMax - wMin,
+        direction: dir.clone(),
+      });
     }
   }
 
@@ -214,41 +293,56 @@ function createFrontBazaPanels(
   );
   if (!bottomPanel?.geometry) return;
 
+  const frontDirections = getDoorFrontDirections(parentShapeId);
   const panelThickness = 18;
-  const frontFaces = analyzeFrontFaces(bottomPanel.geometry, panelThickness);
-  if (frontFaces.length === 0) return;
-
   const newShapes: any[] = [];
   const timestamp = Date.now();
+  let counter = 0;
 
-  for (let i = 0; i < frontFaces.length; i++) {
-    const face = frontFaces[i];
-    const bazaWidth = face.width;
-    const centerX = (face.xMin + face.xMax) / 2;
-    const geometry = new THREE.BoxGeometry(bazaWidth, bazaHeight, panelThickness);
+  for (const dir of frontDirections) {
+    const faces = analyzeFacesInDirection(bottomPanel.geometry, dir, panelThickness);
+    const isXDir = Math.abs(dir.x) > 0.5;
 
-    const bazaPosition: [number, number, number] = [
-      bottomPanel.position[0] + centerX,
-      bottomPanel.position[1] + face.yMin - bazaHeight / 2,
-      bottomPanel.position[2] + face.zPosition - frontBaseDistance - panelThickness / 2
-    ];
+    for (const face of faces) {
+      const bazaWidth = face.width;
+      const widthCenter = (face.widthMin + face.widthMax) / 2;
 
-    newShapes.push({
-      id: `baza-front-${timestamp}-${i}`,
-      type: 'baza',
-      geometry,
-      position: bazaPosition,
-      rotation: [...bottomPanel.rotation] as [number, number, number],
-      scale: [1, 1, 1] as [number, number, number],
-      color: '#f5f5f4',
-      parameters: {
-        width: bazaWidth,
-        height: bazaHeight,
-        depth: panelThickness,
-        parentShapeId,
-        bazaType: 'front',
+      let geometry: THREE.BoxGeometry;
+      let bazaPosition: [number, number, number];
+
+      if (isXDir) {
+        geometry = new THREE.BoxGeometry(panelThickness, bazaHeight, bazaWidth);
+        bazaPosition = [
+          bottomPanel.position[0] + face.depthPosition + dir.x * (-frontBaseDistance - panelThickness / 2),
+          bottomPanel.position[1] + face.heightMin - bazaHeight / 2,
+          bottomPanel.position[2] + widthCenter,
+        ];
+      } else {
+        geometry = new THREE.BoxGeometry(bazaWidth, bazaHeight, panelThickness);
+        bazaPosition = [
+          bottomPanel.position[0] + widthCenter,
+          bottomPanel.position[1] + face.heightMin - bazaHeight / 2,
+          bottomPanel.position[2] + face.depthPosition + dir.z * (-frontBaseDistance - panelThickness / 2),
+        ];
       }
-    });
+
+      newShapes.push({
+        id: `baza-front-${timestamp}-${counter++}`,
+        type: 'baza',
+        geometry,
+        position: bazaPosition,
+        rotation: [...bottomPanel.rotation] as [number, number, number],
+        scale: [1, 1, 1] as [number, number, number],
+        color: '#f5f5f4',
+        parameters: {
+          width: bazaWidth,
+          height: bazaHeight,
+          depth: panelThickness,
+          parentShapeId,
+          bazaType: 'front',
+        }
+      });
+    }
   }
 
   if (newShapes.length > 0) {
