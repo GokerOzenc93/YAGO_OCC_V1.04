@@ -480,7 +480,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             isActive={true}
           />
         )}
-        {showRoleNumbers && (
+        {showRoleNumbers && isSelected && (
           <RoleLabels
             key={`role-labels-${shape.id}-${shape.geometry?.uuid || ''}`}
             shape={shape}
