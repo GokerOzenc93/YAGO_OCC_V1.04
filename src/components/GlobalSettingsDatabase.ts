@@ -41,6 +41,22 @@ class GlobalSettingsService {
     return data || [];
   }
 
+  async getDefaultProfile(): Promise<GlobalSettingsProfile | null> {
+    const { data, error } = await supabase
+      .from('global_settings_profiles')
+      .select('*')
+      .order('order', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Failed to get default profile:', error);
+      return null;
+    }
+
+    return data;
+  }
+
   async getProfile(id: string): Promise<GlobalSettingsProfile | null> {
     const { data, error } = await supabase
       .from('global_settings_profiles')
