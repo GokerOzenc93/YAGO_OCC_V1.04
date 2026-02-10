@@ -265,43 +265,11 @@ async function generateFrontBazaPanels(
 
       if (parentShape.replicadShape) {
         try {
-          const parentPos = new THREE.Vector3(...parentShape.position);
-          const parentRot = new THREE.Euler(...parentShape.rotation);
-          const invMatrix = new THREE.Matrix4()
-            .makeRotationFromEuler(parentRot)
-            .setPosition(parentPos)
-            .invert();
-
-          const tempGeometry = convertReplicadToThreeGeometry(positioned);
-          const bbox = new THREE.Box3().setFromBufferAttribute(
-            tempGeometry.attributes.position as THREE.BufferAttribute
-          );
-          const bazaSize = new THREE.Vector3();
-          bbox.getSize(bazaSize);
-          const bazaCenter = new THREE.Vector3();
-          bbox.getCenter(bazaCenter);
-
-          const parentBbox = new THREE.Box3().setFromBufferAttribute(
-            parentShape.geometry.attributes.position as THREE.BufferAttribute
-          );
-          parentBbox.applyMatrix4(invMatrix);
-
-          const margin = 1;
-          const overlap = !(
-            bazaCenter.x + bazaSize.x / 2 < parentBbox.min.x - margin ||
-            bazaCenter.x - bazaSize.x / 2 > parentBbox.max.x + margin ||
-            bazaCenter.y + bazaSize.y / 2 < parentBbox.min.y - margin ||
-            bazaCenter.y - bazaSize.y / 2 > parentBbox.max.y + margin ||
-            bazaCenter.z + bazaSize.z / 2 < parentBbox.min.z - margin ||
-            bazaCenter.z - bazaSize.z / 2 > parentBbox.max.z + margin
-          );
-
-          if (overlap) {
-            console.log('BAZA: collision detected, cutting with parent geometry');
-            positioned = positioned.cut(parentShape.replicadShape);
-          }
+          console.log('BAZA: checking collision with parent');
+          positioned = positioned.cut(parentShape.replicadShape);
+          console.log('BAZA: cut operation successful');
         } catch (cutErr) {
-          console.warn('BAZA: collision detection failed, using original geometry:', cutErr);
+          console.warn('BAZA: cut operation failed, using original geometry:', cutErr);
         }
       }
 
