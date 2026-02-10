@@ -112,8 +112,12 @@ function applyBazaOffset(parentShapeId: string, selectedBodyType: string | null,
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
   if (!parentShape) return;
 
-  const hasBottomRole = Object.values(parentShape.faceRoles || {}).some(r => r === 'Bottom');
-  if (!hasBottomRole) return;
+  const hasBottomPanels = state.shapes.some(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Bottom'
+  );
+  if (!hasBottomPanels) return;
 
   const yOffset = selectedBodyType === 'bazali' ? bazaHeight : 0;
 
@@ -172,9 +176,13 @@ async function generateFrontBazaPanels(
     return;
   }
 
-  const hasBottomRole = Object.values(parentShape.faceRoles).some(r => r === 'Bottom');
-  if (!hasBottomRole) {
-    console.log('BAZA: no Bottom face role found, skipping base panel generation');
+  const hasBottomPanels = state.shapes.some(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Bottom'
+  );
+  if (!hasBottomPanels) {
+    console.log('BAZA: no Bottom panels found, skipping base panel generation');
     return;
   }
 
@@ -195,42 +203,6 @@ async function generateFrontBazaPanels(
   const panelThickness = 18;
   const newShapes: any[] = [];
   const processedDirs: string[] = [];
-
-  let bottomBbox: THREE.Box3 | null = null;
-  let leftBbox: THREE.Box3 | null = null;
-  let rightBbox: THREE.Box3 | null = null;
-
-  for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
-    if (!role || role === 'Door') continue;
-    const idx = parseInt(indexStr);
-    if (idx >= parentGroups.length) continue;
-
-    const group = parentGroups[idx];
-    const vertices: THREE.Vector3[] = [];
-    group.faceIndices.forEach(fi => {
-      parentFaces[fi].vertices.forEach(v => vertices.push(v.clone()));
-    });
-    const bbox = new THREE.Box3().setFromPoints(vertices);
-
-    if (role === 'Bottom') {
-      bottomBbox = bbox;
-      console.log('BAZA: Found Bottom face bbox min:', bbox.min.x.toFixed(1), bbox.min.y.toFixed(1), bbox.min.z.toFixed(1),
-        'max:', bbox.max.x.toFixed(1), bbox.max.y.toFixed(1), bbox.max.z.toFixed(1));
-    } else if (role === 'Left') {
-      leftBbox = bbox;
-      console.log('BAZA: Found Left face bbox min:', bbox.min.x.toFixed(1), bbox.min.y.toFixed(1), bbox.min.z.toFixed(1),
-        'max:', bbox.max.x.toFixed(1), bbox.max.y.toFixed(1), bbox.max.z.toFixed(1));
-    } else if (role === 'Right') {
-      rightBbox = bbox;
-      console.log('BAZA: Found Right face bbox min:', bbox.min.x.toFixed(1), bbox.min.y.toFixed(1), bbox.min.z.toFixed(1),
-        'max:', bbox.max.x.toFixed(1), bbox.max.y.toFixed(1), bbox.max.z.toFixed(1));
-    }
-  }
-
-  if (!bottomBbox) {
-    console.log('BAZA: Bottom face bbox not found, skipping');
-    return;
-  }
 
   interface BazaInfo {
     translateX: number;
@@ -305,9 +277,25 @@ async function generateFrontBazaPanels(
 
     if (bazaWidth < 1 || bazaDepth < 1) continue;
 
-    translateY = bottomBbox.min.y - bazaHeight;
+    const bottomPanel = state.shapes.find(
+      s => s.type === 'panel' &&
+      s.parameters?.parentShapeId === parentShapeId &&
+      s.parameters?.faceRole === 'Bottom'
+    );
 
-    console.log('BAZA: Bottom face bounds Y:[', bottomBbox.min.y.toFixed(1), bottomBbox.max.y.toFixed(1),
+    if (!bottomPanel?.geometry) {
+      console.log('BAZA: Bottom panel geometry not found, skipping');
+      continue;
+    }
+
+    const bottomBox = new THREE.Box3().setFromBufferAttribute(
+      bottomPanel.geometry.getAttribute('position')
+    );
+    bottomBox.translate(new THREE.Vector3(...bottomPanel.position));
+
+    translateY = bottomBox.min.y - bazaHeight;
+
+    console.log('BAZA: Bottom panel bounds Y:[', bottomBox.min.y.toFixed(1), bottomBox.max.y.toFixed(1),
       '] bazaHeight:', bazaHeight.toFixed(1), 'placing at Y:', translateY.toFixed(1));
 
     let adjustedTranslateX = translateX;
@@ -323,32 +311,32 @@ async function generateFrontBazaPanels(
     console.log(`BAZA: Initial pos:[${translateX.toFixed(1)}, ${translateY.toFixed(1)}, ${translateZ.toFixed(1)}] ` +
       `size:[${bazaWidth.toFixed(1)}, ${bazaHeight.toFixed(1)}, ${bazaDepth.toFixed(1)}]`);
     console.log(`BAZA: Door bounds X:[${doorBbox.min.x.toFixed(1)}, ${doorBbox.max.x.toFixed(1)}] Z:[${doorBbox.min.z.toFixed(1)}, ${doorBbox.max.z.toFixed(1)}]`);
-    console.log(`BAZA: Bottom face bounds X:[${bottomBbox.min.x.toFixed(1)}, ${bottomBbox.max.x.toFixed(1)}] Z:[${bottomBbox.min.z.toFixed(1)}, ${bottomBbox.max.z.toFixed(1)}]`);
+    console.log(`BAZA: Bottom panel bounds X:[${bottomBox.min.x.toFixed(1)}, ${bottomBox.max.x.toFixed(1)}] Z:[${bottomBox.min.z.toFixed(1)}, ${bottomBox.max.z.toFixed(1)}]`);
 
     if (absNz >= absNx && absNz > 0.5) {
-      if (leftBbox) {
-        leftTrim = panelThickness;
-        console.log(`BAZA: Left panel exists, applying trim: ${leftTrim.toFixed(1)}mm from left`);
+      leftTrim = bottomBox.min.x - doorBbox.min.x;
+      if (leftTrim > 0.1) {
+        console.log(`BAZA: Bottom panel trimmed ${leftTrim.toFixed(1)}mm from left, applying same to baza`);
         adjustedTranslateX += leftTrim;
         adjustedWidth -= leftTrim;
       }
 
-      if (rightBbox) {
-        rightTrim = panelThickness;
-        console.log(`BAZA: Right panel exists, applying trim: ${rightTrim.toFixed(1)}mm from right`);
+      rightTrim = doorBbox.max.x - bottomBox.max.x;
+      if (rightTrim > 0.1) {
+        console.log(`BAZA: Bottom panel trimmed ${rightTrim.toFixed(1)}mm from right, applying same to baza`);
         adjustedWidth -= rightTrim;
       }
     } else if (absNx > 0.5) {
-      if (leftBbox) {
-        frontTrim = panelThickness;
-        console.log(`BAZA: Left panel exists (front direction), applying trim: ${frontTrim.toFixed(1)}mm from front`);
+      frontTrim = bottomBox.min.z - doorBbox.min.z;
+      if (frontTrim > 0.1) {
+        console.log(`BAZA: Bottom panel trimmed ${frontTrim.toFixed(1)}mm from front, applying same to baza`);
         adjustedTranslateZ += frontTrim;
         adjustedDepth -= frontTrim;
       }
 
-      if (rightBbox) {
-        backTrim = panelThickness;
-        console.log(`BAZA: Right panel exists (back direction), applying trim: ${backTrim.toFixed(1)}mm from back`);
+      backTrim = doorBbox.max.z - bottomBox.max.z;
+      if (backTrim > 0.1) {
+        console.log(`BAZA: Bottom panel trimmed ${backTrim.toFixed(1)}mm from back, applying same to baza`);
         adjustedDepth -= backTrim;
       }
     }
