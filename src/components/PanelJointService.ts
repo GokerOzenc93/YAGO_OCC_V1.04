@@ -233,13 +233,17 @@ async function generateFrontBazaPanels(
 
     let bazaWidth: number;
     let bazaDepth: number;
+    let bazaHeight: number;
     let translateX: number;
+    let translateY: number;
     let translateZ: number;
 
     if (absNz >= absNx && absNz > 0.5) {
       bazaWidth = doorSize.x;
       bazaDepth = panelThickness;
+      bazaHeight = bazaThickness;
       translateX = doorBbox.min.x;
+      translateY = doorBbox.min.y;
       if (doorNormal.z > 0) {
         translateZ = doorBbox.min.z - frontBaseDistance - panelThickness;
       } else {
@@ -248,6 +252,9 @@ async function generateFrontBazaPanels(
     } else if (absNx > 0.5) {
       bazaWidth = panelThickness;
       bazaDepth = doorSize.z;
+      bazaHeight = bazaThickness;
+      translateX = doorBbox.min.x;
+      translateY = doorBbox.min.y;
       translateZ = doorBbox.min.z;
       if (doorNormal.x > 0) {
         translateX = doorBbox.min.x - frontBaseDistance - panelThickness;
