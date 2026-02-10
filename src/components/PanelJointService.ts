@@ -204,6 +204,17 @@ async function generateFrontBazaPanels(
   const newShapes: any[] = [];
   const processedDirs: string[] = [];
 
+  interface BazaInfo {
+    translateX: number;
+    translateY: number;
+    translateZ: number;
+    width: number;
+    height: number;
+    depth: number;
+    direction: 'x' | 'z';
+  }
+  const bazaInfos: BazaInfo[] = [];
+
   for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
     if (role !== 'Door') continue;
     const idx = parseInt(indexStr);
@@ -326,17 +337,92 @@ async function generateFrontBazaPanels(
       continue;
     }
 
-    console.log('BAZA: creating w:', adjustedWidth.toFixed(1), 'h:', bazaHeight.toFixed(1), 'd:', adjustedDepth.toFixed(1),
-      'pos: [', adjustedTranslateX.toFixed(1), translateY.toFixed(1), adjustedTranslateZ.toFixed(1), ']');
+    const direction: 'x' | 'z' = (absNz >= absNx && absNz > 0.5) ? 'x' : 'z';
+    bazaInfos.push({
+      translateX: adjustedTranslateX,
+      translateY,
+      translateZ: adjustedTranslateZ,
+      width: adjustedWidth,
+      height: bazaHeight,
+      depth: adjustedDepth,
+      direction
+    });
+
+    console.log(`BAZA: collected info - dir:${direction} pos:[${adjustedTranslateX.toFixed(1)}, ${translateY.toFixed(1)}, ${adjustedTranslateZ.toFixed(1)}] ` +
+      `size:[${adjustedWidth.toFixed(1)}, ${bazaHeight.toFixed(1)}, ${adjustedDepth.toFixed(1)}]`);
+  }
+
+  console.log(`BAZA: collected ${bazaInfos.length} baza infos, checking for adjacent pairs...`);
+
+  for (let i = 0; i < bazaInfos.length; i++) {
+    for (let j = i + 1; j < bazaInfos.length; j++) {
+      const a = bazaInfos[i];
+      const b = bazaInfos[j];
+
+      if (a.direction === b.direction) continue;
+
+      const aMinX = a.translateX;
+      const aMaxX = a.translateX + a.width;
+      const aMinZ = a.translateZ;
+      const aMaxZ = a.translateZ + a.depth;
+
+      const bMinX = b.translateX;
+      const bMaxX = b.translateX + b.width;
+      const bMinZ = b.translateZ;
+      const bMaxZ = b.translateZ + b.depth;
+
+      if (a.direction === 'x') {
+        const gapRight = bMinX - aMaxX;
+        const overlapZ = !(aMaxZ < bMinZ || bMaxZ < aMinZ);
+        if (Math.abs(gapRight - frontBaseDistance) < 1 && overlapZ) {
+          console.log(`BAZA: Adjacent pair found (a-right to b-left), extending both by ${frontBaseDistance}mm`);
+          a.width += frontBaseDistance;
+          b.translateZ -= frontBaseDistance;
+          b.depth += frontBaseDistance;
+        }
+
+        const gapLeft = aMinX - bMaxX;
+        if (Math.abs(gapLeft - frontBaseDistance) < 1 && overlapZ) {
+          console.log(`BAZA: Adjacent pair found (b-right to a-left), extending both by ${frontBaseDistance}mm`);
+          a.translateX -= frontBaseDistance;
+          a.width += frontBaseDistance;
+          b.translateZ -= frontBaseDistance;
+          b.depth += frontBaseDistance;
+        }
+      } else {
+        const gapRight = bMinZ - aMaxZ;
+        const overlapX = !(aMaxX < bMinX || bMaxX < aMinX);
+        if (Math.abs(gapRight - frontBaseDistance) < 1 && overlapX) {
+          console.log(`BAZA: Adjacent pair found (a-back to b-front), extending both by ${frontBaseDistance}mm`);
+          a.depth += frontBaseDistance;
+          b.translateX -= frontBaseDistance;
+          b.width += frontBaseDistance;
+        }
+
+        const gapLeft = aMinZ - bMaxZ;
+        if (Math.abs(gapLeft - frontBaseDistance) < 1 && overlapX) {
+          console.log(`BAZA: Adjacent pair found (b-back to a-front), extending both by ${frontBaseDistance}mm`);
+          a.translateZ -= frontBaseDistance;
+          a.depth += frontBaseDistance;
+          b.translateX -= frontBaseDistance;
+          b.width += frontBaseDistance;
+        }
+      }
+    }
+  }
+
+  for (const info of bazaInfos) {
+    console.log('BAZA: creating w:', info.width.toFixed(1), 'h:', info.height.toFixed(1), 'd:', info.depth.toFixed(1),
+      'pos: [', info.translateX.toFixed(1), info.translateY.toFixed(1), info.translateZ.toFixed(1), ']');
 
     try {
       const bazaBox = await createReplicadBox({
-        width: adjustedWidth,
-        height: bazaHeight,
-        depth: adjustedDepth
+        width: info.width,
+        height: info.height,
+        depth: info.depth
       });
 
-      const positioned = bazaBox.translate(adjustedTranslateX, translateY, adjustedTranslateZ);
+      const positioned = bazaBox.translate(info.translateX, info.translateY, info.translateZ);
       const geometry = convertReplicadToThreeGeometry(positioned);
 
       newShapes.push({
@@ -352,9 +438,9 @@ async function generateFrontBazaPanels(
           parentShapeId,
           isBaza: true,
           bazaType: 'front',
-          width: adjustedWidth,
-          height: bazaHeight,
-          depth: adjustedDepth
+          width: info.width,
+          height: info.height,
+          depth: info.depth
         }
       });
     } catch (err) {
