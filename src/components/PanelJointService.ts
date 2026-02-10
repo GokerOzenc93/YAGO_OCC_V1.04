@@ -159,6 +159,98 @@ function removeExistingBazaPanels(parentShapeId: string) {
   }
 }
 
+async function extendBottomPanelForSidePanels(
+  parentShapeId: string,
+  frontBaseDistance: number
+) {
+  const state = useAppStore.getState();
+  const parentShape = state.shapes.find(s => s.id === parentShapeId);
+  if (!parentShape || !parentShape.faceRoles) return;
+
+  const hasLeftPanel = Object.values(parentShape.faceRoles).some(r => r === 'Left');
+  const hasRightPanel = Object.values(parentShape.faceRoles).some(r => r === 'Right');
+
+  if (!hasLeftPanel && !hasRightPanel) {
+    console.log('BOTTOM EXTEND: No Left or Right panel roles found, skipping extension');
+    return;
+  }
+
+  const bottomPanels = state.shapes.filter(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Bottom'
+  );
+
+  if (bottomPanels.length === 0) {
+    console.log('BOTTOM EXTEND: No Bottom panels found');
+    return;
+  }
+
+  console.log(`BOTTOM EXTEND: Found ${bottomPanels.length} bottom panel(s), hasLeft=${hasLeftPanel}, hasRight=${hasRightPanel}`);
+
+  const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+  for (const bottomPanel of bottomPanels) {
+    if (!bottomPanel.geometry || !bottomPanel.replicadShape) continue;
+
+    const originalShape = bottomPanel.parameters?.originalReplicadShape || bottomPanel.replicadShape;
+
+    const bbox = new THREE.Box3().setFromBufferAttribute(
+      bottomPanel.geometry.getAttribute('position')
+    );
+    const size = new THREE.Vector3();
+    bbox.getSize(size);
+    const center = new THREE.Vector3();
+    bbox.getCenter(center);
+
+    let newWidth = size.x;
+    let newDepth = size.z;
+    let translateX = center.x - size.x / 2;
+    let translateZ = center.z - size.z / 2;
+
+    if (hasLeftPanel) {
+      console.log(`BOTTOM EXTEND: Left panel role found, extending right side by ${frontBaseDistance}mm`);
+      newWidth += frontBaseDistance;
+    }
+
+    if (hasRightPanel) {
+      console.log(`BOTTOM EXTEND: Right panel role found, extending left side by ${frontBaseDistance}mm`);
+      translateX -= frontBaseDistance;
+      newWidth += frontBaseDistance;
+    }
+
+    if (newWidth === size.x && newDepth === size.z) {
+      console.log('BOTTOM EXTEND: No changes needed for this panel');
+      continue;
+    }
+
+    try {
+      const extendedBox = await createReplicadBox({
+        width: newWidth,
+        height: size.y,
+        depth: newDepth
+      });
+
+      const positioned = extendedBox.translate(translateX, center.y - size.y / 2, translateZ);
+      const newGeometry = convertReplicadToThreeGeometry(positioned);
+
+      console.log(`BOTTOM EXTEND: Extended panel from ${size.x.toFixed(1)}x${size.z.toFixed(1)} to ${newWidth.toFixed(1)}x${newDepth.toFixed(1)}`);
+
+      useAppStore.getState().updateShape(bottomPanel.id, {
+        geometry: newGeometry,
+        replicadShape: positioned,
+        parameters: {
+          ...bottomPanel.parameters,
+          originalReplicadShape: originalShape,
+          extendedForSidePanels: true
+        }
+      });
+    } catch (err) {
+      console.error('BOTTOM EXTEND: Failed to extend panel:', err);
+    }
+  }
+}
+
 async function generateFrontBazaPanels(
   parentShapeId: string,
   selectedBodyType: string | null,
@@ -366,29 +458,36 @@ async function generateFrontBazaPanels(
       `trims: L:${leftTrim.toFixed(1)} R:${rightTrim.toFixed(1)} F:${frontTrim.toFixed(1)} B:${backTrim.toFixed(1)}`);
   }
 
-  console.log(`BAZA: collected ${bazaInfos.length} baza infos, extending opposite sides based on trims...`);
+  console.log(`BAZA: collected ${bazaInfos.length} baza infos, checking for Left/Right roles to auto-extend...`);
+
+  const hasLeftPanel = Object.values(parentShape.faceRoles).some(r => r === 'Left');
+  const hasRightPanel = Object.values(parentShape.faceRoles).some(r => r === 'Right');
+
+  console.log(`BAZA: hasLeftPanel=${hasLeftPanel}, hasRightPanel=${hasRightPanel}`);
 
   for (const baza of bazaInfos) {
-    if (baza.leftTrim > 0.1) {
-      console.log(`BAZA: Left side trimmed ${baza.leftTrim.toFixed(1)}mm, extending RIGHT side by ${frontBaseDistance}mm`);
-      baza.width += frontBaseDistance;
-    }
+    if (baza.direction === 'x') {
+      if (hasLeftPanel) {
+        console.log(`BAZA: Left panel role found, extending RIGHT side by ${frontBaseDistance}mm`);
+        baza.width += frontBaseDistance;
+      }
 
-    if (baza.rightTrim > 0.1) {
-      console.log(`BAZA: Right side trimmed ${baza.rightTrim.toFixed(1)}mm, extending LEFT side by ${frontBaseDistance}mm`);
-      baza.translateX -= frontBaseDistance;
-      baza.width += frontBaseDistance;
-    }
+      if (hasRightPanel) {
+        console.log(`BAZA: Right panel role found, extending LEFT side by ${frontBaseDistance}mm`);
+        baza.translateX -= frontBaseDistance;
+        baza.width += frontBaseDistance;
+      }
+    } else if (baza.direction === 'z') {
+      if (baza.frontTrim > 0.1) {
+        console.log(`BAZA: Front side trimmed ${baza.frontTrim.toFixed(1)}mm, extending BACK side by ${frontBaseDistance}mm`);
+        baza.depth += frontBaseDistance;
+      }
 
-    if (baza.frontTrim > 0.1) {
-      console.log(`BAZA: Front side trimmed ${baza.frontTrim.toFixed(1)}mm, extending BACK side by ${frontBaseDistance}mm`);
-      baza.depth += frontBaseDistance;
-    }
-
-    if (baza.backTrim > 0.1) {
-      console.log(`BAZA: Back side trimmed ${baza.backTrim.toFixed(1)}mm, extending FRONT side by ${frontBaseDistance}mm`);
-      baza.translateZ -= frontBaseDistance;
-      baza.depth += frontBaseDistance;
+      if (baza.backTrim > 0.1) {
+        console.log(`BAZA: Back side trimmed ${baza.backTrim.toFixed(1)}mm, extending FRONT side by ${frontBaseDistance}mm`);
+        baza.translateZ -= frontBaseDistance;
+        baza.depth += frontBaseDistance;
+      }
     }
   }
 
@@ -445,6 +544,8 @@ export async function resolveAllPanelJoints(
   const state = useAppStore.getState();
   const fullSettings = await loadFullProfileSettings(profileId);
   const jointConfig = config || fullSettings.jointConfig;
+
+  await extendBottomPanelForSidePanels(parentShapeId, fullSettings.frontBaseDistance);
 
   const panels = state.shapes.filter(
     (s) =>
@@ -562,7 +663,7 @@ export async function restoreAllPanels(parentShapeId: string): Promise<void> {
     (s) =>
       s.type === 'panel' &&
       s.parameters?.parentShapeId === parentShapeId &&
-      s.parameters?.jointTrimmed &&
+      (s.parameters?.jointTrimmed || s.parameters?.extendedForSidePanels) &&
       s.parameters?.originalReplicadShape
   );
   await restoreSinglePanels(panels);
@@ -572,7 +673,7 @@ export async function restoreAllPanels(parentShapeId: string): Promise<void> {
 
 async function restoreSinglePanels(panels: any[]) {
   for (const panel of panels) {
-    if (panel.parameters?.jointTrimmed && panel.parameters?.originalReplicadShape) {
+    if ((panel.parameters?.jointTrimmed || panel.parameters?.extendedForSidePanels) && panel.parameters?.originalReplicadShape) {
       try {
         const geo = await toGeometry(panel.parameters.originalReplicadShape);
         useAppStore.getState().updateShape(panel.id, {
@@ -581,6 +682,7 @@ async function restoreSinglePanels(panels: any[]) {
           parameters: {
             ...panel.parameters,
             jointTrimmed: false,
+            extendedForSidePanels: false,
           },
         });
       } catch {}
