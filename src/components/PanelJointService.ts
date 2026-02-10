@@ -279,11 +279,10 @@ async function generateFrontBazaPanels(
     );
     bottomBox.translate(new THREE.Vector3(...bottomPanel.position));
 
-    translateY = bottomBox.min.y;
-    bazaHeight = bottomBox.max.y - bottomBox.min.y;
+    translateY = bottomBox.min.y - bazaHeight;
 
     console.log('BAZA: Bottom panel bounds Y:[', bottomBox.min.y.toFixed(1), bottomBox.max.y.toFixed(1),
-      '] using translateY:', translateY.toFixed(1), 'bazaHeight:', bazaHeight.toFixed(1));
+      '] bazaHeight:', bazaHeight.toFixed(1), 'placing at Y:', translateY.toFixed(1));
 
     const leftPanel = state.shapes.find(
       s => s.type === 'panel' &&
@@ -327,6 +326,7 @@ async function generateFrontBazaPanels(
       leftBox.translate(new THREE.Vector3(...leftPanel.position));
 
       console.log(`BAZA: Left panel bounds X:[${leftBox.min.x.toFixed(1)}, ${leftBox.max.x.toFixed(1)}] ` +
+        `Y:[${leftBox.min.y.toFixed(1)}, ${leftBox.max.y.toFixed(1)}] ` +
         `Z:[${leftBox.min.z.toFixed(1)}, ${leftBox.max.z.toFixed(1)}]`);
 
       // Check if there's a real geometric intersection
@@ -335,24 +335,22 @@ async function generateFrontBazaPanels(
 
         // Determine which side is colliding based on normal direction
         if (absNz >= absNx && absNz > 0.5) {
-          // Baza is primarily horizontal (XZ plane), collision is on X axis
-          const leftMaxX = leftBox.max.x;
-          const bazaMinX = bazaBox.min.x;
-
-          if (leftMaxX > bazaMinX) {
-            console.log(`BAZA: Left panel extends into baza on X axis, shortening from left by ${panelThickness.toFixed(1)}mm`);
-            adjustedWidth -= panelThickness;
-            adjustedTranslateX += panelThickness;
+          // Baza is horizontal (XZ plane), extends along X axis
+          // Left panel should be on the left side (smaller X)
+          const overlap = leftBox.max.x - bazaBox.min.x;
+          if (overlap > 0) {
+            console.log(`BAZA: Left panel overlaps baza by ${overlap.toFixed(1)}mm, adjusting from left`);
+            adjustedWidth -= overlap;
+            adjustedTranslateX += overlap;
           }
         } else if (absNx > 0.5) {
-          // Baza is primarily vertical (YZ plane), collision is on Z axis
-          const leftMaxZ = leftBox.max.z;
-          const bazaMinZ = bazaBox.min.z;
-
-          if (leftMaxZ > bazaMinZ) {
-            console.log(`BAZA: Left panel extends into baza on Z axis, shortening from front by ${panelThickness.toFixed(1)}mm`);
-            adjustedDepth -= panelThickness;
-            adjustedTranslateZ += panelThickness;
+          // Baza is vertical (extends along Z axis)
+          // Check Z axis collision
+          const overlap = leftBox.max.z - bazaBox.min.z;
+          if (overlap > 0) {
+            console.log(`BAZA: Left panel overlaps baza by ${overlap.toFixed(1)}mm on Z, adjusting from front`);
+            adjustedDepth -= overlap;
+            adjustedTranslateZ += overlap;
           }
         }
       }
@@ -366,6 +364,7 @@ async function generateFrontBazaPanels(
       rightBox.translate(new THREE.Vector3(...rightPanel.position));
 
       console.log(`BAZA: Right panel bounds X:[${rightBox.min.x.toFixed(1)}, ${rightBox.max.x.toFixed(1)}] ` +
+        `Y:[${rightBox.min.y.toFixed(1)}, ${rightBox.max.y.toFixed(1)}] ` +
         `Z:[${rightBox.min.z.toFixed(1)}, ${rightBox.max.z.toFixed(1)}]`);
 
       // Update bazaBox with adjusted dimensions for right panel check
@@ -388,22 +387,22 @@ async function generateFrontBazaPanels(
 
         // Determine which side is colliding based on normal direction
         if (absNz >= absNx && absNz > 0.5) {
-          // Baza is primarily horizontal (XZ plane), collision is on X axis
-          const rightMinX = rightBox.min.x;
+          // Baza is horizontal (XZ plane), extends along X axis
+          // Right panel should be on the right side (larger X)
           const bazaMaxX = adjustedTranslateX + adjustedWidth;
-
-          if (rightMinX < bazaMaxX) {
-            console.log(`BAZA: Right panel extends into baza on X axis, shortening from right by ${panelThickness.toFixed(1)}mm`);
-            adjustedWidth -= panelThickness;
+          const overlap = bazaMaxX - rightBox.min.x;
+          if (overlap > 0) {
+            console.log(`BAZA: Right panel overlaps baza by ${overlap.toFixed(1)}mm, adjusting from right`);
+            adjustedWidth -= overlap;
           }
         } else if (absNx > 0.5) {
-          // Baza is primarily vertical (YZ plane), collision is on Z axis
-          const rightMinZ = rightBox.min.z;
+          // Baza is vertical (extends along Z axis)
+          // Check Z axis collision
           const bazaMaxZ = adjustedTranslateZ + adjustedDepth;
-
-          if (rightMinZ < bazaMaxZ) {
-            console.log(`BAZA: Right panel extends into baza on Z axis, shortening from back by ${panelThickness.toFixed(1)}mm`);
-            adjustedDepth -= panelThickness;
+          const overlap = bazaMaxZ - rightBox.min.z;
+          if (overlap > 0) {
+            console.log(`BAZA: Right panel overlaps baza by ${overlap.toFixed(1)}mm on Z, adjusting from back`);
+            adjustedDepth -= overlap;
           }
         }
       }
