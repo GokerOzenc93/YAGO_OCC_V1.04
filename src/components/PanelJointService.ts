@@ -194,6 +194,10 @@ async function generateFrontBazaPanels(
 
   console.log('BAZA: parentGroups:', parentGroups.length, 'faceRoles:', JSON.stringify(parentShape.faceRoles));
 
+  // BAZA temporarily disabled
+  console.log('BAZA: Feature temporarily disabled');
+  return;
+
   const hasDoorRole = Object.values(parentShape.faceRoles).some(r => r === 'Door');
   if (!hasDoorRole) {
     console.log('BAZA: no Door faceRoles found');
