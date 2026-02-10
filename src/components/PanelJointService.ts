@@ -292,9 +292,9 @@ async function generateFrontBazaPanels(
         console.log(`BAZA: Left panel bounds: minX=${leftBox.min.x.toFixed(1)}, maxX=${leftBox.max.x.toFixed(1)}`);
 
         const leftMaxX = leftBox.max.x;
-        if (leftMaxX > bazaMinX) {
-          const overlap = Math.min(leftMaxX - bazaMinX, bazaWidth);
-          console.log(`BAZA: Left panel overlap detected: ${overlap.toFixed(1)}mm, shortening from left`);
+        if (leftMaxX > bazaMinX && leftMaxX < bazaMaxX) {
+          const overlap = panelThickness;
+          console.log(`BAZA: Left panel overlap detected, shortening by panel thickness: ${overlap.toFixed(1)}mm`);
           adjustedWidth -= overlap;
           adjustedTranslateX += overlap;
         }
@@ -310,9 +310,9 @@ async function generateFrontBazaPanels(
 
         const rightMinX = rightBox.min.x;
         const currentMaxX = adjustedTranslateX + adjustedWidth;
-        if (rightMinX < currentMaxX) {
-          const overlap = Math.min(currentMaxX - rightMinX, adjustedWidth);
-          console.log(`BAZA: Right panel overlap detected: ${overlap.toFixed(1)}mm, shortening from right`);
+        if (rightMinX > bazaMinX && rightMinX < currentMaxX) {
+          const overlap = panelThickness;
+          console.log(`BAZA: Right panel overlap detected, shortening by panel thickness: ${overlap.toFixed(1)}mm`);
           adjustedWidth -= overlap;
         }
       }
@@ -331,9 +331,9 @@ async function generateFrontBazaPanels(
         console.log(`BAZA: Left panel bounds: minZ=${leftBox.min.z.toFixed(1)}, maxZ=${leftBox.max.z.toFixed(1)}`);
 
         const leftMaxZ = leftBox.max.z;
-        if (leftMaxZ > bazaMinZ) {
-          const overlap = Math.min(leftMaxZ - bazaMinZ, bazaDepth);
-          console.log(`BAZA: Left panel overlap detected: ${overlap.toFixed(1)}mm, shortening from front`);
+        if (leftMaxZ > bazaMinZ && leftMaxZ < bazaMaxZ) {
+          const overlap = panelThickness;
+          console.log(`BAZA: Left panel overlap detected, shortening by panel thickness: ${overlap.toFixed(1)}mm`);
           adjustedDepth -= overlap;
           adjustedTranslateZ += overlap;
         }
@@ -349,9 +349,9 @@ async function generateFrontBazaPanels(
 
         const rightMinZ = rightBox.min.z;
         const currentMaxZ = adjustedTranslateZ + adjustedDepth;
-        if (rightMinZ < currentMaxZ) {
-          const overlap = Math.min(currentMaxZ - rightMinZ, adjustedDepth);
-          console.log(`BAZA: Right panel overlap detected: ${overlap.toFixed(1)}mm, shortening from back`);
+        if (rightMinZ > bazaMinZ && rightMinZ < currentMaxZ) {
+          const overlap = panelThickness;
+          console.log(`BAZA: Right panel overlap detected, shortening by panel thickness: ${overlap.toFixed(1)}mm`);
           adjustedDepth -= overlap;
         }
       }
