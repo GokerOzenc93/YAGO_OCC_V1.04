@@ -274,10 +274,14 @@ async function generateFrontBazaPanels(
 
     let adjustedWidth = bazaWidth;
     let adjustedTranslateX = translateX;
+    let adjustedDepth = bazaDepth;
+    let adjustedTranslateZ = translateZ;
 
     if (absNz >= absNx && absNz > 0.5) {
       const bazaMinX = translateX;
       const bazaMaxX = translateX + bazaWidth;
+
+      console.log(`BAZA: Initial baza bounds: minX=${bazaMinX.toFixed(1)}, maxX=${bazaMaxX.toFixed(1)}, width=${bazaWidth.toFixed(1)}`);
 
       if (leftPanel?.geometry) {
         const leftBox = new THREE.Box3().setFromBufferAttribute(
@@ -285,9 +289,11 @@ async function generateFrontBazaPanels(
         );
         leftBox.translate(new THREE.Vector3(...leftPanel.position));
 
+        console.log(`BAZA: Left panel bounds: minX=${leftBox.min.x.toFixed(1)}, maxX=${leftBox.max.x.toFixed(1)}`);
+
         const leftMaxX = leftBox.max.x;
-        if (leftMaxX > bazaMinX && leftMaxX < bazaMaxX) {
-          const overlap = leftMaxX - bazaMinX;
+        if (leftMaxX > bazaMinX) {
+          const overlap = Math.min(leftMaxX - bazaMinX, bazaWidth);
           console.log(`BAZA: Left panel overlap detected: ${overlap.toFixed(1)}mm, shortening from left`);
           adjustedWidth -= overlap;
           adjustedTranslateX += overlap;
@@ -300,9 +306,12 @@ async function generateFrontBazaPanels(
         );
         rightBox.translate(new THREE.Vector3(...rightPanel.position));
 
+        console.log(`BAZA: Right panel bounds: minX=${rightBox.min.x.toFixed(1)}, maxX=${rightBox.max.x.toFixed(1)}`);
+
         const rightMinX = rightBox.min.x;
-        if (rightMinX > bazaMinX && rightMinX < bazaMaxX) {
-          const overlap = bazaMaxX - rightMinX;
+        const currentMaxX = adjustedTranslateX + adjustedWidth;
+        if (rightMinX < currentMaxX) {
+          const overlap = Math.min(currentMaxX - rightMinX, adjustedWidth);
           console.log(`BAZA: Right panel overlap detected: ${overlap.toFixed(1)}mm, shortening from right`);
           adjustedWidth -= overlap;
         }
@@ -311,18 +320,22 @@ async function generateFrontBazaPanels(
       const bazaMinZ = translateZ;
       const bazaMaxZ = translateZ + bazaDepth;
 
+      console.log(`BAZA: Initial baza bounds: minZ=${bazaMinZ.toFixed(1)}, maxZ=${bazaMaxZ.toFixed(1)}, depth=${bazaDepth.toFixed(1)}`);
+
       if (leftPanel?.geometry) {
         const leftBox = new THREE.Box3().setFromBufferAttribute(
           leftPanel.geometry.getAttribute('position')
         );
         leftBox.translate(new THREE.Vector3(...leftPanel.position));
 
+        console.log(`BAZA: Left panel bounds: minZ=${leftBox.min.z.toFixed(1)}, maxZ=${leftBox.max.z.toFixed(1)}`);
+
         const leftMaxZ = leftBox.max.z;
-        if (leftMaxZ > bazaMinZ && leftMaxZ < bazaMaxZ) {
-          const overlap = leftMaxZ - bazaMinZ;
+        if (leftMaxZ > bazaMinZ) {
+          const overlap = Math.min(leftMaxZ - bazaMinZ, bazaDepth);
           console.log(`BAZA: Left panel overlap detected: ${overlap.toFixed(1)}mm, shortening from front`);
-          bazaDepth -= overlap;
-          translateZ += overlap;
+          adjustedDepth -= overlap;
+          adjustedTranslateZ += overlap;
         }
       }
 
@@ -332,31 +345,34 @@ async function generateFrontBazaPanels(
         );
         rightBox.translate(new THREE.Vector3(...rightPanel.position));
 
+        console.log(`BAZA: Right panel bounds: minZ=${rightBox.min.z.toFixed(1)}, maxZ=${rightBox.max.z.toFixed(1)}`);
+
         const rightMinZ = rightBox.min.z;
-        if (rightMinZ > bazaMinZ && rightMinZ < bazaMaxZ) {
-          const overlap = bazaMaxZ - rightMinZ;
+        const currentMaxZ = adjustedTranslateZ + adjustedDepth;
+        if (rightMinZ < currentMaxZ) {
+          const overlap = Math.min(currentMaxZ - rightMinZ, adjustedDepth);
           console.log(`BAZA: Right panel overlap detected: ${overlap.toFixed(1)}mm, shortening from back`);
-          bazaDepth -= overlap;
+          adjustedDepth -= overlap;
         }
       }
     }
 
-    if (adjustedWidth < 1 || bazaDepth < 1) {
+    if (adjustedWidth < 1 || adjustedDepth < 1) {
       console.log('BAZA: adjusted dimensions too small, skipping');
       continue;
     }
 
-    console.log('BAZA: creating w:', adjustedWidth.toFixed(1), 'h:', bazaHeight, 'd:', bazaDepth.toFixed(1),
-      'tx:', adjustedTranslateX.toFixed(1), 'tz:', translateZ.toFixed(1));
+    console.log('BAZA: creating w:', adjustedWidth.toFixed(1), 'h:', bazaHeight, 'd:', adjustedDepth.toFixed(1),
+      'tx:', adjustedTranslateX.toFixed(1), 'tz:', adjustedTranslateZ.toFixed(1));
 
     try {
       const bazaBox = await createReplicadBox({
         width: adjustedWidth,
         height: bazaHeight,
-        depth: bazaDepth
+        depth: adjustedDepth
       });
 
-      const positioned = bazaBox.translate(adjustedTranslateX, 0, translateZ);
+      const positioned = bazaBox.translate(adjustedTranslateX, 0, adjustedTranslateZ);
       const geometry = convertReplicadToThreeGeometry(positioned);
 
       newShapes.push({
@@ -374,7 +390,7 @@ async function generateFrontBazaPanels(
           bazaType: 'front',
           width: adjustedWidth,
           height: bazaHeight,
-          depth: bazaDepth
+          depth: adjustedDepth
         }
       });
     } catch (err) {
