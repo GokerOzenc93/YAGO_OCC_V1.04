@@ -233,7 +233,6 @@ async function generateFrontBazaPanels(
 
     let bazaWidth: number;
     let bazaDepth: number;
-    let bazaHeight: number;
     let translateX: number;
     let translateY: number;
     let translateZ: number;
