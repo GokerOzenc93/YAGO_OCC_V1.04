@@ -366,22 +366,18 @@ async function generateFrontBazaPanels(
       `trims: L:${leftTrim.toFixed(1)} R:${rightTrim.toFixed(1)} F:${frontTrim.toFixed(1)} B:${backTrim.toFixed(1)}`);
   }
 
-  console.log(`BAZA: collected ${bazaInfos.length} baza infos, extending sides by frontBaseDistance...`);
+  console.log(`BAZA: collected ${bazaInfos.length} baza infos, extending non-trimming sides by frontBaseDistance...`);
 
   for (const baza of bazaInfos) {
-    console.log(`BAZA: Extending LEFT side by ${frontBaseDistance}mm`);
-    baza.translateX -= frontBaseDistance;
-    baza.width += frontBaseDistance;
-
-    console.log(`BAZA: Extending RIGHT side by ${frontBaseDistance}mm`);
-    baza.width += frontBaseDistance;
-
-    console.log(`BAZA: Extending FRONT side by ${frontBaseDistance}mm`);
-    baza.translateZ -= frontBaseDistance;
-    baza.depth += frontBaseDistance;
-
-    console.log(`BAZA: Extending BACK side by ${frontBaseDistance}mm`);
-    baza.depth += frontBaseDistance;
+    if (baza.direction === 'x') {
+      console.log(`BAZA: X-direction panel, extending FRONT and BACK by ${frontBaseDistance}mm`);
+      baza.translateZ -= frontBaseDistance;
+      baza.depth += frontBaseDistance * 2;
+    } else {
+      console.log(`BAZA: Z-direction panel, extending LEFT and RIGHT by ${frontBaseDistance}mm`);
+      baza.translateX -= frontBaseDistance;
+      baza.width += frontBaseDistance * 2;
+    }
   }
 
   for (const info of bazaInfos) {
