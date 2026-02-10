@@ -261,18 +261,7 @@ async function generateFrontBazaPanels(
         depth: bazaDepth
       });
 
-      let positioned = bazaBox.translate(translateX, 0, translateZ);
-
-      if (parentShape.replicadShape) {
-        try {
-          console.log('BAZA: checking collision with parent');
-          positioned = positioned.cut(parentShape.replicadShape);
-          console.log('BAZA: cut operation successful');
-        } catch (cutErr) {
-          console.warn('BAZA: cut operation failed, using original geometry:', cutErr);
-        }
-      }
-
+      const positioned = bazaBox.translate(translateX, 0, translateZ);
       const geometry = convertReplicadToThreeGeometry(positioned);
 
       newShapes.push({
