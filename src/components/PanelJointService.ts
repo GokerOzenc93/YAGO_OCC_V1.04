@@ -171,148 +171,120 @@ async function generateFrontBazaPanels(
 
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  if (!parentShape || !parentShape.geometry) {
-    console.log('BAZA: no parent shape or geometry');
+  if (!parentShape || !parentShape.geometry || !parentShape.faceRoles) {
+    console.log('BAZA: no parent, geometry or faceRoles');
     return;
   }
 
+  const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
   const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+  const parentFaces = extractFacesFromGeometry(parentShape.geometry);
+  const parentGroups = groupCoplanarFaces(parentFaces);
+
+  console.log('BAZA: parentGroups:', parentGroups.length, 'faceRoles:', JSON.stringify(parentShape.faceRoles));
+
+  const hasDoorRole = Object.values(parentShape.faceRoles).some(r => r === 'Door');
+  if (!hasDoorRole) {
+    console.log('BAZA: no Door faceRoles found');
+    return;
+  }
+
   const panelThickness = 18;
-  const backBaseDistance = state.backBaseDistance;
-
-  const parentBbox = new THREE.Box3().setFromBufferAttribute(
-    parentShape.geometry.getAttribute('position')
-  );
-  const parentSize = new THREE.Vector3();
-  parentBbox.getSize(parentSize);
-
-  const childPanels = state.shapes.filter(
-    s => s.type === 'panel' &&
-    s.parameters?.parentShapeId === parentShapeId &&
-    !s.parameters?.isBaza
-  );
-
-  const bottomPanel = childPanels.find(s => s.parameters?.faceRole === 'Bottom');
-  if (!bottomPanel) {
-    console.log('BAZA: no Bottom panel found');
-    return;
-  }
-
-  const leftPanel = childPanels.find(s => s.parameters?.faceRole === 'Left');
-  const rightPanel = childPanels.find(s => s.parameters?.faceRole === 'Right');
-
-  let bazaWidth = parentSize.x;
-  let leftDeduction = 0;
-  let rightDeduction = 0;
-
-  const bazaYMin = parentBbox.min.y;
-  const bazaYMax = parentBbox.min.y + bazaHeight;
-
-  if (leftPanel?.geometry) {
-    const leftBbox = new THREE.Box3().setFromBufferAttribute(
-      leftPanel.geometry.getAttribute('position')
-    );
-    const bazaArea = new THREE.Box3(
-      new THREE.Vector3(parentBbox.min.x, bazaYMin, parentBbox.min.z),
-      new THREE.Vector3(parentBbox.max.x, bazaYMax, parentBbox.max.z)
-    );
-    if (leftBbox.intersectsBox(bazaArea)) {
-      leftDeduction = panelThickness;
-      console.log('BAZA: left panel collision detected, deduction:', panelThickness);
-    }
-  }
-
-  if (rightPanel?.geometry) {
-    const rightBbox = new THREE.Box3().setFromBufferAttribute(
-      rightPanel.geometry.getAttribute('position')
-    );
-    const bazaArea = new THREE.Box3(
-      new THREE.Vector3(parentBbox.min.x, bazaYMin, parentBbox.min.z),
-      new THREE.Vector3(parentBbox.max.x, bazaYMax, parentBbox.max.z)
-    );
-    if (rightBbox.intersectsBox(bazaArea)) {
-      rightDeduction = panelThickness;
-      console.log('BAZA: right panel collision detected, deduction:', panelThickness);
-    }
-  }
-
-  bazaWidth -= (leftDeduction + rightDeduction);
-
-  if (bazaWidth < 1) {
-    console.log('BAZA: width too small after deductions:', bazaWidth);
-    return;
-  }
-
-  const translateX = parentBbox.min.x + leftDeduction;
-
-  console.log('BAZA: width:', bazaWidth.toFixed(1),
-    'leftDed:', leftDeduction, 'rightDed:', rightDeduction,
-    'translateX:', translateX.toFixed(1));
-
   const newShapes: any[] = [];
+  const processedDirs: string[] = [];
 
-  try {
-    const frontBox = await createReplicadBox({
-      width: bazaWidth,
-      height: bazaHeight,
-      depth: panelThickness
+  for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
+    if (role !== 'Door') continue;
+    const idx = parseInt(indexStr);
+    if (idx >= parentGroups.length) continue;
+
+    const doorGroup = parentGroups[idx];
+    const doorNormal = doorGroup.normal.clone().normalize();
+
+    const dirKey = `${Math.round(doorNormal.x)}_${Math.round(doorNormal.y)}_${Math.round(doorNormal.z)}`;
+    if (processedDirs.includes(dirKey)) continue;
+    processedDirs.push(dirKey);
+
+    const doorVertices: THREE.Vector3[] = [];
+    doorGroup.faceIndices.forEach(fi => {
+      parentFaces[fi].vertices.forEach(v => doorVertices.push(v.clone()));
     });
-    const frontTranslateZ = parentBbox.max.z - frontBaseDistance - panelThickness;
-    const frontPositioned = frontBox.translate(translateX, 0, frontTranslateZ);
-    const frontGeo = convertReplicadToThreeGeometry(frontPositioned);
+    const doorBbox = new THREE.Box3().setFromPoints(doorVertices);
+    const doorSize = new THREE.Vector3();
+    doorBbox.getSize(doorSize);
 
-    newShapes.push({
-      id: `baza-front-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: 'panel',
-      geometry: frontGeo,
-      replicadShape: frontPositioned,
-      position: [parentShape.position[0], parentShape.position[1], parentShape.position[2]] as [number, number, number],
-      rotation: parentShape.rotation,
-      scale: [...parentShape.scale] as [number, number, number],
-      color: '#ffffff',
-      parameters: {
-        parentShapeId,
-        isBaza: true,
-        bazaType: 'front',
+    console.log('BAZA: Door face bbox min:', doorBbox.min.x.toFixed(1), doorBbox.min.y.toFixed(1), doorBbox.min.z.toFixed(1),
+      'max:', doorBbox.max.x.toFixed(1), doorBbox.max.y.toFixed(1), doorBbox.max.z.toFixed(1),
+      'size:', doorSize.x.toFixed(1), doorSize.y.toFixed(1), doorSize.z.toFixed(1));
+
+    const absNx = Math.abs(doorNormal.x);
+    const absNz = Math.abs(doorNormal.z);
+
+    let bazaWidth: number;
+    let bazaDepth: number;
+    let translateX: number;
+    let translateZ: number;
+
+    if (absNz >= absNx && absNz > 0.5) {
+      bazaWidth = doorSize.x;
+      bazaDepth = panelThickness;
+      translateX = doorBbox.min.x;
+      if (doorNormal.z > 0) {
+        translateZ = doorBbox.min.z - frontBaseDistance - panelThickness;
+      } else {
+        translateZ = doorBbox.max.z + frontBaseDistance;
+      }
+    } else if (absNx > 0.5) {
+      bazaWidth = panelThickness;
+      bazaDepth = doorSize.z;
+      translateZ = doorBbox.min.z;
+      if (doorNormal.x > 0) {
+        translateX = doorBbox.min.x - frontBaseDistance - panelThickness;
+      } else {
+        translateX = doorBbox.max.x + frontBaseDistance;
+      }
+    } else {
+      console.log('BAZA: door normal not axis-aligned, skipping');
+      continue;
+    }
+
+    if (bazaWidth < 1 || bazaDepth < 1) continue;
+
+    console.log('BAZA: creating w:', bazaWidth.toFixed(1), 'h:', bazaHeight, 'd:', bazaDepth.toFixed(1),
+      'tx:', translateX.toFixed(1), 'tz:', translateZ.toFixed(1));
+
+    try {
+      const bazaBox = await createReplicadBox({
         width: bazaWidth,
         height: bazaHeight,
-        depth: panelThickness
-      }
-    });
-  } catch (err) {
-    console.error('BAZA: front panel creation failed:', err);
-  }
+        depth: bazaDepth
+      });
 
-  try {
-    const backBox = await createReplicadBox({
-      width: bazaWidth,
-      height: bazaHeight,
-      depth: panelThickness
-    });
-    const backTranslateZ = parentBbox.min.z + backBaseDistance;
-    const backPositioned = backBox.translate(translateX, 0, backTranslateZ);
-    const backGeo = convertReplicadToThreeGeometry(backPositioned);
+      const positioned = bazaBox.translate(translateX, 0, translateZ);
+      const geometry = convertReplicadToThreeGeometry(positioned);
 
-    newShapes.push({
-      id: `baza-back-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type: 'panel',
-      geometry: backGeo,
-      replicadShape: backPositioned,
-      position: [parentShape.position[0], parentShape.position[1], parentShape.position[2]] as [number, number, number],
-      rotation: parentShape.rotation,
-      scale: [...parentShape.scale] as [number, number, number],
-      color: '#ffffff',
-      parameters: {
-        parentShapeId,
-        isBaza: true,
-        bazaType: 'back',
-        width: bazaWidth,
-        height: bazaHeight,
-        depth: panelThickness
-      }
-    });
-  } catch (err) {
-    console.error('BAZA: back panel creation failed:', err);
+      newShapes.push({
+        id: `baza-front-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: 'panel',
+        geometry,
+        replicadShape: positioned,
+        position: [parentShape.position[0], parentShape.position[1], parentShape.position[2]] as [number, number, number],
+        rotation: parentShape.rotation,
+        scale: [...parentShape.scale] as [number, number, number],
+        color: '#ffffff',
+        parameters: {
+          parentShapeId,
+          isBaza: true,
+          bazaType: 'front',
+          width: bazaWidth,
+          height: bazaHeight,
+          depth: bazaDepth
+        }
+      });
+    } catch (err) {
+      console.error('BAZA: failed to create:', err);
+    }
   }
 
   console.log('BAZA: total new shapes:', newShapes.length);
