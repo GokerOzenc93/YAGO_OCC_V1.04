@@ -261,17 +261,102 @@ async function generateFrontBazaPanels(
 
     if (bazaWidth < 1 || bazaDepth < 1) continue;
 
-    console.log('BAZA: creating w:', bazaWidth.toFixed(1), 'h:', bazaHeight, 'd:', bazaDepth.toFixed(1),
-      'tx:', translateX.toFixed(1), 'tz:', translateZ.toFixed(1));
+    const leftPanel = state.shapes.find(
+      s => s.type === 'panel' &&
+      s.parameters?.parentShapeId === parentShapeId &&
+      s.parameters?.faceRole === 'Left'
+    );
+    const rightPanel = state.shapes.find(
+      s => s.type === 'panel' &&
+      s.parameters?.parentShapeId === parentShapeId &&
+      s.parameters?.faceRole === 'Right'
+    );
+
+    let adjustedWidth = bazaWidth;
+    let adjustedTranslateX = translateX;
+
+    if (absNz >= absNx && absNz > 0.5) {
+      const bazaMinX = translateX;
+      const bazaMaxX = translateX + bazaWidth;
+
+      if (leftPanel?.geometry) {
+        const leftBox = new THREE.Box3().setFromBufferAttribute(
+          leftPanel.geometry.getAttribute('position')
+        );
+        leftBox.translate(new THREE.Vector3(...leftPanel.position));
+
+        const leftMaxX = leftBox.max.x;
+        if (leftMaxX > bazaMinX && leftMaxX < bazaMaxX) {
+          const overlap = leftMaxX - bazaMinX;
+          console.log(`BAZA: Left panel overlap detected: ${overlap.toFixed(1)}mm, shortening from left`);
+          adjustedWidth -= overlap;
+          adjustedTranslateX += overlap;
+        }
+      }
+
+      if (rightPanel?.geometry) {
+        const rightBox = new THREE.Box3().setFromBufferAttribute(
+          rightPanel.geometry.getAttribute('position')
+        );
+        rightBox.translate(new THREE.Vector3(...rightPanel.position));
+
+        const rightMinX = rightBox.min.x;
+        if (rightMinX > bazaMinX && rightMinX < bazaMaxX) {
+          const overlap = bazaMaxX - rightMinX;
+          console.log(`BAZA: Right panel overlap detected: ${overlap.toFixed(1)}mm, shortening from right`);
+          adjustedWidth -= overlap;
+        }
+      }
+    } else if (absNx > 0.5) {
+      const bazaMinZ = translateZ;
+      const bazaMaxZ = translateZ + bazaDepth;
+
+      if (leftPanel?.geometry) {
+        const leftBox = new THREE.Box3().setFromBufferAttribute(
+          leftPanel.geometry.getAttribute('position')
+        );
+        leftBox.translate(new THREE.Vector3(...leftPanel.position));
+
+        const leftMaxZ = leftBox.max.z;
+        if (leftMaxZ > bazaMinZ && leftMaxZ < bazaMaxZ) {
+          const overlap = leftMaxZ - bazaMinZ;
+          console.log(`BAZA: Left panel overlap detected: ${overlap.toFixed(1)}mm, shortening from front`);
+          bazaDepth -= overlap;
+          translateZ += overlap;
+        }
+      }
+
+      if (rightPanel?.geometry) {
+        const rightBox = new THREE.Box3().setFromBufferAttribute(
+          rightPanel.geometry.getAttribute('position')
+        );
+        rightBox.translate(new THREE.Vector3(...rightPanel.position));
+
+        const rightMinZ = rightBox.min.z;
+        if (rightMinZ > bazaMinZ && rightMinZ < bazaMaxZ) {
+          const overlap = bazaMaxZ - rightMinZ;
+          console.log(`BAZA: Right panel overlap detected: ${overlap.toFixed(1)}mm, shortening from back`);
+          bazaDepth -= overlap;
+        }
+      }
+    }
+
+    if (adjustedWidth < 1 || bazaDepth < 1) {
+      console.log('BAZA: adjusted dimensions too small, skipping');
+      continue;
+    }
+
+    console.log('BAZA: creating w:', adjustedWidth.toFixed(1), 'h:', bazaHeight, 'd:', bazaDepth.toFixed(1),
+      'tx:', adjustedTranslateX.toFixed(1), 'tz:', translateZ.toFixed(1));
 
     try {
       const bazaBox = await createReplicadBox({
-        width: bazaWidth,
+        width: adjustedWidth,
         height: bazaHeight,
         depth: bazaDepth
       });
 
-      const positioned = bazaBox.translate(translateX, 0, translateZ);
+      const positioned = bazaBox.translate(adjustedTranslateX, 0, translateZ);
       const geometry = convertReplicadToThreeGeometry(positioned);
 
       newShapes.push({
@@ -287,7 +372,7 @@ async function generateFrontBazaPanels(
           parentShapeId,
           isBaza: true,
           bazaType: 'front',
-          width: bazaWidth,
+          width: adjustedWidth,
           height: bazaHeight,
           depth: bazaDepth
         }
