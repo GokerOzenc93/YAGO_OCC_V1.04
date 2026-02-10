@@ -295,9 +295,7 @@ async function generateFrontBazaPanels(
     );
 
     let adjustedWidth = bazaWidth;
-    let adjustedTranslateX = translateX;
     let adjustedDepth = bazaDepth;
-    let adjustedTranslateZ = translateZ;
 
     // Create bounding box for this baza panel
     const bazaBox = new THREE.Box3(
@@ -340,7 +338,6 @@ async function generateFrontBazaPanels(
           if (overlap > 0) {
             console.log(`BAZA: Left panel overlaps baza by ${overlap.toFixed(1)}mm, adjusting from left`);
             adjustedWidth -= overlap;
-            adjustedTranslateX += overlap;
           }
         } else if (absNx > 0.5) {
           // Baza is vertical (extends along Z axis)
@@ -349,7 +346,6 @@ async function generateFrontBazaPanels(
           if (overlap > 0) {
             console.log(`BAZA: Left panel overlaps baza by ${overlap.toFixed(1)}mm on Z, adjusting from front`);
             adjustedDepth -= overlap;
-            adjustedTranslateZ += overlap;
           }
         }
       }
@@ -369,14 +365,14 @@ async function generateFrontBazaPanels(
       // Update bazaBox with adjusted dimensions for right panel check
       const adjustedBazaBox = new THREE.Box3(
         new THREE.Vector3(
-          adjustedTranslateX,
+          translateX,
           translateY,
-          adjustedTranslateZ
+          translateZ
         ),
         new THREE.Vector3(
-          adjustedTranslateX + adjustedWidth,
+          translateX + adjustedWidth,
           translateY + bazaHeight,
-          adjustedTranslateZ + adjustedDepth
+          translateZ + adjustedDepth
         )
       );
 
@@ -388,7 +384,7 @@ async function generateFrontBazaPanels(
         if (absNz >= absNx && absNz > 0.5) {
           // Baza is horizontal (XZ plane), extends along X axis
           // Right panel should be on the right side (larger X)
-          const bazaMaxX = adjustedTranslateX + adjustedWidth;
+          const bazaMaxX = translateX + adjustedWidth;
           const overlap = bazaMaxX - rightBox.min.x;
           if (overlap > 0) {
             console.log(`BAZA: Right panel overlaps baza by ${overlap.toFixed(1)}mm, adjusting from right`);
@@ -397,7 +393,7 @@ async function generateFrontBazaPanels(
         } else if (absNx > 0.5) {
           // Baza is vertical (extends along Z axis)
           // Check Z axis collision
-          const bazaMaxZ = adjustedTranslateZ + adjustedDepth;
+          const bazaMaxZ = translateZ + adjustedDepth;
           const overlap = bazaMaxZ - rightBox.min.z;
           if (overlap > 0) {
             console.log(`BAZA: Right panel overlaps baza by ${overlap.toFixed(1)}mm on Z, adjusting from back`);
@@ -413,7 +409,7 @@ async function generateFrontBazaPanels(
     }
 
     console.log('BAZA: creating w:', adjustedWidth.toFixed(1), 'h:', bazaHeight.toFixed(1), 'd:', adjustedDepth.toFixed(1),
-      'pos: [', adjustedTranslateX.toFixed(1), translateY.toFixed(1), adjustedTranslateZ.toFixed(1), ']');
+      'pos: [', translateX.toFixed(1), translateY.toFixed(1), translateZ.toFixed(1), ']');
 
     try {
       const bazaBox = await createReplicadBox({
@@ -422,7 +418,7 @@ async function generateFrontBazaPanels(
         depth: adjustedDepth
       });
 
-      const positioned = bazaBox.translate(adjustedTranslateX, translateY, adjustedTranslateZ);
+      const positioned = bazaBox.translate(translateX, translateY, translateZ);
       const geometry = convertReplicadToThreeGeometry(positioned);
 
       newShapes.push({
