@@ -366,30 +366,22 @@ async function generateFrontBazaPanels(
       `trims: L:${leftTrim.toFixed(1)} R:${rightTrim.toFixed(1)} F:${frontTrim.toFixed(1)} B:${backTrim.toFixed(1)}`);
   }
 
-  console.log(`BAZA: collected ${bazaInfos.length} baza infos, extending opposite sides based on trims...`);
+  console.log(`BAZA: collected ${bazaInfos.length} baza infos, extending sides by frontBaseDistance...`);
 
   for (const baza of bazaInfos) {
-    if (baza.leftTrim > 0.1) {
-      console.log(`BAZA: Left side trimmed ${baza.leftTrim.toFixed(1)}mm, extending RIGHT side by ${frontBaseDistance}mm`);
-      baza.width += frontBaseDistance;
-    }
+    console.log(`BAZA: Extending LEFT side by ${frontBaseDistance}mm`);
+    baza.translateX -= frontBaseDistance;
+    baza.width += frontBaseDistance;
 
-    if (baza.rightTrim > 0.1) {
-      console.log(`BAZA: Right side trimmed ${baza.rightTrim.toFixed(1)}mm, extending LEFT side by ${frontBaseDistance}mm`);
-      baza.translateX -= frontBaseDistance;
-      baza.width += frontBaseDistance;
-    }
+    console.log(`BAZA: Extending RIGHT side by ${frontBaseDistance}mm`);
+    baza.width += frontBaseDistance;
 
-    if (baza.frontTrim > 0.1) {
-      console.log(`BAZA: Front side trimmed ${baza.frontTrim.toFixed(1)}mm, extending BACK side by ${frontBaseDistance}mm`);
-      baza.depth += frontBaseDistance;
-    }
+    console.log(`BAZA: Extending FRONT side by ${frontBaseDistance}mm`);
+    baza.translateZ -= frontBaseDistance;
+    baza.depth += frontBaseDistance;
 
-    if (baza.backTrim > 0.1) {
-      console.log(`BAZA: Back side trimmed ${baza.backTrim.toFixed(1)}mm, extending FRONT side by ${frontBaseDistance}mm`);
-      baza.translateZ -= frontBaseDistance;
-      baza.depth += frontBaseDistance;
-    }
+    console.log(`BAZA: Extending BACK side by ${frontBaseDistance}mm`);
+    baza.depth += frontBaseDistance;
   }
 
   for (const info of bazaInfos) {
