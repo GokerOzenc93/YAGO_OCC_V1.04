@@ -283,136 +283,41 @@ async function generateFrontBazaPanels(
     console.log('BAZA: Bottom panel bounds Y:[', bottomBox.min.y.toFixed(1), bottomBox.max.y.toFixed(1),
       '] bazaHeight:', bazaHeight.toFixed(1), 'placing at Y:', translateY.toFixed(1));
 
-    const leftPanel = state.shapes.find(
-      s => s.type === 'panel' &&
-      s.parameters?.parentShapeId === parentShapeId &&
-      s.parameters?.faceRole === 'Left'
-    );
-    const rightPanel = state.shapes.find(
-      s => s.type === 'panel' &&
-      s.parameters?.parentShapeId === parentShapeId &&
-      s.parameters?.faceRole === 'Right'
-    );
-
     let adjustedTranslateX = translateX;
     let adjustedTranslateZ = translateZ;
     let adjustedWidth = bazaWidth;
     let adjustedDepth = bazaDepth;
 
-    const doorMinX = doorBbox.min.x;
-    const doorMaxX = doorBbox.max.x;
-    const doorMinZ = doorBbox.min.z;
-    const doorMaxZ = doorBbox.max.z;
+    console.log(`BAZA: Initial pos:[${translateX.toFixed(1)}, ${translateY.toFixed(1)}, ${translateZ.toFixed(1)}] ` +
+      `size:[${bazaWidth.toFixed(1)}, ${bazaHeight.toFixed(1)}, ${bazaDepth.toFixed(1)}]`);
+    console.log(`BAZA: Door bounds X:[${doorBbox.min.x.toFixed(1)}, ${doorBbox.max.x.toFixed(1)}] Z:[${doorBbox.min.z.toFixed(1)}, ${doorBbox.max.z.toFixed(1)}]`);
+    console.log(`BAZA: Bottom panel bounds X:[${bottomBox.min.x.toFixed(1)}, ${bottomBox.max.x.toFixed(1)}] Z:[${bottomBox.min.z.toFixed(1)}, ${bottomBox.max.z.toFixed(1)}]`);
 
-    // Create bounding box for this baza panel
-    const bazaBox = new THREE.Box3(
-      new THREE.Vector3(
-        translateX,
-        translateY,
-        translateZ
-      ),
-      new THREE.Vector3(
-        translateX + bazaWidth,
-        translateY + bazaHeight,
-        translateZ + bazaDepth
-      )
-    );
-
-    console.log(`BAZA: Initial bounds X:[${bazaBox.min.x.toFixed(1)}, ${bazaBox.max.x.toFixed(1)}] ` +
-      `Y:[${bazaBox.min.y.toFixed(1)}, ${bazaBox.max.y.toFixed(1)}] ` +
-      `Z:[${bazaBox.min.z.toFixed(1)}, ${bazaBox.max.z.toFixed(1)}]`);
-    console.log(`BAZA: Door bounds X:[${doorMinX.toFixed(1)}, ${doorMaxX.toFixed(1)}] Z:[${doorMinZ.toFixed(1)}, ${doorMaxZ.toFixed(1)}]`);
-
-    // Check collision with left panel
-    if (leftPanel?.geometry) {
-      const leftBox = new THREE.Box3().setFromBufferAttribute(
-        leftPanel.geometry.getAttribute('position')
-      );
-      leftBox.translate(new THREE.Vector3(...leftPanel.position));
-
-      console.log(`BAZA: Left panel bounds X:[${leftBox.min.x.toFixed(1)}, ${leftBox.max.x.toFixed(1)}] ` +
-        `Y:[${leftBox.min.y.toFixed(1)}, ${leftBox.max.y.toFixed(1)}] ` +
-        `Z:[${leftBox.min.z.toFixed(1)}, ${leftBox.max.z.toFixed(1)}]`);
-
-      // Check if there's a real geometric intersection
-      if (bazaBox.intersectsBox(leftBox)) {
-        console.log('BAZA: COLLISION detected with left panel');
-
-        // Determine which side is colliding based on normal direction
-        if (absNz >= absNx && absNz > 0.5) {
-          // Baza is horizontal (XZ plane), extends along X axis
-          // Left panel overlaps from the left, shift baza's left edge to the right
-          const newLeftEdge = Math.min(leftBox.max.x, doorMaxX);
-          if (newLeftEdge > adjustedTranslateX && newLeftEdge < doorMaxX) {
-            const shift = newLeftEdge - adjustedTranslateX;
-            console.log(`BAZA: Shifting left edge from ${adjustedTranslateX.toFixed(1)} to ${newLeftEdge.toFixed(1)} (shift: ${shift.toFixed(1)}mm)`);
-            adjustedTranslateX = newLeftEdge;
-            adjustedWidth -= shift;
-          }
-        } else if (absNx > 0.5) {
-          // Baza is vertical (extends along Z axis)
-          const newFrontEdge = Math.min(leftBox.max.z, doorMaxZ);
-          if (newFrontEdge > adjustedTranslateZ && newFrontEdge < doorMaxZ) {
-            const shift = newFrontEdge - adjustedTranslateZ;
-            console.log(`BAZA: Shifting front edge from ${adjustedTranslateZ.toFixed(1)} to ${newFrontEdge.toFixed(1)} (shift: ${shift.toFixed(1)}mm)`);
-            adjustedTranslateZ = newFrontEdge;
-            adjustedDepth -= shift;
-          }
-        }
+    if (absNz >= absNx && absNz > 0.5) {
+      const leftTrim = bottomBox.min.x - doorBbox.min.x;
+      if (leftTrim > 0.1) {
+        console.log(`BAZA: Bottom panel trimmed ${leftTrim.toFixed(1)}mm from left, applying same to baza`);
+        adjustedTranslateX += leftTrim;
+        adjustedWidth -= leftTrim;
       }
-    }
 
-    // Check collision with right panel
-    if (rightPanel?.geometry) {
-      const rightBox = new THREE.Box3().setFromBufferAttribute(
-        rightPanel.geometry.getAttribute('position')
-      );
-      rightBox.translate(new THREE.Vector3(...rightPanel.position));
+      const rightTrim = doorBbox.max.x - bottomBox.max.x;
+      if (rightTrim > 0.1) {
+        console.log(`BAZA: Bottom panel trimmed ${rightTrim.toFixed(1)}mm from right, applying same to baza`);
+        adjustedWidth -= rightTrim;
+      }
+    } else if (absNx > 0.5) {
+      const frontTrim = bottomBox.min.z - doorBbox.min.z;
+      if (frontTrim > 0.1) {
+        console.log(`BAZA: Bottom panel trimmed ${frontTrim.toFixed(1)}mm from front, applying same to baza`);
+        adjustedTranslateZ += frontTrim;
+        adjustedDepth -= frontTrim;
+      }
 
-      console.log(`BAZA: Right panel bounds X:[${rightBox.min.x.toFixed(1)}, ${rightBox.max.x.toFixed(1)}] ` +
-        `Y:[${rightBox.min.y.toFixed(1)}, ${rightBox.max.y.toFixed(1)}] ` +
-        `Z:[${rightBox.min.z.toFixed(1)}, ${rightBox.max.z.toFixed(1)}]`);
-
-      // Update bazaBox with adjusted dimensions for right panel check
-      const adjustedBazaBox = new THREE.Box3(
-        new THREE.Vector3(
-          adjustedTranslateX,
-          translateY,
-          adjustedTranslateZ
-        ),
-        new THREE.Vector3(
-          adjustedTranslateX + adjustedWidth,
-          translateY + bazaHeight,
-          adjustedTranslateZ + adjustedDepth
-        )
-      );
-
-      // Check if there's a real geometric intersection
-      if (adjustedBazaBox.intersectsBox(rightBox)) {
-        console.log('BAZA: COLLISION detected with right panel');
-
-        // Determine which side is colliding based on normal direction
-        if (absNz >= absNx && absNz > 0.5) {
-          // Baza is horizontal (XZ plane), extends along X axis
-          // Right panel should be on the right side (larger X)
-          // Clamp right edge to door boundary
-          const bazaMaxX = adjustedTranslateX + adjustedWidth;
-          const newRightEdge = Math.max(rightBox.min.x, doorMinX);
-          if (newRightEdge < bazaMaxX && newRightEdge > adjustedTranslateX) {
-            const reduction = bazaMaxX - newRightEdge;
-            console.log(`BAZA: Reducing width from right by ${reduction.toFixed(1)}mm`);
-            adjustedWidth -= reduction;
-          }
-        } else if (absNx > 0.5) {
-          // Baza is vertical (extends along Z axis)
-          const bazaMaxZ = adjustedTranslateZ + adjustedDepth;
-          const newBackEdge = Math.max(rightBox.min.z, doorMinZ);
-          if (newBackEdge < bazaMaxZ && newBackEdge > adjustedTranslateZ) {
-            const reduction = bazaMaxZ - newBackEdge;
-            console.log(`BAZA: Reducing depth from back by ${reduction.toFixed(1)}mm`);
-            adjustedDepth -= reduction;
-          }
-        }
+      const backTrim = doorBbox.max.z - bottomBox.max.z;
+      if (backTrim > 0.1) {
+        console.log(`BAZA: Bottom panel trimmed ${backTrim.toFixed(1)}mm from back, applying same to baza`);
+        adjustedDepth -= backTrim;
       }
     }
 
