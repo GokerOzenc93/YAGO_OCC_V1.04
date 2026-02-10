@@ -241,9 +241,7 @@ async function generateFrontBazaPanels(
     if (absNz >= absNx && absNz > 0.5) {
       bazaWidth = doorSize.x;
       bazaDepth = panelThickness;
-      bazaHeight = bazaThickness;
       translateX = doorBbox.min.x;
-      translateY = doorBbox.min.y;
       if (doorNormal.z > 0) {
         translateZ = doorBbox.min.z - frontBaseDistance - panelThickness;
       } else {
@@ -252,9 +250,6 @@ async function generateFrontBazaPanels(
     } else if (absNx > 0.5) {
       bazaWidth = panelThickness;
       bazaDepth = doorSize.z;
-      bazaHeight = bazaThickness;
-      translateX = doorBbox.min.x;
-      translateY = doorBbox.min.y;
       translateZ = doorBbox.min.z;
       if (doorNormal.x > 0) {
         translateX = doorBbox.min.x - frontBaseDistance - panelThickness;
@@ -267,6 +262,28 @@ async function generateFrontBazaPanels(
     }
 
     if (bazaWidth < 1 || bazaDepth < 1) continue;
+
+    const bottomPanel = state.shapes.find(
+      s => s.type === 'panel' &&
+      s.parameters?.parentShapeId === parentShapeId &&
+      s.parameters?.faceRole === 'Bottom'
+    );
+
+    if (!bottomPanel?.geometry) {
+      console.log('BAZA: Bottom panel geometry not found, skipping');
+      continue;
+    }
+
+    const bottomBox = new THREE.Box3().setFromBufferAttribute(
+      bottomPanel.geometry.getAttribute('position')
+    );
+    bottomBox.translate(new THREE.Vector3(...bottomPanel.position));
+
+    translateY = bottomBox.min.y;
+    bazaHeight = bottomBox.max.y - bottomBox.min.y;
+
+    console.log('BAZA: Bottom panel bounds Y:[', bottomBox.min.y.toFixed(1), bottomBox.max.y.toFixed(1),
+      '] using translateY:', translateY.toFixed(1), 'bazaHeight:', bazaHeight.toFixed(1));
 
     const leftPanel = state.shapes.find(
       s => s.type === 'panel' &&
@@ -397,8 +414,8 @@ async function generateFrontBazaPanels(
       continue;
     }
 
-    console.log('BAZA: creating w:', adjustedWidth.toFixed(1), 'h:', bazaHeight, 'd:', adjustedDepth.toFixed(1),
-      'tx:', adjustedTranslateX.toFixed(1), 'tz:', adjustedTranslateZ.toFixed(1));
+    console.log('BAZA: creating w:', adjustedWidth.toFixed(1), 'h:', bazaHeight.toFixed(1), 'd:', adjustedDepth.toFixed(1),
+      'pos: [', adjustedTranslateX.toFixed(1), translateY.toFixed(1), adjustedTranslateZ.toFixed(1), ']');
 
     try {
       const bazaBox = await createReplicadBox({
@@ -407,7 +424,7 @@ async function generateFrontBazaPanels(
         depth: adjustedDepth
       });
 
-      const positioned = bazaBox.translate(adjustedTranslateX, 0, adjustedTranslateZ);
+      const positioned = bazaBox.translate(adjustedTranslateX, translateY, adjustedTranslateZ);
       const geometry = convertReplicadToThreeGeometry(positioned);
 
       newShapes.push({
