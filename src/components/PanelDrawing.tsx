@@ -12,6 +12,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   isSelected
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const { bazaHeight, frontBaseDistance, backBaseDistance, addShape } = useAppStore();
 
   const edgeGeometry = useMemo(() => {
     if (!shape.geometry) return null;
@@ -24,6 +25,94 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     }
   }, [shape.geometry]);
 
+  const handleBottomPanelClick = async () => {
+    const faceRole = shape.parameters?.faceRole;
+    if (faceRole !== 'Bottom') return;
+
+    console.log('Bottom panel clicked, creating baza panels...');
+
+    try {
+      const bbox = new THREE.Box3().setFromBufferAttribute(
+        shape.geometry.getAttribute('position')
+      );
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+
+      const panelWidth = size.x;
+      const panelDepth = size.z;
+      const panelThickness = 18;
+
+      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+      const bazaThickness = 100;
+      const bazaDepth = frontBaseDistance + backBaseDistance;
+
+      const leftBazaShape = await createReplicadBox({
+        width: bazaThickness,
+        height: bazaHeight,
+        depth: bazaDepth
+      });
+      const leftBazaGeometry = convertReplicadToThreeGeometry(leftBazaShape);
+
+      const rightBazaShape = await createReplicadBox({
+        width: bazaThickness,
+        height: bazaHeight,
+        depth: bazaDepth
+      });
+      const rightBazaGeometry = convertReplicadToThreeGeometry(rightBazaShape);
+
+      const leftBazaPanel = {
+        id: `baza-left-${Date.now()}`,
+        type: 'panel',
+        geometry: leftBazaGeometry,
+        replicadShape: leftBazaShape,
+        position: [
+          shape.position[0] - panelWidth / 2 + bazaThickness / 2,
+          shape.position[1] - panelThickness / 2 - bazaHeight / 2,
+          shape.position[2] - panelDepth / 2 + bazaDepth / 2 + frontBaseDistance
+        ] as [number, number, number],
+        rotation: shape.rotation,
+        scale: shape.scale,
+        color: '#8B4513',
+        parameters: {
+          width: bazaThickness,
+          height: bazaHeight,
+          depth: bazaDepth,
+          parentShapeId: shape.parameters?.parentShapeId,
+          faceRole: 'baza'
+        }
+      };
+
+      const rightBazaPanel = {
+        id: `baza-right-${Date.now() + 1}`,
+        type: 'panel',
+        geometry: rightBazaGeometry,
+        replicadShape: rightBazaShape,
+        position: [
+          shape.position[0] + panelWidth / 2 - bazaThickness / 2,
+          shape.position[1] - panelThickness / 2 - bazaHeight / 2,
+          shape.position[2] - panelDepth / 2 + bazaDepth / 2 + frontBaseDistance
+        ] as [number, number, number],
+        rotation: shape.rotation,
+        scale: shape.scale,
+        color: '#8B4513',
+        parameters: {
+          width: bazaThickness,
+          height: bazaHeight,
+          depth: bazaDepth,
+          parentShapeId: shape.parameters?.parentShapeId,
+          faceRole: 'baza'
+        }
+      };
+
+      addShape(leftBazaPanel);
+      addShape(rightBazaPanel);
+      console.log('Baza panels (left and right) created successfully');
+    } catch (error) {
+      console.error('Failed to create baza panels:', error);
+    }
+  };
+
   if (!shape.geometry) return null;
 
   const panelColor = shape.color || '#ffffff';
@@ -32,7 +121,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   const getRoleColor = (role: string | undefined): string => {
     if (!role) return panelColor;
 
-    switch (role) {
+    switch (role.toLowerCase()) {
       case 'left':
       case 'right':
         return '#ef4444';
@@ -47,6 +136,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         return '#a855f7';
       case 'divider':
         return '#14b8a6';
+      case 'baza':
+        return '#8B4513';
       default:
         return panelColor;
     }
@@ -60,6 +151,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
       position={shape.position}
       rotation={shape.rotation}
       scale={shape.scale}
+      onClick={handleBottomPanelClick}
     >
       <mesh
         ref={meshRef}
