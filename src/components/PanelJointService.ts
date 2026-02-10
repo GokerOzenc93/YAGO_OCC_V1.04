@@ -378,24 +378,24 @@ async function generateFrontBazaPanels(
   for (const baza of bazaInfos) {
     if (baza.direction === 'x') {
       if (hasLeftPanel && baza.leftTrim > 0.1) {
-        console.log(`BAZA: Left panel exists and left side trimmed ${baza.leftTrim.toFixed(1)}mm, extending LEFT side by ${frontBaseDistance}mm`);
-        baza.translateX -= frontBaseDistance;
+        console.log(`BAZA: Left panel exists and left side trimmed ${baza.leftTrim.toFixed(1)}mm, extending RIGHT side by ${frontBaseDistance}mm`);
         baza.width += frontBaseDistance;
       }
 
       if (hasRightPanel && baza.rightTrim > 0.1) {
-        console.log(`BAZA: Right panel exists and right side trimmed ${baza.rightTrim.toFixed(1)}mm, extending RIGHT side by ${frontBaseDistance}mm`);
+        console.log(`BAZA: Right panel exists and right side trimmed ${baza.rightTrim.toFixed(1)}mm, extending LEFT side by ${frontBaseDistance}mm`);
+        baza.translateX -= frontBaseDistance;
         baza.width += frontBaseDistance;
       }
     } else if (baza.direction === 'z') {
       if (hasTopPanel && baza.frontTrim > 0.1) {
-        console.log(`BAZA: Top panel exists and front side trimmed ${baza.frontTrim.toFixed(1)}mm, extending FRONT side by ${frontBaseDistance}mm`);
-        baza.translateZ -= frontBaseDistance;
+        console.log(`BAZA: Top panel exists and front side trimmed ${baza.frontTrim.toFixed(1)}mm, extending BACK side by ${frontBaseDistance}mm`);
         baza.depth += frontBaseDistance;
       }
 
       if (hasBottomPanel && baza.backTrim > 0.1) {
-        console.log(`BAZA: Bottom panel exists and back side trimmed ${baza.backTrim.toFixed(1)}mm, extending BACK side by ${frontBaseDistance}mm`);
+        console.log(`BAZA: Bottom panel exists and back side trimmed ${baza.backTrim.toFixed(1)}mm, extending FRONT side by ${frontBaseDistance}mm`);
+        baza.translateZ -= frontBaseDistance;
         baza.depth += frontBaseDistance;
       }
     }
