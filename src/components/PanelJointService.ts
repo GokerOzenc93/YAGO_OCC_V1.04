@@ -396,22 +396,40 @@ async function generateFrontBazaPanels(
   for (const baza of bazaInfos) {
     if (baza.direction === 'x') {
       if (hasLeftPanel && baza.isLeftSide) {
+        if (baza.leftTrim > 0.1) {
+          console.log(`BAZA: Left panel exists, reversing left trim of ${baza.leftTrim.toFixed(1)}mm`);
+          baza.translateX -= baza.leftTrim;
+          baza.width += baza.leftTrim;
+        }
         console.log(`BAZA: Left panel exists and baza is on LEFT side, extending RIGHT by ${frontBaseDistance}mm`);
         baza.width += frontBaseDistance;
       }
 
       if (hasRightPanel && baza.isRightSide) {
+        if (baza.rightTrim > 0.1) {
+          console.log(`BAZA: Right panel exists, reversing right trim of ${baza.rightTrim.toFixed(1)}mm`);
+          baza.width += baza.rightTrim;
+        }
         console.log(`BAZA: Right panel exists and baza is on RIGHT side, extending LEFT by ${frontBaseDistance}mm`);
         baza.translateX -= frontBaseDistance;
         baza.width += frontBaseDistance;
       }
     } else if (baza.direction === 'z') {
       if (hasTopPanel) {
+        if (baza.frontTrim > 0.1) {
+          console.log(`BAZA: Top panel exists, reversing front trim of ${baza.frontTrim.toFixed(1)}mm`);
+          baza.translateZ -= baza.frontTrim;
+          baza.depth += baza.frontTrim;
+        }
         console.log(`BAZA: Top panel exists, extending BACK side by ${frontBaseDistance}mm to eliminate gap`);
         baza.depth += frontBaseDistance;
       }
 
       if (hasBottomPanel) {
+        if (baza.backTrim > 0.1) {
+          console.log(`BAZA: Bottom panel exists, reversing back trim of ${baza.backTrim.toFixed(1)}mm`);
+          baza.depth += baza.backTrim;
+        }
         console.log(`BAZA: Bottom panel exists, extending FRONT side by ${frontBaseDistance}mm to eliminate gap`);
         baza.translateZ -= frontBaseDistance;
         baza.depth += frontBaseDistance;
