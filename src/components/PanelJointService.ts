@@ -216,6 +216,8 @@ async function generateFrontBazaPanels(
     rightTrim: number;
     frontTrim: number;
     backTrim: number;
+    isLeftSide: boolean;
+    isRightSide: boolean;
   }
   const bazaInfos: BazaInfo[] = [];
 
@@ -347,6 +349,20 @@ async function generateFrontBazaPanels(
     }
 
     const direction: 'x' | 'z' = (absNz >= absNx && absNz > 0.5) ? 'x' : 'z';
+
+    const parentBox = new THREE.Box3().setFromBufferAttribute(
+      parentShape.geometry.getAttribute('position')
+    );
+    parentBox.translate(new THREE.Vector3(...parentShape.position));
+    const parentCenter = new THREE.Vector3();
+    parentBox.getCenter(parentCenter);
+
+    const bazaCenter = adjustedTranslateX + adjustedWidth / 2;
+    const isLeftSide = bazaCenter < parentCenter.x;
+    const isRightSide = bazaCenter > parentCenter.x;
+
+    console.log(`BAZA: Parent center X:${parentCenter.x.toFixed(1)}, Baza center X:${bazaCenter.toFixed(1)}, isLeftSide:${isLeftSide}, isRightSide:${isRightSide}`);
+
     bazaInfos.push({
       translateX: adjustedTranslateX,
       translateY,
@@ -358,7 +374,9 @@ async function generateFrontBazaPanels(
       leftTrim,
       rightTrim,
       frontTrim,
-      backTrim
+      backTrim,
+      isLeftSide,
+      isRightSide
     });
 
     console.log(`BAZA: collected info - dir:${direction} pos:[${adjustedTranslateX.toFixed(1)}, ${translateY.toFixed(1)}, ${adjustedTranslateZ.toFixed(1)}] ` +
@@ -377,13 +395,13 @@ async function generateFrontBazaPanels(
 
   for (const baza of bazaInfos) {
     if (baza.direction === 'x') {
-      if (hasLeftPanel) {
-        console.log(`BAZA: Left panel exists, extending RIGHT side by ${frontBaseDistance}mm to eliminate gap`);
+      if (hasLeftPanel && baza.isLeftSide) {
+        console.log(`BAZA: Left panel exists and baza is on LEFT side, extending RIGHT by ${frontBaseDistance}mm`);
         baza.width += frontBaseDistance;
       }
 
-      if (hasRightPanel) {
-        console.log(`BAZA: Right panel exists, extending LEFT side by ${frontBaseDistance}mm to eliminate gap`);
+      if (hasRightPanel && baza.isRightSide) {
+        console.log(`BAZA: Right panel exists and baza is on RIGHT side, extending LEFT by ${frontBaseDistance}mm`);
         baza.translateX -= frontBaseDistance;
         baza.width += frontBaseDistance;
       }
