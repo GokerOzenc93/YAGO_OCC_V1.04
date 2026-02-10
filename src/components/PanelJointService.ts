@@ -380,31 +380,39 @@ async function generateFrontBazaPanels(
       const gapZFront = aMinZ - bMaxZ;
 
       if (Math.abs(gapXRight - frontBaseDistance) < 1 && overlapZ) {
-        console.log(`BAZA: Adjacent pair found (X gap: a-right to b-left), extending both toward meeting point by ${frontBaseDistance}mm`);
+        console.log(`BAZA: Adjacent pair found (X gap: a-right to b-left), extending inner corners by ${frontBaseDistance}mm`);
         a.width += frontBaseDistance;
+        a.depth += frontBaseDistance;
         b.translateX -= frontBaseDistance;
         b.width += frontBaseDistance;
+        b.depth += frontBaseDistance;
       }
 
       if (Math.abs(gapXLeft - frontBaseDistance) < 1 && overlapZ) {
-        console.log(`BAZA: Adjacent pair found (X gap: b-right to a-left), extending both toward meeting point by ${frontBaseDistance}mm`);
+        console.log(`BAZA: Adjacent pair found (X gap: b-right to a-left), extending inner corners by ${frontBaseDistance}mm`);
         a.translateX -= frontBaseDistance;
         a.width += frontBaseDistance;
+        a.depth += frontBaseDistance;
         b.width += frontBaseDistance;
+        b.depth += frontBaseDistance;
       }
 
       if (Math.abs(gapZBack - frontBaseDistance) < 1 && overlapX) {
-        console.log(`BAZA: Adjacent pair found (Z gap: a-back to b-front), extending both toward meeting point by ${frontBaseDistance}mm`);
+        console.log(`BAZA: Adjacent pair found (Z gap: a-back to b-front), extending inner corners by ${frontBaseDistance}mm`);
         a.depth += frontBaseDistance;
+        a.width += frontBaseDistance;
         b.translateZ -= frontBaseDistance;
         b.depth += frontBaseDistance;
+        b.width += frontBaseDistance;
       }
 
       if (Math.abs(gapZFront - frontBaseDistance) < 1 && overlapX) {
-        console.log(`BAZA: Adjacent pair found (Z gap: b-back to a-front), extending both toward meeting point by ${frontBaseDistance}mm`);
+        console.log(`BAZA: Adjacent pair found (Z gap: b-back to a-front), extending inner corners by ${frontBaseDistance}mm`);
         a.translateZ -= frontBaseDistance;
         a.depth += frontBaseDistance;
+        a.width += frontBaseDistance;
         b.depth += frontBaseDistance;
+        b.width += frontBaseDistance;
       }
     }
   }
