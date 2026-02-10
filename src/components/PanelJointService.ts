@@ -212,6 +212,10 @@ async function generateFrontBazaPanels(
     height: number;
     depth: number;
     direction: 'x' | 'z';
+    leftTrim: number;
+    rightTrim: number;
+    frontTrim: number;
+    backTrim: number;
   }
   const bazaInfos: BazaInfo[] = [];
 
@@ -299,33 +303,38 @@ async function generateFrontBazaPanels(
     let adjustedWidth = bazaWidth;
     let adjustedDepth = bazaDepth;
 
+    let leftTrim = 0;
+    let rightTrim = 0;
+    let frontTrim = 0;
+    let backTrim = 0;
+
     console.log(`BAZA: Initial pos:[${translateX.toFixed(1)}, ${translateY.toFixed(1)}, ${translateZ.toFixed(1)}] ` +
       `size:[${bazaWidth.toFixed(1)}, ${bazaHeight.toFixed(1)}, ${bazaDepth.toFixed(1)}]`);
     console.log(`BAZA: Door bounds X:[${doorBbox.min.x.toFixed(1)}, ${doorBbox.max.x.toFixed(1)}] Z:[${doorBbox.min.z.toFixed(1)}, ${doorBbox.max.z.toFixed(1)}]`);
     console.log(`BAZA: Bottom panel bounds X:[${bottomBox.min.x.toFixed(1)}, ${bottomBox.max.x.toFixed(1)}] Z:[${bottomBox.min.z.toFixed(1)}, ${bottomBox.max.z.toFixed(1)}]`);
 
     if (absNz >= absNx && absNz > 0.5) {
-      const leftTrim = bottomBox.min.x - doorBbox.min.x;
+      leftTrim = bottomBox.min.x - doorBbox.min.x;
       if (leftTrim > 0.1) {
         console.log(`BAZA: Bottom panel trimmed ${leftTrim.toFixed(1)}mm from left, applying same to baza`);
         adjustedTranslateX += leftTrim;
         adjustedWidth -= leftTrim;
       }
 
-      const rightTrim = doorBbox.max.x - bottomBox.max.x;
+      rightTrim = doorBbox.max.x - bottomBox.max.x;
       if (rightTrim > 0.1) {
         console.log(`BAZA: Bottom panel trimmed ${rightTrim.toFixed(1)}mm from right, applying same to baza`);
         adjustedWidth -= rightTrim;
       }
     } else if (absNx > 0.5) {
-      const frontTrim = bottomBox.min.z - doorBbox.min.z;
+      frontTrim = bottomBox.min.z - doorBbox.min.z;
       if (frontTrim > 0.1) {
         console.log(`BAZA: Bottom panel trimmed ${frontTrim.toFixed(1)}mm from front, applying same to baza`);
         adjustedTranslateZ += frontTrim;
         adjustedDepth -= frontTrim;
       }
 
-      const backTrim = doorBbox.max.z - bottomBox.max.z;
+      backTrim = doorBbox.max.z - bottomBox.max.z;
       if (backTrim > 0.1) {
         console.log(`BAZA: Bottom panel trimmed ${backTrim.toFixed(1)}mm from back, applying same to baza`);
         adjustedDepth -= backTrim;
@@ -345,75 +354,41 @@ async function generateFrontBazaPanels(
       width: adjustedWidth,
       height: bazaHeight,
       depth: adjustedDepth,
-      direction
+      direction,
+      leftTrim,
+      rightTrim,
+      frontTrim,
+      backTrim
     });
 
     console.log(`BAZA: collected info - dir:${direction} pos:[${adjustedTranslateX.toFixed(1)}, ${translateY.toFixed(1)}, ${adjustedTranslateZ.toFixed(1)}] ` +
-      `size:[${adjustedWidth.toFixed(1)}, ${bazaHeight.toFixed(1)}, ${adjustedDepth.toFixed(1)}]`);
+      `size:[${adjustedWidth.toFixed(1)}, ${bazaHeight.toFixed(1)}, ${adjustedDepth.toFixed(1)}] ` +
+      `trims: L:${leftTrim.toFixed(1)} R:${rightTrim.toFixed(1)} F:${frontTrim.toFixed(1)} B:${backTrim.toFixed(1)}`);
   }
 
-  console.log(`BAZA: collected ${bazaInfos.length} baza infos, checking for adjacent pairs...`);
+  console.log(`BAZA: collected ${bazaInfos.length} baza infos, extending opposite sides based on trims...`);
 
-  for (let i = 0; i < bazaInfos.length; i++) {
-    for (let j = i + 1; j < bazaInfos.length; j++) {
-      const a = bazaInfos[i];
-      const b = bazaInfos[j];
+  for (const baza of bazaInfos) {
+    if (baza.leftTrim > 0.1) {
+      console.log(`BAZA: Left side trimmed ${baza.leftTrim.toFixed(1)}mm, extending RIGHT side by ${frontBaseDistance}mm`);
+      baza.width += frontBaseDistance;
+    }
 
-      if (a.direction === b.direction) continue;
+    if (baza.rightTrim > 0.1) {
+      console.log(`BAZA: Right side trimmed ${baza.rightTrim.toFixed(1)}mm, extending LEFT side by ${frontBaseDistance}mm`);
+      baza.translateX -= frontBaseDistance;
+      baza.width += frontBaseDistance;
+    }
 
-      const aMinX = a.translateX;
-      const aMaxX = a.translateX + a.width;
-      const aMinZ = a.translateZ;
-      const aMaxZ = a.translateZ + a.depth;
+    if (baza.frontTrim > 0.1) {
+      console.log(`BAZA: Front side trimmed ${baza.frontTrim.toFixed(1)}mm, extending BACK side by ${frontBaseDistance}mm`);
+      baza.depth += frontBaseDistance;
+    }
 
-      const bMinX = b.translateX;
-      const bMaxX = b.translateX + b.width;
-      const bMinZ = b.translateZ;
-      const bMaxZ = b.translateZ + b.depth;
-
-      const overlapZ = !(aMaxZ < bMinZ || bMaxZ < aMinZ);
-      const overlapX = !(aMaxX < bMinX || bMaxX < aMinX);
-
-      const gapXRight = bMinX - aMaxX;
-      const gapXLeft = aMinX - bMaxX;
-      const gapZBack = bMinZ - aMaxZ;
-      const gapZFront = aMinZ - bMaxZ;
-
-      if (Math.abs(gapXRight - frontBaseDistance) < 1 && overlapZ) {
-        console.log(`BAZA: Adjacent pair found (X gap: a-right to b-left), extending inner corners by ${frontBaseDistance}mm`);
-        a.width += frontBaseDistance;
-        a.depth += frontBaseDistance;
-        b.translateX -= frontBaseDistance;
-        b.width += frontBaseDistance;
-        b.depth += frontBaseDistance;
-      }
-
-      if (Math.abs(gapXLeft - frontBaseDistance) < 1 && overlapZ) {
-        console.log(`BAZA: Adjacent pair found (X gap: b-right to a-left), extending inner corners by ${frontBaseDistance}mm`);
-        a.translateX -= frontBaseDistance;
-        a.width += frontBaseDistance;
-        a.depth += frontBaseDistance;
-        b.width += frontBaseDistance;
-        b.depth += frontBaseDistance;
-      }
-
-      if (Math.abs(gapZBack - frontBaseDistance) < 1 && overlapX) {
-        console.log(`BAZA: Adjacent pair found (Z gap: a-back to b-front), extending inner corners by ${frontBaseDistance}mm`);
-        a.depth += frontBaseDistance;
-        a.width += frontBaseDistance;
-        b.translateZ -= frontBaseDistance;
-        b.depth += frontBaseDistance;
-        b.width += frontBaseDistance;
-      }
-
-      if (Math.abs(gapZFront - frontBaseDistance) < 1 && overlapX) {
-        console.log(`BAZA: Adjacent pair found (Z gap: b-back to a-front), extending inner corners by ${frontBaseDistance}mm`);
-        a.translateZ -= frontBaseDistance;
-        a.depth += frontBaseDistance;
-        a.width += frontBaseDistance;
-        b.depth += frontBaseDistance;
-        b.width += frontBaseDistance;
-      }
+    if (baza.backTrim > 0.1) {
+      console.log(`BAZA: Back side trimmed ${baza.backTrim.toFixed(1)}mm, extending FRONT side by ${frontBaseDistance}mm`);
+      baza.translateZ -= frontBaseDistance;
+      baza.depth += frontBaseDistance;
     }
   }
 
