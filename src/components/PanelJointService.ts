@@ -176,6 +176,16 @@ async function generateFrontBazaPanels(
     return;
   }
 
+  const hasBottomPanels = state.shapes.some(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Bottom'
+  );
+  if (!hasBottomPanels) {
+    console.log('BAZA: no Bottom panels found, skipping base panel generation');
+    return;
+  }
+
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
   const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
