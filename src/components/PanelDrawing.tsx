@@ -47,48 +47,6 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     }
   }, [shape.geometry]);
 
-  const arrowData = useMemo(() => {
-    if (!shape.geometry || !isPanelRowSelected) return null;
-
-    try {
-      const boundingBox = new THREE.Box3().setFromBufferAttribute(
-        shape.geometry.getAttribute('position')
-      );
-      const center = new THREE.Vector3();
-      boundingBox.getCenter(center);
-
-      const size = new THREE.Vector3();
-      boundingBox.getSize(size);
-
-      const normalAttr = shape.geometry.getAttribute('normal');
-      if (normalAttr) {
-        const normal = new THREE.Vector3(
-          normalAttr.getX(0),
-          normalAttr.getY(0),
-          normalAttr.getZ(0)
-        ).normalize();
-
-        const arrowLength = Math.max(size.x, size.y, size.z) * 0.8;
-        const shaftRadius = 2;
-        const shaftLength = arrowLength * 0.75;
-        const headRadius = 6;
-        const headLength = arrowLength * 0.25;
-
-        return {
-          center,
-          normal,
-          shaftLength,
-          shaftRadius,
-          headRadius,
-          headLength
-        };
-      }
-    } catch (error) {
-      console.error('Error calculating arrow data:', error);
-    }
-    return null;
-  }, [shape.geometry, isPanelRowSelected]);
-
   if (!shape.geometry) return null;
 
   const panelColor = shape.color || '#ffffff';
@@ -170,50 +128,6 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
             depthTest={true}
           />
         </lineSegments>
-      )}
-      {arrowData && (
-        <group>
-          <mesh
-            position={[
-              arrowData.center.x + arrowData.normal.x * (arrowData.shaftLength / 2),
-              arrowData.center.y + arrowData.normal.y * (arrowData.shaftLength / 2),
-              arrowData.center.z + arrowData.normal.z * (arrowData.shaftLength / 2)
-            ]}
-            quaternion={new THREE.Quaternion().setFromUnitVectors(
-              new THREE.Vector3(0, 1, 0),
-              arrowData.normal
-            )}
-          >
-            <cylinderGeometry args={[arrowData.shaftRadius, arrowData.shaftRadius, arrowData.shaftLength, 16]} />
-            <meshStandardMaterial
-              color="#f97316"
-              emissive="#f97316"
-              emissiveIntensity={0.4}
-              metalness={0.6}
-              roughness={0.2}
-            />
-          </mesh>
-          <mesh
-            position={[
-              arrowData.center.x + arrowData.normal.x * (arrowData.shaftLength + arrowData.headLength / 2),
-              arrowData.center.y + arrowData.normal.y * (arrowData.shaftLength + arrowData.headLength / 2),
-              arrowData.center.z + arrowData.normal.z * (arrowData.shaftLength + arrowData.headLength / 2)
-            ]}
-            quaternion={new THREE.Quaternion().setFromUnitVectors(
-              new THREE.Vector3(0, 1, 0),
-              arrowData.normal
-            )}
-          >
-            <coneGeometry args={[arrowData.headRadius, arrowData.headLength, 16]} />
-            <meshStandardMaterial
-              color="#f97316"
-              emissive="#f97316"
-              emissiveIntensity={0.4}
-              metalness={0.6}
-              roughness={0.2}
-            />
-          </mesh>
-        </group>
       )}
     </group>
   );
