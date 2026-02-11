@@ -359,14 +359,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               const handleRowClick = (faceIndex: number) => {
                 if (!facePanels[faceIndex]) return;
                 setSelectedPanelRow(faceIndex);
-                const panel = shapes.find(
-                  s => s.type === 'panel' &&
-                  s.parameters?.parentShapeId === selectedShape.id &&
-                  s.parameters?.faceIndex === faceIndex
-                );
-                if (panel) {
-                  selectShape(panel.id);
-                }
               };
 
               return (
@@ -390,14 +382,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           else rowRefs.current.delete(i);
                         }}
                         className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ${isRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : 'hover:bg-gray-50'} ${facePanels[i] ? 'cursor-pointer' : ''}`}
-                        onClick={() => facePanels[i] && handleRowClick(i)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (facePanels[i]) handleRowClick(i);
+                        }}
                       >
                         <input
                           type="radio"
                           name="panel-selection"
                           checked={isRowSelected}
                           disabled={isDisabled || !facePanels[i]}
-                          onChange={() => handleRowClick(i)}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleRowClick(i);
+                          }}
                           className={`w-4 h-4 ${isDisabled || !facePanels[i] ? 'text-stone-300 cursor-not-allowed' : 'text-orange-600 focus:ring-orange-500 cursor-pointer'}`}
                           onClick={(e) => e.stopPropagation()}
                         />
