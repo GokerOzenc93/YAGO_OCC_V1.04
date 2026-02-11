@@ -373,6 +373,19 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     shape.parameters?.faceIndex !== undefined &&
     shape.parameters.faceIndex === selectedPanelRow;
   const panelColor = isPanelRowSelected ? '#ef4444' : (shape.color || '#ffffff');
+
+  const panelCenter = useMemo(() => {
+    if (isPanel && localGeometry) {
+      const box = new THREE.Box3().setFromBufferAttribute(
+        localGeometry.getAttribute('position') as THREE.BufferAttribute
+      );
+      const center = new THREE.Vector3();
+      box.getCenter(center);
+      return center;
+    }
+    return null;
+  }, [isPanel, localGeometry]);
+
   if (shape.isolated === false) {
     return null;
   }
@@ -572,6 +585,18 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             shape={shape}
             isActive={true}
           />
+        )}
+        {isPanelRowSelected && panelCenter && (
+          <group position={[panelCenter.x, panelCenter.y, panelCenter.z]}>
+            <mesh position={[0, 0, 15]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.8, 0.8, 25, 16]} />
+              <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={0.4} />
+            </mesh>
+            <mesh position={[0, 0, 28]} rotation={[Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[2, 6, 16]} />
+              <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={0.4} />
+            </mesh>
+          </group>
         )}
       </group>
 
