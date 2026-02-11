@@ -35,7 +35,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedSubtractionIndex,
     setShowParametersPanel,
     showOutlines,
-    showRoleNumbers
+    showRoleNumbers,
+    selectedPanelRow
   } = useAppStore();
 
   const { scene } = useThree();
@@ -332,6 +333,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isPanel = shape.type === 'panel';
   const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
+  const isPanelRowSelected = isPanel && shape.parameters?.faceIndex !== undefined && shape.parameters.faceIndex === selectedPanelRow;
+  const panelColor = isPanelRowSelected ? '#ef4444' : (shape.color || '#ffffff');
   const {
     faceEditMode,
     filletMode,
@@ -400,9 +403,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               receiveShadow
             >
               <meshStandardMaterial
-                color={isPanel ? shape.color || '#ffffff' : "#94b8d9"}
-                emissive={isPanel ? (shape.color || '#ffffff') : undefined}
-                emissiveIntensity={isPanel ? 0.1 : 0}
+                color={isPanel ? panelColor : "#94b8d9"}
+                emissive={isPanel ? panelColor : undefined}
+                emissiveIntensity={isPanel ? (isPanelRowSelected ? 0.3 : 0.1) : 0}
                 metalness={isPanel ? 0 : 0.1}
                 roughness={isPanel ? 0.4 : 0.6}
                 transparent
@@ -479,9 +482,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               receiveShadow
             >
               <meshStandardMaterial
-                color={isPanel ? shape.color || '#ffffff' : isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
-                emissive={isPanel ? (shape.color || '#ffffff') : undefined}
-                emissiveIntensity={isPanel ? 0.1 : 0}
+                color={isPanel ? panelColor : isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
+                emissive={isPanel ? panelColor : undefined}
+                emissiveIntensity={isPanel ? (isPanelRowSelected ? 0.3 : 0.1) : 0}
                 metalness={isPanel ? 0 : 0.2}
                 roughness={isPanel ? 0.4 : 0.5}
                 transparent

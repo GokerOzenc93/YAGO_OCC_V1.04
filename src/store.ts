@@ -231,6 +231,10 @@ interface AppState {
   showRoleNumbers: boolean;
   setShowRoleNumbers: (show: boolean) => void;
 
+  // Selected Panel Row (Panel Editor)
+  selectedPanelRow: number | null;
+  setSelectedPanelRow: (index: number | null) => void;
+
   // Global Settings Paneli
   showGlobalSettingsPanel: boolean;
   setShowGlobalSettingsPanel: (show: boolean) => void;
@@ -348,6 +352,9 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   showRoleNumbers: false,
   setShowRoleNumbers: (show) => set({ showRoleNumbers: show }),
+
+  selectedPanelRow: null,
+  setSelectedPanelRow: (index) => set({ selectedPanelRow: index }),
 
   showGlobalSettingsPanel: false,
   setShowGlobalSettingsPanel: (show) => set({ showGlobalSettingsPanel: show }),

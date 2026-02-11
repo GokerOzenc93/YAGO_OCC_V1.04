@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, setSelectedPanelRow } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -26,6 +26,10 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
+
+  useEffect(() => {
+    setSelectedPanelRow(null);
+  }, [selectedShapeId, setSelectedPanelRow]);
 
   const getPanelDimensions = (faceIndex: number): { w: number; h: number; d: number } | null => {
     if (!selectedShape) return null;
@@ -48,8 +52,10 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   useEffect(() => {
     if (isOpen) {
       loadProfiles();
+    } else {
+      setSelectedPanelRow(null);
     }
-  }, [isOpen]);
+  }, [isOpen, setSelectedPanelRow]);
 
   useEffect(() => {
     if (!selectedShapeId || !selectedShape) return;
@@ -351,6 +357,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               };
 
               const handleRowClick = (faceIndex: number) => {
+                if (!facePanels[faceIndex]) return;
+                setSelectedPanelRow(faceIndex);
                 const panel = shapes.find(
                   s => s.type === 'panel' &&
                   s.parameters?.parentShapeId === selectedShape.id &&
@@ -373,12 +381,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   </div>
                   {faceGroups.map((_group, i) => {
                     const dimensions = getPanelDimensions(i);
-                    const isPanelSelected = shapes.some(s =>
-                      s.id === selectedShapeId &&
-                      s.type === 'panel' &&
-                      s.parameters?.parentShapeId === selectedShape.id &&
-                      s.parameters?.faceIndex === i
-                    );
+                    const isRowSelected = selectedPanelRow === i;
                     return (
                       <div
                         key={`face-${i}`}
@@ -386,9 +389,18 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           if (el) rowRefs.current.set(i, el);
                           else rowRefs.current.delete(i);
                         }}
-                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ${isPanelSelected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'} ${facePanels[i] ? 'cursor-pointer' : ''}`}
+                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ${isRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : 'hover:bg-gray-50'} ${facePanels[i] ? 'cursor-pointer' : ''}`}
                         onClick={() => facePanels[i] && handleRowClick(i)}
                       >
+                        <input
+                          type="radio"
+                          name="panel-selection"
+                          checked={isRowSelected}
+                          disabled={isDisabled || !facePanels[i]}
+                          onChange={() => handleRowClick(i)}
+                          className={`w-4 h-4 ${isDisabled || !facePanels[i] ? 'text-stone-300 cursor-not-allowed' : 'text-orange-600 focus:ring-orange-500 cursor-pointer'}`}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                         <input
                           type="text"
                           value={i + 1}
