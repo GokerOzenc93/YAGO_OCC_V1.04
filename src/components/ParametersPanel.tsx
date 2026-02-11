@@ -368,6 +368,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   }, [selectedShape?.id, selectedSubtractionIndex, selectedShape?.subtractionGeometries?.length, width, height, depth, customParameters]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
     setIsDragging(true);
     setDragOffset({
       x: e.clientX - position.x,
@@ -378,6 +379,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDragging) {
+        e.preventDefault();
         setPosition({
           x: e.clientX - dragOffset.x,
           y: e.clientY - dragOffset.y
@@ -390,11 +392,15 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     };
 
     if (isDragging) {
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'grabbing';
       document.addEventListener('mousemove', handleMouseMove);
       document.addEventListener('mouseup', handleMouseUp);
     }
 
     return () => {
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
@@ -701,7 +707,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       }}
     >
       <div
-        className="flex items-center justify-between px-3 py-2 bg-stone-100 border-b border-stone-300 rounded-t-lg cursor-move"
+        className="flex items-center justify-between px-3 py-2 bg-stone-100 border-b border-stone-300 rounded-t-lg select-none"
+        style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
         onMouseDown={handleMouseDown}
       >
         <div className="flex items-center gap-2">
