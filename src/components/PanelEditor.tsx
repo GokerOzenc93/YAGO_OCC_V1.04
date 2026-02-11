@@ -437,25 +437,49 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             <option key={role} value={role}>{role}</option>
                           ))}
                         </select>
-                        <div className="flex-1 flex flex-col gap-0.5">
-                          <input
-                            type="text"
-                            value={faceDescriptions[i] || ''}
-                            disabled={isDisabled}
-                            onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
-                              const newDescriptions = { ...faceDescriptions, [i]: e.target.value };
-                              updateShape(selectedShape.id, { faceDescriptions: newDescriptions });
-                            }}
-                            placeholder="description"
-                            className={`w-full px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
-                          />
-                          {dimensions && (
-                            <div className="text-[10px] text-gray-500 px-2">
-                              W:{dimensions.w} H:{dimensions.h} D:{dimensions.d}
-                            </div>
-                          )}
-                        </div>
+                        <input
+                          type="text"
+                          value={faceDescriptions[i] || ''}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            const newDescriptions = { ...faceDescriptions, [i]: e.target.value };
+                            updateShape(selectedShape.id, { faceDescriptions: newDescriptions });
+                          }}
+                          placeholder="description"
+                          className={`flex-1 px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
+                        />
+                        {dimensions && (
+                          <>
+                            <input
+                              type="text"
+                              value={dimensions.w}
+                              readOnly
+                              tabIndex={-1}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-12 px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              title="Width"
+                            />
+                            <input
+                              type="text"
+                              value={dimensions.h}
+                              readOnly
+                              tabIndex={-1}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-12 px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              title="Height"
+                            />
+                            <input
+                              type="text"
+                              value={dimensions.d}
+                              readOnly
+                              tabIndex={-1}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-12 px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              title="Depth"
+                            />
+                          </>
+                        )}
                         <input
                           type="checkbox"
                           checked={facePanels[i] || false}
