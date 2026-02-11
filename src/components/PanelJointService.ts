@@ -171,20 +171,17 @@ async function generateFrontBazaPanels(
 
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  if (!parentShape || !parentShape.geometry || !parentShape.faceRoles) {
-    console.log('BAZA: no parent, geometry or faceRoles');
-    return;
-  }
+  if (!parentShape || !parentShape.geometry || !parentShape.faceRoles) return;
 
-  const hasBottomPanels = state.shapes.some(
+  const bottomPanel = state.shapes.find(
     s => s.type === 'panel' &&
     s.parameters?.parentShapeId === parentShapeId &&
     s.parameters?.faceRole === 'Bottom'
   );
-  if (!hasBottomPanels) {
-    console.log('BAZA: no Bottom panels found, skipping base panel generation');
-    return;
-  }
+  if (!bottomPanel?.geometry) return;
+
+  const hasDoorRole = Object.values(parentShape.faceRoles).some(r => r === 'Door');
+  if (!hasDoorRole) return;
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
   const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
@@ -192,38 +189,27 @@ async function generateFrontBazaPanels(
   const parentFaces = extractFacesFromGeometry(parentShape.geometry);
   const parentGroups = groupCoplanarFaces(parentFaces);
 
-  console.log('BAZA: parentGroups:', parentGroups.length, 'faceRoles:', JSON.stringify(parentShape.faceRoles));
-
-  // BAZA temporarily disabled
-  console.log('BAZA: Feature temporarily disabled');
-  return;
-
-  const hasDoorRole = Object.values(parentShape.faceRoles).some(r => r === 'Door');
-  if (!hasDoorRole) {
-    console.log('BAZA: no Door faceRoles found');
-    return;
-  }
-
   const panelThickness = 18;
+
+  const hasLeftPanel = state.shapes.some(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Left'
+  );
+  const hasRightPanel = state.shapes.some(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.faceRole === 'Right'
+  );
+
+  const bottomBox = new THREE.Box3().setFromBufferAttribute(
+    bottomPanel.geometry.getAttribute('position')
+  );
+  bottomBox.translate(new THREE.Vector3(...bottomPanel.position));
+  const bazaY = bottomBox.min.y - bazaHeight;
+
   const newShapes: any[] = [];
   const processedDirs: string[] = [];
-
-  interface BazaInfo {
-    translateX: number;
-    translateY: number;
-    translateZ: number;
-    width: number;
-    height: number;
-    depth: number;
-    direction: 'x' | 'z';
-    leftTrim: number;
-    rightTrim: number;
-    frontTrim: number;
-    backTrim: number;
-    isLeftSide: boolean;
-    isRightSide: boolean;
-  }
-  const bazaInfos: BazaInfo[] = [];
 
   for (const [indexStr, role] of Object.entries(parentShape.faceRoles)) {
     if (role !== 'Door') continue;
@@ -242,12 +228,6 @@ async function generateFrontBazaPanels(
       parentFaces[fi].vertices.forEach(v => doorVertices.push(v.clone()));
     });
     const doorBbox = new THREE.Box3().setFromPoints(doorVertices);
-    const doorSize = new THREE.Vector3();
-    doorBbox.getSize(doorSize);
-
-    console.log('BAZA: Door face bbox min:', doorBbox.min.x.toFixed(1), doorBbox.min.y.toFixed(1), doorBbox.min.z.toFixed(1),
-      'max:', doorBbox.max.x.toFixed(1), doorBbox.max.y.toFixed(1), doorBbox.max.z.toFixed(1),
-      'size:', doorSize.x.toFixed(1), doorSize.y.toFixed(1), doorSize.z.toFixed(1));
 
     const absNx = Math.abs(doorNormal.x);
     const absNz = Math.abs(doorNormal.z);
@@ -255,204 +235,72 @@ async function generateFrontBazaPanels(
     let bazaWidth: number;
     let bazaDepth: number;
     let translateX: number;
-    let translateY: number;
     let translateZ: number;
 
     if (absNz >= absNx && absNz > 0.5) {
-      bazaWidth = doorSize.x;
+      let startX = doorBbox.min.x;
+      let endX = doorBbox.max.x;
+
+      if (hasLeftPanel) {
+        startX += panelThickness;
+      } else {
+        startX -= frontBaseDistance;
+      }
+
+      if (hasRightPanel) {
+        endX -= panelThickness;
+      } else {
+        endX += frontBaseDistance;
+      }
+
+      translateX = startX;
+      bazaWidth = endX - startX;
       bazaDepth = panelThickness;
-      translateX = doorBbox.min.x;
+
       if (doorNormal.z > 0) {
         translateZ = doorBbox.min.z - frontBaseDistance - panelThickness;
       } else {
         translateZ = doorBbox.max.z + frontBaseDistance;
       }
     } else if (absNx > 0.5) {
+      let startZ = doorBbox.min.z;
+      let endZ = doorBbox.max.z;
+
+      if (hasLeftPanel) {
+        startZ += panelThickness;
+      } else {
+        startZ -= frontBaseDistance;
+      }
+
+      if (hasRightPanel) {
+        endZ -= panelThickness;
+      } else {
+        endZ += frontBaseDistance;
+      }
+
+      translateZ = startZ;
+      bazaDepth = endZ - startZ;
       bazaWidth = panelThickness;
-      bazaDepth = doorSize.z;
-      translateZ = doorBbox.min.z;
+
       if (doorNormal.x > 0) {
         translateX = doorBbox.min.x - frontBaseDistance - panelThickness;
       } else {
         translateX = doorBbox.max.x + frontBaseDistance;
       }
     } else {
-      console.log('BAZA: door normal not axis-aligned, skipping');
       continue;
     }
 
     if (bazaWidth < 1 || bazaDepth < 1) continue;
 
-    const bottomPanel = state.shapes.find(
-      s => s.type === 'panel' &&
-      s.parameters?.parentShapeId === parentShapeId &&
-      s.parameters?.faceRole === 'Bottom'
-    );
-
-    if (!bottomPanel?.geometry) {
-      console.log('BAZA: Bottom panel geometry not found, skipping');
-      continue;
-    }
-
-    const bottomBox = new THREE.Box3().setFromBufferAttribute(
-      bottomPanel.geometry.getAttribute('position')
-    );
-    bottomBox.translate(new THREE.Vector3(...bottomPanel.position));
-
-    translateY = bottomBox.min.y - bazaHeight;
-
-    console.log('BAZA: Bottom panel bounds Y:[', bottomBox.min.y.toFixed(1), bottomBox.max.y.toFixed(1),
-      '] bazaHeight:', bazaHeight.toFixed(1), 'placing at Y:', translateY.toFixed(1));
-
-    let adjustedTranslateX = translateX;
-    let adjustedTranslateZ = translateZ;
-    let adjustedWidth = bazaWidth;
-    let adjustedDepth = bazaDepth;
-
-    let leftTrim = 0;
-    let rightTrim = 0;
-    let frontTrim = 0;
-    let backTrim = 0;
-
-    console.log(`BAZA: Initial pos:[${translateX.toFixed(1)}, ${translateY.toFixed(1)}, ${translateZ.toFixed(1)}] ` +
-      `size:[${bazaWidth.toFixed(1)}, ${bazaHeight.toFixed(1)}, ${bazaDepth.toFixed(1)}]`);
-    console.log(`BAZA: Door bounds X:[${doorBbox.min.x.toFixed(1)}, ${doorBbox.max.x.toFixed(1)}] Z:[${doorBbox.min.z.toFixed(1)}, ${doorBbox.max.z.toFixed(1)}]`);
-    console.log(`BAZA: Bottom panel bounds X:[${bottomBox.min.x.toFixed(1)}, ${bottomBox.max.x.toFixed(1)}] Z:[${bottomBox.min.z.toFixed(1)}, ${bottomBox.max.z.toFixed(1)}]`);
-
-    if (absNz >= absNx && absNz > 0.5) {
-      leftTrim = bottomBox.min.x - doorBbox.min.x;
-      if (leftTrim > 0.1) {
-        console.log(`BAZA: Bottom panel trimmed ${leftTrim.toFixed(1)}mm from left, applying same to baza`);
-        adjustedTranslateX += leftTrim;
-        adjustedWidth -= leftTrim;
-      }
-
-      rightTrim = doorBbox.max.x - bottomBox.max.x;
-      if (rightTrim > 0.1) {
-        console.log(`BAZA: Bottom panel trimmed ${rightTrim.toFixed(1)}mm from right, applying same to baza`);
-        adjustedWidth -= rightTrim;
-      }
-    } else if (absNx > 0.5) {
-      frontTrim = bottomBox.min.z - doorBbox.min.z;
-      if (frontTrim > 0.1) {
-        console.log(`BAZA: Bottom panel trimmed ${frontTrim.toFixed(1)}mm from front, applying same to baza`);
-        adjustedTranslateZ += frontTrim;
-        adjustedDepth -= frontTrim;
-      }
-
-      backTrim = doorBbox.max.z - bottomBox.max.z;
-      if (backTrim > 0.1) {
-        console.log(`BAZA: Bottom panel trimmed ${backTrim.toFixed(1)}mm from back, applying same to baza`);
-        adjustedDepth -= backTrim;
-      }
-    }
-
-    if (adjustedWidth < 1 || adjustedDepth < 1) {
-      console.log('BAZA: adjusted dimensions too small, skipping');
-      continue;
-    }
-
-    const direction: 'x' | 'z' = (absNz >= absNx && absNz > 0.5) ? 'x' : 'z';
-
-    const parentBox = new THREE.Box3().setFromBufferAttribute(
-      parentShape.geometry.getAttribute('position')
-    );
-    parentBox.translate(new THREE.Vector3(...parentShape.position));
-    const parentCenter = new THREE.Vector3();
-    parentBox.getCenter(parentCenter);
-
-    const bazaCenter = adjustedTranslateX + adjustedWidth / 2;
-    const isLeftSide = bazaCenter < parentCenter.x;
-    const isRightSide = bazaCenter > parentCenter.x;
-
-    console.log(`BAZA: Parent center X:${parentCenter.x.toFixed(1)}, Baza center X:${bazaCenter.toFixed(1)}, isLeftSide:${isLeftSide}, isRightSide:${isRightSide}`);
-
-    bazaInfos.push({
-      translateX: adjustedTranslateX,
-      translateY,
-      translateZ: adjustedTranslateZ,
-      width: adjustedWidth,
-      height: bazaHeight,
-      depth: adjustedDepth,
-      direction,
-      leftTrim,
-      rightTrim,
-      frontTrim,
-      backTrim,
-      isLeftSide,
-      isRightSide
-    });
-
-    console.log(`BAZA: collected info - dir:${direction} pos:[${adjustedTranslateX.toFixed(1)}, ${translateY.toFixed(1)}, ${adjustedTranslateZ.toFixed(1)}] ` +
-      `size:[${adjustedWidth.toFixed(1)}, ${bazaHeight.toFixed(1)}, ${adjustedDepth.toFixed(1)}] ` +
-      `trims: L:${leftTrim.toFixed(1)} R:${rightTrim.toFixed(1)} F:${frontTrim.toFixed(1)} B:${backTrim.toFixed(1)}`);
-  }
-
-  console.log(`BAZA: collected ${bazaInfos.length} baza infos, extending based on panel roles...`);
-
-  const hasLeftPanel = Object.values(parentShape.faceRoles).some(r => r === 'Left');
-  const hasRightPanel = Object.values(parentShape.faceRoles).some(r => r === 'Right');
-  const hasTopPanel = Object.values(parentShape.faceRoles).some(r => r === 'Top');
-  const hasBottomPanel = Object.values(parentShape.faceRoles).some(r => r === 'Bottom');
-
-  console.log(`BAZA: Panel roles detected - Left:${hasLeftPanel}, Right:${hasRightPanel}, Top:${hasTopPanel}, Bottom:${hasBottomPanel}`);
-
-  for (const baza of bazaInfos) {
-    if (baza.direction === 'x') {
-      if (hasLeftPanel && baza.isLeftSide) {
-        if (baza.leftTrim > 0.1) {
-          console.log(`BAZA: Left panel exists, reversing left trim of ${baza.leftTrim.toFixed(1)}mm`);
-          baza.translateX -= baza.leftTrim;
-          baza.width += baza.leftTrim;
-        }
-        console.log(`BAZA: Left panel exists and baza is on LEFT side, extending RIGHT by ${frontBaseDistance}mm`);
-        baza.width += frontBaseDistance;
-      }
-
-      if (hasRightPanel && baza.isRightSide) {
-        if (baza.rightTrim > 0.1) {
-          console.log(`BAZA: Right panel exists, reversing right trim of ${baza.rightTrim.toFixed(1)}mm`);
-          baza.width += baza.rightTrim;
-        }
-        console.log(`BAZA: Right panel exists and baza is on RIGHT side, extending LEFT by ${frontBaseDistance}mm`);
-        baza.translateX -= frontBaseDistance;
-        baza.width += frontBaseDistance;
-      }
-    } else if (baza.direction === 'z') {
-      if (hasTopPanel) {
-        if (baza.frontTrim > 0.1) {
-          console.log(`BAZA: Top panel exists, reversing front trim of ${baza.frontTrim.toFixed(1)}mm`);
-          baza.translateZ -= baza.frontTrim;
-          baza.depth += baza.frontTrim;
-        }
-        console.log(`BAZA: Top panel exists, extending BACK side by ${frontBaseDistance}mm to eliminate gap`);
-        baza.depth += frontBaseDistance;
-      }
-
-      if (hasBottomPanel) {
-        if (baza.backTrim > 0.1) {
-          console.log(`BAZA: Bottom panel exists, reversing back trim of ${baza.backTrim.toFixed(1)}mm`);
-          baza.depth += baza.backTrim;
-        }
-        console.log(`BAZA: Bottom panel exists, extending FRONT side by ${frontBaseDistance}mm to eliminate gap`);
-        baza.translateZ -= frontBaseDistance;
-        baza.depth += frontBaseDistance;
-      }
-    }
-  }
-
-  for (const info of bazaInfos) {
-    console.log('BAZA: creating w:', info.width.toFixed(1), 'h:', info.height.toFixed(1), 'd:', info.depth.toFixed(1),
-      'pos: [', info.translateX.toFixed(1), info.translateY.toFixed(1), info.translateZ.toFixed(1), ']');
-
     try {
       const bazaBox = await createReplicadBox({
-        width: info.width,
-        height: info.height,
-        depth: info.depth
+        width: bazaWidth,
+        height: bazaHeight,
+        depth: bazaDepth
       });
 
-      const positioned = bazaBox.translate(info.translateX, info.translateY, info.translateZ);
+      const positioned = bazaBox.translate(translateX, bazaY, translateZ);
       const geometry = convertReplicadToThreeGeometry(positioned);
 
       newShapes.push({
@@ -468,9 +316,9 @@ async function generateFrontBazaPanels(
           parentShapeId,
           isBaza: true,
           bazaType: 'front',
-          width: info.width,
-          height: info.height,
-          depth: info.depth
+          width: bazaWidth,
+          height: bazaHeight,
+          depth: bazaDepth
         }
       });
     } catch (err) {
@@ -478,7 +326,6 @@ async function generateFrontBazaPanels(
     }
   }
 
-  console.log('BAZA: total new shapes:', newShapes.length);
   if (newShapes.length > 0) {
     useAppStore.setState(st => ({
       shapes: [...st.shapes, ...newShapes]
