@@ -105,7 +105,8 @@ const Scene: React.FC = () => {
     selectedFilletFaces,
     clearFilletFaces,
     selectedFilletFaceData,
-    updateShape
+    updateShape,
+    panelSelectMode
   } = useAppStore(useShallow(state => ({
     shapes: state.shapes,
     cameraType: state.cameraType,
@@ -130,7 +131,8 @@ const Scene: React.FC = () => {
     selectedFilletFaces: state.selectedFilletFaces,
     clearFilletFaces: state.clearFilletFaces,
     selectedFilletFaceData: state.selectedFilletFaceData,
-    updateShape: state.updateShape
+    updateShape: state.updateShape,
+    panelSelectMode: state.panelSelectMode
   })));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -637,12 +639,14 @@ const Scene: React.FC = () => {
         <shadowMaterial opacity={0.15} />
       </mesh>
 
-      <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
-        <GizmoViewport
-          axisColors={['#f87171', '#4ade80', '#60a5fa']}
-          labelColor="white"
-        />
-      </GizmoHelper>
+      {!panelSelectMode && (
+        <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
+          <GizmoViewport
+            axisColors={['#f87171', '#4ade80', '#60a5fa']}
+            labelColor="white"
+          />
+        </GizmoHelper>
+      )}
     </Canvas>
     </ErrorBoundary>
 
