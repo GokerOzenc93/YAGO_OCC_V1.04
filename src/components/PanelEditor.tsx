@@ -234,7 +234,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: '440px',
+        width: '560px',
       }}
     >
       <div
@@ -447,7 +447,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             updateShape(selectedShape.id, { faceDescriptions: newDescriptions });
                           }}
                           placeholder="description"
-                          className={`flex-1 px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
+                          className={`w-[200px] px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
                         />
                         {dimensions && (
                           <>
@@ -457,7 +457,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               readOnly
                               tabIndex={-1}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-12 px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              className="w-[52px] px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
                               title="Width"
                             />
                             <input
@@ -466,7 +466,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               readOnly
                               tabIndex={-1}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-12 px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              className="w-[52px] px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
                               title="Height"
                             />
                             <input
@@ -475,7 +475,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               readOnly
                               tabIndex={-1}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-12 px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              className="w-[52px] px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
                               title="Depth"
                             />
                           </>
