@@ -374,6 +374,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     shape.parameters.faceIndex === selectedPanelRow;
   const panelColor = isPanelRowSelected ? '#ef4444' : (shape.color || '#ffffff');
 
+  const [isHovered, setIsHovered] = useState(false);
+
   const panelCenter = useMemo(() => {
     if (isPanel && localGeometry) {
       const box = new THREE.Box3().setFromBufferAttribute(
@@ -395,6 +397,16 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
       <group
         ref={groupRef}
         name={`shape-${shape.id}`}
+        onPointerOver={(e) => {
+          e.stopPropagation();
+          if (isPanel && isParentSelected) {
+            setIsHovered(true);
+          }
+        }}
+        onPointerOut={(e) => {
+          e.stopPropagation();
+          setIsHovered(false);
+        }}
         onClick={(e) => {
           if (panelSelectMode && hasPanels) {
             return;
@@ -586,15 +598,27 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             isActive={true}
           />
         )}
-        {isPanelRowSelected && panelCenter && (
+        {isPanel && panelCenter && (isHovered || isPanelRowSelected) && (
           <group position={[panelCenter.x, panelCenter.y, panelCenter.z]}>
-            <mesh position={[0, 0, 15]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[0.8, 0.8, 25, 16]} />
-              <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={0.4} />
+            <mesh position={[0, 0, 30]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[1.5, 1.5, 50, 16]} />
+              <meshStandardMaterial
+                color={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
+                emissive={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
+                emissiveIntensity={0.5}
+                metalness={0.3}
+                roughness={0.4}
+              />
             </mesh>
-            <mesh position={[0, 0, 28]} rotation={[Math.PI / 2, 0, 0]}>
-              <coneGeometry args={[2, 6, 16]} />
-              <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={0.4} />
+            <mesh position={[0, 0, 60]} rotation={[Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[4, 12, 16]} />
+              <meshStandardMaterial
+                color={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
+                emissive={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
+                emissiveIntensity={0.5}
+                metalness={0.3}
+                roughness={0.4}
+              />
             </mesh>
           </group>
         )}
