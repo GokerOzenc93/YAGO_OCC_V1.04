@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -511,6 +511,43 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
                           title={`Toggle panel for face ${i + 1}`}
                         />
+                        <button
+                          disabled={isDisabled || !facePanels[i]}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const panelShape = shapes.find(s =>
+                              s.type === 'panel' &&
+                              s.parameters?.parentShapeId === selectedShape.id &&
+                              s.parameters?.faceIndex === i
+                            );
+                            if (panelShape) {
+                              const current = panelShape.parameters?.arrowRotated || false;
+                              updateShape(panelShape.id, {
+                                parameters: {
+                                  ...panelShape.parameters,
+                                  arrowRotated: !current
+                                }
+                              });
+                            }
+                          }}
+                          className={`p-0.5 rounded transition-colors ${
+                            isDisabled || !facePanels[i]
+                              ? 'text-stone-300 cursor-not-allowed'
+                              : (() => {
+                                  const ps = shapes.find(s =>
+                                    s.type === 'panel' &&
+                                    s.parameters?.parentShapeId === selectedShape.id &&
+                                    s.parameters?.faceIndex === i
+                                  );
+                                  return ps?.parameters?.arrowRotated
+                                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                    : 'text-slate-500 hover:bg-stone-100';
+                                })()
+                          }`}
+                          title="Rotate arrow direction"
+                        >
+                          <RotateCw size={13} />
+                        </button>
                       </div>
                     );
                   })}

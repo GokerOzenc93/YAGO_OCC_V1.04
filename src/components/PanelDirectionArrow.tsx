@@ -4,11 +4,13 @@ import * as THREE from 'three';
 interface PanelDirectionArrowProps {
   geometry: THREE.BufferGeometry;
   faceRole?: string;
+  arrowRotated?: boolean;
 }
 
 export const PanelDirectionArrow: React.FC<PanelDirectionArrowProps> = React.memo(({
   geometry,
-  faceRole
+  faceRole,
+  arrowRotated = false
 }) => {
   const arrowConfig = useMemo(() => {
     if (!geometry) return null;
@@ -42,15 +44,18 @@ export const PanelDirectionArrow: React.FC<PanelDirectionArrowProps> = React.mem
 
     const role = faceRole?.toLowerCase();
     let rotation: [number, number, number] = [0, 0, 0];
-    if (role === 'top' || role === 'bottom') {
-      rotation = [0, 0, -Math.PI / 2];
+
+    if (role === 'left' || role === 'right') {
+      rotation = arrowRotated ? [0, 0, -Math.PI / 2] : [0, 0, 0];
+    } else if (role === 'top' || role === 'bottom') {
+      rotation = arrowRotated ? [Math.PI / 2, 0, 0] : [0, 0, -Math.PI / 2];
     }
 
     return {
       position: [arrowPosition.x, arrowPosition.y, arrowPosition.z] as [number, number, number],
       rotation
     };
-  }, [geometry, faceRole]);
+  }, [geometry, faceRole, arrowRotated]);
 
   if (!arrowConfig) return null;
 

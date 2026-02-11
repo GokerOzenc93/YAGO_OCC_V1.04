@@ -134,6 +134,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         <PanelDirectionArrow
           geometry={shape.geometry}
           faceRole={faceRole}
+          arrowRotated={shape.parameters?.arrowRotated || false}
         />
       )}
     </group>
