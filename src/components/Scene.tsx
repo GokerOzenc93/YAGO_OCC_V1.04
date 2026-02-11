@@ -545,7 +545,6 @@ const Scene: React.FC = () => {
           powerPreference: 'high-performance'
         }}
         dpr={[1, 1.5]}
-        performance={{ min: 0.5 }}
         onContextMenu={(e) => e.preventDefault()}
         onCreated={handleCreated}
       >
@@ -590,7 +589,6 @@ const Scene: React.FC = () => {
         rotateSpeed={0.8}
         maxDistance={25000}
         minDistance={50}
-        regress
       />
 
       <group position={[-2500, -1, -2500]}>
