@@ -447,7 +447,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               }
                             }
                           }}
-                          className={`w-20 px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
+                          style={{ width: '35mm' }}
+                          className={`px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
                         >
                           <option value="">none</option>
                           {roleOptions.map(role => (
@@ -464,7 +465,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             updateShape(selectedShape.id, { faceDescriptions: newDescriptions });
                           }}
                           placeholder="description"
-                          className={`w-[200px] px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
+                          style={{ width: '40mm' }}
+                          className={`px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
                         />
                         <input
                           type="text"
