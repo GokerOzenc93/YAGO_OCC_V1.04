@@ -365,6 +365,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         ref={groupRef}
         name={`shape-${shape.id}`}
         onClick={(e) => {
+          if (panelSelectMode && hasPanels) {
+            return;
+          }
           e.stopPropagation();
           if (e.nativeEvent.ctrlKey || e.nativeEvent.metaKey) {
             if (shape.id === secondarySelectedShapeId) {
