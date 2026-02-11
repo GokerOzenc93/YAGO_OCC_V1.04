@@ -400,9 +400,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               receiveShadow
             >
               <meshStandardMaterial
-                color={isPanel ? shape.color || '#ffffff' : "#94b8d9"}
-                emissive={isPanel ? (shape.color || '#ffffff') : undefined}
-                emissiveIntensity={isPanel ? 0.1 : 0}
+                color={isPanel && isSelected ? '#ff0000' : isPanel ? shape.color || '#ffffff' : "#94b8d9"}
+                emissive={isPanel && isSelected ? '#ff0000' : isPanel ? (shape.color || '#ffffff') : undefined}
+                emissiveIntensity={isPanel && isSelected ? 0.5 : isPanel ? 0.1 : 0}
                 metalness={isPanel ? 0 : 0.1}
                 roughness={isPanel ? 0.4 : 0.6}
                 transparent
@@ -479,9 +479,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               receiveShadow
             >
               <meshStandardMaterial
-                color={isPanel ? shape.color || '#ffffff' : isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
-                emissive={isPanel ? (shape.color || '#ffffff') : undefined}
-                emissiveIntensity={isPanel ? 0.1 : 0}
+                color={isPanel && isSelected ? '#ff0000' : isPanel ? shape.color || '#ffffff' : isSelected ? '#60a5fa' : shouldShowAsReference ? '#ef4444' : shape.color || '#2563eb'}
+                emissive={isPanel && isSelected ? '#ff0000' : isPanel ? (shape.color || '#ffffff') : undefined}
+                emissiveIntensity={isPanel && isSelected ? 0.5 : isPanel ? 0.1 : 0}
                 metalness={isPanel ? 0 : 0.2}
                 roughness={isPanel ? 0.4 : 0.5}
                 transparent
@@ -525,6 +525,18 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             shape={shape}
             isActive={true}
           />
+        )}
+        {isPanel && (
+          <group>
+            <mesh position={[0, 0, 15]} rotation={[Math.PI / 2, 0, (shape.parameters?.arrowRotation || 0) * Math.PI / 180]}>
+              <coneGeometry args={[4, 8, 4]} />
+              <meshStandardMaterial color="#ff6b00" emissive="#ff6b00" emissiveIntensity={0.3} />
+            </mesh>
+            <mesh position={[0, 0, 8]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[1.5, 1.5, 8, 8]} />
+              <meshStandardMaterial color="#ff6b00" emissive="#ff6b00" emissiveIntensity={0.3} />
+            </mesh>
+          </group>
         )}
       </group>
 

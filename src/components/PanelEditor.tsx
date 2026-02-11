@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical } from 'lucide-react';
+import { X, GripVertical, RotateCw } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -361,6 +361,24 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                 }
               };
 
+              const handleRotatePanel = (faceIndex: number) => {
+                const panel = shapes.find(
+                  s => s.type === 'panel' &&
+                  s.parameters?.parentShapeId === selectedShape.id &&
+                  s.parameters?.faceIndex === faceIndex
+                );
+                if (panel) {
+                  const currentRotation = panel.parameters?.arrowRotation || 0;
+                  const newRotation = (currentRotation + 90) % 360;
+                  updateShape(panel.id, {
+                    parameters: {
+                      ...panel.parameters,
+                      arrowRotation: newRotation
+                    }
+                  });
+                }
+              };
+
               return (
                 <div className={`space-y-0.5 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
                   <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-orange-700'}`}>
@@ -485,6 +503,19 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
                           title={`Toggle panel for face ${i + 1}`}
                         />
+                        {facePanels[i] && (
+                          <button
+                            disabled={isDisabled}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRotatePanel(i);
+                            }}
+                            className={`p-0.5 rounded hover:bg-gray-200 transition-colors ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                            title="Rotate arrow"
+                          >
+                            <RotateCw size={14} className="text-blue-600" />
+                          </button>
+                        )}
                       </div>
                     );
                   })}
