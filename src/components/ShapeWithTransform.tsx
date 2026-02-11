@@ -25,6 +25,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     selectShape,
     selectSecondaryShape,
     secondarySelectedShapeId,
+    selectedShapeId,
     updateShape,
     activeTool,
     viewMode,
@@ -36,7 +37,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setShowParametersPanel,
     showOutlines,
     showRoleNumbers,
-    selectedPanelRow
+    selectedPanelRow,
+    shapes
   } = useAppStore();
 
   const { scene } = useThree();
@@ -333,7 +335,15 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isPanel = shape.type === 'panel';
   const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
-  const isPanelRowSelected = isPanel && shape.parameters?.faceIndex !== undefined && shape.parameters.faceIndex === selectedPanelRow;
+
+  const parentShape = isPanel && shape.parameters?.parentShapeId
+    ? shapes.find(s => s.id === shape.parameters.parentShapeId)
+    : null;
+  const isParentSelected = parentShape?.id === selectedShapeId;
+  const isPanelRowSelected = isPanel &&
+    isParentSelected &&
+    shape.parameters?.faceIndex !== undefined &&
+    shape.parameters.faceIndex === selectedPanelRow;
   const panelColor = isPanelRowSelected ? '#ef4444' : (shape.color || '#ffffff');
   const {
     faceEditMode,
