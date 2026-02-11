@@ -234,6 +234,8 @@ interface AppState {
   // Selected Panel Row (Panel Editor)
   selectedPanelRow: number | null;
   setSelectedPanelRow: (index: number | null) => void;
+  panelSelectMode: boolean;
+  setPanelSelectMode: (enabled: boolean) => void;
 
   // Global Settings Paneli
   showGlobalSettingsPanel: boolean;
@@ -355,6 +357,8 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   selectedPanelRow: null,
   setSelectedPanelRow: (index) => set({ selectedPanelRow: index }),
+  panelSelectMode: false,
+  setPanelSelectMode: (enabled) => set({ panelSelectMode: enabled, selectedPanelRow: enabled ? null : null }),
 
   showGlobalSettingsPanel: false,
   setShowGlobalSettingsPanel: (show) => set({ showGlobalSettingsPanel: show }),

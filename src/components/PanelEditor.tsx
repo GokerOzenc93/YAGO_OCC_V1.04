@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, setSelectedPanelRow } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -54,21 +54,18 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       loadProfiles();
     } else {
       setSelectedPanelRow(null);
+      setPanelSelectMode(false);
     }
-  }, [isOpen, setSelectedPanelRow]);
+  }, [isOpen, setSelectedPanelRow, setPanelSelectMode]);
 
   useEffect(() => {
-    if (!selectedShapeId || !selectedShape) return;
-    const panel = shapes.find(s => s.id === selectedShapeId && s.type === 'panel');
-    if (!panel || panel.parameters?.parentShapeId !== selectedShape.id) return;
-    const faceIndex = panel.parameters?.faceIndex;
-    if (faceIndex !== undefined && faceIndex !== null) {
-      const rowElement = rowRefs.current.get(faceIndex);
+    if (selectedPanelRow !== null) {
+      const rowElement = rowRefs.current.get(selectedPanelRow);
       if (rowElement) {
         rowElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     }
-  }, [selectedShapeId, shapes, selectedShape]);
+  }, [selectedPanelRow]);
 
   useEffect(() => {
     if (prevProfileRef.current === selectedProfile) return;
@@ -310,6 +307,34 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   onChange={(e) => setShowRoleNumbers(e.target.checked)}
                   className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                 />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-orange-700">Scene Click Mode</label>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => setPanelSelectMode(false)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded border transition-colors ${
+                    !panelSelectMode
+                      ? 'bg-slate-700 text-white border-slate-700'
+                      : 'bg-white text-slate-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <Layers size={12} />
+                  Body
+                </button>
+                <button
+                  onClick={() => setPanelSelectMode(true)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded border transition-colors ${
+                    panelSelectMode
+                      ? 'bg-orange-600 text-white border-orange-600'
+                      : 'bg-white text-slate-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  <MousePointer size={12} />
+                  Panel
+                </button>
               </div>
             </div>
 

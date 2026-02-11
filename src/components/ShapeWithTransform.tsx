@@ -38,6 +38,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     showOutlines,
     showRoleNumbers,
     selectedPanelRow,
+    setSelectedPanelRow,
+    panelSelectMode,
     shapes
   } = useAppStore();
 
@@ -370,6 +372,17 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             } else {
               selectSecondaryShape(shape.id);
             }
+          } else if (panelSelectMode && isPanel && shape.parameters?.parentShapeId) {
+            const parentId = shape.parameters.parentShapeId;
+            if (selectedShapeId !== parentId) {
+              selectShape(parentId);
+            }
+            setSelectedPanelRow(shape.parameters.faceIndex ?? null);
+            selectSecondaryShape(null);
+          } else if (panelSelectMode && !isPanel) {
+            selectShape(shape.id);
+            selectSecondaryShape(null);
+            setSelectedPanelRow(null);
           } else {
             selectShape(shape.id);
             selectSecondaryShape(null);
