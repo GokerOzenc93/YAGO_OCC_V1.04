@@ -386,7 +386,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           if (el) rowRefs.current.set(i, el);
                           else rowRefs.current.delete(i);
                         }}
-                        className={`flex gap-1 items-center p-1 rounded transition-colors ${isPanelSelected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'} ${facePanels[i] ? 'cursor-pointer' : ''}`}
+                        className={`flex gap-0.5 items-center p-1 rounded transition-colors ${isPanelSelected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'} ${facePanels[i] ? 'cursor-pointer' : ''}`}
                         onClick={() => facePanels[i] && handleRowClick(i)}
                       >
                         <input
@@ -395,7 +395,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           readOnly
                           tabIndex={-1}
                           disabled={isDisabled}
-                          className={`w-10 px-1 py-0.5 text-xs font-mono border rounded text-center ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
+                          className={`w-7 px-1 py-0.5 text-xs font-mono border rounded text-center ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
                           onClick={(e) => e.stopPropagation()}
                         />
                         <select
@@ -457,7 +457,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               readOnly
                               tabIndex={-1}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-[52px] px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
                               title="Width"
                             />
                             <input
@@ -466,7 +466,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               readOnly
                               tabIndex={-1}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-[52px] px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
                               title="Height"
                             />
                             <input
@@ -475,7 +475,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               readOnly
                               tabIndex={-1}
                               onClick={(e) => e.stopPropagation()}
-                              className="w-[52px] px-1 py-0.5 text-[10px] font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                              className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
                               title="Depth"
                             />
                           </>
