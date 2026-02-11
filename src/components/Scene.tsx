@@ -644,12 +644,12 @@ const Scene: React.FC = () => {
       })}
 
       <mesh
-        position={[0, -1, 0]}
+        position={[0, -2, 0]}
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
         <planeGeometry args={[30000, 30000]} />
-        <meshStandardMaterial transparent opacity={0} />
+        <shadowMaterial opacity={0.15} />
       </mesh>
 
       <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
