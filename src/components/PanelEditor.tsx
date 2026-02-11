@@ -270,20 +270,21 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
         {selectedShape ? (
           <div className="space-y-3">
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <label className="text-xs font-semibold text-orange-700 whitespace-nowrap">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
                   Select Body Profile
                 </label>
                 {loading ? (
-                  <div className="px-2 py-0.5 text-xs text-stone-400 bg-white border border-gray-300 rounded flex-1">
-                    Loading profiles...
+                  <div className="px-2 py-0.5 text-xs text-stone-400 bg-white border border-gray-300 rounded" style={{ width: '30mm' }}>
+                    Loading...
                   </div>
                 ) : (
                   <select
                     value={selectedProfile}
                     onChange={(e) => setSelectedProfile(e.target.value)}
-                    className="flex-1 px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
+                    className="px-2 py-0.5 text-xs bg-white text-gray-800 border border-gray-300 rounded focus:outline-none focus:border-orange-500"
+                    style={{ width: '30mm' }}
                   >
                     <option value="none">None</option>
                     {profiles.map((profile) => (
@@ -294,10 +295,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   </select>
                 )}
               </div>
-            </div>
-
-            <div className="flex items-end gap-6">
-              <div className="flex items-end gap-1">
+              <div className="flex items-center gap-1">
                 <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
                   Outline
                 </label>
@@ -305,10 +303,10 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   type="checkbox"
                   checked={showOutlines}
                   onChange={(e) => setShowOutlines(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mb-0"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
               </div>
-              <div className="flex items-end gap-1">
+              <div className="flex items-center gap-1">
                 <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
                   Role numbers
                 </label>
@@ -316,7 +314,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   type="checkbox"
                   checked={showRoleNumbers}
                   onChange={(e) => setShowRoleNumbers(e.target.checked)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mb-0"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
               </div>
             </div>
