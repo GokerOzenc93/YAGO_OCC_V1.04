@@ -285,7 +285,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               </div>
             </div>
 
-            <div className="space-y-1.5">
+            <div className="flex items-end gap-6">
               <div className="flex items-end gap-1">
                 <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
                   Outline
