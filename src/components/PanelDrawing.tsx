@@ -2,6 +2,7 @@ import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
 import { useShallow } from 'zustand/react/shallow';
+import { PanelDirectionArrow } from './PanelDirectionArrow';
 
 interface PanelDrawingProps {
   shape: any;
@@ -128,6 +129,12 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
             depthTest={true}
           />
         </lineSegments>
+      )}
+      {isPanelRowSelected && (
+        <PanelDirectionArrow
+          geometry={shape.geometry}
+          faceRole={faceRole}
+        />
       )}
     </group>
   );
