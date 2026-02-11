@@ -12,6 +12,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   isSelected
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const selectShape = useAppStore((state) => state.selectShape);
 
   const edgeGeometry = useMemo(() => {
     if (!shape.geometry) return null;
@@ -66,6 +67,10 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         geometry={shape.geometry}
         castShadow
         receiveShadow
+        onClick={(e) => {
+          e.stopPropagation();
+          selectShape(shape.id);
+        }}
       >
         <meshStandardMaterial
           color={materialColor}

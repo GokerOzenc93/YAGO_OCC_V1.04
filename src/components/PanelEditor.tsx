@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -23,14 +23,46 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [resolving, setResolving] = useState(false);
   const prevProfileRef = useRef<string>('none');
   const prevGeometryRef = useRef<string>('');
+  const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
+
+  const getPanelDimensions = (faceIndex: number): { w: number; h: number; d: number } | null => {
+    if (!selectedShape) return null;
+    const panel = shapes.find(
+      s => s.type === 'panel' &&
+      s.parameters?.parentShapeId === selectedShape.id &&
+      s.parameters?.faceIndex === faceIndex
+    );
+    if (!panel || !panel.geometry) return null;
+    const box = new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position'));
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    return {
+      w: Math.round(size.x * 10) / 10,
+      h: Math.round(size.y * 10) / 10,
+      d: Math.round(size.z * 10) / 10
+    };
+  };
 
   useEffect(() => {
     if (isOpen) {
       loadProfiles();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!selectedShapeId || !selectedShape) return;
+    const panel = shapes.find(s => s.id === selectedShapeId && s.type === 'panel');
+    if (!panel || panel.parameters?.parentShapeId !== selectedShape.id) return;
+    const faceIndex = panel.parameters?.faceIndex;
+    if (faceIndex !== undefined && faceIndex !== null) {
+      const rowElement = rowRefs.current.get(faceIndex);
+      if (rowElement) {
+        rowElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [selectedShapeId, shapes, selectedShape]);
 
   useEffect(() => {
     if (prevProfileRef.current === selectedProfile) return;
@@ -202,7 +234,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: '410px',
+        width: '440px',
       }}
     >
       <div
@@ -318,6 +350,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                 }
               };
 
+              const handleRowClick = (faceIndex: number) => {
+                const panel = shapes.find(
+                  s => s.type === 'panel' &&
+                  s.parameters?.parentShapeId === selectedShape.id &&
+                  s.parameters?.faceIndex === faceIndex
+                );
+                if (panel) {
+                  selectShape(panel.id);
+                }
+              };
+
               return (
                 <div className={`space-y-2 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
                   <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-orange-700'}`}>
@@ -328,75 +371,103 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                       </span>
                     )}
                   </div>
-                  {faceGroups.map((_group, i) => (
-                    <div key={`face-${i}`} className="flex gap-1 items-center">
-                      <input
-                        type="text"
-                        value={i + 1}
-                        readOnly
-                        tabIndex={-1}
-                        disabled={isDisabled}
-                        className={`w-10 px-1 py-0.5 text-xs font-mono border rounded text-center ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
-                      />
-                      <select
-                        value={faceRoles[i] || ''}
-                        disabled={isDisabled}
-                        onChange={(e) => {
-                          const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
-                          const newFaceRoles = { ...faceRoles, [i]: newRole };
-                          if (newRole === null) {
-                            delete newFaceRoles[i];
-                          }
-                          updateShape(selectedShape.id, { faceRoles: newFaceRoles });
-
-                          const panelShape = shapes.find(s =>
-                            s.type === 'panel' &&
-                            s.parameters?.parentShapeId === selectedShape.id &&
-                            s.parameters?.faceIndex === i
-                          );
-                          if (panelShape) {
-                            updateShape(panelShape.id, {
-                              parameters: {
-                                ...panelShape.parameters,
-                                faceRole: newRole
-                              }
-                            });
-                            if (selectedProfile !== 'none') {
-                              setResolving(true);
-                              resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
-                                setResolving(false)
-                              );
-                            }
-                          }
+                  {faceGroups.map((_group, i) => {
+                    const dimensions = getPanelDimensions(i);
+                    const isPanelSelected = shapes.some(s =>
+                      s.id === selectedShapeId &&
+                      s.type === 'panel' &&
+                      s.parameters?.parentShapeId === selectedShape.id &&
+                      s.parameters?.faceIndex === i
+                    );
+                    return (
+                      <div
+                        key={`face-${i}`}
+                        ref={(el) => {
+                          if (el) rowRefs.current.set(i, el);
+                          else rowRefs.current.delete(i);
                         }}
-                        className={`w-20 px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
+                        className={`flex gap-1 items-center p-1 rounded transition-colors ${isPanelSelected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'} ${facePanels[i] ? 'cursor-pointer' : ''}`}
+                        onClick={() => facePanels[i] && handleRowClick(i)}
                       >
-                        <option value="">none</option>
-                        {roleOptions.map(role => (
-                          <option key={role} value={role}>{role}</option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        value={faceDescriptions[i] || ''}
-                        disabled={isDisabled}
-                        onChange={(e) => {
-                          const newDescriptions = { ...faceDescriptions, [i]: e.target.value };
-                          updateShape(selectedShape.id, { faceDescriptions: newDescriptions });
-                        }}
-                        placeholder="description"
-                        className={`flex-1 px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
-                      />
-                      <input
-                        type="checkbox"
-                        checked={facePanels[i] || false}
-                        disabled={isDisabled}
-                        onChange={() => handleTogglePanel(i)}
-                        className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
-                        title={`Toggle panel for face ${i + 1}`}
-                      />
-                    </div>
-                  ))}
+                        <input
+                          type="text"
+                          value={i + 1}
+                          readOnly
+                          tabIndex={-1}
+                          disabled={isDisabled}
+                          className={`w-10 px-1 py-0.5 text-xs font-mono border rounded text-center ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <select
+                          value={faceRoles[i] || ''}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
+                            const newFaceRoles = { ...faceRoles, [i]: newRole };
+                            if (newRole === null) {
+                              delete newFaceRoles[i];
+                            }
+                            updateShape(selectedShape.id, { faceRoles: newFaceRoles });
+
+                            const panelShape = shapes.find(s =>
+                              s.type === 'panel' &&
+                              s.parameters?.parentShapeId === selectedShape.id &&
+                              s.parameters?.faceIndex === i
+                            );
+                            if (panelShape) {
+                              updateShape(panelShape.id, {
+                                parameters: {
+                                  ...panelShape.parameters,
+                                  faceRole: newRole
+                                }
+                              });
+                              if (selectedProfile !== 'none') {
+                                setResolving(true);
+                                resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
+                                  setResolving(false)
+                                );
+                              }
+                            }
+                          }}
+                          className={`w-20 px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
+                        >
+                          <option value="">none</option>
+                          {roleOptions.map(role => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                        <div className="flex-1 flex flex-col gap-0.5">
+                          <input
+                            type="text"
+                            value={faceDescriptions[i] || ''}
+                            disabled={isDisabled}
+                            onClick={(e) => e.stopPropagation()}
+                            onChange={(e) => {
+                              const newDescriptions = { ...faceDescriptions, [i]: e.target.value };
+                              updateShape(selectedShape.id, { faceDescriptions: newDescriptions });
+                            }}
+                            placeholder="description"
+                            className={`w-full px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
+                          />
+                          {dimensions && (
+                            <div className="text-[10px] text-gray-500 px-2">
+                              W:{dimensions.w} H:{dimensions.h} D:{dimensions.d}
+                            </div>
+                          )}
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={facePanels[i] || false}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => handleTogglePanel(i)}
+                          className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
+                          title={`Toggle panel for face ${i + 1}`}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}
