@@ -42,14 +42,32 @@ export const PanelDirectionArrow: React.FC<PanelDirectionArrowProps> = React.mem
       offsetDir.clone().multiplyScalar(gap)
     );
 
+    const planeAxes = axes.slice(1).map(a => a.index).sort((a, b) => a - b);
+
+    const axisToRotation = (axis: number): [number, number, number] => {
+      if (axis === 0) return [0, 0, -Math.PI / 2];
+      if (axis === 2) return [Math.PI / 2, 0, 0];
+      return [0, 0, 0];
+    };
+
     const role = faceRole?.toLowerCase();
-    let rotation: [number, number, number] = [0, 0, 0];
+    let defaultAxis = planeAxes[0];
+    let altAxis = planeAxes[1];
 
     if (role === 'left' || role === 'right') {
-      rotation = arrowRotated ? [0, 0, -Math.PI / 2] : [0, 0, 0];
+      if (planeAxes.includes(1)) {
+        defaultAxis = 1;
+        altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1];
+      }
     } else if (role === 'top' || role === 'bottom') {
-      rotation = arrowRotated ? [Math.PI / 2, 0, 0] : [0, 0, -Math.PI / 2];
+      if (planeAxes.includes(0)) {
+        defaultAxis = 0;
+        altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1];
+      }
     }
+
+    const targetAxis = arrowRotated ? altAxis : defaultAxis;
+    const rotation = axisToRotation(targetAxis);
 
     return {
       position: [arrowPosition.x, arrowPosition.y, arrowPosition.z] as [number, number, number],
