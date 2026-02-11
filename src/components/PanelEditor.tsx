@@ -248,12 +248,23 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           <GripVertical size={14} className="text-stone-400" />
           <span className="text-sm font-semibold text-slate-800">Panel Editor</span>
         </div>
-        <button
-          onClick={onClose}
-          className="p-0.5 hover:bg-stone-200 rounded transition-colors"
-        >
-          <X size={14} className="text-stone-600" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setPanelSelectMode(!panelSelectMode)}
+            className={`p-0.5 hover:bg-stone-200 rounded transition-colors ${
+              panelSelectMode ? 'text-orange-600' : 'text-slate-600'
+            }`}
+            title={panelSelectMode ? 'Panel Mode' : 'Body Mode'}
+          >
+            {panelSelectMode ? <MousePointer size={14} /> : <Layers size={14} />}
+          </button>
+          <button
+            onClick={onClose}
+            className="p-0.5 hover:bg-stone-200 rounded transition-colors"
+          >
+            <X size={14} className="text-stone-600" />
+          </button>
+        </div>
       </div>
 
       <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -310,21 +321,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-orange-700">Scene Click Mode</label>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => setPanelSelectMode(!panelSelectMode)}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
-                    !panelSelectMode
-                      ? 'bg-slate-700 text-white border-slate-700'
-                      : 'bg-orange-600 text-white border-orange-600'
-                  }`}
-                >
-                  {panelSelectMode ? 'Panel' : 'Body'}
-                </button>
-              </div>
-            </div>
 
             {(() => {
               const geometry = selectedShape.geometry;
