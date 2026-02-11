@@ -31,20 +31,13 @@ export const PanelDirectionArrow: React.FC<PanelDirectionArrowProps> = React.mem
     const thinAxisIndex = axes[0].index;
     const thinAxisValue = axes[0].value;
 
-    const maxDim = Math.max(size.x, size.y, size.z);
-
-    const shaftLength = Math.max(maxDim * 0.18, 20);
-    const shaftRadius = Math.max(maxDim * 0.01, 1.5);
-    const headLength = Math.max(maxDim * 0.1, 12);
-    const headRadius = Math.max(maxDim * 0.03, 4);
-
     const offsetDir = new THREE.Vector3();
     offsetDir.setComponent(thinAxisIndex, 1);
 
-    const gap = Math.max(thinAxisValue * 0.5, 5);
+    const gap = thinAxisValue / 2 + 40;
 
     const arrowPosition = center.clone().add(
-      offsetDir.clone().multiplyScalar(thinAxisValue / 2 + gap)
+      offsetDir.clone().multiplyScalar(gap)
     );
 
     const role = faceRole?.toLowerCase();
@@ -55,38 +48,43 @@ export const PanelDirectionArrow: React.FC<PanelDirectionArrowProps> = React.mem
 
     return {
       position: [arrowPosition.x, arrowPosition.y, arrowPosition.z] as [number, number, number],
-      rotation,
-      shaftLength,
-      shaftRadius,
-      headLength,
-      headRadius
+      rotation
     };
   }, [geometry, faceRole]);
 
   if (!arrowConfig) return null;
 
-  const { position, rotation, shaftLength, shaftRadius, headLength, headRadius } = arrowConfig;
+  const { position, rotation } = arrowConfig;
+
+  const shaftLength = 50;
+  const shaftWidth = 4;
+  const shaftDepth = 1;
+  const headLength = 15;
+  const headWidth = 12;
+  const headDepth = 1;
 
   return (
     <group position={position} rotation={rotation}>
       <mesh position={[0, shaftLength / 2, 0]}>
-        <cylinderGeometry args={[shaftRadius, shaftRadius, shaftLength, 16]} />
+        <boxGeometry args={[shaftWidth, shaftLength, shaftDepth]} />
         <meshStandardMaterial
-          color="#1565C0"
-          emissive="#1E88E5"
-          emissiveIntensity={0.4}
-          metalness={0.3}
-          roughness={0.3}
+          color="#2196F3"
+          emissive="#2196F3"
+          emissiveIntensity={0.5}
+          metalness={0.2}
+          roughness={0.4}
+          side={THREE.DoubleSide}
         />
       </mesh>
       <mesh position={[0, shaftLength + headLength / 2, 0]}>
-        <coneGeometry args={[headRadius, headLength, 16]} />
+        <coneGeometry args={[headWidth, headLength, 3]} />
         <meshStandardMaterial
-          color="#1565C0"
-          emissive="#1E88E5"
-          emissiveIntensity={0.4}
-          metalness={0.3}
-          roughness={0.3}
+          color="#2196F3"
+          emissive="#2196F3"
+          emissiveIntensity={0.5}
+          metalness={0.2}
+          roughness={0.4}
+          side={THREE.DoubleSide}
         />
       </mesh>
     </group>
