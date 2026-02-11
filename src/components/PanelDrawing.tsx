@@ -12,7 +12,21 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   isSelected
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
-  const selectShape = useAppStore((state) => state.selectShape);
+  const {
+    selectShape,
+    selectSecondaryShape,
+    selectedShapeId,
+    selectedPanelRow,
+    setSelectedPanelRow,
+    panelSelectMode
+  } = useAppStore();
+
+  const parentShapeId = shape.parameters?.parentShapeId;
+  const faceIndex = shape.parameters?.faceIndex;
+  const isParentSelected = parentShapeId === selectedShapeId;
+  const isPanelRowSelected = isParentSelected &&
+    faceIndex !== undefined &&
+    faceIndex === selectedPanelRow;
 
   const edgeGeometry = useMemo(() => {
     if (!shape.geometry) return null;
@@ -53,7 +67,9 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     }
   };
 
-  const materialColor = getRoleColor(faceRole);
+  const baseColor = getRoleColor(faceRole);
+  const materialColor = isPanelRowSelected ? '#ef4444' : baseColor;
+  const edgeColor = isPanelRowSelected ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
 
   return (
     <group
@@ -69,13 +85,22 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         receiveShadow
         onClick={(e) => {
           e.stopPropagation();
-          selectShape(shape.id);
+          if (panelSelectMode && parentShapeId) {
+            if (selectedShapeId !== parentShapeId) {
+              selectShape(parentShapeId);
+            }
+            setSelectedPanelRow(faceIndex ?? null);
+            selectSecondaryShape(null);
+          } else {
+            selectShape(shape.id);
+            selectSecondaryShape(null);
+          }
         }}
       >
         <meshStandardMaterial
           color={materialColor}
-          emissive={materialColor}
-          emissiveIntensity={0.1}
+          emissive={isPanelRowSelected ? '#ef4444' : baseColor}
+          emissiveIntensity={isPanelRowSelected ? 0.35 : 0.1}
           metalness={0}
           roughness={0.4}
           transparent={false}
@@ -88,8 +113,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
       {edgeGeometry && (
         <lineSegments geometry={edgeGeometry}>
           <lineBasicMaterial
-            color={isSelected ? '#1e40af' : '#000000'}
-            linewidth={isSelected ? 2.5 : 2}
+            color={edgeColor}
+            linewidth={isPanelRowSelected ? 3 : isSelected ? 2.5 : 2}
             opacity={1}
             transparent={false}
             depthTest={true}
