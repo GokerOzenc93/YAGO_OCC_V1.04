@@ -383,7 +383,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
       );
       const center = new THREE.Vector3();
       box.getCenter(center);
-      return center;
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      return { center, height: size.z };
     }
     return null;
   }, [isPanel, localGeometry]);
@@ -598,30 +600,44 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             isActive={true}
           />
         )}
-        {isPanel && panelCenter && (isHovered || isPanelRowSelected) && (
-          <group position={[panelCenter.x, panelCenter.y, panelCenter.z]}>
-            <mesh position={[0, 0, 30]} rotation={[Math.PI / 2, 0, 0]}>
-              <cylinderGeometry args={[1.5, 1.5, 50, 16]} />
-              <meshStandardMaterial
-                color={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
-                emissive={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
-                emissiveIntensity={0.5}
-                metalness={0.3}
-                roughness={0.4}
-              />
-            </mesh>
-            <mesh position={[0, 0, 60]} rotation={[Math.PI / 2, 0, 0]}>
-              <coneGeometry args={[4, 12, 16]} />
-              <meshStandardMaterial
-                color={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
-                emissive={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
-                emissiveIntensity={0.5}
-                metalness={0.3}
-                roughness={0.4}
-              />
-            </mesh>
-          </group>
-        )}
+        {isPanel && panelCenter && (isHovered || isPanelRowSelected) && (() => {
+          console.log('Arrow showing:', {
+            isPanel,
+            hasCenter: !!panelCenter,
+            isHovered,
+            isPanelRowSelected,
+            center: panelCenter.center,
+            height: panelCenter.height
+          });
+          return (
+            <group position={[panelCenter.center.x, panelCenter.center.y, panelCenter.center.z + panelCenter.height / 2]}>
+              <mesh position={[0, 0, 30]}>
+                <cylinderGeometry args={[2, 2, 50, 16]} />
+                <meshStandardMaterial
+                  color={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
+                  emissive={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
+                  emissiveIntensity={0.8}
+                  metalness={0.3}
+                  roughness={0.4}
+                  depthTest={false}
+                  depthWrite={false}
+                />
+              </mesh>
+              <mesh position={[0, 0, 60]}>
+                <coneGeometry args={[5, 15, 16]} />
+                <meshStandardMaterial
+                  color={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
+                  emissive={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
+                  emissiveIntensity={0.8}
+                  metalness={0.3}
+                  roughness={0.4}
+                  depthTest={false}
+                  depthWrite={false}
+                />
+              </mesh>
+            </group>
+          );
+        })()}
       </group>
 
       {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
