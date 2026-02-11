@@ -286,8 +286,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-end gap-2">
-                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap flex-1">
+              <div className="flex items-end gap-1">
+                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
                   Outline
                 </label>
                 <input
@@ -297,8 +297,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mb-0"
                 />
               </div>
-              <div className="flex items-end gap-2">
-                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap flex-1">
+              <div className="flex items-end gap-1">
+                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
                   Role numbers
                 </label>
                 <input
