@@ -79,12 +79,12 @@ export const PanelDirectionArrow: React.FC<PanelDirectionArrowProps> = React.mem
 
   const { position, rotation } = arrowConfig;
 
-  const shaftLength = 50;
-  const shaftWidth = 4;
-  const shaftDepth = 1;
-  const headLength = 15;
-  const headWidth = 12;
-  const headDepth = 1;
+  const shaftLength = 80;
+  const shaftWidth = 8;
+  const shaftDepth = 2;
+  const headLength = 30;
+  const headWidth = 24;
+  const headDepth = 2;
 
   return (
     <group position={position} rotation={rotation}>
