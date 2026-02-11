@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
+import { OrbitControls, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, CameraType } from '../store';
 import { useShallow } from 'zustand/react/shallow';
@@ -591,21 +591,7 @@ const Scene: React.FC = () => {
         minDistance={50}
       />
 
-      <group position={[-2500, -1, -2500]}>
-        <Grid
-          args={[50000, 50000]}
-          cellSize={50}
-          cellThickness={2}
-          cellColor="#d4d4d8"
-          sectionSize={250}
-          sectionThickness={3}
-          sectionColor="#a1a1aa"
-          fadeDistance={15000}
-          fadeStrength={1}
-          followCamera={false}
-          infiniteGrid
-        />
-      </group>
+      <gridHelper args={[10000, 200, '#a1a1aa', '#d4d4d8']} position={[0, -1, 0]} />
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
