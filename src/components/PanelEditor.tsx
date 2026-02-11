@@ -362,7 +362,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               };
 
               return (
-                <div className={`space-y-2 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
+                <div className={`space-y-0.5 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
                   <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-orange-700'}`}>
                     <span>Face Roles ({faceGroups.length} faces)</span>
                     {resolving && (
@@ -386,7 +386,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           if (el) rowRefs.current.set(i, el);
                           else rowRefs.current.delete(i);
                         }}
-                        className={`flex gap-0.5 items-center p-1 rounded transition-colors ${isPanelSelected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'} ${facePanels[i] ? 'cursor-pointer' : ''}`}
+                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ${isPanelSelected ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'} ${facePanels[i] ? 'cursor-pointer' : ''}`}
                         onClick={() => facePanels[i] && handleRowClick(i)}
                       >
                         <input
@@ -449,37 +449,33 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           placeholder="description"
                           className={`w-[200px] px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-gray-300'}`}
                         />
-                        {dimensions && (
-                          <>
-                            <input
-                              type="text"
-                              value={dimensions.w}
-                              readOnly
-                              tabIndex={-1}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                              title="Width"
-                            />
-                            <input
-                              type="text"
-                              value={dimensions.h}
-                              readOnly
-                              tabIndex={-1}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                              title="Height"
-                            />
-                            <input
-                              type="text"
-                              value={dimensions.d}
-                              readOnly
-                              tabIndex={-1}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                              title="Depth"
-                            />
-                          </>
-                        )}
+                        <input
+                          type="text"
+                          value={dimensions?.w || 'NaN'}
+                          readOnly
+                          tabIndex={-1}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                          title="Width"
+                        />
+                        <input
+                          type="text"
+                          value={dimensions?.h || 'NaN'}
+                          readOnly
+                          tabIndex={-1}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                          title="Height"
+                        />
+                        <input
+                          type="text"
+                          value={dimensions?.d || 'NaN'}
+                          readOnly
+                          tabIndex={-1}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
+                          title="Depth"
+                        />
                         <input
                           type="checkbox"
                           checked={facePanels[i] || false}
