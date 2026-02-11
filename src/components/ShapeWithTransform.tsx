@@ -376,19 +376,35 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
 
   const [isHovered, setIsHovered] = useState(false);
 
-  const panelCenter = useMemo(() => {
-    if (isPanel && localGeometry) {
-      const box = new THREE.Box3().setFromBufferAttribute(
-        localGeometry.getAttribute('position') as THREE.BufferAttribute
-      );
-      const center = new THREE.Vector3();
-      box.getCenter(center);
-      const size = new THREE.Vector3();
-      box.getSize(size);
-      return { center, height: size.z };
+  const panelFaceInfo = useMemo(() => {
+    if (isPanel && localGeometry && shape.parameters?.faceIndex !== undefined) {
+      const positionAttribute = localGeometry.getAttribute('position');
+      const indexAttribute = localGeometry.getIndex();
+
+      if (!positionAttribute) return null;
+
+      const positions = positionAttribute.array as Float32Array;
+      const indices = indexAttribute ? (indexAttribute.array as Uint16Array | Uint32Array) : null;
+
+      const faceIndex = shape.parameters.faceIndex;
+      const i0 = indices ? indices[faceIndex * 3] : faceIndex * 3;
+      const i1 = indices ? indices[faceIndex * 3 + 1] : faceIndex * 3 + 1;
+      const i2 = indices ? indices[faceIndex * 3 + 2] : faceIndex * 3 + 2;
+
+      const v0 = new THREE.Vector3(positions[i0 * 3], positions[i0 * 3 + 1], positions[i0 * 3 + 2]);
+      const v1 = new THREE.Vector3(positions[i1 * 3], positions[i1 * 3 + 1], positions[i1 * 3 + 2]);
+      const v2 = new THREE.Vector3(positions[i2 * 3], positions[i2 * 3 + 1], positions[i2 * 3 + 2]);
+
+      const edge1 = new THREE.Vector3().subVectors(v1, v0);
+      const edge2 = new THREE.Vector3().subVectors(v2, v0);
+      const normal = new THREE.Vector3().crossVectors(edge1, edge2).normalize();
+
+      const center = new THREE.Vector3().add(v0).add(v1).add(v2).divideScalar(3);
+
+      return { center, normal };
     }
     return null;
-  }, [isPanel, localGeometry]);
+  }, [isPanel, localGeometry, shape.parameters?.faceIndex]);
 
   if (shape.isolated === false) {
     return null;
@@ -600,35 +616,42 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             isActive={true}
           />
         )}
-        {isPanel && panelCenter && (isHovered || isPanelRowSelected) && (() => {
+        {isPanel && panelFaceInfo && isPanelRowSelected && (() => {
+          const arrowPosition = panelFaceInfo.center.clone().add(panelFaceInfo.normal.clone().multiplyScalar(10));
+
+          const quaternion = new THREE.Quaternion();
+          const up = new THREE.Vector3(0, 0, 1);
+          quaternion.setFromUnitVectors(up, panelFaceInfo.normal);
+
           console.log('Arrow showing:', {
             isPanel,
-            hasCenter: !!panelCenter,
-            isHovered,
             isPanelRowSelected,
-            center: panelCenter.center,
-            height: panelCenter.height
+            faceIndex: shape.parameters?.faceIndex,
+            center: panelFaceInfo.center,
+            normal: panelFaceInfo.normal,
+            arrowPosition
           });
+
           return (
-            <group position={[panelCenter.center.x, panelCenter.center.y, panelCenter.center.z + panelCenter.height / 2]}>
-              <mesh position={[0, 0, 30]}>
-                <cylinderGeometry args={[2, 2, 50, 16]} />
+            <group position={[arrowPosition.x, arrowPosition.y, arrowPosition.z]} quaternion={quaternion}>
+              <mesh position={[0, 0, 25]}>
+                <cylinderGeometry args={[2.5, 2.5, 50, 16]} />
                 <meshStandardMaterial
-                  color={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
-                  emissive={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
-                  emissiveIntensity={0.8}
+                  color="#ef4444"
+                  emissive="#ef4444"
+                  emissiveIntensity={1}
                   metalness={0.3}
                   roughness={0.4}
                   depthTest={false}
                   depthWrite={false}
                 />
               </mesh>
-              <mesh position={[0, 0, 60]}>
-                <coneGeometry args={[5, 15, 16]} />
+              <mesh position={[0, 0, 55]}>
+                <coneGeometry args={[6, 18, 16]} />
                 <meshStandardMaterial
-                  color={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
-                  emissive={isPanelRowSelected ? "#3b82f6" : "#22c55e"}
-                  emissiveIntensity={0.8}
+                  color="#ef4444"
+                  emissive="#ef4444"
+                  emissiveIntensity={1}
                   metalness={0.3}
                   roughness={0.4}
                   depthTest={false}
