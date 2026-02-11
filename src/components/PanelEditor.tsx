@@ -314,26 +314,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               <label className="text-xs font-semibold text-orange-700">Scene Click Mode</label>
               <div className="flex gap-1">
                 <button
-                  onClick={() => setPanelSelectMode(false)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded border transition-colors ${
+                  onClick={() => setPanelSelectMode(!panelSelectMode)}
+                  className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded border transition-colors ${
                     !panelSelectMode
                       ? 'bg-slate-700 text-white border-slate-700'
-                      : 'bg-white text-slate-600 border-gray-300 hover:bg-gray-50'
+                      : 'bg-orange-600 text-white border-orange-600'
                   }`}
                 >
-                  <Layers size={12} />
-                  Body
-                </button>
-                <button
-                  onClick={() => setPanelSelectMode(true)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 text-xs font-medium rounded border transition-colors ${
-                    panelSelectMode
-                      ? 'bg-orange-600 text-white border-orange-600'
-                      : 'bg-white text-slate-600 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  <MousePointer size={12} />
-                  Panel
+                  {panelSelectMode ? 'Panel' : 'Body'}
                 </button>
               </div>
             </div>
