@@ -169,19 +169,7 @@ async function generateFrontBazaPanels(
 
   if (selectedBodyType !== 'bazali') return;
 
-  const state = useAppStore.getState();
-  const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  if (!parentShape || !parentShape.geometry || !parentShape.faceRoles) return;
-
-  const bottomPanel = state.shapes.find(
-    s => s.type === 'panel' &&
-    s.parameters?.parentShapeId === parentShapeId &&
-    s.parameters?.faceRole === 'Bottom'
-  );
-  if (!bottomPanel?.geometry) return;
-
-  const hasDoorRole = Object.values(parentShape.faceRoles).some(r => r === 'Door');
-  if (!hasDoorRole) return;
+  return;
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
   const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
