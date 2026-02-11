@@ -591,7 +591,6 @@ const Scene: React.FC = () => {
         minDistance={50}
       />
 
-      <gridHelper args={[10000, 200, '#a1a1aa', '#d4d4d8']} position={[0, -1, 0]} />
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
