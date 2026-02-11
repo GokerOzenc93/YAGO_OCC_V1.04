@@ -286,26 +286,26 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center gap-2">
+              <div className="flex items-end gap-2">
                 <label className="text-xs font-semibold text-slate-800 whitespace-nowrap flex-1">
-                  Show Reference Volume Edges
+                  Outline
                 </label>
                 <input
                   type="checkbox"
                   checked={showOutlines}
                   onChange={(e) => setShowOutlines(e.target.checked)}
-                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mb-0"
                 />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-end gap-2">
                 <label className="text-xs font-semibold text-slate-800 whitespace-nowrap flex-1">
-                  Show Role Numbers
+                  Role numbers
                 </label>
                 <input
                   type="checkbox"
                   checked={showRoleNumbers}
                   onChange={(e) => setShowRoleNumbers(e.target.checked)}
-                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mb-0"
                 />
               </div>
             </div>
