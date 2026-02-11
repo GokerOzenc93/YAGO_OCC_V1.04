@@ -3,6 +3,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, CameraType } from '../store';
+import { useShallow } from 'zustand/react/shallow';
 import ContextMenu from './ContextMenu';
 import SaveDialog from './SaveDialog';
 import { catalogService } from './Database';
@@ -105,7 +106,32 @@ const Scene: React.FC = () => {
     clearFilletFaces,
     selectedFilletFaceData,
     updateShape
-  } = useAppStore();
+  } = useAppStore(useShallow(state => ({
+    shapes: state.shapes,
+    cameraType: state.cameraType,
+    selectedShapeId: state.selectedShapeId,
+    secondarySelectedShapeId: state.secondarySelectedShapeId,
+    selectShape: state.selectShape,
+    deleteShape: state.deleteShape,
+    copyShape: state.copyShape,
+    isolateShape: state.isolateShape,
+    exitIsolation: state.exitIsolation,
+    vertexEditMode: state.vertexEditMode,
+    setVertexEditMode: state.setVertexEditMode,
+    selectedVertexIndex: state.selectedVertexIndex,
+    setSelectedVertexIndex: state.setSelectedVertexIndex,
+    vertexDirection: state.vertexDirection,
+    setVertexDirection: state.setVertexDirection,
+    addVertexModification: state.addVertexModification,
+    subtractionViewMode: state.subtractionViewMode,
+    faceEditMode: state.faceEditMode,
+    setFaceEditMode: state.setFaceEditMode,
+    filletMode: state.filletMode,
+    selectedFilletFaces: state.selectedFilletFaces,
+    clearFilletFaces: state.clearFilletFaces,
+    selectedFilletFaceData: state.selectedFilletFaceData,
+    updateShape: state.updateShape
+  })));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
 
@@ -337,20 +363,21 @@ const Scene: React.FC = () => {
     };
   }, [filletMode, selectedFilletFaces.length]);
 
-  const handleContextMenu = (e: any, shapeId: string) => {
-    if (vertexEditMode || faceEditMode) {
+  const handleContextMenu = useCallback((e: any, shapeId: string) => {
+    const state = useAppStore.getState();
+    if (state.vertexEditMode || state.faceEditMode) {
       return;
     }
     e.nativeEvent.preventDefault();
-    selectShape(shapeId);
-    const shape = shapes.find(s => s.id === shapeId);
+    state.selectShape(shapeId);
+    const shape = state.shapes.find(s => s.id === shapeId);
     setContextMenu({
       x: e.nativeEvent.clientX,
       y: e.nativeEvent.clientY,
       shapeId,
       shapeType: shape?.type || 'unknown'
     });
-  };
+  }, []);
 
   const captureSnapshot = (): string => {
     const canvas = document.querySelector('canvas');
@@ -493,7 +520,7 @@ const Scene: React.FC = () => {
   const handleCreated = useCallback(({ gl }: { gl: THREE.WebGLRenderer }) => {
     gl.toneMapping = THREE.ACESFilmicToneMapping;
     gl.toneMappingExposure = 1.0;
-    gl.shadowMap.type = THREE.PCFSoftShadowMap;
+    gl.shadowMap.type = THREE.PCFShadowMap;
     gl.outputColorSpace = THREE.SRGBColorSpace;
 
     const canvas = gl.domElement;
@@ -517,7 +544,8 @@ const Scene: React.FC = () => {
           preserveDrawingBuffer: true,
           powerPreference: 'high-performance'
         }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
+        performance={{ min: 0.5 }}
         onContextMenu={(e) => e.preventDefault()}
         onCreated={handleCreated}
       >
@@ -531,8 +559,8 @@ const Scene: React.FC = () => {
         position={[2000, 3000, 2000]}
         intensity={1.6}
         castShadow
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
         shadow-bias={-0.0001}
         shadow-camera-far={20000}
         shadow-camera-left={-5000}
@@ -550,7 +578,7 @@ const Scene: React.FC = () => {
       />
       <directionalLight
         position={[500, 500, 3000]}
-        intensity={0.3}
+        intensity={0.4}
       />
 
       <OrbitControls
@@ -562,6 +590,7 @@ const Scene: React.FC = () => {
         rotateSpeed={0.8}
         maxDistance={25000}
         minDistance={50}
+        regress
       />
 
       <group position={[-2500, -1, -2500]}>
@@ -573,8 +602,8 @@ const Scene: React.FC = () => {
           sectionSize={250}
           sectionThickness={3}
           sectionColor="#a1a1aa"
-          fadeDistance={Infinity}
-          fadeStrength={0}
+          fadeDistance={15000}
+          fadeStrength={1}
           followCamera={false}
           infiniteGrid
         />
@@ -621,7 +650,7 @@ const Scene: React.FC = () => {
         rotation={[-Math.PI / 2, 0, 0]}
         receiveShadow
       >
-        <planeGeometry args={[100000, 100000]} />
+        <planeGeometry args={[30000, 30000]} />
         <meshStandardMaterial transparent opacity={0} />
       </mesh>
 

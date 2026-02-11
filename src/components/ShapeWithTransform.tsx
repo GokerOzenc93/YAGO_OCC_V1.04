@@ -1,8 +1,9 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { TransformControls } from '@react-three/drei';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useAppStore, Tool, ViewMode } from '../store';
+import { useShallow } from 'zustand/react/shallow';
 import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
@@ -40,8 +41,36 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     selectedPanelRow,
     setSelectedPanelRow,
     panelSelectMode,
-    shapes
-  } = useAppStore();
+    faceEditMode,
+    filletMode,
+    roleEditMode,
+    setSelectedVertexIndex,
+    setVertexDirection
+  } = useAppStore(useShallow(state => ({
+    selectShape: state.selectShape,
+    selectSecondaryShape: state.selectSecondaryShape,
+    secondarySelectedShapeId: state.secondarySelectedShapeId,
+    selectedShapeId: state.selectedShapeId,
+    updateShape: state.updateShape,
+    activeTool: state.activeTool,
+    viewMode: state.viewMode,
+    subtractionViewMode: state.subtractionViewMode,
+    hoveredSubtractionIndex: state.hoveredSubtractionIndex,
+    setHoveredSubtractionIndex: state.setHoveredSubtractionIndex,
+    selectedSubtractionIndex: state.selectedSubtractionIndex,
+    setSelectedSubtractionIndex: state.setSelectedSubtractionIndex,
+    setShowParametersPanel: state.setShowParametersPanel,
+    showOutlines: state.showOutlines,
+    showRoleNumbers: state.showRoleNumbers,
+    selectedPanelRow: state.selectedPanelRow,
+    setSelectedPanelRow: state.setSelectedPanelRow,
+    panelSelectMode: state.panelSelectMode,
+    faceEditMode: state.faceEditMode,
+    filletMode: state.filletMode,
+    roleEditMode: state.roleEditMode,
+    setSelectedVertexIndex: state.setSelectedVertexIndex,
+    setVertexDirection: state.setVertexDirection
+  })));
 
   const { scene } = useThree();
   const transformRef = useRef<any>(null);
@@ -61,7 +90,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const [localGeometry, setLocalGeometry] = useState(shape.geometry);
   const [edgeGeometry, setEdgeGeometry] = useState<THREE.BufferGeometry | null>(null);
   const [geometryKey, setGeometryKey] = useState(0);
-  const vertexModsString = JSON.stringify(shape.vertexModifications || []);
+  const vertexModsString = useMemo(() => JSON.stringify(shape.vertexModifications || []), [shape.vertexModifications]);
 
   useEffect(() => {
     const loadEdges = async () => {
@@ -338,23 +367,12 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
 
-  const parentShape = isPanel && shape.parameters?.parentShapeId
-    ? shapes.find(s => s.id === shape.parameters.parentShapeId)
-    : null;
-  const isParentSelected = parentShape?.id === selectedShapeId;
+  const isParentSelected = isPanel && shape.parameters?.parentShapeId === selectedShapeId;
   const isPanelRowSelected = isPanel &&
     isParentSelected &&
     shape.parameters?.faceIndex !== undefined &&
     shape.parameters.faceIndex === selectedPanelRow;
   const panelColor = isPanelRowSelected ? '#ef4444' : (shape.color || '#ffffff');
-  const {
-    faceEditMode,
-    filletMode,
-    roleEditMode,
-    setSelectedVertexIndex,
-    setVertexDirection
-  } = useAppStore();
-
   if (shape.isolated === false) {
     return null;
   }

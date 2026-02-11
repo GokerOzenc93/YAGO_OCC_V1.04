@@ -1,6 +1,7 @@
 import React, { useRef, useMemo } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
+import { useShallow } from 'zustand/react/shallow';
 
 interface PanelDrawingProps {
   shape: any;
@@ -19,7 +20,14 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     selectedPanelRow,
     setSelectedPanelRow,
     panelSelectMode
-  } = useAppStore();
+  } = useAppStore(useShallow(state => ({
+    selectShape: state.selectShape,
+    selectSecondaryShape: state.selectSecondaryShape,
+    selectedShapeId: state.selectedShapeId,
+    selectedPanelRow: state.selectedPanelRow,
+    setSelectedPanelRow: state.setSelectedPanelRow,
+    panelSelectMode: state.panelSelectMode
+  })));
 
   const parentShapeId = shape.parameters?.parentShapeId;
   const faceIndex = shape.parameters?.faceIndex;

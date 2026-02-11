@@ -493,13 +493,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       const shape = state.shapes.find(s => s.id === id);
       if (!shape) return state;
 
-      if ('position' in updates) {
-        console.log('🔄 STORE updateShape - Position update');
-        console.log('   Shape ID:', id.slice(0, 8));
-        console.log('   Old position:', shape.position);
-        console.log('   New position:', updates.position);
-      }
-
       const updatedShapes = state.shapes.map((s) => {
         // 1. Hedef şekli güncelle
         if (s.id === id) {
