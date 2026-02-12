@@ -398,18 +398,27 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                     const isSidePanel = role === 'Left' || role === 'Right';
 
                     let dim1, dim2, dim3;
-                    if (isSidePanel && !arrowRotated) {
-                      dim1 = dimensions?.h;
-                      dim2 = dimensions?.w;
-                      dim3 = dimensions?.d;
-                    } else if (isSidePanel && arrowRotated) {
-                      dim1 = dimensions?.w;
-                      dim2 = dimensions?.h;
-                      dim3 = dimensions?.d;
-                    } else {
-                      dim1 = dimensions?.w;
-                      dim2 = dimensions?.h;
-                      dim3 = dimensions?.d;
+                    if (dimensions) {
+                      const sizes = [
+                        { value: dimensions.w, label: 'w' },
+                        { value: dimensions.h, label: 'h' },
+                        { value: dimensions.d, label: 'd' }
+                      ].sort((a, b) => a.value - b.value);
+
+                      const thickness = sizes[0].value;
+                      const otherDims = sizes.slice(1).map(s => s.value);
+
+                      if (isSidePanel && !arrowRotated) {
+                        dim1 = Math.max(...otherDims);
+                        dim2 = Math.min(...otherDims);
+                      } else if (isSidePanel && arrowRotated) {
+                        dim1 = Math.min(...otherDims);
+                        dim2 = Math.max(...otherDims);
+                      } else {
+                        dim1 = Math.min(...otherDims);
+                        dim2 = Math.max(...otherDims);
+                      }
+                      dim3 = thickness;
                     }
 
                     return (
