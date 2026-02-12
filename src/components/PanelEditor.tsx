@@ -31,7 +31,45 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     setSelectedPanelRow(null);
   }, [selectedShapeId, setSelectedPanelRow]);
 
-  const getPanelDimensions = (faceIndex: number): { w: number; h: number; d: number } | null => {
+  const getArrowTargetAxis = (geometry: THREE.BufferGeometry, faceRole?: string, arrowRotated?: boolean): number => {
+    if (!geometry) return 0;
+
+    const posAttr = geometry.getAttribute('position');
+    if (!posAttr) return 0;
+
+    const bbox = new THREE.Box3().setFromBufferAttribute(posAttr as THREE.BufferAttribute);
+    const size = new THREE.Vector3();
+    bbox.getSize(size);
+
+    const axes = [
+      { index: 0, value: size.x },
+      { index: 1, value: size.y },
+      { index: 2, value: size.z }
+    ];
+    axes.sort((a, b) => a.value - b.value);
+
+    const planeAxes = axes.slice(1).map(a => a.index).sort((a, b) => a - b);
+
+    const role = faceRole?.toLowerCase();
+    let defaultAxis = planeAxes[0];
+    let altAxis = planeAxes[1];
+
+    if (role === 'left' || role === 'right') {
+      if (planeAxes.includes(1)) {
+        defaultAxis = 1;
+        altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1];
+      }
+    } else if (role === 'top' || role === 'bottom') {
+      if (planeAxes.includes(0)) {
+        defaultAxis = 0;
+        altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1];
+      }
+    }
+
+    return arrowRotated ? altAxis : defaultAxis;
+  };
+
+  const getPanelDimensions = (faceIndex: number): { primary: number; w: number; h: number; d: number } | null => {
     if (!selectedShape) return null;
     const panel = shapes.find(
       s => s.type === 'panel' &&
@@ -42,10 +80,31 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     const box = new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position'));
     const size = new THREE.Vector3();
     box.getSize(size);
-    return {
+
+    const dimensions = {
       w: Math.round(size.x * 10) / 10,
       h: Math.round(size.y * 10) / 10,
       d: Math.round(size.z * 10) / 10
+    };
+
+    const targetAxis = getArrowTargetAxis(
+      panel.geometry,
+      panel.parameters?.faceRole,
+      panel.parameters?.arrowRotated
+    );
+
+    let primary: number;
+    if (targetAxis === 0) {
+      primary = dimensions.w;
+    } else if (targetAxis === 1) {
+      primary = dimensions.h;
+    } else {
+      primary = dimensions.d;
+    }
+
+    return {
+      primary,
+      ...dimensions
     };
   };
 
@@ -477,12 +536,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         />
                         <input
                           type="text"
-                          value={dimensions?.w || 'NaN'}
+                          value={dimensions?.primary || 'NaN'}
                           readOnly
                           tabIndex={-1}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                          title="Width"
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-gray-800 border-orange-300 font-semibold"
+                          title="Arrow Direction Dimension"
                         />
                         <input
                           type="text"
