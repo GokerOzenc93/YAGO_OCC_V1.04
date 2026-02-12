@@ -237,15 +237,6 @@ interface AppState {
   panelSelectMode: boolean;
   setPanelSelectMode: (enabled: boolean) => void;
 
-  // Extra Row Face Select Mode
-  extraRowFaceSelectMode: string | null;
-  setExtraRowFaceSelectMode: (id: string | null) => void;
-  extraRowHoveredFaceGroup: number | null;
-  setExtraRowHoveredFaceGroup: (index: number | null) => void;
-  extraRowConfirmedFaceGroup: number | null;
-  confirmExtraRowFace: (faceGroupIndex: number) => void;
-  clearExtraRowFaceSelect: () => void;
-
   // Global Settings Paneli
   showGlobalSettingsPanel: boolean;
   setShowGlobalSettingsPanel: (show: boolean) => void;
@@ -368,14 +359,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedPanelRow: (index) => set({ selectedPanelRow: index }),
   panelSelectMode: false,
   setPanelSelectMode: (enabled) => set({ panelSelectMode: enabled, selectedPanelRow: enabled ? null : null }),
-
-  extraRowFaceSelectMode: null,
-  setExtraRowFaceSelectMode: (id) => set({ extraRowFaceSelectMode: id, extraRowHoveredFaceGroup: null, extraRowConfirmedFaceGroup: null }),
-  extraRowHoveredFaceGroup: null,
-  setExtraRowHoveredFaceGroup: (index) => set({ extraRowHoveredFaceGroup: index }),
-  extraRowConfirmedFaceGroup: null,
-  confirmExtraRowFace: (faceGroupIndex) => set({ extraRowConfirmedFaceGroup: faceGroupIndex }),
-  clearExtraRowFaceSelect: () => set({ extraRowFaceSelectMode: null, extraRowHoveredFaceGroup: null, extraRowConfirmedFaceGroup: null }),
 
   showGlobalSettingsPanel: false,
   setShowGlobalSettingsPanel: (show) => set({ showGlobalSettingsPanel: show }),

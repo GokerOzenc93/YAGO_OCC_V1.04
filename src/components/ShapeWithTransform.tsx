@@ -8,7 +8,6 @@ import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
-import { FaceSelectOverlay } from './FaceSelectOverlay';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -70,8 +69,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     filletMode: state.filletMode,
     roleEditMode: state.roleEditMode,
     setSelectedVertexIndex: state.setSelectedVertexIndex,
-    setVertexDirection: state.setVertexDirection,
-    extraRowFaceSelectMode: state.extraRowFaceSelectMode
+    setVertexDirection: state.setVertexDirection
   })));
 
   const { scene } = useThree();
@@ -417,7 +415,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           setShowParametersPanel(true);
         }}
         onContextMenu={(e) => {
-          if (extraRowFaceSelectMode) return;
           e.stopPropagation();
           onContextMenu(e, shape.id);
         }}
@@ -574,12 +571,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             key={`role-labels-${shape.id}-${shape.geometry?.uuid || ''}`}
             shape={shape}
             isActive={true}
-          />
-        )}
-        {isSelected && hasPanels && extraRowFaceSelectMode && (
-          <FaceSelectOverlay
-            key={`face-select-${shape.id}-${shape.geometry?.uuid || ''}`}
-            shape={shape}
           />
         )}
       </group>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Crosshair } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, extraRowFaceSelectMode, setExtraRowFaceSelectMode, extraRowConfirmedFaceGroup, clearExtraRowFaceSelect } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -152,9 +152,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     } else {
       setSelectedPanelRow(null);
       setPanelSelectMode(false);
-      clearExtraRowFaceSelect();
     }
-  }, [isOpen, setSelectedPanelRow, setPanelSelectMode, clearExtraRowFaceSelect]);
+  }, [isOpen, setSelectedPanelRow, setPanelSelectMode]);
 
   useEffect(() => {
     if (selectedPanelRow !== null) {
@@ -213,53 +212,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     selectedShapeId,
     selectedProfile
   ]);
-
-  useEffect(() => {
-    if (extraRowConfirmedFaceGroup === null || !extraRowFaceSelectMode || !selectedShape) return;
-
-    const activeExtraRowId = extraRowFaceSelectMode;
-    const confirmedFaceGroup = extraRowConfirmedFaceGroup;
-
-    clearExtraRowFaceSelect();
-
-    const geometry = selectedShape.geometry;
-    if (!geometry) return;
-
-    const faces = extractFacesFromGeometry(geometry);
-    const faceGroups = groupCoplanarFaces(faces);
-    if (confirmedFaceGroup >= faceGroups.length) return;
-
-    const currentExtraRows = selectedShape.extraPanelRows || [];
-    const updatedExtraRows = currentExtraRows.map((r: any) =>
-      r.id === activeExtraRowId ? { ...r, selectedFaceGroup: confirmedFaceGroup } : r
-    );
-    updateShape(selectedShape.id, { extraPanelRows: updatedExtraRows });
-
-    const sourceFaceRole = selectedShape.faceRoles?.[confirmedFaceGroup] || null;
-
-    (async () => {
-      await createPanelForFace(faceGroups[confirmedFaceGroup], faces, confirmedFaceGroup, activeExtraRowId);
-
-      const createdPanel = useAppStore.getState().shapes.find(s =>
-        s.type === 'panel' &&
-        s.parameters?.extraRowId === activeExtraRowId
-      );
-      if (createdPanel && sourceFaceRole) {
-        updateShape(createdPanel.id, {
-          parameters: { ...createdPanel.parameters, faceRole: sourceFaceRole }
-        });
-      }
-
-      if (selectedProfile !== 'none') {
-        setResolving(true);
-        try {
-          await resolveAllPanelJoints(selectedShape.id, selectedProfile);
-        } finally {
-          setResolving(false);
-        }
-      }
-    })();
-  }, [extraRowConfirmedFaceGroup]);
 
   const loadProfiles = async () => {
     try {
@@ -335,15 +287,32 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     }
   };
 
-  const handleAddExtraRow = (sourceFaceIndex: number) => {
-    if (!selectedShape) return;
+  const handleAddExtraRow = async (sourceFaceIndex: number) => {
+    if (!selectedShape || selectedProfile === 'none') return;
+
+    const geometry = selectedShape.geometry;
+    if (!geometry) return;
+
+    const faces = extractFacesFromGeometry(geometry);
+    const faceGroups = groupCoplanarFaces(faces);
+    if (sourceFaceIndex >= faceGroups.length) return;
 
     const extraRowId = `extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     const currentExtraRows = selectedShape.extraPanelRows || [];
-    const sourceFaceRole = selectedShape.faceRoles?.[sourceFaceIndex] || null;
-    const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex, faceRole: sourceFaceRole, selectedFaceGroup: null as number | null }];
+    const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex }];
 
     updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
+
+    await createPanelForFace(faceGroups[sourceFaceIndex], faces, sourceFaceIndex, extraRowId);
+
+    if (selectedProfile !== 'none') {
+      setResolving(true);
+      try {
+        await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+      } finally {
+        setResolving(false);
+      }
+    }
   };
 
   const handleRemoveExtraRow = async (extraRowId: string) => {
@@ -799,32 +768,22 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             s.parameters?.parentShapeId === selectedShape.id &&
                             s.parameters?.extraRowId === extraRow.id
                           );
-                          const hasPanel = !!extraPanel;
-                          const isFaceSelecting = extraRowFaceSelectMode === extraRow.id;
                           return (
                             <div
                               key={extraRow.id}
-                              className={`flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ${isFaceSelecting ? 'bg-yellow-50 ring-1 ring-yellow-400' : ''}`}
+                              className="flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ml-4 border-l-2 border-orange-300"
                             >
-                              <input
-                                type="radio"
-                                name="panel-selection"
-                                checked={false}
-                                disabled={!hasPanel}
-                                onChange={() => {}}
-                                className={`w-4 h-4 ${!hasPanel ? 'text-stone-300 cursor-not-allowed' : 'text-orange-600 focus:ring-orange-500 cursor-pointer'}`}
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                              <div className="w-4" />
                               <input
                                 type="text"
                                 value={i + 1}
                                 readOnly
                                 tabIndex={-1}
-                                className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-white text-gray-800 border-gray-300"
+                                className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-orange-700 border-orange-300"
                                 onClick={(e) => e.stopPropagation()}
                               />
                               <select
-                                value={extraPanel?.parameters?.faceRole || extraRow.faceRole || faceRoles[i] || ''}
+                                value={extraPanel?.parameters?.faceRole || faceRoles[i] || ''}
                                 onClick={(e) => e.stopPropagation()}
                                 onChange={(e) => {
                                   if (!extraPanel) return;
@@ -842,9 +801,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                     );
                                   }
                                 }}
-                                disabled={!hasPanel}
                                 style={{ width: '35mm' }}
-                                className={`px-1 py-0.5 text-xs border rounded ${!hasPanel ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-gray-300'}`}
+                                className="px-1 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
                               >
                                 <option value="">none</option>
                                 {roleOptions.map(role => (
@@ -885,50 +843,31 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
                               />
+                              <div className="w-4" />
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (isFaceSelecting) {
-                                    clearExtraRowFaceSelect();
-                                  } else {
-                                    setExtraRowFaceSelectMode(extraRow.id);
-                                  }
+                                  if (!extraPanel) return;
+                                  const current = extraPanel.parameters?.arrowRotated || false;
+                                  updateShape(extraPanel.id, {
+                                    parameters: {
+                                      ...extraPanel.parameters,
+                                      arrowRotated: !current
+                                    }
+                                  });
                                 }}
                                 className={`p-0.5 rounded transition-colors ${
-                                  isFaceSelecting
-                                    ? 'text-yellow-700 bg-yellow-200 hover:bg-yellow-300 ring-1 ring-yellow-400'
-                                    : 'text-amber-600 hover:bg-amber-50'
+                                  extraPanel?.parameters?.arrowRotated
+                                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                    : 'text-slate-500 hover:bg-stone-100'
                                 }`}
-                                title={isFaceSelecting ? 'Cancel face selection (click face on 3D, right-click to confirm)' : 'Select face from 3D view'}
+                                title="Rotate arrow direction"
                               >
-                                <Crosshair size={13} />
+                                <RotateCw size={13} />
                               </button>
-                              {hasPanel && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    const current = extraPanel.parameters?.arrowRotated || false;
-                                    updateShape(extraPanel.id, {
-                                      parameters: {
-                                        ...extraPanel.parameters,
-                                        arrowRotated: !current
-                                      }
-                                    });
-                                  }}
-                                  className={`p-0.5 rounded transition-colors ${
-                                    extraPanel?.parameters?.arrowRotated
-                                      ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                                      : 'text-slate-500 hover:bg-stone-100'
-                                  }`}
-                                  title="Rotate arrow direction"
-                                >
-                                  <RotateCw size={13} />
-                                </button>
-                              )}
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (isFaceSelecting) clearExtraRowFaceSelect();
                                   handleRemoveExtraRow(extraRow.id);
                                 }}
                                 className="p-0.5 rounded transition-colors text-red-500 hover:bg-red-50"
