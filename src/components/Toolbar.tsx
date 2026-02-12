@@ -35,7 +35,8 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     showParametersPanel,
     setShowParametersPanel,
     showGlobalSettingsPanel,
-    setShowGlobalSettingsPanel
+    setShowGlobalSettingsPanel,
+    panelSelectMode
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -202,6 +203,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [showPolylineMenu, showSnapMenu]);
+
+  React.useEffect(() => {
+    if (panelSelectMode && activeTool !== Tool.SELECT) {
+      setActiveTool(Tool.SELECT);
+    }
+  }, [panelSelectMode, activeTool, setActiveTool]);
 
 
   const selectedShape = shapes.find(s => s.id === selectedShapeId);

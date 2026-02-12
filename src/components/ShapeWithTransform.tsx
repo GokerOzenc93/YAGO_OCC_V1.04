@@ -575,7 +575,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         )}
       </group>
 
-      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && (
+      {isSelected && activeTool !== Tool.SELECT && groupRef.current && !shape.isReferenceBox && !panelSelectMode && (
         <TransformControls
           key={geometryKey}
           ref={transformRef}
