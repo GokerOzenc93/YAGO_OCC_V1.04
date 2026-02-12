@@ -388,31 +388,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   {faceGroups.map((_group, i) => {
                     const dimensions = getPanelDimensions(i);
                     const isRowSelected = selectedPanelRow === i;
-                    const role = faceRoles[i];
-                    const panelShape = shapes.find(s =>
-                      s.type === 'panel' &&
-                      s.parameters?.parentShapeId === selectedShape.id &&
-                      s.parameters?.faceIndex === i
-                    );
-                    const arrowRotated = panelShape?.parameters?.arrowRotated || false;
-                    const isSidePanel = role === 'Left' || role === 'Right';
-
-                    let dim1, dim2, dim3;
-                    if (dimensions) {
-                      dim3 = dimensions.d;
-
-                      if (isSidePanel && !arrowRotated) {
-                        dim1 = dimensions.h;
-                        dim2 = dimensions.w;
-                      } else if (isSidePanel && arrowRotated) {
-                        dim1 = dimensions.w;
-                        dim2 = dimensions.h;
-                      } else {
-                        dim1 = dimensions.w;
-                        dim2 = dimensions.h;
-                      }
-                    }
-
                     return (
                       <div
                         key={`face-${i}`}
@@ -502,30 +477,30 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         />
                         <input
                           type="text"
-                          value={dim1 || 'NaN'}
+                          value={dimensions?.w || 'NaN'}
                           readOnly
                           tabIndex={-1}
                           onClick={(e) => e.stopPropagation()}
                           className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                          title={isSidePanel && !arrowRotated ? 'Height (Arrow Direction)' : 'Width'}
+                          title="Width"
                         />
                         <input
                           type="text"
-                          value={dim2 || 'NaN'}
+                          value={dimensions?.h || 'NaN'}
                           readOnly
                           tabIndex={-1}
                           onClick={(e) => e.stopPropagation()}
                           className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                          title={isSidePanel && !arrowRotated ? 'Width' : 'Height'}
+                          title="Height"
                         />
                         <input
                           type="text"
-                          value={dim3 || 'NaN'}
+                          value={dimensions?.d || 'NaN'}
                           readOnly
                           tabIndex={-1}
                           onClick={(e) => e.stopPropagation()}
                           className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                          title="Thickness"
+                          title="Depth"
                         />
                         <input
                           type="checkbox"
