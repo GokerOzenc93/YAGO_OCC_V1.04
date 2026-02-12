@@ -69,7 +69,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     return arrowRotated ? altAxis : defaultAxis;
   };
 
-  const getPanelDimensions = (faceIndex: number): { primary: number; secondary: number; w: number; h: number; d: number } | null => {
+  const getPanelDimensions = (faceIndex: number): { primary: number; secondary: number; thickness: number; w: number; h: number; d: number } | null => {
     if (!selectedShape) return null;
     const panel = shapes.find(
       s => s.type === 'panel' &&
@@ -105,11 +105,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     ];
     axes.sort((a, b) => a.value - b.value);
 
+    const thicknessAxis = axes[0].index;
     const planeAxes = axes.slice(1).map(a => a.index);
     const secondaryAxis = planeAxes.find(a => a !== targetAxis) ?? planeAxes[0];
 
     let primary: number;
     let secondary: number;
+    let thickness: number;
 
     if (targetAxis === 0) {
       primary = dimensions.w;
@@ -127,9 +129,18 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       secondary = dimensions.d;
     }
 
+    if (thicknessAxis === 0) {
+      thickness = dimensions.w;
+    } else if (thicknessAxis === 1) {
+      thickness = dimensions.h;
+    } else {
+      thickness = dimensions.d;
+    }
+
     return {
       primary,
       secondary,
+      thickness,
       ...dimensions
     };
   };
@@ -580,12 +591,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         />
                         <input
                           type="text"
-                          value={dimensions?.d || 'NaN'}
+                          value={dimensions?.thickness || 'NaN'}
                           readOnly
                           tabIndex={-1}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                          title="Depth"
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
+                          title="Panel Thickness"
                         />
                         <input
                           type="checkbox"
