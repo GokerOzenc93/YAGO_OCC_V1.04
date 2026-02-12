@@ -46,8 +46,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     filletMode,
     roleEditMode,
     setSelectedVertexIndex,
-    setVertexDirection,
-    extraRowFaceSelectMode
+    setVertexDirection
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
