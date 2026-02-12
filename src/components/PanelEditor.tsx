@@ -69,7 +69,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     return arrowRotated ? altAxis : defaultAxis;
   };
 
-  const getPanelDimensions = (faceIndex: number): { primary: number; w: number; h: number; d: number } | null => {
+  const getPanelDimensions = (faceIndex: number): { primary: number; secondary: number; w: number; h: number; d: number } | null => {
     if (!selectedShape) return null;
     const panel = shapes.find(
       s => s.type === 'panel' &&
@@ -93,7 +93,24 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       panel.parameters?.arrowRotated
     );
 
+    const posAttr = panel.geometry.getAttribute('position');
+    const bbox = new THREE.Box3().setFromBufferAttribute(posAttr as THREE.BufferAttribute);
+    const sizeVec = new THREE.Vector3();
+    bbox.getSize(sizeVec);
+
+    const axes = [
+      { index: 0, value: sizeVec.x },
+      { index: 1, value: sizeVec.y },
+      { index: 2, value: sizeVec.z }
+    ];
+    axes.sort((a, b) => a.value - b.value);
+
+    const planeAxes = axes.slice(1).map(a => a.index);
+    const secondaryAxis = planeAxes.find(a => a !== targetAxis) ?? planeAxes[0];
+
     let primary: number;
+    let secondary: number;
+
     if (targetAxis === 0) {
       primary = dimensions.w;
     } else if (targetAxis === 1) {
@@ -102,8 +119,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       primary = dimensions.d;
     }
 
+    if (secondaryAxis === 0) {
+      secondary = dimensions.w;
+    } else if (secondaryAxis === 1) {
+      secondary = dimensions.h;
+    } else {
+      secondary = dimensions.d;
+    }
+
     return {
       primary,
+      secondary,
       ...dimensions
     };
   };
@@ -545,12 +571,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         />
                         <input
                           type="text"
-                          value={dimensions?.h || 'NaN'}
+                          value={dimensions?.secondary || 'NaN'}
                           readOnly
                           tabIndex={-1}
                           onClick={(e) => e.stopPropagation()}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-gray-50 text-gray-600 border-gray-200"
-                          title="Height"
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-gray-800 border-blue-300 font-semibold"
+                          title="Perpendicular to Arrow Direction"
                         />
                         <input
                           type="text"
