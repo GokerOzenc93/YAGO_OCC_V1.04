@@ -321,6 +321,97 @@ async function generateFrontBazaPanels(
   }
 }
 
+export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
+  const state = useAppStore.getState();
+  const parentShape = state.shapes.find(s => s.id === parentShapeId);
+  if (!parentShape || !parentShape.replicadShape || !parentShape.geometry) return;
+
+  const childPanels = state.shapes.filter(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    !s.parameters?.isBaza
+  );
+  if (childPanels.length === 0) return;
+
+  console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
+
+  const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
+  const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+  const faces = extractFacesFromGeometry(parentShape.geometry);
+  const faceGroups = groupCoplanarFaces(faces);
+
+  const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
+
+  for (const panel of childPanels) {
+    const faceIndex = panel.parameters?.faceIndex;
+    if (faceIndex === undefined || faceIndex >= faceGroups.length) continue;
+
+    const faceGroup = faceGroups[faceIndex];
+
+    const localVertices: THREE.Vector3[] = [];
+    faceGroup.faceIndices.forEach((idx: number) => {
+      const face = faces[idx];
+      face.vertices.forEach((v: THREE.Vector3) => localVertices.push(v.clone()));
+    });
+
+    const localNormal = faceGroup.normal.clone().normalize();
+    const localBox = new THREE.Box3().setFromPoints(localVertices);
+    const localCenter = new THREE.Vector3();
+    localBox.getCenter(localCenter);
+
+    const panelThickness = panel.parameters?.depth || 18;
+
+    try {
+      const replicadPanel = await createPanelFromFace(
+        parentShape.replicadShape,
+        [localNormal.x, localNormal.y, localNormal.z],
+        [localCenter.x, localCenter.y, localCenter.z],
+        panelThickness
+      );
+
+      if (!replicadPanel) continue;
+
+      const geometry = convertReplicadToThreeGeometry(replicadPanel);
+
+      updates.push({
+        id: panel.id,
+        geometry,
+        replicadShape: replicadPanel,
+        parameters: {
+          ...panel.parameters,
+          originalReplicadShape: null,
+          jointTrimmed: false,
+        }
+      });
+    } catch (error) {
+      console.error(`Failed to rebuild panel ${panel.id}:`, error);
+    }
+  }
+
+  if (updates.length > 0) {
+    useAppStore.setState((st) => ({
+      shapes: st.shapes.map(s => {
+        const update = updates.find(u => u.id === s.id);
+        if (update) {
+          const parent = st.shapes.find(p => p.id === parentShapeId);
+          return {
+            ...s,
+            geometry: update.geometry,
+            replicadShape: update.replicadShape,
+            position: parent ? [...parent.position] as [number, number, number] : s.position,
+            rotation: parent ? parent.rotation : s.rotation,
+            scale: parent ? [...parent.scale] as [number, number, number] : s.scale,
+            parameters: update.parameters,
+          };
+        }
+        return s;
+      })
+    }));
+    console.log(`Rebuilt ${updates.length} panels successfully`);
+  }
+}
+
 export async function resolveAllPanelJoints(
   parentShapeId: string,
   profileId: string,
