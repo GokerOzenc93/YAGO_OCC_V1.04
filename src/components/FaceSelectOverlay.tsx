@@ -171,6 +171,7 @@ export const FaceSelectOverlay: React.FC<FaceSelectOverlayProps> = React.memo(({
   const faceRegionData = useMemo(() => {
     const result = new Map<number, { cs: FaceCoordSystem; faceBounds: Region2D; regions: Region2D[] }>();
 
+    console.log(`[FaceSelectOverlay] childPanels: ${childPanels.length}, faceGroups: ${faceGroups.length}`);
     if (childPanels.length === 0) return result;
 
     faceGroups.forEach((group, gi) => {
@@ -193,18 +194,23 @@ export const FaceSelectOverlay: React.FC<FaceSelectOverlayProps> = React.memo(({
       childPanels.forEach(panel => {
         if (!panel.geometry) return;
 
-        const panelFaceIndex = panel.parameters?.faceIndex;
-        if (panelFaceIndex === undefined) return;
-
-        const panelFaceGroup = faceGroups[panelFaceIndex];
-        if (!panelFaceGroup) return;
-
-        const dotProduct = Math.abs(panelFaceGroup.normal.dot(group.normal));
-        if (dotProduct > 0.9) return;
-
         const panelBBox = new THREE.Box3().setFromBufferAttribute(
           panel.geometry.getAttribute('position')
         );
+        const panelSize = new THREE.Vector3();
+        panelBBox.getSize(panelSize);
+
+        const dims = [
+          { idx: 0, size: panelSize.x },
+          { idx: 1, size: panelSize.y },
+          { idx: 2, size: panelSize.z }
+        ].sort((a, b) => a.size - b.size);
+
+        const panelNormal = new THREE.Vector3(0, 0, 0);
+        panelNormal.setComponent(dims[0].idx, 1);
+
+        const dot = Math.abs(panelNormal.dot(group.normal));
+        if (dot > 0.7) return;
 
         const corners = [
           new THREE.Vector3(panelBBox.min.x, panelBBox.min.y, panelBBox.min.z),
@@ -239,9 +245,13 @@ export const FaceSelectOverlay: React.FC<FaceSelectOverlayProps> = React.memo(({
         }
       });
 
+      console.log(`[FaceSelectOverlay] Face ${gi}: ${panelFootprints.length} panel footprints, faceBounds:`, faceBounds);
+
       const regions = panelFootprints.length > 0
         ? computeRegions(faceBounds, panelFootprints)
         : [];
+
+      console.log(`[FaceSelectOverlay] Face ${gi}: ${regions.length} regions computed`);
 
       result.set(gi, { cs, faceBounds, regions });
     });
@@ -297,8 +307,8 @@ export const FaceSelectOverlay: React.FC<FaceSelectOverlayProps> = React.memo(({
           const [uc, vc] = to2D(localPoint, fd.cs);
 
           const region = fd.regions.find(r =>
-            uc >= r.uMin && uc <= r.uMax &&
-            vc >= r.vMin && vc <= r.vMax
+            uc >= r.uMin - 1 && uc <= r.uMax + 1 &&
+            vc >= r.vMin - 1 && vc <= r.vMax + 1
           );
           setHoveredRegion(region || null);
         } else {
@@ -327,8 +337,8 @@ export const FaceSelectOverlay: React.FC<FaceSelectOverlayProps> = React.memo(({
           const localPoint = e.object.worldToLocal(e.point.clone());
           const [uc, vc] = to2D(localPoint, fd.cs);
           const region = fd.regions.find(r =>
-            uc >= r.uMin && uc <= r.uMax &&
-            vc >= r.vMin && vc <= r.vMax
+            uc >= r.uMin - 1 && uc <= r.uMax + 1 &&
+            vc >= r.vMin - 1 && vc <= r.vMax + 1
           );
           setHoveredRegion(region || null);
         }
