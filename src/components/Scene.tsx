@@ -639,14 +639,12 @@ const Scene: React.FC = () => {
         <shadowMaterial opacity={0.15} />
       </mesh>
 
-      {!panelSelectMode && (
-        <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
-          <GizmoViewport
-            axisColors={['#f87171', '#4ade80', '#60a5fa']}
-            labelColor="white"
-          />
-        </GizmoHelper>
-      )}
+      <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
+        <GizmoViewport
+          axisColors={['#f87171', '#4ade80', '#60a5fa']}
+          labelColor="white"
+        />
+      </GizmoHelper>
     </Canvas>
     </ErrorBoundary>
 
