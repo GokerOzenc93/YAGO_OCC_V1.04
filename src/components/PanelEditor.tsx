@@ -452,11 +452,38 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const handleAddExtraRow = async (sourceFaceIndex: number) => {
     if (!selectedShape) return;
 
-    const extraRowId = `extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-    const currentExtraRows = selectedShape.extraPanelRows || [];
-    const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex, needsSurfaceSelection: true }];
+    if (sourceFaceIndex === -1) {
+      const geometry = selectedShape.geometry;
+      if (!geometry) return;
 
-    updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
+      const faces = extractFacesFromGeometry(geometry);
+      const faceGroups = groupCoplanarFaces(faces);
+      if (faceGroups.length === 0) return;
+
+      const firstFaceIndex = 0;
+      const facePanels = selectedShape.facePanels || {};
+
+      if (!facePanels[firstFaceIndex]) {
+        const newFacePanels = { ...facePanels, [firstFaceIndex]: true };
+        updateShape(selectedShape.id, { facePanels: newFacePanels });
+        await createPanelForFace(faceGroups[firstFaceIndex], faces, firstFaceIndex);
+
+        if (selectedProfile !== 'none') {
+          setResolving(true);
+          try {
+            await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+          } finally {
+            setResolving(false);
+          }
+        }
+      }
+    } else {
+      const extraRowId = `extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      const currentExtraRows = selectedShape.extraPanelRows || [];
+      const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex, needsSurfaceSelection: true }];
+
+      updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
+    }
   };
 
   const handleStartSurfaceSelection = (extraRowId: string, sourceFaceIndex: number) => {
@@ -599,6 +626,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           <span className="text-sm font-semibold text-slate-800">Panel Editor</span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              if (selectedShape) {
+                handleAddExtraRow(-1);
+              }
+            }}
+            disabled={!selectedShape}
+            className={`p-0.5 rounded transition-colors ${
+              selectedShape ? 'hover:bg-green-50 text-green-600' : 'text-stone-300 cursor-not-allowed'
+            }`}
+            title="Add new panel row"
+          >
+            <Plus size={14} />
+          </button>
           <button
             onClick={() => setPanelSelectMode(!panelSelectMode)}
             className={`p-0.5 hover:bg-stone-200 rounded transition-colors ${
@@ -898,21 +939,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             title="Rotate arrow direction"
                           >
                             <RotateCw size={13} />
-                          </button>
-                          <button
-                            disabled={isDisabled || !facePanels[i]}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddExtraRow(i);
-                            }}
-                            className={`p-0.5 rounded transition-colors ${
-                              isDisabled || !facePanels[i]
-                                ? 'text-stone-300 cursor-not-allowed'
-                                : 'text-green-600 hover:bg-green-50'
-                            }`}
-                            title={`Add duplicate row for face ${i + 1}`}
-                          >
-                            <Plus size={13} />
                           </button>
                         </div>
                         {extraRowsForFace.map((extraRow: any) => {
