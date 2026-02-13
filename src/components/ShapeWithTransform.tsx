@@ -47,7 +47,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedVertexIndex,
     setVertexDirection,
     panelSurfaceSelectMode,
-    waitingForSurfaceSelection
+    waitingForSurfaceSelection,
+    rayProbeHighlightedShapes
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,

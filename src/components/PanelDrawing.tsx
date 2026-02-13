@@ -25,7 +25,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSelectMode,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    triggerPanelCreationForFace
+    triggerPanelCreationForFace,
+    rayProbeHighlightedShapes
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,

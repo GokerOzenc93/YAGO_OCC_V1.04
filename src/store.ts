@@ -384,6 +384,8 @@ interface AppState {
   setRayProbeResults: (results: RayProbeResult | null) => void;
   rayProbeHighlightedShapes: string[];
   setRayProbeHighlightedShapes: (ids: string[]) => void;
+  rayProbeSourceFace: { faceIndex: number; extraRowId?: string } | null;
+  setRayProbeSourceFace: (source: { faceIndex: number; extraRowId?: string } | null) => void;
 }
 
 /**
@@ -549,12 +551,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setRayProbeMode: (enabled) => set({
     rayProbeMode: enabled,
     rayProbeResults: enabled ? null : null,
-    rayProbeHighlightedShapes: enabled ? [] : []
+    rayProbeHighlightedShapes: enabled ? [] : [],
+    rayProbeSourceFace: enabled ? get().rayProbeSourceFace : null
   }),
   rayProbeResults: null,
   setRayProbeResults: (results) => set({ rayProbeResults: results }),
   rayProbeHighlightedShapes: [],
   setRayProbeHighlightedShapes: (ids) => set({ rayProbeHighlightedShapes: ids }),
+  rayProbeSourceFace: null,
+  setRayProbeSourceFace: (source) => set({ rayProbeSourceFace: source }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

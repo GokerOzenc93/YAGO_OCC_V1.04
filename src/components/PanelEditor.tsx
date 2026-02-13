@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan, Crosshair } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, panelSurfaceSelectMode, setPanelSurfaceSelectMode, waitingForSurfaceSelection, setWaitingForSurfaceSelection, pendingPanelCreation } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, panelSurfaceSelectMode, setPanelSurfaceSelectMode, waitingForSurfaceSelection, setWaitingForSurfaceSelection, pendingPanelCreation, rayProbeMode, setRayProbeMode, rayProbeResults, setRayProbeResults, rayProbeSourceFace, setRayProbeSourceFace, setRayProbeHighlightedShapes } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -379,6 +379,72 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       console.error('Failed to create panel:', error);
     }
   };
+
+  const handleStartRayProbe = (faceIndex: number, extraRowId?: string) => {
+    setRayProbeSourceFace({ faceIndex, extraRowId });
+    setRayProbeMode(true);
+  };
+
+  useEffect(() => {
+    if (!rayProbeResults || !rayProbeSourceFace || !selectedShape || selectedProfile === 'none') return;
+
+    const { faceIndex, extraRowId } = rayProbeSourceFace;
+
+    const panelHits = rayProbeResults.hits.filter(h => {
+      const hitShape = shapes.find(s => s.id === h.shapeId);
+      return hitShape && hitShape.type === 'panel';
+    });
+
+    if (panelHits.length === 0) return;
+
+    const closestHit = panelHits.reduce((a, b) => a.distance < b.distance ? a : b);
+    const hitPanel = shapes.find(s => s.id === closestHit.shapeId);
+    if (!hitPanel) return;
+
+    const surfaceConstraint = {
+      center: closestHit.point,
+      normal: closestHit.normal,
+      constraintPanelId: hitPanel.id
+    };
+
+    const geometry = selectedShape.geometry;
+    if (!geometry) return;
+
+    const faces = extractFacesFromGeometry(geometry);
+    const faceGroups = groupCoplanarFaces(faces);
+    if (faceIndex >= faceGroups.length) return;
+
+    const facePanels = selectedShape.facePanels || {};
+
+    if (extraRowId) {
+      createPanelForFace(faceGroups[faceIndex], faces, faceIndex, extraRowId, surfaceConstraint).then(() => {
+        const currentExtraRows = selectedShape.extraPanelRows || [];
+        const updatedExtraRows = currentExtraRows.map((row: any) =>
+          row.id === extraRowId ? { ...row, needsSurfaceSelection: false } : row
+        );
+        updateShape(selectedShape.id, { extraPanelRows: updatedExtraRows });
+
+        if (selectedProfile !== 'none') {
+          setResolving(true);
+          resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() => setResolving(false));
+        }
+      });
+    } else if (!facePanels[faceIndex]) {
+      const newFacePanels = { ...facePanels, [faceIndex]: true };
+      updateShape(selectedShape.id, { facePanels: newFacePanels });
+      createPanelForFace(faceGroups[faceIndex], faces, faceIndex, undefined, surfaceConstraint).then(() => {
+        if (selectedProfile !== 'none') {
+          setResolving(true);
+          resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() => setResolving(false));
+        }
+      });
+    }
+
+    setRayProbeMode(false);
+    setRayProbeSourceFace(null);
+    setRayProbeResults(null);
+    setRayProbeHighlightedShapes([]);
+  }, [rayProbeResults]);
 
   const handleAddExtraRow = async (sourceFaceIndex: number) => {
     if (!selectedShape) return;
@@ -831,6 +897,23 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             <RotateCw size={13} />
                           </button>
                           <button
+                            disabled={isDisabled}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleStartRayProbe(i);
+                            }}
+                            className={`p-0.5 rounded transition-colors ${
+                              isDisabled
+                                ? 'text-stone-300 cursor-not-allowed'
+                                : rayProbeMode && rayProbeSourceFace?.faceIndex === i && !rayProbeSourceFace?.extraRowId
+                                  ? 'text-amber-700 bg-amber-100 border border-amber-300'
+                                  : 'text-slate-500 hover:bg-amber-50 hover:text-amber-600'
+                            }`}
+                            title="Ray Probe - yuzey secip panel olustur"
+                          >
+                            <Crosshair size={13} />
+                          </button>
+                          <button
                             disabled={isDisabled || !facePanels[i]}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -985,6 +1068,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 title="Rotate arrow direction"
                               >
                                 <RotateCw size={13} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartRayProbe(i, extraRow.id);
+                                }}
+                                className={`p-0.5 rounded transition-colors ${
+                                  rayProbeMode && rayProbeSourceFace?.faceIndex === i && rayProbeSourceFace?.extraRowId === extraRow.id
+                                    ? 'text-amber-700 bg-amber-100 border border-amber-300'
+                                    : 'text-slate-500 hover:bg-amber-50 hover:text-amber-600'
+                                }`}
+                                title="Ray Probe - yuzey secip panel olustur"
+                              >
+                                <Crosshair size={13} />
                               </button>
                               <button
                                 onClick={(e) => {
