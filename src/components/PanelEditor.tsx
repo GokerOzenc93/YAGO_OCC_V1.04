@@ -37,10 +37,10 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         return;
       }
 
-      const { faceIndex, sourceGeometryShapeId } = pendingPanelCreation;
+      const { faceIndex, sourceGeometryShapeId, surfaceConstraint } = pendingPanelCreation;
       const { extraRowId } = waitingForSurfaceSelection;
 
-      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId, 'sourceGeometryShapeId:', sourceGeometryShapeId);
+      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId, 'sourceGeometryShapeId:', sourceGeometryShapeId, 'surfaceConstraint:', surfaceConstraint);
 
       let sourceShape = selectedShape;
       if (sourceGeometryShapeId) {
@@ -58,7 +58,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const faceGroups = groupCoplanarFaces(faces);
       if (faceIndex >= faceGroups.length) return;
 
-      await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, extraRowId);
+      await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, extraRowId, surfaceConstraint);
 
       const currentExtraRows = selectedShape.extraPanelRows || [];
       const updatedExtraRows = currentExtraRows.map((row: any) =>
@@ -276,7 +276,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     }
   };
 
-  const createPanelForFace = async (faceGroup: CoplanarFaceGroup, faces: FaceData[], faceIndex: number, extraRowId?: string) => {
+  const createPanelForFace = async (
+    faceGroup: CoplanarFaceGroup,
+    faces: FaceData[],
+    faceIndex: number,
+    extraRowId?: string,
+    constraint?: {
+      center: [number, number, number];
+      normal: [number, number, number];
+      constraintPanelId: string;
+    }
+  ) => {
     if (!selectedShape || !selectedShape.replicadShape) {
       return;
     }
@@ -295,6 +305,29 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const localCenter = new THREE.Vector3();
       localBox.getCenter(localCenter);
 
+      let adjustedCenter = localCenter.clone();
+
+      if (constraint) {
+        const constraintCenter = new THREE.Vector3(...constraint.center);
+        const constraintNormal = new THREE.Vector3(...constraint.normal).normalize();
+
+        const distanceToConstraint = constraintCenter.clone().sub(localCenter).dot(constraintNormal);
+
+        const midPoint = localCenter.clone().add(
+          constraintNormal.clone().multiplyScalar(distanceToConstraint / 2)
+        );
+
+        adjustedCenter = midPoint;
+
+        console.log('📐 Constraining panel:', {
+          originalCenter: [localCenter.x, localCenter.y, localCenter.z],
+          constraintCenter: constraint.center,
+          constraintNormal: constraint.normal,
+          distanceToConstraint,
+          adjustedCenter: [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z]
+        });
+      }
+
       const panelThickness = 18;
 
       const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
@@ -302,7 +335,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       let replicadPanel = await createPanelFromFace(
         selectedShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
-        [localCenter.x, localCenter.y, localCenter.z],
+        [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
         panelThickness
       );
 

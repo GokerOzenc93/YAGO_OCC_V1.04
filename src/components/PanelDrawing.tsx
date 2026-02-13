@@ -123,18 +123,26 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
             );
 
             if (groupIndex !== -1) {
+              const faceGroup = faceGroups[groupIndex];
+              const surfaceConstraint = {
+                center: [faceGroup.center.x, faceGroup.center.y, faceGroup.center.z] as [number, number, number],
+                normal: [faceGroup.normal.x, faceGroup.normal.y, faceGroup.normal.z] as [number, number, number],
+                constraintPanelId: shape.id
+              };
+
               console.log('🎯 Panel surface clicked for new panel creation:', {
                 panelId: shape.id,
                 clickedFaceIndex,
                 groupIndex,
-                parentShapeId
+                parentShapeId,
+                surfaceConstraint
               });
 
               if (selectedShapeId !== parentShapeId) {
                 selectShape(parentShapeId);
               }
 
-              triggerPanelCreationForFace(groupIndex, shape.id);
+              triggerPanelCreationForFace(groupIndex, shape.id, surfaceConstraint);
               return;
             }
           }
