@@ -382,7 +382,6 @@ const Scene: React.FC = () => {
     const state = useAppStore.getState();
     if (state.rayProbeMode && state.rayProbeResults) {
       e.nativeEvent.preventDefault();
-      state.confirmRayProbePanel();
       return;
     }
     if (state.vertexEditMode || state.faceEditMode) {

@@ -451,7 +451,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         onContextMenu={(e) => {
           if (rayProbeMode && rayProbeResults) {
             e.stopPropagation();
-            confirmRayProbePanel();
             return;
           }
           e.stopPropagation();

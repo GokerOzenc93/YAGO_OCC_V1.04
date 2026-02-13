@@ -24,6 +24,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const prevProfileRef = useRef<string>('none');
   const prevGeometryRef = useRef<string>('');
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const processedConfirmRef = useRef<number | null>(null);
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
 
@@ -85,6 +86,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   useEffect(() => {
     if (!rayProbeConfirmTimestamp || !rayProbeResults || !selectedShape || !rayProbeClickInfo || selectedProfile === 'none') return;
     if (rayProbeSourceFace?.faceIndex !== -1) return;
+    if (processedConfirmRef.current === rayProbeConfirmTimestamp) return;
+    processedConfirmRef.current = rayProbeConfirmTimestamp;
 
     const handleRayProbeConfirm = async () => {
       const geometry = selectedShape.geometry;
