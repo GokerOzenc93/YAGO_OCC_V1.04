@@ -768,12 +768,30 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             s.parameters?.parentShapeId === selectedShape.id &&
                             s.parameters?.extraRowId === extraRow.id
                           );
+                          const isExtraRowSelected = selectedPanelRow === `extra-${extraRow.id}`;
+
                           return (
                             <div
                               key={extraRow.id}
-                              className="flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ml-4 border-l-2 border-orange-300"
+                              className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ml-4 border-l-2 border-orange-300 cursor-pointer ${
+                                isExtraRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : 'hover:bg-gray-50'
+                              }`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPanelRow(`extra-${extraRow.id}`);
+                              }}
                             >
-                              <div className="w-4" />
+                              <input
+                                type="radio"
+                                name="panel-selection"
+                                checked={isExtraRowSelected}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedPanelRow(`extra-${extraRow.id}`);
+                                }}
+                                className="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                onClick={(e) => e.stopPropagation()}
+                              />
                               <input
                                 type="text"
                                 value={i + 1}
@@ -811,12 +829,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               </select>
                               <input
                                 type="text"
-                                value=""
-                                placeholder="description"
+                                value={faceDescriptions[i] || ''}
                                 readOnly
                                 tabIndex={-1}
                                 style={{ width: '40mm' }}
-                                className="px-2 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
+                                className="px-2 py-0.5 text-xs border rounded bg-stone-50 text-stone-500 border-gray-300"
                                 onClick={(e) => e.stopPropagation()}
                               />
                               <input

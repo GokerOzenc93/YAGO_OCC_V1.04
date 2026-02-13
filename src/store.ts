@@ -232,8 +232,8 @@ interface AppState {
   setShowRoleNumbers: (show: boolean) => void;
 
   // Selected Panel Row (Panel Editor)
-  selectedPanelRow: number | null;
-  setSelectedPanelRow: (index: number | null) => void;
+  selectedPanelRow: number | string | null;
+  setSelectedPanelRow: (index: number | string | null) => void;
   panelSelectMode: boolean;
   setPanelSelectMode: (enabled: boolean) => void;
 
