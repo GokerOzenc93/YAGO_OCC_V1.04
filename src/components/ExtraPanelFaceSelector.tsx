@@ -3,28 +3,42 @@ import * as THREE from 'three';
 import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
 import { useAppStore } from '../store';
 
-function getDominantAxis(v: THREE.Vector3): 'x' | 'y' | 'z' {
+type Axis = 'x' | 'y' | 'z';
+
+function getDominantAxis(v: THREE.Vector3): Axis {
   const ax = Math.abs(v.x), ay = Math.abs(v.y), az = Math.abs(v.z);
   if (ax > ay && ax > az) return 'x';
   if (ay > az) return 'y';
   return 'z';
 }
 
-function getComp(v: THREE.Vector3, axis: 'x' | 'y' | 'z'): number {
-  return axis === 'x' ? v.x : axis === 'y' ? v.y : v.z;
+function gc(v: THREE.Vector3, a: Axis): number {
+  return a === 'x' ? v.x : a === 'y' ? v.y : v.z;
 }
 
-function setComp(v: THREE.Vector3, axis: 'x' | 'y' | 'z', val: number): void {
-  if (axis === 'x') v.x = val;
-  else if (axis === 'y') v.y = val;
+function sc(v: THREE.Vector3, a: Axis, val: number): void {
+  if (a === 'x') v.x = val;
+  else if (a === 'y') v.y = val;
   else v.z = val;
+}
+
+function roleToNormalAxis(role: string | undefined | null): Axis | null {
+  if (role === 'Left' || role === 'Right') return 'x';
+  if (role === 'Top' || role === 'Bottom') return 'y';
+  if (role === 'Back' || role === 'Door') return 'z';
+  return null;
 }
 
 interface SubRegionInfo {
   faceGroupIndex: number;
   region: THREE.Box3;
-  faceAxis: 'x' | 'y' | 'z';
+  faceAxis: Axis;
   facePosition: number;
+}
+
+interface PanelDividerInfo {
+  bbox: THREE.Box3;
+  normalAxis: Axis;
 }
 
 interface ExtraPanelFaceSelectorProps {
@@ -54,26 +68,37 @@ export function ExtraPanelFaceSelector({
     return { faces: extractedFaces, faceGroups: groups };
   }, [geometry]);
 
-  const panelInfos = useMemo(() => {
+  const bodyBBox = useMemo(() => {
+    const posAttr = geometry.getAttribute('position') as THREE.BufferAttribute;
+    if (!posAttr) return new THREE.Box3();
+    return new THREE.Box3().setFromBufferAttribute(posAttr);
+  }, [geometry]);
+
+  const panelDividers = useMemo((): PanelDividerInfo[] => {
     return shapes
       .filter(s => s.type === 'panel' && s.parameters?.parentShapeId === shapeId && s.geometry)
       .map(panel => {
         const posAttr = panel.geometry.getAttribute('position') as THREE.BufferAttribute;
         if (!posAttr) return null;
         const bbox = new THREE.Box3().setFromBufferAttribute(posAttr);
-        const size = new THREE.Vector3();
-        bbox.getSize(size);
 
-        const axes = [
-          { axis: 'x' as const, value: size.x },
-          { axis: 'y' as const, value: size.y },
-          { axis: 'z' as const, value: size.z }
-        ];
-        axes.sort((a, b) => a.value - b.value);
+        let normalAxis = roleToNormalAxis(panel.parameters?.faceRole);
 
-        return { bbox, normalAxis: axes[0].axis };
+        if (!normalAxis) {
+          const size = new THREE.Vector3();
+          bbox.getSize(size);
+          const axes: { axis: Axis; value: number }[] = [
+            { axis: 'x', value: size.x },
+            { axis: 'y', value: size.y },
+            { axis: 'z', value: size.z }
+          ];
+          axes.sort((a, b) => a.value - b.value);
+          normalAxis = axes[0].axis;
+        }
+
+        return { bbox, normalAxis };
       })
-      .filter(Boolean) as { bbox: THREE.Box3; normalAxis: 'x' | 'y' | 'z' }[];
+      .filter(Boolean) as PanelDividerInfo[];
   }, [shapes, shapeId]);
 
   useEffect(() => {
@@ -92,38 +117,57 @@ export function ExtraPanelFaceSelector({
     });
 
     const faceAxis = getDominantAxis(group.normal);
-    const facePosition = getComp(group.center, faceAxis);
+    const facePosition = gc(group.center, faceAxis);
 
-    const spanAxes = (['x', 'y', 'z'] as const).filter(a => a !== faceAxis);
+    const spanAxes: Axis[] = (['x', 'y', 'z'] as const).filter(a => a !== faceAxis);
 
     const regionMin = faceBBox.min.clone();
     const regionMax = faceBBox.max.clone();
 
-    for (const info of panelInfos) {
-      if (!spanAxes.includes(info.normalAxis)) continue;
+    for (const divider of panelDividers) {
+      const divAxis = divider.normalAxis;
+      if (divAxis === faceAxis) continue;
+      if (!spanAxes.includes(divAxis)) continue;
 
-      const otherAxis = spanAxes.find(a => a !== info.normalAxis)!;
-      const panelMinOther = getComp(info.bbox.min, otherAxis);
-      const panelMaxOther = getComp(info.bbox.max, otherAxis);
-      const faceMinOther = getComp(faceBBox.min, otherAxis);
-      const faceMaxOther = getComp(faceBBox.max, otherAxis);
+      const otherAxis = spanAxes.find(a => a !== divAxis)!;
 
-      if (panelMaxOther <= faceMinOther || panelMinOther >= faceMaxOther) continue;
+      const panelMinOnOther = gc(divider.bbox.min, otherAxis);
+      const panelMaxOnOther = gc(divider.bbox.max, otherAxis);
+      const faceMinOnOther = gc(faceBBox.min, otherAxis);
+      const faceMaxOnOther = gc(faceBBox.max, otherAxis);
+      if (panelMaxOnOther <= faceMinOnOther || panelMinOnOther >= faceMaxOnOther) continue;
 
-      const dividerMin = getComp(info.bbox.min, info.normalAxis);
-      const dividerMax = getComp(info.bbox.max, info.normalAxis);
-      const dividerCenter = (dividerMin + dividerMax) / 2;
-      const mousePos = getComp(localPoint, info.normalAxis);
+      const panelMinOnFaceAxis = gc(divider.bbox.min, faceAxis);
+      const panelMaxOnFaceAxis = gc(divider.bbox.max, faceAxis);
+      const bodyMin = gc(bodyBBox.min, faceAxis);
+      const bodyMax = gc(bodyBBox.max, faceAxis);
+      const faceNormalSign = gc(group.normal, faceAxis);
+      const faceIsAtMin = Math.abs(facePosition - bodyMin) < Math.abs(facePosition - bodyMax);
 
-      if (mousePos < dividerCenter) {
-        const currentMax = getComp(regionMax, info.normalAxis);
-        if (dividerMin < currentMax) {
-          setComp(regionMax, info.normalAxis, dividerMin);
+      if (faceIsAtMin) {
+        if (panelMinOnFaceAxis > facePosition + (bodyMax - bodyMin) * 0.5) continue;
+      } else {
+        if (panelMaxOnFaceAxis < facePosition - (bodyMax - bodyMin) * 0.5) continue;
+      }
+
+      const divMin = gc(divider.bbox.min, divAxis);
+      const divMax = gc(divider.bbox.max, divAxis);
+      const faceSpanMin = gc(faceBBox.min, divAxis);
+      const faceSpanMax = gc(faceBBox.max, divAxis);
+      if (divMax <= faceSpanMin || divMin >= faceSpanMax) continue;
+
+      const divCenter = (divMin + divMax) / 2;
+      const mouseOnDivAxis = gc(localPoint, divAxis);
+
+      if (mouseOnDivAxis < divCenter) {
+        const curMax = gc(regionMax, divAxis);
+        if (divMin < curMax) {
+          sc(regionMax, divAxis, divMin);
         }
       } else {
-        const currentMin = getComp(regionMin, info.normalAxis);
-        if (dividerMax > currentMin) {
-          setComp(regionMin, info.normalAxis, dividerMax);
+        const curMin = gc(regionMin, divAxis);
+        if (divMax > curMin) {
+          sc(regionMin, divAxis, divMax);
         }
       }
     }
@@ -134,7 +178,7 @@ export function ExtraPanelFaceSelector({
       faceAxis,
       facePosition
     };
-  }, [faces, faceGroups, panelInfos]);
+  }, [faces, faceGroups, panelDividers, bodyBBox]);
 
   const displayInfo = lockedInfo || hoveredInfo;
 
@@ -145,32 +189,32 @@ export function ExtraPanelFaceSelector({
     const group = faceGroups[displayInfo.faceGroupIndex];
     if (!group) return null;
 
-    const spanAxes = (['x', 'y', 'z'] as const).filter(a => a !== faceAxis);
+    const spanAxes: Axis[] = (['x', 'y', 'z'] as const).filter(a => a !== faceAxis);
     const a1 = spanAxes[0];
     const a2 = spanAxes[1];
 
-    const normalDir = getComp(group.normal, faceAxis) > 0 ? 1 : -1;
+    const normalDir = gc(group.normal, faceAxis) > 0 ? 1 : -1;
     const pos = facePosition + normalDir * 0.5;
 
-    const min1 = getComp(region.min, a1);
-    const max1 = getComp(region.max, a1);
-    const min2 = getComp(region.min, a2);
-    const max2 = getComp(region.max, a2);
+    const min1 = gc(region.min, a1);
+    const max1 = gc(region.max, a1);
+    const min2 = gc(region.min, a2);
+    const max2 = gc(region.max, a2);
 
     if (max1 - min1 < 0.1 || max2 - min2 < 0.1) return null;
 
-    const makeVert = (c1: number, c2: number): [number, number, number] => {
+    const mv = (c1: number, c2: number): [number, number, number] => {
       const v = new THREE.Vector3();
-      setComp(v, faceAxis, pos);
-      setComp(v, a1, c1);
-      setComp(v, a2, c2);
+      sc(v, faceAxis, pos);
+      sc(v, a1, c1);
+      sc(v, a2, c2);
       return [v.x, v.y, v.z];
     };
 
-    const v1 = makeVert(min1, min2);
-    const v2 = makeVert(max1, min2);
-    const v3 = makeVert(max1, max2);
-    const v4 = makeVert(min1, max2);
+    const v1 = mv(min1, min2);
+    const v2 = mv(max1, min2);
+    const v3 = mv(max1, max2);
+    const v4 = mv(min1, max2);
 
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
@@ -186,6 +230,17 @@ export function ExtraPanelFaceSelector({
     if (!highlightGeometry) return null;
     return new THREE.EdgesGeometry(highlightGeometry);
   }, [highlightGeometry]);
+
+  const toLocal = useCallback((e: any): THREE.Vector3 => {
+    const pt = e.point.clone();
+    const obj = e.object as THREE.Object3D | undefined;
+    if (obj) {
+      obj.updateWorldMatrix(true, false);
+      const inv = new THREE.Matrix4().copy(obj.matrixWorld).invert();
+      pt.applyMatrix4(inv);
+    }
+    return pt;
+  }, []);
 
   const handlePointerMove = useCallback((e: any) => {
     e.stopPropagation();
@@ -203,10 +258,7 @@ export function ExtraPanelFaceSelector({
       return;
     }
 
-    const localPoint = meshRef.current
-      ? meshRef.current.worldToLocal(e.point.clone())
-      : e.point.clone();
-
+    const localPoint = toLocal(e);
     const sub = computeSubRegion(groupIndex, localPoint);
     setHoveredInfo(prev => {
       if (prev && sub &&
@@ -217,7 +269,7 @@ export function ExtraPanelFaceSelector({
       }
       return sub;
     });
-  }, [faceGroups, computeSubRegion, lockedInfo]);
+  }, [faceGroups, computeSubRegion, lockedInfo, toLocal]);
 
   const handlePointerOut = useCallback((e: any) => {
     e.stopPropagation();
