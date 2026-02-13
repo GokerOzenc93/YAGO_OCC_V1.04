@@ -144,7 +144,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex: -1, needsSurfaceSelection: false, isRayProbeRow: true }];
       updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
 
-      await createPanelForFace(faceGroups[faceGroupIndex], faces, faceGroupIndex, extraRowId, surfaceConstraint);
+      const rayHits = allHits.map(h => ({
+        direction: h.direction,
+        point: h.point,
+        distance: h.distance
+      }));
+
+      await createPanelForFace(faceGroups[faceGroupIndex], faces, faceGroupIndex, extraRowId, surfaceConstraint, rayHits);
 
       setRayProbeMode(false);
       setRayProbeResults(null);
@@ -368,7 +374,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       center: [number, number, number];
       normal: [number, number, number];
       constraintPanelId: string;
-    }
+    },
+    rayHits?: Array<{
+      direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
+      point: [number, number, number];
+      distance: number;
+    }>
   ) => {
     if (!selectedShape || !selectedShape.replicadShape) {
       return;
@@ -428,7 +439,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         [localNormal.x, localNormal.y, localNormal.z],
         [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
         panelThickness,
-        constraintGeometry
+        constraintGeometry,
+        rayHits
       );
 
       if (!replicadPanel) return;

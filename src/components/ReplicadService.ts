@@ -266,7 +266,12 @@ export const createPanelFromFace = async (
   faceNormal: [number, number, number],
   faceCenter: [number, number, number],
   panelThickness: number,
-  constraintGeometry?: any
+  constraintGeometry?: any,
+  rayProbeHits?: Array<{
+    direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
+    point: [number, number, number];
+    distance: number;
+  }>
 ): Promise<any> => {
   await initReplicad();
 
@@ -274,7 +279,8 @@ export const createPanelFromFace = async (
     faceNormal,
     faceCenter,
     panelThickness,
-    hasConstraint: !!constraintGeometry
+    hasConstraint: !!constraintGeometry,
+    rayProbeHitsCount: rayProbeHits?.length || 0
   });
 
   try {
@@ -375,7 +381,80 @@ export const createPanelFromFace = async (
     const { cast } = await import('replicad');
     let panel = cast(solid);
 
-    if (constraintGeometry) {
+    if (rayProbeHits && rayProbeHits.length > 0) {
+      console.log('🎯 Applying ray probe constraints...');
+
+      const hitsByAxis: Record<string, Array<{ dir: string; point: [number, number, number]; distance: number }>> = {
+        x: [],
+        y: [],
+        z: []
+      };
+
+      rayProbeHits.forEach(hit => {
+        const axis = hit.direction[0];
+        hitsByAxis[axis].push({ dir: hit.direction, point: hit.point, distance: hit.distance });
+      });
+
+      console.log('📊 Hits by axis:', {
+        x: hitsByAxis.x.length,
+        y: hitsByAxis.y.length,
+        z: hitsByAxis.z.length
+      });
+
+      const absNormal = [Math.abs(faceNormal[0]), Math.abs(faceNormal[1]), Math.abs(faceNormal[2])];
+      const dominantAxis = absNormal[0] > absNormal[1]
+        ? (absNormal[0] > absNormal[2] ? 0 : 2)
+        : (absNormal[1] > absNormal[2] ? 1 : 2);
+
+      const bounds = {
+        x: { min: faceCenter[0], max: faceCenter[0], hasConstraint: false },
+        y: { min: faceCenter[1], max: faceCenter[1], hasConstraint: false },
+        z: { min: faceCenter[2], max: faceCenter[2], hasConstraint: false }
+      };
+
+      const axes = ['x', 'y', 'z'];
+      axes.forEach((axis, axisIndex) => {
+        const hits = hitsByAxis[axis];
+        if (hits.length > 0) {
+          const coords = hits.map(h => h.point[axisIndex]);
+          bounds[axis as 'x' | 'y' | 'z'].min = Math.min(...coords);
+          bounds[axis as 'x' | 'y' | 'z'].max = Math.max(...coords);
+          bounds[axis as 'x' | 'y' | 'z'].hasConstraint = true;
+          console.log(`✅ ${axis.toUpperCase()} axis: Using hit bounds [${bounds[axis as 'x' | 'y' | 'z'].min.toFixed(2)}, ${bounds[axis as 'x' | 'y' | 'z'].max.toFixed(2)}]`);
+        } else if (axisIndex === dominantAxis) {
+          bounds[axis as 'x' | 'y' | 'z'].min = faceCenter[axisIndex] - panelThickness / 2;
+          bounds[axis as 'x' | 'y' | 'z'].max = faceCenter[axisIndex] + panelThickness / 2;
+          console.log(`📏 ${axis.toUpperCase()} axis (thickness): Using panel thickness [${bounds[axis as 'x' | 'y' | 'z'].min.toFixed(2)}, ${bounds[axis as 'x' | 'y' | 'z'].max.toFixed(2)}]`);
+        } else {
+          console.log(`⚠️ ${axis.toUpperCase()} axis: No hits, will use face extents`);
+        }
+      });
+
+      try {
+        const { makeBaseBox } = await import('replicad');
+        const boxWidth = Math.max(bounds.x.max - bounds.x.min, 0.1);
+        const boxHeight = Math.max(bounds.z.max - bounds.z.min, 0.1);
+        const boxDepth = Math.max(bounds.y.max - bounds.y.min, 0.1);
+        const boxCenter: [number, number, number] = [
+          (bounds.x.min + bounds.x.max) / 2,
+          (bounds.y.min + bounds.y.max) / 2,
+          (bounds.z.min + bounds.z.max) / 2
+        ];
+
+        console.log('📦 Creating constraint box:', {
+          center: boxCenter,
+          dimensions: [boxWidth, boxDepth, boxHeight]
+        });
+
+        let constraintBox = makeBaseBox(boxWidth, boxDepth, boxHeight);
+        constraintBox = constraintBox.translate(boxCenter[0], boxCenter[1], boxCenter[2]);
+
+        panel = await performBooleanIntersection(panel, constraintBox);
+        console.log('✅ Ray probe constraints applied successfully');
+      } catch (error) {
+        console.error('❌ Failed to apply ray probe constraints:', error);
+      }
+    } else if (constraintGeometry) {
       console.log('🔀 Applying constraint intersection...');
       try {
         panel = await performBooleanIntersection(panel, constraintGeometry);
