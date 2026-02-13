@@ -395,9 +395,9 @@ export const createPanelFromRayProbe = async (
     const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
     let panel = makeBaseBox(sizeX, sizeY, sizeZ);
     panel = panel.translate(
-      boundsMin[0],
-      boundsMin[1],
-      boundsMin[2]
+      (boundsMin[0] + boundsMax[0]) / 2,
+      (boundsMin[1] + boundsMax[1]) / 2,
+      (boundsMin[2] + boundsMax[2]) / 2
     );
     return panel;
   } else if (candidates.length === 1) {
@@ -461,9 +461,14 @@ export const createPanelFromRayProbe = async (
 
     console.log(`📦 Ray bounds: X[${boundsMin[0].toFixed(2)}, ${boundsMax[0].toFixed(2)}], Y[${boundsMin[1].toFixed(2)}, ${boundsMax[1].toFixed(2)}], Z[${boundsMin[2].toFixed(2)}, ${boundsMax[2].toFixed(2)}]`);
 
-    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
-    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
-    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
+    const INTERSECTION_PAD = 2.0;
+    const padX = thicknessAxisIndex !== 0 ? INTERSECTION_PAD : 0;
+    const padY = thicknessAxisIndex !== 1 ? INTERSECTION_PAD : 0;
+    const padZ = thicknessAxisIndex !== 2 ? INTERSECTION_PAD : 0;
+
+    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01) + padX * 2;
+    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01) + padY * 2;
+    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01) + padZ * 2;
     const centerX = (boundsMin[0] + boundsMax[0]) / 2;
     const centerY = (boundsMin[1] + boundsMax[1]) / 2;
     const centerZ = (boundsMin[2] + boundsMax[2]) / 2;
@@ -471,9 +476,30 @@ export const createPanelFromRayProbe = async (
     let boundingBox = makeBaseBox(sizeX, sizeY, sizeZ);
     boundingBox = boundingBox.translate(centerX, centerY, centerZ);
 
-    console.log(`✂️  Performing boolean intersection with ray bounds...`);
+    console.log(`✂️  Performing boolean intersection (pad=${INTERSECTION_PAD}mm on planar axes)...`);
     try {
-      panel = await performBooleanIntersection(panel, boundingBox);
+      let result = await performBooleanIntersection(panel, boundingBox);
+
+      if (result && result.solids && result.solids.length > 1) {
+        console.log(`📦 Intersection returned ${result.solids.length} solids, selecting largest...`);
+        let largestSolid = result.solids[0];
+        let largestVolume = 0;
+        for (const solid of result.solids) {
+          try {
+            const bbox = solid.boundingBox;
+            const vol = (bbox.max[0] - bbox.min[0]) * (bbox.max[1] - bbox.min[1]) * (bbox.max[2] - bbox.min[2]);
+            if (vol > largestVolume) {
+              largestVolume = vol;
+              largestSolid = solid;
+            }
+          } catch (_) {
+            // skip
+          }
+        }
+        panel = largestSolid;
+      } else {
+        panel = result;
+      }
       console.log(`✅ Intersection successful`);
     } catch (intersectError) {
       console.warn('⚠️  Boolean intersection with ray bounds failed, using full face panel:', intersectError);
