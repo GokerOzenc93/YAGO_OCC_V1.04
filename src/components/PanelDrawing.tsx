@@ -1,8 +1,9 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
 import { useShallow } from 'zustand/react/shallow';
 import { PanelDirectionArrow } from './PanelDirectionArrow';
+import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
 
 interface PanelDrawingProps {
   shape: any;
@@ -22,7 +23,9 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     selectedPanelRowExtraId,
     setSelectedPanelRow,
     panelSelectMode,
-    panelSurfaceSelectMode
+    panelSurfaceSelectMode,
+    waitingForSurfaceSelection,
+    triggerPanelCreationForFace
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -31,8 +34,19 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     selectedPanelRowExtraId: state.selectedPanelRowExtraId,
     setSelectedPanelRow: state.setSelectedPanelRow,
     panelSelectMode: state.panelSelectMode,
-    panelSurfaceSelectMode: state.panelSurfaceSelectMode
+    panelSurfaceSelectMode: state.panelSurfaceSelectMode,
+    waitingForSurfaceSelection: state.waitingForSurfaceSelection,
+    triggerPanelCreationForFace: state.triggerPanelCreationForFace
   })));
+
+  const [faceGroups, setFaceGroups] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!shape.geometry) return;
+    const faces = extractFacesFromGeometry(shape.geometry);
+    const groups = groupCoplanarFaces(faces);
+    setFaceGroups(groups);
+  }, [shape.geometry]);
 
   const parentShapeId = shape.parameters?.parentShapeId;
   const faceIndex = shape.parameters?.faceIndex;
@@ -101,6 +115,30 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         receiveShadow
         onClick={(e) => {
           e.stopPropagation();
+
+          if (panelSurfaceSelectMode && waitingForSurfaceSelection && e.faceIndex !== undefined) {
+            const clickedFaceIndex = e.faceIndex;
+            const groupIndex = faceGroups.findIndex(group =>
+              group.faceIndices.includes(clickedFaceIndex)
+            );
+
+            if (groupIndex !== -1) {
+              console.log('🎯 Panel surface clicked for new panel creation:', {
+                panelId: shape.id,
+                clickedFaceIndex,
+                groupIndex,
+                parentShapeId
+              });
+
+              if (selectedShapeId !== parentShapeId) {
+                selectShape(parentShapeId);
+              }
+
+              triggerPanelCreationForFace(groupIndex, shape.id);
+              return;
+            }
+          }
+
           if (panelSurfaceSelectMode && parentShapeId) {
             if (selectedShapeId !== parentShapeId) {
               selectShape(parentShapeId);

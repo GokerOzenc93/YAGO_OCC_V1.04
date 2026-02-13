@@ -37,12 +37,21 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         return;
       }
 
-      const { faceIndex } = pendingPanelCreation;
+      const { faceIndex, sourceGeometryShapeId } = pendingPanelCreation;
       const { extraRowId } = waitingForSurfaceSelection;
 
-      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId);
+      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId, 'sourceGeometryShapeId:', sourceGeometryShapeId);
 
-      const geometry = selectedShape.geometry;
+      let sourceShape = selectedShape;
+      if (sourceGeometryShapeId) {
+        const foundShape = shapes.find(s => s.id === sourceGeometryShapeId);
+        if (foundShape) {
+          sourceShape = foundShape;
+          console.log('📐 Using panel geometry as source:', sourceGeometryShapeId);
+        }
+      }
+
+      const geometry = sourceShape.geometry;
       if (!geometry) return;
 
       const faces = extractFacesFromGeometry(geometry);
