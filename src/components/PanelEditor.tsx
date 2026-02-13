@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -565,7 +565,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
               const handleRowClick = (faceIndex: number) => {
                 if (!facePanels[faceIndex]) return;
-                setSelectedPanelRow(faceIndex);
+                setSelectedPanelRow(faceIndex, null);
+              };
+
+              const handleExtraRowClick = (faceIndex: number, extraRowId: string) => {
+                setSelectedPanelRow(faceIndex, extraRowId);
               };
 
               return (
@@ -580,7 +584,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   </div>
                   {faceGroups.map((_group, i) => {
                     const dimensions = getPanelDimensions(i);
-                    const isRowSelected = selectedPanelRow === i;
+                    const isRowSelected = selectedPanelRow === i && !selectedPanelRowExtraId;
                     const extraRowsForFace = (selectedShape.extraPanelRows || []).filter((r: any) => r.sourceFaceIndex === i);
                     return (
                       <React.Fragment key={`face-${i}`}>
@@ -768,12 +772,27 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             s.parameters?.parentShapeId === selectedShape.id &&
                             s.parameters?.extraRowId === extraRow.id
                           );
+                          const isExtraRowSelected = selectedPanelRow === i && selectedPanelRowExtraId === extraRow.id;
                           return (
                             <div
                               key={extraRow.id}
-                              className="flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ml-4 border-l-2 border-orange-300"
+                              className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ml-4 border-l-2 border-orange-300 cursor-pointer ${isExtraRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : 'hover:bg-gray-50'}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleExtraRowClick(i, extraRow.id);
+                              }}
                             >
-                              <div className="w-4" />
+                              <input
+                                type="radio"
+                                name="panel-selection"
+                                checked={isExtraRowSelected}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  handleExtraRowClick(i, extraRow.id);
+                                }}
+                                className="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                onClick={(e) => e.stopPropagation()}
+                              />
                               <input
                                 type="text"
                                 value={i + 1}

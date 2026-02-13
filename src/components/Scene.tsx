@@ -106,7 +106,9 @@ const Scene: React.FC = () => {
     clearFilletFaces,
     selectedFilletFaceData,
     updateShape,
-    panelSelectMode
+    panelSelectMode,
+    panelSurfaceSelectMode,
+    setSelectedPanelRow
   } = useAppStore(useShallow(state => ({
     shapes: state.shapes,
     cameraType: state.cameraType,
@@ -132,7 +134,9 @@ const Scene: React.FC = () => {
     clearFilletFaces: state.clearFilletFaces,
     selectedFilletFaceData: state.selectedFilletFaceData,
     updateShape: state.updateShape,
-    panelSelectMode: state.panelSelectMode
+    panelSelectMode: state.panelSelectMode,
+    panelSurfaceSelectMode: state.panelSurfaceSelectMode,
+    setSelectedPanelRow: state.setSelectedPanelRow
   })));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });

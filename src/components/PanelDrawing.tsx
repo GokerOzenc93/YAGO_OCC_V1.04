@@ -19,23 +19,30 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     selectSecondaryShape,
     selectedShapeId,
     selectedPanelRow,
+    selectedPanelRowExtraId,
     setSelectedPanelRow,
-    panelSelectMode
+    panelSelectMode,
+    panelSurfaceSelectMode
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
     selectedShapeId: state.selectedShapeId,
     selectedPanelRow: state.selectedPanelRow,
+    selectedPanelRowExtraId: state.selectedPanelRowExtraId,
     setSelectedPanelRow: state.setSelectedPanelRow,
-    panelSelectMode: state.panelSelectMode
+    panelSelectMode: state.panelSelectMode,
+    panelSurfaceSelectMode: state.panelSurfaceSelectMode
   })));
 
   const parentShapeId = shape.parameters?.parentShapeId;
   const faceIndex = shape.parameters?.faceIndex;
+  const extraRowId = shape.parameters?.extraRowId;
   const isParentSelected = parentShapeId === selectedShapeId;
   const isPanelRowSelected = isParentSelected &&
     faceIndex !== undefined &&
-    faceIndex === selectedPanelRow;
+    faceIndex === selectedPanelRow &&
+    ((extraRowId && extraRowId === selectedPanelRowExtraId) ||
+     (!extraRowId && !selectedPanelRowExtraId));
 
   const edgeGeometry = useMemo(() => {
     if (!shape.geometry) return null;
@@ -94,11 +101,23 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         receiveShadow
         onClick={(e) => {
           e.stopPropagation();
-          if (panelSelectMode && parentShapeId) {
+          if (panelSurfaceSelectMode && parentShapeId) {
             if (selectedShapeId !== parentShapeId) {
               selectShape(parentShapeId);
             }
-            setSelectedPanelRow(faceIndex ?? null);
+            setSelectedPanelRow(faceIndex ?? null, extraRowId || null);
+            selectSecondaryShape(null);
+            console.log('Panel surface selected:', {
+              parentShapeId,
+              faceIndex,
+              extraRowId: extraRowId || 'none',
+              panelId: shape.id
+            });
+          } else if (panelSelectMode && parentShapeId) {
+            if (selectedShapeId !== parentShapeId) {
+              selectShape(parentShapeId);
+            }
+            setSelectedPanelRow(faceIndex ?? null, extraRowId || null);
             selectSecondaryShape(null);
           } else {
             selectShape(shape.id);
