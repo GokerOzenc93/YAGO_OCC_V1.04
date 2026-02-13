@@ -135,7 +135,17 @@ export const convertReplicadToThreeGeometry = (shape: any): THREE.BufferGeometry
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setIndex(indices);
-    geometry.computeVertexNormals();
+
+    if (mesh.normals && mesh.normals.length === vertices.length) {
+      const normals: number[] = [];
+      for (let i = 0; i < mesh.normals.length; i++) {
+        normals.push(mesh.normals[i]);
+      }
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    } else {
+      geometry.computeVertexNormals();
+    }
+
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 
@@ -247,12 +257,50 @@ export const performBooleanIntersection = async (
   shape1: any,
   shape2: any
 ): Promise<any> => {
-  await initReplicad();
+  const oc = await initReplicad();
+  const { cast } = await import('replicad');
 
   console.log('🔀 Performing boolean intersection operation...');
 
   try {
     const result = shape1.intersect(shape2);
+    const shapeType = result.wrapped.ShapeType();
+
+    if (shapeType === oc.TopAbs_ShapeEnum.TopAbs_COMPOUND) {
+      const explorer = new oc.TopExp_Explorer_2(
+        result.wrapped,
+        oc.TopAbs_ShapeEnum.TopAbs_SOLID,
+        oc.TopAbs_ShapeEnum.TopAbs_SHAPE
+      );
+
+      const solids: any[] = [];
+      while (explorer.More()) {
+        try {
+          const solidShape = oc.TopoDS.Solid_1(explorer.Current());
+          solids.push(cast(solidShape));
+        } catch (_) {}
+        explorer.Next();
+      }
+      explorer.delete();
+
+      console.log(`✅ Boolean intersection completed: Compound with ${solids.length} solid(s)`);
+
+      if (solids.length === 1) {
+        return solids[0];
+      } else if (solids.length > 1) {
+        let largestSolid = solids[0];
+        let largestVol = 0;
+        for (const s of solids) {
+          try {
+            const bb = s.boundingBox;
+            const v = (bb.max[0] - bb.min[0]) * (bb.max[1] - bb.min[1]) * (bb.max[2] - bb.min[2]);
+            if (v > largestVol) { largestVol = v; largestSolid = s; }
+          } catch (_) {}
+        }
+        return largestSolid;
+      }
+    }
+
     console.log('✅ Boolean intersection completed:', result);
     return result;
   } catch (error) {
@@ -445,7 +493,7 @@ export const createPanelFromRayProbe = async (
 
     console.log(`🔨 Extruding face by ${panelThickness}mm in direction [${extrusionDirection[0].toFixed(3)}, ${extrusionDirection[1].toFixed(3)}, ${extrusionDirection[2].toFixed(3)}]`);
 
-    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, true, true);
     prismBuilder.Build(new oc.Message_ProgressRange_1());
     const solid = prismBuilder.Shape();
 
@@ -462,13 +510,9 @@ export const createPanelFromRayProbe = async (
     console.log(`📦 Ray bounds: X[${boundsMin[0].toFixed(2)}, ${boundsMax[0].toFixed(2)}], Y[${boundsMin[1].toFixed(2)}, ${boundsMax[1].toFixed(2)}], Z[${boundsMin[2].toFixed(2)}, ${boundsMax[2].toFixed(2)}]`);
 
     const INTERSECTION_PAD = 2.0;
-    const padX = thicknessAxisIndex !== 0 ? INTERSECTION_PAD : 0;
-    const padY = thicknessAxisIndex !== 1 ? INTERSECTION_PAD : 0;
-    const padZ = thicknessAxisIndex !== 2 ? INTERSECTION_PAD : 0;
-
-    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01) + padX * 2;
-    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01) + padY * 2;
-    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01) + padZ * 2;
+    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01) + INTERSECTION_PAD * 2;
+    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01) + INTERSECTION_PAD * 2;
+    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01) + INTERSECTION_PAD * 2;
     const centerX = (boundsMin[0] + boundsMax[0]) / 2;
     const centerY = (boundsMin[1] + boundsMax[1]) / 2;
     const centerZ = (boundsMin[2] + boundsMax[2]) / 2;
@@ -476,31 +520,10 @@ export const createPanelFromRayProbe = async (
     let boundingBox = makeBaseBox(sizeX, sizeY, sizeZ);
     boundingBox = boundingBox.translate(centerX, centerY, centerZ);
 
-    console.log(`✂️  Performing boolean intersection (pad=${INTERSECTION_PAD}mm on planar axes)...`);
+    console.log(`✂️  Performing boolean intersection (pad=${INTERSECTION_PAD}mm all axes)...`);
     try {
-      let result = await performBooleanIntersection(panel, boundingBox);
-
-      if (result && result.solids && result.solids.length > 1) {
-        console.log(`📦 Intersection returned ${result.solids.length} solids, selecting largest...`);
-        let largestSolid = result.solids[0];
-        let largestVolume = 0;
-        for (const solid of result.solids) {
-          try {
-            const bbox = solid.boundingBox;
-            const vol = (bbox.max[0] - bbox.min[0]) * (bbox.max[1] - bbox.min[1]) * (bbox.max[2] - bbox.min[2]);
-            if (vol > largestVolume) {
-              largestVolume = vol;
-              largestSolid = solid;
-            }
-          } catch (_) {
-            // skip
-          }
-        }
-        panel = largestSolid;
-      } else {
-        panel = result;
-      }
-      console.log(`✅ Intersection successful`);
+      panel = await performBooleanIntersection(panel, boundingBox);
+      console.log(`✅ Intersection successful, panel type: ${panel.wrapped.ShapeType()}`);
     } catch (intersectError) {
       console.warn('⚠️  Boolean intersection with ray bounds failed, using full face panel:', intersectError);
     }
@@ -615,7 +638,7 @@ export const createPanelFromFace = async (
       extrusionDirection[2] * panelThickness
     );
 
-    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, true, true);
     prismBuilder.Build(new oc.Message_ProgressRange_1());
     const solid = prismBuilder.Shape();
 
