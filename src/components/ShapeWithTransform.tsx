@@ -499,7 +499,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                 />
               </lineSegments>
             )}
-            {isRayProbeHighlighted && (
+            {isRayProbeHighlighted && !isReferenceBox && (
               <mesh geometry={localGeometry}>
                 <meshBasicMaterial
                   color="#ef4444"
