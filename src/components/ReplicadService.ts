@@ -265,14 +265,16 @@ export const createPanelFromFace = async (
   replicadShape: any,
   faceNormal: [number, number, number],
   faceCenter: [number, number, number],
-  panelThickness: number
+  panelThickness: number,
+  constraintGeometry?: any
 ): Promise<any> => {
   await initReplicad();
 
   console.log('🎨 Creating panel from face...', {
     faceNormal,
     faceCenter,
-    panelThickness
+    panelThickness,
+    hasConstraint: !!constraintGeometry
   });
 
   try {
@@ -371,7 +373,17 @@ export const createPanelFromFace = async (
     const solid = prismBuilder.Shape();
 
     const { cast } = await import('replicad');
-    const panel = cast(solid);
+    let panel = cast(solid);
+
+    if (constraintGeometry) {
+      console.log('🔀 Applying constraint intersection...');
+      try {
+        panel = await performBooleanIntersection(panel, constraintGeometry);
+        console.log('✅ Constraint intersection applied successfully');
+      } catch (error) {
+        console.error('❌ Failed to apply constraint intersection:', error);
+      }
+    }
 
     console.log('✅ Panel created from face successfully');
     return panel;

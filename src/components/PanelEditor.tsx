@@ -37,19 +37,28 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         return;
       }
 
-      const { faceIndex } = pendingPanelCreation;
+      const { faceIndex, sourceGeometryShapeId, surfaceConstraint } = pendingPanelCreation;
       const { extraRowId } = waitingForSurfaceSelection;
 
-      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId);
+      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId, 'sourceGeometryShapeId:', sourceGeometryShapeId, 'surfaceConstraint:', surfaceConstraint);
 
-      const geometry = selectedShape.geometry;
+      let sourceShape = selectedShape;
+      if (sourceGeometryShapeId) {
+        const foundShape = shapes.find(s => s.id === sourceGeometryShapeId);
+        if (foundShape) {
+          sourceShape = foundShape;
+          console.log('📐 Using panel geometry as source:', sourceGeometryShapeId);
+        }
+      }
+
+      const geometry = sourceShape.geometry;
       if (!geometry) return;
 
       const faces = extractFacesFromGeometry(geometry);
       const faceGroups = groupCoplanarFaces(faces);
       if (faceIndex >= faceGroups.length) return;
 
-      await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, extraRowId);
+      await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, extraRowId, surfaceConstraint);
 
       const currentExtraRows = selectedShape.extraPanelRows || [];
       const updatedExtraRows = currentExtraRows.map((row: any) =>
@@ -271,7 +280,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     faceGroup: CoplanarFaceGroup,
     faces: FaceData[],
     faceIndex: number,
-    extraRowId?: string
+    extraRowId?: string,
+    constraint?: {
+      center: [number, number, number];
+      normal: [number, number, number];
+      constraintPanelId: string;
+    }
   ) => {
     if (!selectedShape || !selectedShape.replicadShape) {
       return;
@@ -291,6 +305,37 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const localCenter = new THREE.Vector3();
       localBox.getCenter(localCenter);
 
+      let adjustedCenter = localCenter.clone();
+      let constraintGeometry = null;
+
+      if (constraint) {
+        const constraintCenter = new THREE.Vector3(...constraint.center);
+        const constraintNormal = new THREE.Vector3(...constraint.normal).normalize();
+
+        const distanceToConstraint = constraintCenter.clone().sub(localCenter).dot(constraintNormal);
+
+        const midPoint = localCenter.clone().add(
+          constraintNormal.clone().multiplyScalar(distanceToConstraint / 2)
+        );
+
+        adjustedCenter = midPoint;
+
+        const constraintPanel = shapes.find(s => s.id === constraint.constraintPanelId);
+        if (constraintPanel?.replicadShape) {
+          constraintGeometry = constraintPanel.replicadShape;
+          console.log('📐 Using constraint panel geometry:', constraint.constraintPanelId);
+        }
+
+        console.log('📐 Constraining panel:', {
+          originalCenter: [localCenter.x, localCenter.y, localCenter.z],
+          constraintCenter: constraint.center,
+          constraintNormal: constraint.normal,
+          distanceToConstraint,
+          adjustedCenter: [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
+          hasConstraintGeometry: !!constraintGeometry
+        });
+      }
+
       const panelThickness = 18;
 
       const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
@@ -298,29 +343,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       let replicadPanel = await createPanelFromFace(
         selectedShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
-        [localCenter.x, localCenter.y, localCenter.z],
-        panelThickness
+        [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
+        panelThickness,
+        constraintGeometry
       );
 
       if (!replicadPanel) return;
-
-      const siblingPanels = shapes.filter(s =>
-        s.type === 'panel' &&
-        s.parameters?.parentShapeId === selectedShape.id &&
-        s.replicadShape
-      );
-
-      if (siblingPanels.length > 0) {
-        console.log(`🔪 Subtracting ${siblingPanels.length} sibling panels from new panel...`);
-        for (const sibling of siblingPanels) {
-          try {
-            const sibShape = sibling.parameters?.originalReplicadShape || sibling.replicadShape;
-            replicadPanel = replicadPanel.cut(sibShape);
-          } catch (e) {
-            console.warn(`⚠️ Failed to subtract sibling ${sibling.id}:`, e);
-          }
-        }
-      }
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
