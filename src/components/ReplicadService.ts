@@ -261,31 +261,127 @@ export const performBooleanIntersection = async (
   }
 };
 
+export const createPanelFromRayProbe = async (
+  rayProbeOrigin: [number, number, number],
+  rayProbeHits: Array<{
+    direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
+    point: [number, number, number];
+    distance: number;
+  }>,
+  panelThickness: number,
+  shapePosition: [number, number, number],
+  faceNormal: [number, number, number]
+): Promise<any> => {
+  await initReplicad();
+
+  const toLocal = (worldPt: [number, number, number]): [number, number, number] => [
+    worldPt[0] - shapePosition[0],
+    worldPt[1] - shapePosition[1],
+    worldPt[2] - shapePosition[2]
+  ];
+
+  const localOrigin = toLocal(rayProbeOrigin);
+
+  const hitsByAxis: Record<string, Array<{ dir: string; point: [number, number, number] }>> = {
+    x: [], y: [], z: []
+  };
+
+  rayProbeHits.forEach(hit => {
+    const axis = hit.direction[0];
+    hitsByAxis[axis].push({ dir: hit.direction, point: toLocal(hit.point) });
+  });
+
+  const axisKeys = ['x', 'y', 'z'] as const;
+  const hitCounts = axisKeys.map(a => hitsByAxis[a].length);
+  const noHitAxes = axisKeys.filter((_, i) => hitCounts[i] === 0);
+
+  let thicknessAxisIndex: number;
+
+  if (noHitAxes.length === 1) {
+    thicknessAxisIndex = axisKeys.indexOf(noHitAxes[0]);
+  } else if (noHitAxes.length === 0) {
+    const absN = faceNormal.map(Math.abs);
+    thicknessAxisIndex = absN[0] > absN[1]
+      ? (absN[0] > absN[2] ? 0 : 2)
+      : (absN[1] > absN[2] ? 1 : 2);
+  } else {
+    const absN = faceNormal.map(Math.abs);
+    const candidates = noHitAxes.map(a => axisKeys.indexOf(a));
+    thicknessAxisIndex = candidates.reduce((best, cur) =>
+      absN[cur] > absN[best] ? cur : best
+    );
+  }
+
+  console.log('Ray probe panel creation:', {
+    localOrigin,
+    hitCounts: { x: hitCounts[0], y: hitCounts[1], z: hitCounts[2] },
+    thicknessAxis: axisKeys[thicknessAxisIndex]
+  });
+
+  const boundsMin: [number, number, number] = [0, 0, 0];
+  const boundsMax: [number, number, number] = [0, 0, 0];
+
+  for (let i = 0; i < 3; i++) {
+    const axis = axisKeys[i];
+    const hits = hitsByAxis[axis];
+
+    if (i === thicknessAxisIndex) {
+      boundsMin[i] = localOrigin[i] - panelThickness / 2;
+      boundsMax[i] = localOrigin[i] + panelThickness / 2;
+      console.log(`${axis.toUpperCase()} = thickness: [${boundsMin[i].toFixed(2)}, ${boundsMax[i].toFixed(2)}]`);
+    } else if (hits.length > 0) {
+      const coords = hits.map(h => h.point[i]);
+      boundsMin[i] = Math.min(...coords);
+      boundsMax[i] = Math.max(...coords);
+      console.log(`${axis.toUpperCase()} = hit constrained: [${boundsMin[i].toFixed(2)}, ${boundsMax[i].toFixed(2)}]`);
+    } else {
+      boundsMin[i] = localOrigin[i] - 5000;
+      boundsMax[i] = localOrigin[i] + 5000;
+      console.log(`${axis.toUpperCase()} = no hits, using large extent`);
+    }
+  }
+
+  const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
+  const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
+  const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
+  const centerX = (boundsMin[0] + boundsMax[0]) / 2;
+  const centerY = (boundsMin[1] + boundsMax[1]) / 2;
+  const centerZ = (boundsMin[2] + boundsMax[2]) / 2;
+
+  console.log('Panel box:', {
+    size: [sizeX.toFixed(2), sizeY.toFixed(2), sizeZ.toFixed(2)],
+    center: [centerX.toFixed(2), centerY.toFixed(2), centerZ.toFixed(2)]
+  });
+
+  try {
+    const { makeBaseBox } = await import('replicad');
+    let panel = makeBaseBox(sizeX, sizeY, sizeZ);
+    panel = panel.translate(centerX, centerY, centerZ);
+    return panel;
+  } catch (error) {
+    console.error('Failed to create ray probe panel:', error);
+    throw error;
+  }
+};
+
 export const createPanelFromFace = async (
   replicadShape: any,
   faceNormal: [number, number, number],
   faceCenter: [number, number, number],
   panelThickness: number,
-  constraintGeometry?: any,
-  rayProbeHits?: Array<{
-    direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
-    point: [number, number, number];
-    distance: number;
-  }>
+  constraintGeometry?: any
 ): Promise<any> => {
   await initReplicad();
 
-  console.log('🎨 Creating panel from face...', {
+  console.log('Creating panel from face...', {
     faceNormal,
     faceCenter,
     panelThickness,
-    hasConstraint: !!constraintGeometry,
-    rayProbeHitsCount: rayProbeHits?.length || 0
+    hasConstraint: !!constraintGeometry
   });
 
   try {
     const faces = replicadShape.faces;
-    console.log(`📋 Found ${faces.length} faces in shape`);
 
     interface FaceCandidate {
       face: any;
@@ -324,17 +420,16 @@ export const createPanelFromFace = async (
             console.warn(`Could not mesh face ${i} for center:`, meshErr);
           }
           candidates.push({ face, dot, center });
-          console.log(`Face ${i} candidate: dot=${dot.toFixed(4)}, center=`, center);
         }
       } catch (err) {
-        console.warn(`⚠️ Could not get normal for face ${i}:`, err);
+        console.warn(`Could not get normal for face ${i}:`, err);
       }
     }
 
     let matchingFace = null;
 
     if (candidates.length === 0) {
-      console.warn('⚠️ No matching face found');
+      console.warn('No matching face found');
       return null;
     } else if (candidates.length === 1) {
       matchingFace = candidates[0].face;
@@ -358,8 +453,6 @@ export const createPanelFromFace = async (
       }
     }
 
-    console.log('✅ Found matching face from', candidates.length, 'candidates');
-
     const normalVec = matchingFace.normalAt(0.5, 0.5);
     const extrusionDirection = [
       -normalVec.x,
@@ -381,93 +474,17 @@ export const createPanelFromFace = async (
     const { cast } = await import('replicad');
     let panel = cast(solid);
 
-    if (rayProbeHits && rayProbeHits.length > 0) {
-      console.log('🎯 Applying ray probe constraints...');
-
-      const hitsByAxis: Record<string, Array<{ dir: string; point: [number, number, number]; distance: number }>> = {
-        x: [],
-        y: [],
-        z: []
-      };
-
-      rayProbeHits.forEach(hit => {
-        const axis = hit.direction[0];
-        hitsByAxis[axis].push({ dir: hit.direction, point: hit.point, distance: hit.distance });
-      });
-
-      console.log('📊 Hits by axis:', {
-        x: hitsByAxis.x.length,
-        y: hitsByAxis.y.length,
-        z: hitsByAxis.z.length
-      });
-
-      const absNormal = [Math.abs(faceNormal[0]), Math.abs(faceNormal[1]), Math.abs(faceNormal[2])];
-      const dominantAxis = absNormal[0] > absNormal[1]
-        ? (absNormal[0] > absNormal[2] ? 0 : 2)
-        : (absNormal[1] > absNormal[2] ? 1 : 2);
-
-      const bounds = {
-        x: { min: faceCenter[0], max: faceCenter[0], hasConstraint: false },
-        y: { min: faceCenter[1], max: faceCenter[1], hasConstraint: false },
-        z: { min: faceCenter[2], max: faceCenter[2], hasConstraint: false }
-      };
-
-      const axes = ['x', 'y', 'z'];
-      axes.forEach((axis, axisIndex) => {
-        const hits = hitsByAxis[axis];
-        if (hits.length > 0) {
-          const coords = hits.map(h => h.point[axisIndex]);
-          bounds[axis as 'x' | 'y' | 'z'].min = Math.min(...coords);
-          bounds[axis as 'x' | 'y' | 'z'].max = Math.max(...coords);
-          bounds[axis as 'x' | 'y' | 'z'].hasConstraint = true;
-          console.log(`✅ ${axis.toUpperCase()} axis: Using hit bounds [${bounds[axis as 'x' | 'y' | 'z'].min.toFixed(2)}, ${bounds[axis as 'x' | 'y' | 'z'].max.toFixed(2)}]`);
-        } else if (axisIndex === dominantAxis) {
-          bounds[axis as 'x' | 'y' | 'z'].min = faceCenter[axisIndex] - panelThickness / 2;
-          bounds[axis as 'x' | 'y' | 'z'].max = faceCenter[axisIndex] + panelThickness / 2;
-          console.log(`📏 ${axis.toUpperCase()} axis (thickness): Using panel thickness [${bounds[axis as 'x' | 'y' | 'z'].min.toFixed(2)}, ${bounds[axis as 'x' | 'y' | 'z'].max.toFixed(2)}]`);
-        } else {
-          console.log(`⚠️ ${axis.toUpperCase()} axis: No hits, will use face extents`);
-        }
-      });
-
-      try {
-        const { makeBaseBox } = await import('replicad');
-        const boxWidth = Math.max(bounds.x.max - bounds.x.min, 0.1);
-        const boxHeight = Math.max(bounds.z.max - bounds.z.min, 0.1);
-        const boxDepth = Math.max(bounds.y.max - bounds.y.min, 0.1);
-        const boxCenter: [number, number, number] = [
-          (bounds.x.min + bounds.x.max) / 2,
-          (bounds.y.min + bounds.y.max) / 2,
-          (bounds.z.min + bounds.z.max) / 2
-        ];
-
-        console.log('📦 Creating constraint box:', {
-          center: boxCenter,
-          dimensions: [boxWidth, boxDepth, boxHeight]
-        });
-
-        let constraintBox = makeBaseBox(boxWidth, boxDepth, boxHeight);
-        constraintBox = constraintBox.translate(boxCenter[0], boxCenter[1], boxCenter[2]);
-
-        panel = await performBooleanIntersection(panel, constraintBox);
-        console.log('✅ Ray probe constraints applied successfully');
-      } catch (error) {
-        console.error('❌ Failed to apply ray probe constraints:', error);
-      }
-    } else if (constraintGeometry) {
-      console.log('🔀 Applying constraint intersection...');
+    if (constraintGeometry) {
       try {
         panel = await performBooleanIntersection(panel, constraintGeometry);
-        console.log('✅ Constraint intersection applied successfully');
       } catch (error) {
-        console.error('❌ Failed to apply constraint intersection:', error);
+        console.error('Failed to apply constraint intersection:', error);
       }
     }
 
-    console.log('✅ Panel created from face successfully');
     return panel;
   } catch (error) {
-    console.error('❌ Failed to create panel from face:', error);
+    console.error('Failed to create panel from face:', error);
     throw error;
   }
 };

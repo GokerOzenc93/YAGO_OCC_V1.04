@@ -112,45 +112,51 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       }
 
       const allHits = rayProbeResults.hits;
-      const panelHits = allHits.filter(h => {
-        const hitShape = shapes.find(s => s.id === h.shapeId);
-        return hitShape && hitShape.type === 'panel';
-      });
-      const bodyHits = allHits.filter(h => h.shapeId === selectedShape.id);
+      const faceNormal = faceGroups[faceGroupIndex].normal;
 
-      let surfaceConstraint: { center: [number, number, number]; normal: [number, number, number]; constraintPanelId: string } | undefined;
+      const panelThickness = 18;
 
-      if (panelHits.length > 0) {
-        const closestPanelHit = panelHits.reduce((a, b) => a.distance < b.distance ? a : b);
-        const hitPanel = shapes.find(s => s.id === closestPanelHit.shapeId);
-        if (hitPanel) {
-          surfaceConstraint = {
-            center: closestPanelHit.point,
-            normal: closestPanelHit.normal,
-            constraintPanelId: hitPanel.id
-          };
-        }
-      } else if (bodyHits.length > 0) {
-        const closestBodyHit = bodyHits.reduce((a, b) => a.distance < b.distance ? a : b);
-        surfaceConstraint = {
-          center: closestBodyHit.point,
-          normal: closestBodyHit.normal,
-          constraintPanelId: selectedShape.id
-        };
-      }
+      const { createPanelFromRayProbe, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+      const replicadPanel = await createPanelFromRayProbe(
+        rayProbeResults.origin,
+        allHits.map(h => ({ direction: h.direction, point: h.point, distance: h.distance })),
+        panelThickness,
+        selectedShape.position,
+        [faceNormal.x, faceNormal.y, faceNormal.z]
+      );
+
+      if (!replicadPanel) return;
+
+      const panelGeometry = convertReplicadToThreeGeometry(replicadPanel);
+      const faceRole = selectedShape.faceRoles?.[faceGroupIndex];
 
       const extraRowId = `extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
       const currentExtraRows = selectedShape.extraPanelRows || [];
       const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex: -1, needsSurfaceSelection: false, isRayProbeRow: true }];
       updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
 
-      const rayHits = allHits.map(h => ({
-        direction: h.direction,
-        point: h.point,
-        distance: h.distance
-      }));
+      const newPanel: any = {
+        id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        type: 'panel',
+        geometry: panelGeometry,
+        replicadShape: replicadPanel,
+        position: [...selectedShape.position] as [number, number, number],
+        rotation: selectedShape.rotation,
+        scale: [...selectedShape.scale] as [number, number, number],
+        color: '#ffffff',
+        parameters: {
+          width: 0,
+          height: 0,
+          depth: panelThickness,
+          parentShapeId: selectedShape.id,
+          faceIndex: faceGroupIndex,
+          faceRole: faceRole,
+          extraRowId
+        }
+      };
 
-      await createPanelForFace(faceGroups[faceGroupIndex], faces, faceGroupIndex, extraRowId, surfaceConstraint, rayHits);
+      addShape(newPanel);
 
       setRayProbeMode(false);
       setRayProbeResults(null);
@@ -374,12 +380,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       center: [number, number, number];
       normal: [number, number, number];
       constraintPanelId: string;
-    },
-    rayHits?: Array<{
-      direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
-      point: [number, number, number];
-      distance: number;
-    }>
+    }
   ) => {
     if (!selectedShape || !selectedShape.replicadShape) {
       return;
@@ -439,8 +440,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         [localNormal.x, localNormal.y, localNormal.z],
         [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
         panelThickness,
-        constraintGeometry,
-        rayHits
+        constraintGeometry
       );
 
       if (!replicadPanel) return;
