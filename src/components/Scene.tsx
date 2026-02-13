@@ -380,6 +380,11 @@ const Scene: React.FC = () => {
 
   const handleContextMenu = useCallback((e: any, shapeId: string) => {
     const state = useAppStore.getState();
+    if (state.rayProbeMode && state.rayProbeResults) {
+      e.nativeEvent.preventDefault();
+      state.confirmRayProbePanel();
+      return;
+    }
     if (state.vertexEditMode || state.faceEditMode) {
       return;
     }
@@ -560,7 +565,13 @@ const Scene: React.FC = () => {
           powerPreference: 'high-performance'
         }}
         dpr={[1, 1.5]}
-        onContextMenu={(e) => e.preventDefault()}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          const state = useAppStore.getState();
+          if (state.rayProbeMode && state.rayProbeResults) {
+            state.confirmRayProbePanel();
+          }
+        }}
         onCreated={handleCreated}
       >
         <color attach="background" args={['#f5f5f4']} />

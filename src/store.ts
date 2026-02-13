@@ -386,6 +386,10 @@ interface AppState {
   setRayProbeHighlightedShapes: (ids: string[]) => void;
   rayProbeSourceFace: { faceIndex: number; extraRowId?: string } | null;
   setRayProbeSourceFace: (source: { faceIndex: number; extraRowId?: string } | null) => void;
+  rayProbeClickInfo: { shapeId: string; triangleIndex: number } | null;
+  setRayProbeClickInfo: (info: { shapeId: string; triangleIndex: number } | null) => void;
+  rayProbeConfirmTimestamp: number | null;
+  confirmRayProbePanel: () => void;
 }
 
 /**
@@ -552,7 +556,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     rayProbeMode: enabled,
     rayProbeResults: enabled ? null : null,
     rayProbeHighlightedShapes: enabled ? [] : [],
-    rayProbeSourceFace: enabled ? get().rayProbeSourceFace : null
+    rayProbeSourceFace: enabled ? get().rayProbeSourceFace : null,
+    rayProbeClickInfo: enabled ? null : null,
+    rayProbeConfirmTimestamp: enabled ? null : null
   }),
   rayProbeResults: null,
   setRayProbeResults: (results) => set({ rayProbeResults: results }),
@@ -560,6 +566,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setRayProbeHighlightedShapes: (ids) => set({ rayProbeHighlightedShapes: ids }),
   rayProbeSourceFace: null,
   setRayProbeSourceFace: (source) => set({ rayProbeSourceFace: source }),
+  rayProbeClickInfo: null,
+  setRayProbeClickInfo: (info) => set({ rayProbeClickInfo: info }),
+  rayProbeConfirmTimestamp: null,
+  confirmRayProbePanel: () => set({ rayProbeConfirmTimestamp: Date.now() }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),

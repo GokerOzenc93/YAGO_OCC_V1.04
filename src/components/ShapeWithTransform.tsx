@@ -52,7 +52,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     rayProbeHighlightedShapes,
     rayProbeMode,
     setRayProbeResults,
-    setRayProbeHighlightedShapes
+    setRayProbeHighlightedShapes,
+    setRayProbeClickInfo,
+    rayProbeResults,
+    confirmRayProbePanel
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -82,7 +85,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     rayProbeHighlightedShapes: state.rayProbeHighlightedShapes,
     rayProbeMode: state.rayProbeMode,
     setRayProbeResults: state.setRayProbeResults,
-    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes
+    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes,
+    setRayProbeClickInfo: state.setRayProbeClickInfo,
+    rayProbeResults: state.rayProbeResults,
+    confirmRayProbePanel: state.confirmRayProbePanel
   })));
 
   const { scene } = useThree();
@@ -404,6 +410,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
             setRayProbeResults(results);
             setRayProbeHighlightedShapes(hitShapeIds);
+            setRayProbeClickInfo({
+              shapeId: shape.id,
+              triangleIndex: e.faceIndex ?? -1
+            });
             return;
           }
 
@@ -439,6 +449,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           setShowParametersPanel(true);
         }}
         onContextMenu={(e) => {
+          if (rayProbeMode && rayProbeResults) {
+            e.stopPropagation();
+            confirmRayProbePanel();
+            return;
+          }
           e.stopPropagation();
           onContextMenu(e, shape.id);
         }}
