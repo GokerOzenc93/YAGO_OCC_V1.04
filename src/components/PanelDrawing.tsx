@@ -4,6 +4,8 @@ import { useAppStore } from '../store';
 import { useShallow } from 'zustand/react/shallow';
 import { PanelDirectionArrow } from './PanelDirectionArrow';
 import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
+import { performRayProbe } from './RayProbeService';
+import { useThree } from '@react-three/fiber';
 
 interface PanelDrawingProps {
   shape: any;
@@ -15,6 +17,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   isSelected
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const { scene } = useThree();
   const {
     selectShape,
     selectSecondaryShape,
@@ -26,7 +29,10 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
     triggerPanelCreationForFace,
-    rayProbeHighlightedShapes
+    rayProbeHighlightedShapes,
+    rayProbeMode,
+    setRayProbeResults,
+    setRayProbeHighlightedShapes
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -38,7 +44,10 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
     waitingForSurfaceSelection: state.waitingForSurfaceSelection,
     triggerPanelCreationForFace: state.triggerPanelCreationForFace,
-    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes
+    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes,
+    rayProbeMode: state.rayProbeMode,
+    setRayProbeResults: state.setRayProbeResults,
+    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes
   })));
 
   const [faceGroups, setFaceGroups] = useState<any[]>([]);
@@ -118,6 +127,15 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         receiveShadow
         onClick={(e) => {
           e.stopPropagation();
+
+          if (rayProbeMode) {
+            const hitPoint = e.point.clone();
+            const results = performRayProbe(hitPoint, scene);
+            const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
+            setRayProbeResults(results);
+            setRayProbeHighlightedShapes(hitShapeIds);
+            return;
+          }
 
           if (panelSurfaceSelectMode && waitingForSurfaceSelection && e.faceIndex !== undefined) {
             const clickedFaceIndex = e.faceIndex;

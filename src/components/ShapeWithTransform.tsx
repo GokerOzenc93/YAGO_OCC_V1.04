@@ -8,6 +8,7 @@ import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
+import { performRayProbe } from './RayProbeService';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -48,7 +49,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setVertexDirection,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    rayProbeHighlightedShapes
+    rayProbeHighlightedShapes,
+    rayProbeMode,
+    setRayProbeResults,
+    setRayProbeHighlightedShapes
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -75,7 +79,10 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setVertexDirection: state.setVertexDirection,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
     waitingForSurfaceSelection: state.waitingForSurfaceSelection,
-    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes
+    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes,
+    rayProbeMode: state.rayProbeMode,
+    setRayProbeResults: state.setRayProbeResults,
+    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes
   })));
 
   const { scene } = useThree();
@@ -390,6 +397,16 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         ref={groupRef}
         name={`shape-${shape.id}`}
         onClick={(e) => {
+          if (rayProbeMode) {
+            e.stopPropagation();
+            const hitPoint = e.point.clone();
+            const results = performRayProbe(hitPoint, scene);
+            const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
+            setRayProbeResults(results);
+            setRayProbeHighlightedShapes(hitShapeIds);
+            return;
+          }
+
           if (panelSelectMode && hasPanels) {
             return;
           }

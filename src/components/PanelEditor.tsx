@@ -897,23 +897,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             <RotateCw size={13} />
                           </button>
                           <button
-                            disabled={isDisabled}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartRayProbe(i);
-                            }}
-                            className={`p-0.5 rounded transition-colors ${
-                              isDisabled
-                                ? 'text-stone-300 cursor-not-allowed'
-                                : rayProbeMode && rayProbeSourceFace?.faceIndex === i && !rayProbeSourceFace?.extraRowId
-                                  ? 'text-amber-700 bg-amber-100 border border-amber-300'
-                                  : 'text-slate-500 hover:bg-amber-50 hover:text-amber-600'
-                            }`}
-                            title="Ray Probe - yuzey secip panel olustur"
-                          >
-                            <Crosshair size={13} />
-                          </button>
-                          <button
                             disabled={isDisabled || !facePanels[i]}
                             onClick={(e) => {
                               e.stopPropagation();
