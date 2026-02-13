@@ -25,7 +25,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSelectMode,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    triggerPanelCreationForFace
+    triggerPanelCreationForFace,
+    shapes
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -36,7 +37,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSelectMode: state.panelSelectMode,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
     waitingForSurfaceSelection: state.waitingForSurfaceSelection,
-    triggerPanelCreationForFace: state.triggerPanelCreationForFace
+    triggerPanelCreationForFace: state.triggerPanelCreationForFace,
+    shapes: state.shapes
   })));
 
   const [faceGroups, setFaceGroups] = useState<any[]>([]);
@@ -123,27 +125,26 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
             );
 
             if (groupIndex !== -1) {
-              const faceGroup = faceGroups[groupIndex];
-              const surfaceConstraint = {
-                center: [faceGroup.center.x, faceGroup.center.y, faceGroup.center.z] as [number, number, number],
-                normal: [faceGroup.normal.x, faceGroup.normal.y, faceGroup.normal.z] as [number, number, number],
-                constraintPanelId: shape.id
-              };
+              const clickedNormal = faceGroups[groupIndex].normal as THREE.Vector3;
 
-              console.log('🎯 Panel surface clicked for new panel creation:', {
-                panelId: shape.id,
-                clickedFaceIndex,
-                groupIndex,
-                parentShapeId,
-                surfaceConstraint
-              });
+              const parentBody = shapes.find(s => s.id === parentShapeId);
+              if (parentBody?.geometry) {
+                const parentFaces = extractFacesFromGeometry(parentBody.geometry);
+                const parentGroups = groupCoplanarFaces(parentFaces);
 
-              if (selectedShapeId !== parentShapeId) {
-                selectShape(parentShapeId);
+                const matchingParentGroupIndex = parentGroups.findIndex(g => {
+                  const dot = g.normal.dot(clickedNormal);
+                  return Math.abs(dot) > 0.9;
+                });
+
+                if (matchingParentGroupIndex !== -1) {
+                  if (selectedShapeId !== parentShapeId) {
+                    selectShape(parentShapeId);
+                  }
+                  triggerPanelCreationForFace(matchingParentGroupIndex);
+                  return;
+                }
               }
-
-              triggerPanelCreationForFace(groupIndex, shape.id, surfaceConstraint);
-              return;
             }
           }
 

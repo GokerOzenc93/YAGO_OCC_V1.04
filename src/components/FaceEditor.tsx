@@ -477,14 +477,24 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     addFilletFaceData,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    triggerPanelCreationForFace
+    triggerPanelCreationForFace,
+    shapes
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
+  const [constrainedHighlights, setConstrainedHighlights] = useState<Map<number, THREE.BufferGeometry>>(new Map());
+  const [computingHighlights, setComputingHighlights] = useState(false);
 
   const geometryUuid = shape.geometry?.uuid || '';
+
+  const siblingPanelIds = useMemo(() => {
+    return shapes
+      .filter(s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id && s.replicadShape)
+      .map(s => s.id)
+      .join(',');
+  }, [shapes, shape.id]);
 
   useEffect(() => {
     if (!shape.geometry) return;
@@ -495,6 +505,69 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     const groups = groupCoplanarFaces(extractedFaces);
     setFaceGroups(groups);
   }, [shape.geometry, shape.id, geometryUuid]);
+
+  useEffect(() => {
+    if (!panelSurfaceSelectMode || !shape.replicadShape || faceGroups.length === 0) {
+      setConstrainedHighlights(new Map());
+      return;
+    }
+
+    const siblingPanels = shapes.filter(s =>
+      s.type === 'panel' &&
+      s.parameters?.parentShapeId === shape.id &&
+      s.replicadShape
+    );
+
+    if (siblingPanels.length === 0) {
+      setConstrainedHighlights(new Map());
+      return;
+    }
+
+    let cancelled = false;
+    setComputingHighlights(true);
+
+    const computeAll = async () => {
+      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const newMap = new Map<number, THREE.BufferGeometry>();
+
+      for (let i = 0; i < faceGroups.length; i++) {
+        if (cancelled) return;
+
+        const group = faceGroups[i];
+
+        try {
+          let panel = await createPanelFromFace(
+            shape.replicadShape,
+            [group.normal.x, group.normal.y, group.normal.z],
+            [group.center.x, group.center.y, group.center.z],
+            1
+          );
+
+          if (!panel) continue;
+
+          for (const sibling of siblingPanels) {
+            try {
+              const sibShape = sibling.parameters?.originalReplicadShape || sibling.replicadShape;
+              panel = panel.cut(sibShape);
+            } catch (_e) {}
+          }
+
+          const geometry = convertReplicadToThreeGeometry(panel);
+          if (geometry) {
+            newMap.set(i, geometry);
+          }
+        } catch (_e) {}
+      }
+
+      if (!cancelled) {
+        setConstrainedHighlights(newMap);
+        setComputingHighlights(false);
+      }
+    };
+
+    computeAll();
+    return () => { cancelled = true; };
+  }, [panelSurfaceSelectMode, shape.replicadShape, faceGroups, siblingPanelIds]);
 
   const handleFaceSelection = (groupIndex: number) => {
     if (filletMode && selectedFilletFaces.length < 2) {
@@ -562,9 +635,13 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   const highlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
 
+    if (panelSurfaceSelectMode && constrainedHighlights.has(hoveredGroupIndex)) {
+      return constrainedHighlights.get(hoveredGroupIndex)!;
+    }
+
     const group = faceGroups[hoveredGroupIndex];
     return createFaceHighlightGeometry(faces, group.faceIndices);
-  }, [hoveredGroupIndex, faceGroups, faces]);
+  }, [hoveredGroupIndex, faceGroups, faces, panelSurfaceSelectMode, constrainedHighlights]);
 
   const boundaryEdgesGeometry = useMemo(() => {
     if (faces.length === 0 || faceGroups.length === 0) return null;
@@ -606,7 +683,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
           geometry={highlightGeometry}
         >
           <meshBasicMaterial
-            color={0xff0000}
+            color={panelSurfaceSelectMode ? 0x00cc88 : 0xff0000}
             transparent
             opacity={0.5}
             side={THREE.DoubleSide}
