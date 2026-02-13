@@ -38,7 +38,9 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     setShowGlobalSettingsPanel,
     panelSelectMode,
     panelSurfaceSelectMode,
-    setPanelSurfaceSelectMode
+    setPanelSurfaceSelectMode,
+    rayProbeMode,
+    setRayProbeMode
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -785,6 +787,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             title="Panel Surface Selection"
           >
             <Scan size={11} />
+          </button>
+          <button
+            onClick={() => setRayProbeMode(!rayProbeMode)}
+            className={`p-1.5 rounded transition-all ${
+              rayProbeMode
+                ? 'bg-amber-100 text-amber-700 border border-amber-300'
+                : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
+            }`}
+            title="Ray Probe - 6 yone isin at (R)"
+          >
+            <Crosshair size={11} />
           </button>
         </div>
 

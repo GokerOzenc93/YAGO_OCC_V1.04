@@ -73,7 +73,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedVertexIndex: state.setSelectedVertexIndex,
     setVertexDirection: state.setVertexDirection,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
-    waitingForSurfaceSelection: state.waitingForSurfaceSelection
+    waitingForSurfaceSelection: state.waitingForSurfaceSelection,
+    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes
   })));
 
   const { scene } = useThree();
@@ -371,6 +372,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
 
+  const isRayProbeHighlighted = rayProbeHighlightedShapes.includes(shape.id);
   const isParentSelected = isPanel && shape.parameters?.parentShapeId === selectedShapeId;
   const isPanelRowSelected = isPanel &&
     isParentSelected &&
@@ -471,13 +473,24 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                   <edgesGeometry args={[localGeometry, 5]} />
                 )}
                 <lineBasicMaterial
-                  color="#000000"
-                  linewidth={2}
+                  color={isRayProbeHighlighted ? '#f59e0b' : '#000000'}
+                  linewidth={isRayProbeHighlighted ? 3 : 2}
                   opacity={1}
                   transparent={false}
                   depthTest={true}
                 />
               </lineSegments>
+            )}
+            {isRayProbeHighlighted && (
+              <mesh geometry={localGeometry}>
+                <meshBasicMaterial
+                  color="#f59e0b"
+                  transparent
+                  opacity={0.15}
+                  side={THREE.DoubleSide}
+                  depthWrite={false}
+                />
+              </mesh>
             )}
           </>
         )}

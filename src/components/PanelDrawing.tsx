@@ -36,7 +36,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSelectMode: state.panelSelectMode,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
     waitingForSurfaceSelection: state.waitingForSurfaceSelection,
-    triggerPanelCreationForFace: state.triggerPanelCreationForFace
+    triggerPanelCreationForFace: state.triggerPanelCreationForFace,
+    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes
   })));
 
   const [faceGroups, setFaceGroups] = useState<any[]>([]);
@@ -97,9 +98,10 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     }
   };
 
+  const isRayProbeHighlighted = rayProbeHighlightedShapes.includes(shape.id);
   const baseColor = getRoleColor(faceRole);
-  const materialColor = isPanelRowSelected ? '#ef4444' : baseColor;
-  const edgeColor = isPanelRowSelected ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
+  const materialColor = isPanelRowSelected ? '#ef4444' : isRayProbeHighlighted ? '#f59e0b' : baseColor;
+  const edgeColor = isPanelRowSelected ? '#b91c1c' : isRayProbeHighlighted ? '#f59e0b' : isSelected ? '#1e40af' : '#000000';
 
   return (
     <group
@@ -173,8 +175,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
       >
         <meshStandardMaterial
           color={materialColor}
-          emissive={isPanelRowSelected ? '#ef4444' : baseColor}
-          emissiveIntensity={isPanelRowSelected ? 0.35 : 0.1}
+          emissive={isPanelRowSelected ? '#ef4444' : isRayProbeHighlighted ? '#f59e0b' : baseColor}
+          emissiveIntensity={isPanelRowSelected ? 0.35 : isRayProbeHighlighted ? 0.4 : 0.1}
           metalness={0}
           roughness={0.4}
           transparent={false}

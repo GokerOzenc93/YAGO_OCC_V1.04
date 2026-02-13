@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, GizmoHelper, GizmoViewport, PerspectiveCamera, OrthographicCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore, CameraType } from '../store';
@@ -13,6 +13,8 @@ import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
 import { PanelDrawing } from './PanelDrawing';
 import { ErrorBoundary } from './ErrorBoundary';
+import { RayProbeVisualizer } from './RayProbeVisualizer';
+import { performRayProbe } from './RayProbeService';
 
 const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>(null);
@@ -78,6 +80,58 @@ const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType
   );
 };
 
+const RayProbeClickHandler: React.FC = () => {
+  const { scene, camera, gl } = useThree();
+  const raycasterRef = useRef(new THREE.Raycaster());
+
+  const handleClick = useCallback((event: THREE.Event) => {
+    const state = useAppStore.getState();
+    if (!state.rayProbeMode) return;
+
+    const e = event as any;
+    if (e.button !== undefined && e.button !== 0) return;
+
+    const rect = gl.domElement.getBoundingClientRect();
+    const clientX = e.clientX ?? e.nativeEvent?.clientX;
+    const clientY = e.clientY ?? e.nativeEvent?.clientY;
+    if (clientX === undefined || clientY === undefined) return;
+
+    const mouse = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+
+    raycasterRef.current.setFromCamera(mouse, camera);
+
+    const meshes: THREE.Mesh[] = [];
+    scene.traverse((obj) => {
+      if (obj instanceof THREE.Mesh && obj.visible && obj.geometry?.getAttribute('position')) {
+        meshes.push(obj);
+      }
+    });
+
+    const intersections = raycasterRef.current.intersectObjects(meshes, false);
+    if (intersections.length === 0) return;
+
+    const hitPoint = intersections[0].point.clone();
+
+    const results = performRayProbe(hitPoint, scene);
+
+    const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
+
+    state.setRayProbeResults(results);
+    state.setRayProbeHighlightedShapes(hitShapeIds);
+  }, [scene, camera, gl]);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    canvas.addEventListener('click', handleClick as any);
+    return () => canvas.removeEventListener('click', handleClick as any);
+  }, [gl, handleClick]);
+
+  return null;
+};
+
 const Scene: React.FC = () => {
   const controlsRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -108,7 +162,9 @@ const Scene: React.FC = () => {
     updateShape,
     panelSelectMode,
     panelSurfaceSelectMode,
-    setSelectedPanelRow
+    setSelectedPanelRow,
+    rayProbeMode,
+    rayProbeResults
   } = useAppStore(useShallow(state => ({
     shapes: state.shapes,
     cameraType: state.cameraType,
@@ -136,7 +192,9 @@ const Scene: React.FC = () => {
     updateShape: state.updateShape,
     panelSelectMode: state.panelSelectMode,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
-    setSelectedPanelRow: state.setSelectedPanelRow
+    setSelectedPanelRow: state.setSelectedPanelRow,
+    rayProbeMode: state.rayProbeMode,
+    rayProbeResults: state.rayProbeResults
   })));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -146,6 +204,10 @@ const Scene: React.FC = () => {
       if (e.key === 'Delete' && selectedShapeId) {
         deleteShape(selectedShapeId);
       } else if (e.key === 'Escape') {
+        const currentState = useAppStore.getState();
+        if (currentState.rayProbeMode) {
+          currentState.setRayProbeMode(false);
+        }
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
@@ -642,6 +704,9 @@ const Scene: React.FC = () => {
         <planeGeometry args={[30000, 30000]} />
         <shadowMaterial opacity={0.15} />
       </mesh>
+
+      <RayProbeClickHandler />
+      {rayProbeResults && <RayProbeVisualizer results={rayProbeResults} />}
 
       <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
         <GizmoViewport
