@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import * as THREE from 'three';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
-import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid2x2 as Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, CreditCard as Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, CreditCard as Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, ArrowDownUp, Divide, DivideCircle, Scan } from 'lucide-react';
+import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid2x2 as Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, CreditCard as Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, CreditCard as Edit3, Camera, CameraOff, Target, Navigation, Crosshair as CrosshairIcon, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, ArrowDownUp, Divide, DivideCircle, Scan, Plus } from 'lucide-react';
 import { ParametersPanel } from './ParametersPanel';
 import { PanelEditor } from './PanelEditor';
 import { GlobalSettingsPanel } from './GlobalSettingsPanel';
@@ -38,7 +38,12 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     setShowGlobalSettingsPanel,
     panelSelectMode,
     panelSurfaceSelectMode,
-    setPanelSurfaceSelectMode
+    setPanelSurfaceSelectMode,
+    selectedPanelRow,
+    rayProbeMode,
+    setRayProbeMode,
+    setRayProbeSourceFace,
+    setWaitingForSurfaceSelection
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
@@ -948,6 +953,42 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
             title="Panel Editor"
           >
             <PanelLeft size={11} />
+          </button>
+          <button
+            onClick={() => {
+              if (!selectedShapeId || selectedPanelRow === null) {
+                console.log('⚠️ Select a shape and a panel row first');
+                return;
+              }
+
+              const selectedShape = shapes.find(s => s.id === selectedShapeId);
+              if (!selectedShape) return;
+
+              const extraRowId = `extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+              const currentExtraRows = selectedShape.extraPanelRows || [];
+              const newExtraRows = [...currentExtraRows, {
+                id: extraRowId,
+                sourceFaceIndex: selectedPanelRow,
+                needsSurfaceSelection: true
+              }];
+
+              updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
+              setWaitingForSurfaceSelection({ extraRowId, sourceFaceIndex: selectedPanelRow });
+              setRayProbeSourceFace({ faceIndex: selectedPanelRow, extraRowId });
+              setRayProbeMode(true);
+              console.log('✅ Ray probe mode activated for extra row:', extraRowId);
+            }}
+            className={`p-1.5 rounded transition-all ${
+              rayProbeMode
+                ? 'bg-red-100 text-red-700 border border-red-300'
+                : selectedShapeId && selectedPanelRow !== null
+                ? 'hover:bg-green-50 text-green-600 hover:text-green-700'
+                : 'text-stone-300 cursor-not-allowed'
+            }`}
+            disabled={!selectedShapeId || selectedPanelRow === null}
+            title="Add Extra Panel Row with Ray Probe"
+          >
+            <Plus size={11} />
           </button>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan, Crosshair } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -378,11 +378,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     } catch (error) {
       console.error('Failed to create panel:', error);
     }
-  };
-
-  const handleStartRayProbe = (faceIndex: number, extraRowId?: string) => {
-    setRayProbeSourceFace({ faceIndex, extraRowId });
-    setRayProbeMode(true);
   };
 
   // Disabled automatic panel creation - only visualizing ray probe for now
@@ -899,21 +894,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           >
                             <RotateCw size={13} />
                           </button>
-                          <button
-                            disabled={isDisabled || !facePanels[i]}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddExtraRow(i);
-                            }}
-                            className={`p-0.5 rounded transition-colors ${
-                              isDisabled || !facePanels[i]
-                                ? 'text-stone-300 cursor-not-allowed'
-                                : 'text-green-600 hover:bg-green-50'
-                            }`}
-                            title={`Add duplicate row for face ${i + 1}`}
-                          >
-                            <Plus size={13} />
-                          </button>
                         </div>
                         {extraRowsForFace.map((extraRow: any) => {
                           const extraDims = getExtraPanelDimensions(extraRow.id);
@@ -1054,20 +1034,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 title="Rotate arrow direction"
                               >
                                 <RotateCw size={13} />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleStartRayProbe(i, extraRow.id);
-                                }}
-                                className={`p-0.5 rounded transition-colors ${
-                                  rayProbeMode && rayProbeSourceFace?.faceIndex === i && rayProbeSourceFace?.extraRowId === extraRow.id
-                                    ? 'text-red-700 bg-red-100 border border-red-300'
-                                    : 'text-slate-500 hover:bg-red-50 hover:text-red-600'
-                                }`}
-                                title="Ray Probe - yuzey secip panel olustur"
-                              >
-                                <Crosshair size={13} />
                               </button>
                               <button
                                 onClick={(e) => {
