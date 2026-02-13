@@ -306,6 +306,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       localBox.getCenter(localCenter);
 
       let adjustedCenter = localCenter.clone();
+      let constraintGeometry = null;
 
       if (constraint) {
         const constraintCenter = new THREE.Vector3(...constraint.center);
@@ -319,12 +320,19 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
         adjustedCenter = midPoint;
 
+        const constraintPanel = shapes.find(s => s.id === constraint.constraintPanelId);
+        if (constraintPanel?.replicadShape) {
+          constraintGeometry = constraintPanel.replicadShape;
+          console.log('📐 Using constraint panel geometry:', constraint.constraintPanelId);
+        }
+
         console.log('📐 Constraining panel:', {
           originalCenter: [localCenter.x, localCenter.y, localCenter.z],
           constraintCenter: constraint.center,
           constraintNormal: constraint.normal,
           distanceToConstraint,
-          adjustedCenter: [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z]
+          adjustedCenter: [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
+          hasConstraintGeometry: !!constraintGeometry
         });
       }
 
@@ -336,7 +344,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         selectedShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
         [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
-        panelThickness
+        panelThickness,
+        constraintGeometry
       );
 
       if (!replicadPanel) return;
