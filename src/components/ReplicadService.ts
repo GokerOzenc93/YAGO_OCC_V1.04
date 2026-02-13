@@ -356,7 +356,11 @@ export const createPanelFromRayProbe = async (
   try {
     const { makeBaseBox } = await import('replicad');
     let panel = makeBaseBox(sizeX, sizeY, sizeZ);
-    panel = panel.translate(centerX, centerY, centerZ);
+    panel = panel.translate(
+      centerX - sizeX / 2,
+      centerY - sizeY / 2,
+      centerZ - sizeZ / 2
+    );
     return panel;
   } catch (error) {
     console.error('Failed to create ray probe panel:', error);
