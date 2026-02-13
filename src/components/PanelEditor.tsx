@@ -125,15 +125,19 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const localCenter = new THREE.Vector3();
       localBox.getCenter(localCenter);
 
+      const allHits = rayProbeResults.hits;
       const panelThickness = 18;
 
-      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { createPanelFromRayProbe, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-      const replicadPanel = await createPanelFromFace(
+      const replicadPanel = await createPanelFromRayProbe(
         selectedShape.replicadShape,
+        rayProbeResults.origin,
+        allHits.map(h => ({ direction: h.direction, point: h.point, distance: h.distance })),
+        panelThickness,
+        selectedShape.position,
         [localNormal.x, localNormal.y, localNormal.z],
-        [localCenter.x, localCenter.y, localCenter.z],
-        panelThickness
+        [localCenter.x, localCenter.y, localCenter.z]
       );
 
       if (!replicadPanel) return;

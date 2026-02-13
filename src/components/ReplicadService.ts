@@ -262,6 +262,7 @@ export const performBooleanIntersection = async (
 };
 
 export const createPanelFromRayProbe = async (
+  replicadShape: any,
   rayProbeOrigin: [number, number, number],
   rayProbeHits: Array<{
     direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
@@ -270,9 +271,10 @@ export const createPanelFromRayProbe = async (
   }>,
   panelThickness: number,
   shapePosition: [number, number, number],
-  faceNormal: [number, number, number]
+  faceNormal: [number, number, number],
+  faceCenter: [number, number, number]
 ): Promise<any> => {
-  await initReplicad();
+  const oc = await initReplicad();
 
   const toLocal = (worldPt: [number, number, number]): [number, number, number] => [
     worldPt[0] - shapePosition[0],
@@ -312,12 +314,6 @@ export const createPanelFromRayProbe = async (
     );
   }
 
-  console.log('Ray probe panel creation:', {
-    localOrigin,
-    hitCounts: { x: hitCounts[0], y: hitCounts[1], z: hitCounts[2] },
-    thicknessAxis: axisKeys[thicknessAxisIndex]
-  });
-
   const boundsMin: [number, number, number] = [0, 0, 0];
   const boundsMax: [number, number, number] = [0, 0, 0];
 
@@ -328,39 +324,134 @@ export const createPanelFromRayProbe = async (
     if (i === thicknessAxisIndex) {
       boundsMin[i] = localOrigin[i] - panelThickness / 2;
       boundsMax[i] = localOrigin[i] + panelThickness / 2;
-      console.log(`${axis.toUpperCase()} = thickness: [${boundsMin[i].toFixed(2)}, ${boundsMax[i].toFixed(2)}]`);
     } else if (hits.length > 0) {
       const coords = hits.map(h => h.point[i]);
       boundsMin[i] = Math.min(...coords);
       boundsMax[i] = Math.max(...coords);
-      console.log(`${axis.toUpperCase()} = hit constrained: [${boundsMin[i].toFixed(2)}, ${boundsMax[i].toFixed(2)}]`);
     } else {
       boundsMin[i] = localOrigin[i] - 5000;
       boundsMax[i] = localOrigin[i] + 5000;
-      console.log(`${axis.toUpperCase()} = no hits, using large extent`);
     }
   }
 
-  const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
-  const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
-  const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
-  const centerX = (boundsMin[0] + boundsMax[0]) / 2;
-  const centerY = (boundsMin[1] + boundsMax[1]) / 2;
-  const centerZ = (boundsMin[2] + boundsMax[2]) / 2;
+  const faces = replicadShape.faces;
 
-  console.log('Panel box:', {
-    size: [sizeX.toFixed(2), sizeY.toFixed(2), sizeZ.toFixed(2)],
-    center: [centerX.toFixed(2), centerY.toFixed(2), centerZ.toFixed(2)]
-  });
+  interface FaceCandidate {
+    face: any;
+    dot: number;
+    center: [number, number, number] | null;
+  }
 
-  try {
+  const candidates: FaceCandidate[] = [];
+
+  for (let i = 0; i < faces.length; i++) {
+    const face = faces[i];
+    try {
+      const normalVec = face.normalAt(0.5, 0.5);
+      const normal = [normalVec.x, normalVec.y, normalVec.z];
+      const dot =
+        normal[0] * faceNormal[0] +
+        normal[1] * faceNormal[1] +
+        normal[2] * faceNormal[2];
+
+      if (dot > 0.7) {
+        let center: [number, number, number] | null = null;
+        try {
+          const faceMesh = face.mesh({ tolerance: 0.5, angularTolerance: 30 });
+          if (faceMesh.vertices && faceMesh.vertices.length >= 3) {
+            let sx = 0, sy = 0, sz = 0;
+            const nv = faceMesh.vertices.length / 3;
+            for (let j = 0; j < faceMesh.vertices.length; j += 3) {
+              sx += faceMesh.vertices[j];
+              sy += faceMesh.vertices[j + 1];
+              sz += faceMesh.vertices[j + 2];
+            }
+            center = [sx / nv, sy / nv, sz / nv];
+          }
+        } catch (meshErr) {
+          console.warn(`Could not mesh face ${i} for center:`, meshErr);
+        }
+        candidates.push({ face, dot, center });
+      }
+    } catch (err) {
+      console.warn(`Could not get normal for face ${i}:`, err);
+    }
+  }
+
+  let matchingFace = null;
+
+  if (candidates.length === 0) {
+    console.warn('No matching face found, falling back to box');
     const { makeBaseBox } = await import('replicad');
+    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
+    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
+    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
     let panel = makeBaseBox(sizeX, sizeY, sizeZ);
     panel = panel.translate(
-      centerX - sizeX / 2,
-      centerY - sizeY / 2,
-      centerZ - sizeZ / 2
+      boundsMin[0],
+      boundsMin[1],
+      boundsMin[2]
     );
+    return panel;
+  } else if (candidates.length === 1) {
+    matchingFace = candidates[0].face;
+  } else {
+    let bestDist = Infinity;
+    for (const candidate of candidates) {
+      if (candidate.center) {
+        const dist = Math.sqrt(
+          (candidate.center[0] - faceCenter[0]) ** 2 +
+          (candidate.center[1] - faceCenter[1]) ** 2 +
+          (candidate.center[2] - faceCenter[2]) ** 2
+        );
+        if (dist < bestDist) {
+          bestDist = dist;
+          matchingFace = candidate.face;
+        }
+      }
+    }
+    if (!matchingFace) {
+      matchingFace = candidates[0].face;
+    }
+  }
+
+  try {
+    const normalVec = matchingFace.normalAt(0.5, 0.5);
+    const extrusionDirection = [
+      -normalVec.x,
+      -normalVec.y,
+      -normalVec.z
+    ];
+
+    const vec = new oc.gp_Vec_4(
+      extrusionDirection[0] * panelThickness,
+      extrusionDirection[1] * panelThickness,
+      extrusionDirection[2] * panelThickness
+    );
+
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
+    prismBuilder.Build(new oc.Message_ProgressRange_1());
+    const solid = prismBuilder.Shape();
+
+    const { cast, makeBaseBox } = await import('replicad');
+    let panel = cast(solid);
+
+    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
+    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
+    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
+    let boundingBox = makeBaseBox(sizeX, sizeY, sizeZ);
+    boundingBox = boundingBox.translate(
+      boundsMin[0],
+      boundsMin[1],
+      boundsMin[2]
+    );
+
+    try {
+      panel = await performBooleanIntersection(panel, boundingBox);
+    } catch (intersectError) {
+      console.warn('Boolean intersection with ray bounds failed, using full face panel:', intersectError);
+    }
+
     return panel;
   } catch (error) {
     console.error('Failed to create ray probe panel:', error);
