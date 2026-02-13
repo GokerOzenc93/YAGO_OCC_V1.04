@@ -45,7 +45,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     filletMode,
     roleEditMode,
     setSelectedVertexIndex,
-    setVertexDirection
+    setVertexDirection,
+    panelSurfaceSelectMode,
+    waitingForSurfaceSelection
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -69,7 +71,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     filletMode: state.filletMode,
     roleEditMode: state.roleEditMode,
     setSelectedVertexIndex: state.setSelectedVertexIndex,
-    setVertexDirection: state.setVertexDirection
+    setVertexDirection: state.setVertexDirection,
+    panelSurfaceSelectMode: state.panelSurfaceSelectMode,
+    waitingForSurfaceSelection: state.waitingForSurfaceSelection
   })));
 
   const { scene } = useThree();
@@ -559,7 +563,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         {hasFillets && filletMode && (
           <FilletEdgeLines shape={shape} isSelected={isSelected} />
         )}
-        {isSelected && faceEditMode && (
+        {isSelected && (faceEditMode || (panelSurfaceSelectMode && waitingForSurfaceSelection)) && (
           <FaceEditor
             key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
             shape={shape}

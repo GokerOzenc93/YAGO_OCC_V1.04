@@ -239,6 +239,10 @@ interface AppState {
   setPanelSelectMode: (enabled: boolean) => void;
   panelSurfaceSelectMode: boolean;
   setPanelSurfaceSelectMode: (enabled: boolean) => void;
+  waitingForSurfaceSelection: { extraRowId: string; sourceFaceIndex: number } | null;
+  setWaitingForSurfaceSelection: (waiting: { extraRowId: string; sourceFaceIndex: number } | null) => void;
+  pendingPanelCreation: { faceIndex: number; timestamp: number } | null;
+  triggerPanelCreationForFace: (faceIndex: number) => void;
 
   // Global Settings Paneli
   showGlobalSettingsPanel: boolean;
@@ -365,6 +369,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setPanelSelectMode: (enabled) => set({ panelSelectMode: enabled, selectedPanelRow: enabled ? null : null, selectedPanelRowExtraId: null }),
   panelSurfaceSelectMode: false,
   setPanelSurfaceSelectMode: (enabled) => set({ panelSurfaceSelectMode: enabled }),
+  waitingForSurfaceSelection: null,
+  setWaitingForSurfaceSelection: (waiting) => set({ waitingForSurfaceSelection: waiting }),
+  pendingPanelCreation: null,
+  triggerPanelCreationForFace: (faceIndex) => set({ pendingPanelCreation: { faceIndex, timestamp: Date.now() } }),
 
   showGlobalSettingsPanel: false,
   setShowGlobalSettingsPanel: (show) => set({ showGlobalSettingsPanel: show }),

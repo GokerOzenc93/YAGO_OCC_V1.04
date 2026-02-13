@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, panelSurfaceSelectMode, setPanelSurfaceSelectMode, waitingForSurfaceSelection, setWaitingForSurfaceSelection, pendingPanelCreation } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -30,6 +30,48 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   useEffect(() => {
     setSelectedPanelRow(null);
   }, [selectedShapeId, setSelectedPanelRow]);
+
+  useEffect(() => {
+    const handlePendingPanelCreation = async () => {
+      if (!pendingPanelCreation || !waitingForSurfaceSelection || !selectedShape || selectedProfile === 'none') {
+        return;
+      }
+
+      const { faceIndex } = pendingPanelCreation;
+      const { extraRowId } = waitingForSurfaceSelection;
+
+      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId);
+
+      const geometry = selectedShape.geometry;
+      if (!geometry) return;
+
+      const faces = extractFacesFromGeometry(geometry);
+      const faceGroups = groupCoplanarFaces(faces);
+      if (faceIndex >= faceGroups.length) return;
+
+      await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, extraRowId);
+
+      const currentExtraRows = selectedShape.extraPanelRows || [];
+      const updatedExtraRows = currentExtraRows.map((row: any) =>
+        row.id === extraRowId ? { ...row, needsSurfaceSelection: false } : row
+      );
+      updateShape(selectedShape.id, { extraPanelRows: updatedExtraRows });
+
+      setPanelSurfaceSelectMode(false);
+      setWaitingForSurfaceSelection(null);
+
+      if (selectedProfile !== 'none') {
+        setResolving(true);
+        try {
+          await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+        } finally {
+          setResolving(false);
+        }
+      }
+    };
+
+    handlePendingPanelCreation();
+  }, [pendingPanelCreation?.timestamp]);
 
   const getArrowTargetAxis = (geometry: THREE.BufferGeometry, faceRole?: string, arrowRotated?: boolean): number => {
     if (!geometry) return 0;
@@ -288,31 +330,19 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   };
 
   const handleAddExtraRow = async (sourceFaceIndex: number) => {
-    if (!selectedShape || selectedProfile === 'none') return;
-
-    const geometry = selectedShape.geometry;
-    if (!geometry) return;
-
-    const faces = extractFacesFromGeometry(geometry);
-    const faceGroups = groupCoplanarFaces(faces);
-    if (sourceFaceIndex >= faceGroups.length) return;
+    if (!selectedShape) return;
 
     const extraRowId = `extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
     const currentExtraRows = selectedShape.extraPanelRows || [];
-    const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex }];
+    const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex, needsSurfaceSelection: true }];
 
     updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
+  };
 
-    await createPanelForFace(faceGroups[sourceFaceIndex], faces, sourceFaceIndex, extraRowId);
-
-    if (selectedProfile !== 'none') {
-      setResolving(true);
-      try {
-        await resolveAllPanelJoints(selectedShape.id, selectedProfile);
-      } finally {
-        setResolving(false);
-      }
-    }
+  const handleStartSurfaceSelection = (extraRowId: string, sourceFaceIndex: number) => {
+    setPanelSurfaceSelectMode(true);
+    setWaitingForSurfaceSelection({ extraRowId, sourceFaceIndex });
+    console.log('🎯 Started surface selection for extra row:', extraRowId);
   };
 
   const handleRemoveExtraRow = async (extraRowId: string) => {
@@ -773,26 +803,47 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             s.parameters?.extraRowId === extraRow.id
                           );
                           const isExtraRowSelected = selectedPanelRow === i && selectedPanelRowExtraId === extraRow.id;
+                          const needsSurfaceSelection = extraRow.needsSurfaceSelection && !extraPanel;
+                          const isWaitingForThis = waitingForSurfaceSelection?.extraRowId === extraRow.id;
                           return (
                             <div
                               key={extraRow.id}
-                              className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ml-4 border-l-2 border-orange-300 cursor-pointer ${isExtraRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : 'hover:bg-gray-50'}`}
+                              className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ml-4 border-l-2 ${needsSurfaceSelection ? 'border-blue-500' : 'border-orange-300'} cursor-pointer ${isExtraRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : isWaitingForThis ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'}`}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleExtraRowClick(i, extraRow.id);
+                                if (!needsSurfaceSelection) {
+                                  handleExtraRowClick(i, extraRow.id);
+                                }
                               }}
                             >
-                              <input
-                                type="radio"
-                                name="panel-selection"
-                                checked={isExtraRowSelected}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  handleExtraRowClick(i, extraRow.id);
-                                }}
-                                className="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                              {needsSurfaceSelection ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartSurfaceSelection(extraRow.id, extraRow.sourceFaceIndex);
+                                  }}
+                                  className={`p-0.5 rounded transition-colors ${
+                                    isWaitingForThis
+                                      ? 'bg-blue-600 text-white'
+                                      : 'bg-blue-500 text-white hover:bg-blue-600'
+                                  }`}
+                                  title="Select surface for panel"
+                                >
+                                  <Scan size={13} />
+                                </button>
+                              ) : (
+                                <input
+                                  type="radio"
+                                  name="panel-selection"
+                                  checked={isExtraRowSelected}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleExtraRowClick(i, extraRow.id);
+                                  }}
+                                  className="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              )}
                               <input
                                 type="text"
                                 value={i + 1}
