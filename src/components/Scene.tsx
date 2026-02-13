@@ -380,42 +380,6 @@ const Scene: React.FC = () => {
 
   const handleContextMenu = useCallback((e: any, shapeId: string) => {
     const state = useAppStore.getState();
-
-    if (state.rayProbeMode && state.rayProbeResults && state.rayProbeSourceFace) {
-      e.nativeEvent.preventDefault();
-
-      const panelHits = state.rayProbeResults.hits.filter((h: any) => {
-        const hitShape = state.shapes.find(s => s.id === h.shapeId);
-        return hitShape && hitShape.type === 'panel';
-      });
-
-      if (panelHits.length > 0) {
-        const closestHit = panelHits.reduce((a: any, b: any) => a.distance < b.distance ? a : b);
-        const hitPanel = state.shapes.find(s => s.id === closestHit.shapeId);
-
-        if (hitPanel) {
-          const surfaceConstraint = {
-            center: closestHit.point,
-            normal: closestHit.normal,
-            constraintPanelId: hitPanel.id
-          };
-
-          state.triggerPanelCreationForFace(
-            state.rayProbeSourceFace.faceIndex,
-            hitPanel.id,
-            surfaceConstraint
-          );
-
-          state.setRayProbeMode(false);
-          state.setRayProbeResults(null);
-          state.setRayProbeSourceFace(null);
-          state.setRayProbeHighlightedShapes([]);
-          console.log('✅ Panel created from ray probe');
-        }
-      }
-      return;
-    }
-
     if (state.vertexEditMode || state.faceEditMode) {
       return;
     }
