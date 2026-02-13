@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Target } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,12 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const {
-    selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers,
-    selectShape, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode,
-    extraPanelFaceSelectMode, setExtraPanelFaceSelectMode, selectedExtraRowId, setSelectedExtraRowId,
-    highlightedFaceForExtraPanel, setHighlightedFaceForExtraPanel
-  } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -773,30 +768,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             s.parameters?.parentShapeId === selectedShape.id &&
                             s.parameters?.extraRowId === extraRow.id
                           );
-                          const isExtraRowSelected = selectedPanelRow === `extra-${extraRow.id}`;
-
                           return (
                             <div
                               key={extraRow.id}
-                              className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ml-4 border-l-2 border-orange-300 cursor-pointer ${
-                                isExtraRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : 'hover:bg-gray-50'
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPanelRow(`extra-${extraRow.id}`);
-                              }}
+                              className="flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ml-4 border-l-2 border-orange-300"
                             >
-                              <input
-                                type="radio"
-                                name="panel-selection"
-                                checked={isExtraRowSelected}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedPanelRow(`extra-${extraRow.id}`);
-                                }}
-                                className="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
-                                onClick={(e) => e.stopPropagation()}
-                              />
+                              <div className="w-4" />
                               <input
                                 type="text"
                                 value={i + 1}
@@ -834,11 +811,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               </select>
                               <input
                                 type="text"
-                                value={faceDescriptions[i] || ''}
+                                value=""
+                                placeholder="description"
                                 readOnly
                                 tabIndex={-1}
                                 style={{ width: '40mm' }}
-                                className="px-2 py-0.5 text-xs border rounded bg-stone-50 text-stone-500 border-gray-300"
+                                className="px-2 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
                                 onClick={(e) => e.stopPropagation()}
                               />
                               <input
@@ -865,29 +843,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
                               />
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  const isActive = extraPanelFaceSelectMode && selectedExtraRowId === extraRow.id;
-                                  if (isActive) {
-                                    setExtraPanelFaceSelectMode(false);
-                                    setSelectedExtraRowId(null);
-                                    setHighlightedFaceForExtraPanel(null);
-                                  } else {
-                                    setExtraPanelFaceSelectMode(true);
-                                    setSelectedExtraRowId(extraRow.id);
-                                    setHighlightedFaceForExtraPanel(null);
-                                  }
-                                }}
-                                className={`p-0.5 rounded transition-colors ${
-                                  extraPanelFaceSelectMode && selectedExtraRowId === extraRow.id
-                                    ? 'text-red-600 bg-red-50 hover:bg-red-100'
-                                    : 'text-slate-500 hover:bg-stone-100'
-                                }`}
-                                title="Select face for extra panel"
-                              >
-                                <Target size={13} />
-                              </button>
+                              <div className="w-4" />
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

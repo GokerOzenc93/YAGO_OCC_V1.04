@@ -232,18 +232,10 @@ interface AppState {
   setShowRoleNumbers: (show: boolean) => void;
 
   // Selected Panel Row (Panel Editor)
-  selectedPanelRow: number | string | null;
-  setSelectedPanelRow: (index: number | string | null) => void;
+  selectedPanelRow: number | null;
+  setSelectedPanelRow: (index: number | null) => void;
   panelSelectMode: boolean;
   setPanelSelectMode: (enabled: boolean) => void;
-
-  // Extra Panel Face Selection Mode
-  extraPanelFaceSelectMode: boolean;
-  setExtraPanelFaceSelectMode: (enabled: boolean) => void;
-  selectedExtraRowId: string | null;
-  setSelectedExtraRowId: (id: string | null) => void;
-  highlightedFaceForExtraPanel: number | null;
-  setHighlightedFaceForExtraPanel: (index: number | null) => void;
 
   // Global Settings Paneli
   showGlobalSettingsPanel: boolean;
@@ -367,13 +359,6 @@ export const useAppStore = create<AppState>((set, get) => ({
   setSelectedPanelRow: (index) => set({ selectedPanelRow: index }),
   panelSelectMode: false,
   setPanelSelectMode: (enabled) => set({ panelSelectMode: enabled, selectedPanelRow: enabled ? null : null }),
-
-  extraPanelFaceSelectMode: false,
-  setExtraPanelFaceSelectMode: (enabled) => set({ extraPanelFaceSelectMode: enabled }),
-  selectedExtraRowId: null,
-  setSelectedExtraRowId: (id) => set({ selectedExtraRowId: id }),
-  highlightedFaceForExtraPanel: null,
-  setHighlightedFaceForExtraPanel: (index) => set({ highlightedFaceForExtraPanel: index }),
 
   showGlobalSettingsPanel: false,
   setShowGlobalSettingsPanel: (show) => set({ showGlobalSettingsPanel: show }),

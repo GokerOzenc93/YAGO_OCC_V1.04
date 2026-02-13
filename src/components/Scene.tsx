@@ -106,13 +106,7 @@ const Scene: React.FC = () => {
     clearFilletFaces,
     selectedFilletFaceData,
     updateShape,
-    panelSelectMode,
-    extraPanelFaceSelectMode,
-    selectedExtraRowId,
-    highlightedFaceForExtraPanel,
-    setHighlightedFaceForExtraPanel,
-    setExtraPanelFaceSelectMode,
-    setSelectedExtraRowId
+    panelSelectMode
   } = useAppStore(useShallow(state => ({
     shapes: state.shapes,
     cameraType: state.cameraType,
@@ -138,13 +132,7 @@ const Scene: React.FC = () => {
     clearFilletFaces: state.clearFilletFaces,
     selectedFilletFaceData: state.selectedFilletFaceData,
     updateShape: state.updateShape,
-    panelSelectMode: state.panelSelectMode,
-    extraPanelFaceSelectMode: state.extraPanelFaceSelectMode,
-    selectedExtraRowId: state.selectedExtraRowId,
-    highlightedFaceForExtraPanel: state.highlightedFaceForExtraPanel,
-    setHighlightedFaceForExtraPanel: state.setHighlightedFaceForExtraPanel,
-    setExtraPanelFaceSelectMode: state.setExtraPanelFaceSelectMode,
-    setSelectedExtraRowId: state.setSelectedExtraRowId
+    panelSelectMode: state.panelSelectMode
   })));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -159,9 +147,6 @@ const Scene: React.FC = () => {
         setVertexEditMode(false);
         setFaceEditMode(false);
         clearFilletFaces();
-        setExtraPanelFaceSelectMode(false);
-        setSelectedExtraRowId(null);
-        setHighlightedFaceForExtraPanel(null);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
@@ -382,7 +367,7 @@ const Scene: React.FC = () => {
 
   const handleContextMenu = useCallback((e: any, shapeId: string) => {
     const state = useAppStore.getState();
-    if (state.vertexEditMode || state.faceEditMode || state.extraPanelFaceSelectMode) {
+    if (state.vertexEditMode || state.faceEditMode) {
       return;
     }
     e.nativeEvent.preventDefault();

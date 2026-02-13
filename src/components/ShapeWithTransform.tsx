@@ -8,7 +8,6 @@ import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
-import { ExtraPanelFaceSelector } from './ExtraPanelFaceSelector';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -46,11 +45,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     filletMode,
     roleEditMode,
     setSelectedVertexIndex,
-    setVertexDirection,
-    extraPanelFaceSelectMode,
-    selectedExtraRowId,
-    highlightedFaceForExtraPanel,
-    setHighlightedFaceForExtraPanel
+    setVertexDirection
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -74,11 +69,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     filletMode: state.filletMode,
     roleEditMode: state.roleEditMode,
     setSelectedVertexIndex: state.setSelectedVertexIndex,
-    setVertexDirection: state.setVertexDirection,
-    extraPanelFaceSelectMode: state.extraPanelFaceSelectMode,
-    selectedExtraRowId: state.selectedExtraRowId,
-    highlightedFaceForExtraPanel: state.highlightedFaceForExtraPanel,
-    setHighlightedFaceForExtraPanel: state.setHighlightedFaceForExtraPanel
+    setVertexDirection: state.setVertexDirection
   })));
 
   const { scene } = useThree();
@@ -573,91 +564,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
             shape={shape}
             isActive={true}
-          />
-        )}
-        {isSelected && extraPanelFaceSelectMode && selectedExtraRowId && !isPanel && (
-          <ExtraPanelFaceSelector
-            key={`extra-panel-face-selector-${shape.id}-${shape.geometry?.uuid || ''}`}
-            geometry={shape.geometry}
-            shapeId={shape.id}
-            onFaceSelect={(faceIndex) => {
-              setHighlightedFaceForExtraPanel(faceIndex);
-            }}
-            onFaceConfirm={async (faceIndex) => {
-              const extraRows = shape.extraPanelRows || [];
-              const extraRowIndex = extraRows.findIndex((r: any) => r.id === selectedExtraRowId);
-
-              if (extraRowIndex !== -1) {
-                const newExtraRows = [...extraRows];
-                newExtraRows[extraRowIndex] = {
-                  ...newExtraRows[extraRowIndex],
-                  sourceFaceIndex: faceIndex
-                };
-                updateShape(shape.id, { extraPanelRows: newExtraRows });
-
-                const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
-                const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-
-                if (!shape.geometry || !shape.replicadShape) return;
-
-                const faces = extractFacesFromGeometry(shape.geometry);
-                const faceGroups = groupCoplanarFaces(faces);
-                const faceGroup = faceGroups[faceIndex];
-
-                if (!faceGroup) return;
-
-                const localVertices: THREE.Vector3[] = [];
-                faceGroup.faceIndices.forEach(idx => {
-                  const face = faces[idx];
-                  face.vertices.forEach(v => {
-                    localVertices.push(v.clone());
-                  });
-                });
-
-                const localNormal = faceGroup.normal.clone().normalize();
-                const localBox = new THREE.Box3().setFromPoints(localVertices);
-                const localCenter = new THREE.Vector3();
-                localBox.getCenter(localCenter);
-
-                const panelThickness = 18;
-
-                let replicadPanel = await createPanelFromFace(
-                  shape.replicadShape,
-                  [localNormal.x, localNormal.y, localNormal.z],
-                  [localCenter.x, localCenter.y, localCenter.z],
-                  panelThickness
-                );
-
-                if (!replicadPanel) return;
-
-                const geometry = convertReplicadToThreeGeometry(replicadPanel);
-                const faceRole = shape.faceRoles?.[faceIndex];
-
-                const existingPanel = useAppStore.getState().shapes.find(s =>
-                  s.type === 'panel' &&
-                  s.parameters?.parentShapeId === shape.id &&
-                  s.parameters?.extraRowId === selectedExtraRowId
-                );
-
-                if (existingPanel) {
-                  updateShape(existingPanel.id, {
-                    geometry,
-                    replicadShape: replicadPanel,
-                    parameters: {
-                      ...existingPanel.parameters,
-                      faceIndex: faceIndex,
-                      faceRole: faceRole,
-                      depth: panelThickness
-                    }
-                  });
-                }
-
-                setExtraPanelFaceSelectMode(false);
-                setSelectedExtraRowId(null);
-                setHighlightedFaceForExtraPanel(null);
-              }
-            }}
-            highlightedFace={highlightedFaceForExtraPanel}
           />
         )}
         {showRoleNumbers && isSelected && (
