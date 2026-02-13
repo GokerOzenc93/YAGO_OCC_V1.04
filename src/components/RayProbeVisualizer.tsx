@@ -1,8 +1,7 @@
 import React, { useMemo, useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { Html } from '@react-three/drei';
 import { RayProbeResult, RayDirection } from '../store';
-import { getDirectionColor, getDirectionLabel } from './RayProbeService';
+import { getDirectionColor } from './RayProbeService';
 
 interface RayProbeVisualizerProps {
   results: RayProbeResult;
@@ -147,50 +146,11 @@ export const RayProbeVisualizer: React.FC<RayProbeVisualizerProps> = React.memo(
                   <sphereGeometry args={[8, 12, 12]} />
                   <meshBasicMaterial color={color} transparent opacity={0.3} />
                 </mesh>
-
-                <Html
-                  position={[end.x, end.y, end.z]}
-                  center
-                  style={{ pointerEvents: 'none' }}
-                  zIndexRange={[100, 0]}
-                >
-                  <div
-                    className="px-2 py-1 rounded text-[10px] font-bold whitespace-nowrap shadow-lg border"
-                    style={{
-                      backgroundColor: 'rgba(0,0,0,0.85)',
-                      color: color,
-                      borderColor: color,
-                      transform: 'translateY(-20px)',
-                    }}
-                  >
-                    {getDirectionLabel(direction)}: {distance?.toFixed(1)}mm
-                  </div>
-                </Html>
               </>
             )}
           </group>
         );
       })}
-
-      {results.hits.length > 0 && (
-        <Html
-          position={[origin.x, origin.y, origin.z]}
-          center
-          style={{ pointerEvents: 'none' }}
-          zIndexRange={[100, 0]}
-        >
-          <div
-            className="px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap shadow-lg"
-            style={{
-              backgroundColor: 'rgba(239, 68, 68, 0.95)',
-              color: '#fff',
-              transform: 'translateY(20px)',
-            }}
-          >
-            {results.hits.length}/6 yuzey bulundu
-          </div>
-        </Html>
-      )}
     </group>
   );
 });
