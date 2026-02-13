@@ -382,7 +382,7 @@ const Scene: React.FC = () => {
 
   const handleContextMenu = useCallback((e: any, shapeId: string) => {
     const state = useAppStore.getState();
-    if (state.vertexEditMode || state.faceEditMode) {
+    if (state.vertexEditMode || state.faceEditMode || state.extraPanelFaceSelectMode) {
       return;
     }
     e.nativeEvent.preventDefault();
