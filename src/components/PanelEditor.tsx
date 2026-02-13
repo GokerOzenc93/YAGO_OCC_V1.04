@@ -385,6 +385,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     setRayProbeMode(true);
   };
 
+  // Disabled automatic panel creation - only visualizing ray probe for now
+  /*
   useEffect(() => {
     if (!rayProbeResults || !rayProbeSourceFace || !selectedShape || selectedProfile === 'none') return;
 
@@ -445,6 +447,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     setRayProbeResults(null);
     setRayProbeHighlightedShapes([]);
   }, [rayProbeResults]);
+  */
 
   const handleAddExtraRow = async (sourceFaceIndex: number) => {
     if (!selectedShape) return;
@@ -1059,8 +1062,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 }}
                                 className={`p-0.5 rounded transition-colors ${
                                   rayProbeMode && rayProbeSourceFace?.faceIndex === i && rayProbeSourceFace?.extraRowId === extraRow.id
-                                    ? 'text-amber-700 bg-amber-100 border border-amber-300'
-                                    : 'text-slate-500 hover:bg-amber-50 hover:text-amber-600'
+                                    ? 'text-red-700 bg-red-100 border border-red-300'
+                                    : 'text-slate-500 hover:bg-red-50 hover:text-red-600'
                                 }`}
                                 title="Ray Probe - yuzey secip panel olustur"
                               >

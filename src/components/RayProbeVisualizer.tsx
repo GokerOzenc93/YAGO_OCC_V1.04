@@ -123,7 +123,7 @@ export const RayProbeVisualizer: React.FC<RayProbeVisualizerProps> = React.memo(
       </mesh>
       <mesh position={origin}>
         <sphereGeometry args={[4, 16, 16]} />
-        <meshBasicMaterial color="#f59e0b" />
+        <meshBasicMaterial color="#ef4444" />
       </mesh>
 
       {rayData.map(({ direction, start, end, hit, distance }) => {
@@ -182,8 +182,8 @@ export const RayProbeVisualizer: React.FC<RayProbeVisualizerProps> = React.memo(
           <div
             className="px-2 py-1 rounded-md text-[10px] font-bold whitespace-nowrap shadow-lg"
             style={{
-              backgroundColor: 'rgba(245, 158, 11, 0.95)',
-              color: '#000',
+              backgroundColor: 'rgba(239, 68, 68, 0.95)',
+              color: '#fff',
               transform: 'translateY(20px)',
             }}
           >

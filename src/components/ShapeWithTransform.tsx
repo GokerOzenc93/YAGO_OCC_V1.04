@@ -491,7 +491,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
                   <edgesGeometry args={[localGeometry, 5]} />
                 )}
                 <lineBasicMaterial
-                  color={isRayProbeHighlighted ? '#f59e0b' : '#000000'}
+                  color={isRayProbeHighlighted ? '#ef4444' : '#000000'}
                   linewidth={isRayProbeHighlighted ? 3 : 2}
                   opacity={1}
                   transparent={false}
@@ -502,7 +502,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             {isRayProbeHighlighted && (
               <mesh geometry={localGeometry}>
                 <meshBasicMaterial
-                  color="#f59e0b"
+                  color="#ef4444"
                   transparent
                   opacity={0.15}
                   side={THREE.DoubleSide}
