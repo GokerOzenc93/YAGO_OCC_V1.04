@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Target } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,12 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode } = useAppStore();
+  const {
+    selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers,
+    selectShape, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode,
+    extraPanelFaceSelectMode, setExtraPanelFaceSelectMode, selectedExtraRowId, setSelectedExtraRowId,
+    highlightedFaceForExtraPanel, setHighlightedFaceForExtraPanel
+  } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -860,7 +865,29 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 onClick={(e) => e.stopPropagation()}
                                 className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
                               />
-                              <div className="w-4" />
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const isActive = extraPanelFaceSelectMode && selectedExtraRowId === extraRow.id;
+                                  if (isActive) {
+                                    setExtraPanelFaceSelectMode(false);
+                                    setSelectedExtraRowId(null);
+                                    setHighlightedFaceForExtraPanel(null);
+                                  } else {
+                                    setExtraPanelFaceSelectMode(true);
+                                    setSelectedExtraRowId(extraRow.id);
+                                    setHighlightedFaceForExtraPanel(null);
+                                  }
+                                }}
+                                className={`p-0.5 rounded transition-colors ${
+                                  extraPanelFaceSelectMode && selectedExtraRowId === extraRow.id
+                                    ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                                    : 'text-slate-500 hover:bg-stone-100'
+                                }`}
+                                title="Select face for extra panel"
+                              >
+                                <Target size={13} />
+                              </button>
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();

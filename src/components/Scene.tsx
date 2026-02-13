@@ -106,7 +106,13 @@ const Scene: React.FC = () => {
     clearFilletFaces,
     selectedFilletFaceData,
     updateShape,
-    panelSelectMode
+    panelSelectMode,
+    extraPanelFaceSelectMode,
+    selectedExtraRowId,
+    highlightedFaceForExtraPanel,
+    setHighlightedFaceForExtraPanel,
+    setExtraPanelFaceSelectMode,
+    setSelectedExtraRowId
   } = useAppStore(useShallow(state => ({
     shapes: state.shapes,
     cameraType: state.cameraType,
@@ -132,7 +138,13 @@ const Scene: React.FC = () => {
     clearFilletFaces: state.clearFilletFaces,
     selectedFilletFaceData: state.selectedFilletFaceData,
     updateShape: state.updateShape,
-    panelSelectMode: state.panelSelectMode
+    panelSelectMode: state.panelSelectMode,
+    extraPanelFaceSelectMode: state.extraPanelFaceSelectMode,
+    selectedExtraRowId: state.selectedExtraRowId,
+    highlightedFaceForExtraPanel: state.highlightedFaceForExtraPanel,
+    setHighlightedFaceForExtraPanel: state.setHighlightedFaceForExtraPanel,
+    setExtraPanelFaceSelectMode: state.setExtraPanelFaceSelectMode,
+    setSelectedExtraRowId: state.setSelectedExtraRowId
   })));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -147,6 +159,9 @@ const Scene: React.FC = () => {
         setVertexEditMode(false);
         setFaceEditMode(false);
         clearFilletFaces();
+        setExtraPanelFaceSelectMode(false);
+        setSelectedExtraRowId(null);
+        setHighlightedFaceForExtraPanel(null);
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'g') {
         e.preventDefault();
         if (selectedShapeId && secondarySelectedShapeId) {
