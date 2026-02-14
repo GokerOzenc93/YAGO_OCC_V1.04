@@ -4,6 +4,7 @@ import { useAppStore } from '../store';
 import { useShallow } from 'zustand/react/shallow';
 import { PanelDirectionArrow } from './PanelDirectionArrow';
 import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
+import { performRayProbe } from './RayProbeService';
 import { useThree } from '@react-three/fiber';
 
 interface PanelDrawingProps {
@@ -27,7 +28,11 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSelectMode,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    triggerPanelCreationForFace
+    triggerPanelCreationForFace,
+    rayProbeHighlightedShapes,
+    rayProbeMode,
+    setRayProbeResults,
+    setRayProbeHighlightedShapes
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -38,7 +43,11 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSelectMode: state.panelSelectMode,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
     waitingForSurfaceSelection: state.waitingForSurfaceSelection,
-    triggerPanelCreationForFace: state.triggerPanelCreationForFace
+    triggerPanelCreationForFace: state.triggerPanelCreationForFace,
+    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes,
+    rayProbeMode: state.rayProbeMode,
+    setRayProbeResults: state.setRayProbeResults,
+    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes
   })));
 
   const [faceGroups, setFaceGroups] = useState<any[]>([]);
@@ -99,9 +108,10 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     }
   };
 
+  const isRayProbeHighlighted = rayProbeHighlightedShapes.includes(shape.id);
   const baseColor = getRoleColor(faceRole);
-  const materialColor = isPanelRowSelected ? '#ef4444' : baseColor;
-  const edgeColor = isPanelRowSelected ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
+  const materialColor = isPanelRowSelected ? '#ef4444' : isRayProbeHighlighted ? '#ef4444' : baseColor;
+  const edgeColor = isPanelRowSelected ? '#b91c1c' : isRayProbeHighlighted ? '#ef4444' : isSelected ? '#1e40af' : '#000000';
 
   return (
     <group
@@ -117,6 +127,15 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         receiveShadow
         onClick={(e) => {
           e.stopPropagation();
+
+          if (rayProbeMode) {
+            const hitPoint = e.point.clone();
+            const results = performRayProbe(hitPoint, scene);
+            const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
+            setRayProbeResults(results);
+            setRayProbeHighlightedShapes(hitShapeIds);
+            return;
+          }
 
           if (panelSurfaceSelectMode && waitingForSurfaceSelection && e.faceIndex !== undefined) {
             const clickedFaceIndex = e.faceIndex;

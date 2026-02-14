@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Trash2, Scan } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan, Crosshair } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, panelSurfaceSelectMode, setPanelSurfaceSelectMode, waitingForSurfaceSelection, setWaitingForSurfaceSelection, pendingPanelCreation } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, panelSurfaceSelectMode, setPanelSurfaceSelectMode, waitingForSurfaceSelection, setWaitingForSurfaceSelection, pendingPanelCreation, rayProbeMode, setRayProbeMode, rayProbeResults, setRayProbeResults, rayProbeSourceFace, setRayProbeSourceFace, setRayProbeHighlightedShapes, rayProbeClickInfo, setRayProbeClickInfo, rayProbeConfirmTimestamp } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -24,6 +24,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const prevProfileRef = useRef<string>('none');
   const prevGeometryRef = useRef<string>('');
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const processedConfirmRef = useRef<number | null>(null);
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
 
@@ -81,6 +82,110 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
     handlePendingPanelCreation();
   }, [pendingPanelCreation?.timestamp]);
+
+  useEffect(() => {
+    if (!rayProbeConfirmTimestamp || !rayProbeResults || !selectedShape || !rayProbeClickInfo || selectedProfile === 'none') return;
+    if (rayProbeSourceFace?.faceIndex !== -1) return;
+    if (processedConfirmRef.current === rayProbeConfirmTimestamp) return;
+    processedConfirmRef.current = rayProbeConfirmTimestamp;
+
+    const handleRayProbeConfirm = async () => {
+      if (!selectedShape.replicadShape) return;
+      const geometry = selectedShape.geometry;
+      if (!geometry) return;
+
+      const faces = extractFacesFromGeometry(geometry);
+      const faceGroups = groupCoplanarFaces(faces);
+      if (faceGroups.length === 0) return;
+
+      let faceGroupIndex = 0;
+      const clickedShapeId = rayProbeClickInfo.shapeId;
+      const clickedTriangleIndex = rayProbeClickInfo.triangleIndex;
+
+      if (clickedShapeId === selectedShape.id && clickedTriangleIndex >= 0) {
+        const idx = faceGroups.findIndex(g => g.faceIndices.includes(clickedTriangleIndex));
+        if (idx !== -1) faceGroupIndex = idx;
+      } else {
+        const clickedPanel = shapes.find(s => s.id === clickedShapeId && s.type === 'panel' && s.parameters?.parentShapeId === selectedShape.id);
+        if (clickedPanel && clickedPanel.parameters?.faceIndex !== undefined) {
+          faceGroupIndex = clickedPanel.parameters.faceIndex;
+        }
+      }
+
+      const faceGroup = faceGroups[faceGroupIndex];
+
+      const localVertices: THREE.Vector3[] = [];
+      faceGroup.faceIndices.forEach(idx => {
+        const face = faces[idx];
+        face.vertices.forEach(v => localVertices.push(v.clone()));
+      });
+
+      const localNormal = faceGroup.normal.clone().normalize();
+      const localBox = new THREE.Box3().setFromPoints(localVertices);
+      const localCenter = new THREE.Vector3();
+      localBox.getCenter(localCenter);
+
+      const panelThickness = 18;
+
+      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+      const replicadPanel = await createPanelFromFace(
+        selectedShape.replicadShape,
+        [localNormal.x, localNormal.y, localNormal.z],
+        [localCenter.x, localCenter.y, localCenter.z],
+        panelThickness
+      );
+
+      if (!replicadPanel) return;
+
+      const panelGeometry = convertReplicadToThreeGeometry(replicadPanel);
+      const faceRole = selectedShape.faceRoles?.[faceGroupIndex];
+
+      const extraRowId = `extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      const currentExtraRows = selectedShape.extraPanelRows || [];
+      const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex: -1, needsSurfaceSelection: false, isRayProbeRow: true }];
+      updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
+
+      const newPanel: any = {
+        id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        type: 'panel',
+        geometry: panelGeometry,
+        replicadShape: replicadPanel,
+        position: [...selectedShape.position] as [number, number, number],
+        rotation: selectedShape.rotation,
+        scale: [...selectedShape.scale] as [number, number, number],
+        color: '#ffffff',
+        parameters: {
+          width: 0,
+          height: 0,
+          depth: panelThickness,
+          parentShapeId: selectedShape.id,
+          faceIndex: faceGroupIndex,
+          faceRole: faceRole,
+          extraRowId
+        }
+      };
+
+      addShape(newPanel);
+
+      setRayProbeMode(false);
+      setRayProbeResults(null);
+      setRayProbeSourceFace(null);
+      setRayProbeClickInfo(null);
+      setRayProbeHighlightedShapes([]);
+
+      if (selectedProfile !== 'none') {
+        setResolving(true);
+        try {
+          await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+        } finally {
+          setResolving(false);
+        }
+      }
+    };
+
+    handleRayProbeConfirm();
+  }, [rayProbeConfirmTimestamp]);
 
   const getArrowTargetAxis = (geometry: THREE.BufferGeometry, faceRole?: string, arrowRotated?: boolean): number => {
     if (!geometry) return 0;
@@ -380,6 +485,75 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     }
   };
 
+  const handleStartRayProbe = (faceIndex: number, extraRowId?: string) => {
+    setRayProbeSourceFace({ faceIndex, extraRowId });
+    setRayProbeMode(true);
+  };
+
+  // Disabled automatic panel creation - only visualizing ray probe for now
+  /*
+  useEffect(() => {
+    if (!rayProbeResults || !rayProbeSourceFace || !selectedShape || selectedProfile === 'none') return;
+
+    const { faceIndex, extraRowId } = rayProbeSourceFace;
+
+    const panelHits = rayProbeResults.hits.filter(h => {
+      const hitShape = shapes.find(s => s.id === h.shapeId);
+      return hitShape && hitShape.type === 'panel';
+    });
+
+    if (panelHits.length === 0) return;
+
+    const closestHit = panelHits.reduce((a, b) => a.distance < b.distance ? a : b);
+    const hitPanel = shapes.find(s => s.id === closestHit.shapeId);
+    if (!hitPanel) return;
+
+    const surfaceConstraint = {
+      center: closestHit.point,
+      normal: closestHit.normal,
+      constraintPanelId: hitPanel.id
+    };
+
+    const geometry = selectedShape.geometry;
+    if (!geometry) return;
+
+    const faces = extractFacesFromGeometry(geometry);
+    const faceGroups = groupCoplanarFaces(faces);
+    if (faceIndex >= faceGroups.length) return;
+
+    const facePanels = selectedShape.facePanels || {};
+
+    if (extraRowId) {
+      createPanelForFace(faceGroups[faceIndex], faces, faceIndex, extraRowId, surfaceConstraint).then(() => {
+        const currentExtraRows = selectedShape.extraPanelRows || [];
+        const updatedExtraRows = currentExtraRows.map((row: any) =>
+          row.id === extraRowId ? { ...row, needsSurfaceSelection: false } : row
+        );
+        updateShape(selectedShape.id, { extraPanelRows: updatedExtraRows });
+
+        if (selectedProfile !== 'none') {
+          setResolving(true);
+          resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() => setResolving(false));
+        }
+      });
+    } else if (!facePanels[faceIndex]) {
+      const newFacePanels = { ...facePanels, [faceIndex]: true };
+      updateShape(selectedShape.id, { facePanels: newFacePanels });
+      createPanelForFace(faceGroups[faceIndex], faces, faceIndex, undefined, surfaceConstraint).then(() => {
+        if (selectedProfile !== 'none') {
+          setResolving(true);
+          resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() => setResolving(false));
+        }
+      });
+    }
+
+    setRayProbeMode(false);
+    setRayProbeSourceFace(null);
+    setRayProbeResults(null);
+    setRayProbeHighlightedShapes([]);
+  }, [rayProbeResults]);
+  */
+
   const handleAddExtraRow = async (sourceFaceIndex: number) => {
     if (!selectedShape) return;
 
@@ -530,6 +704,25 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           <span className="text-sm font-semibold text-slate-800">Panel Editor</span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={() => {
+              if (selectedShape) {
+                setRayProbeSourceFace({ faceIndex: -1 });
+                setRayProbeMode(true);
+              }
+            }}
+            disabled={!selectedShape || selectedProfile === 'none'}
+            className={`p-0.5 rounded transition-colors ${
+              rayProbeMode && rayProbeSourceFace?.faceIndex === -1
+                ? 'text-red-600 bg-red-50'
+                : selectedShape && selectedProfile !== 'none'
+                  ? 'hover:bg-green-50 text-green-600'
+                  : 'text-stone-300 cursor-not-allowed'
+            }`}
+            title="Add panel via ray probe"
+          >
+            <Plus size={14} />
+          </button>
           <button
             onClick={() => setPanelSelectMode(!panelSelectMode)}
             className={`p-0.5 hover:bg-stone-200 rounded transition-colors ${
@@ -970,6 +1163,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 title="Rotate arrow direction"
                               >
                                 <RotateCw size={13} />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartRayProbe(i, extraRow.id);
+                                }}
+                                className={`p-0.5 rounded transition-colors ${
+                                  rayProbeMode && rayProbeSourceFace?.faceIndex === i && rayProbeSourceFace?.extraRowId === extraRow.id
+                                    ? 'text-red-700 bg-red-100 border border-red-300'
+                                    : 'text-slate-500 hover:bg-red-50 hover:text-red-600'
+                                }`}
+                                title="Ray Probe - yuzey secip panel olustur"
+                              >
+                                <Crosshair size={13} />
                               </button>
                               <button
                                 onClick={(e) => {

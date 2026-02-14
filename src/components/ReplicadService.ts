@@ -135,17 +135,7 @@ export const convertReplicadToThreeGeometry = (shape: any): THREE.BufferGeometry
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setIndex(indices);
-
-    if (mesh.normals && mesh.normals.length === vertices.length) {
-      const normals: number[] = [];
-      for (let i = 0; i < mesh.normals.length; i++) {
-        normals.push(mesh.normals[i]);
-      }
-      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-    } else {
-      geometry.computeVertexNormals();
-    }
-
+    geometry.computeVertexNormals();
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 
@@ -257,54 +247,123 @@ export const performBooleanIntersection = async (
   shape1: any,
   shape2: any
 ): Promise<any> => {
-  const oc = await initReplicad();
-  const { cast } = await import('replicad');
+  await initReplicad();
 
   console.log('🔀 Performing boolean intersection operation...');
 
   try {
     const result = shape1.intersect(shape2);
-    const shapeType = result.wrapped.ShapeType();
-
-    if (shapeType === oc.TopAbs_ShapeEnum.TopAbs_COMPOUND) {
-      const explorer = new oc.TopExp_Explorer_2(
-        result.wrapped,
-        oc.TopAbs_ShapeEnum.TopAbs_SOLID,
-        oc.TopAbs_ShapeEnum.TopAbs_SHAPE
-      );
-
-      const solids: any[] = [];
-      while (explorer.More()) {
-        try {
-          const solidShape = oc.TopoDS.Solid_1(explorer.Current());
-          solids.push(cast(solidShape));
-        } catch (_) {}
-        explorer.Next();
-      }
-      explorer.delete();
-
-      console.log(`✅ Boolean intersection completed: Compound with ${solids.length} solid(s)`);
-
-      if (solids.length === 1) {
-        return solids[0];
-      } else if (solids.length > 1) {
-        let largestSolid = solids[0];
-        let largestVol = 0;
-        for (const s of solids) {
-          try {
-            const bb = s.boundingBox;
-            const v = (bb.max[0] - bb.min[0]) * (bb.max[1] - bb.min[1]) * (bb.max[2] - bb.min[2]);
-            if (v > largestVol) { largestVol = v; largestSolid = s; }
-          } catch (_) {}
-        }
-        return largestSolid;
-      }
-    }
-
     console.log('✅ Boolean intersection completed:', result);
     return result;
   } catch (error) {
     console.error('❌ Boolean intersection failed:', error);
+    throw error;
+  }
+};
+
+export const createPanelFromRayProbe = async (
+  rayProbeOrigin: [number, number, number],
+  rayProbeHits: Array<{
+    direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
+    point: [number, number, number];
+    distance: number;
+  }>,
+  panelThickness: number,
+  shapePosition: [number, number, number],
+  faceNormal: [number, number, number]
+): Promise<any> => {
+  await initReplicad();
+
+  const toLocal = (worldPt: [number, number, number]): [number, number, number] => [
+    worldPt[0] - shapePosition[0],
+    worldPt[1] - shapePosition[1],
+    worldPt[2] - shapePosition[2]
+  ];
+
+  const localOrigin = toLocal(rayProbeOrigin);
+
+  const hitsByAxis: Record<string, Array<{ dir: string; point: [number, number, number] }>> = {
+    x: [], y: [], z: []
+  };
+
+  rayProbeHits.forEach(hit => {
+    const axis = hit.direction[0];
+    hitsByAxis[axis].push({ dir: hit.direction, point: toLocal(hit.point) });
+  });
+
+  const axisKeys = ['x', 'y', 'z'] as const;
+  const hitCounts = axisKeys.map(a => hitsByAxis[a].length);
+  const noHitAxes = axisKeys.filter((_, i) => hitCounts[i] === 0);
+
+  let thicknessAxisIndex: number;
+
+  if (noHitAxes.length === 1) {
+    thicknessAxisIndex = axisKeys.indexOf(noHitAxes[0]);
+  } else if (noHitAxes.length === 0) {
+    const absN = faceNormal.map(Math.abs);
+    thicknessAxisIndex = absN[0] > absN[1]
+      ? (absN[0] > absN[2] ? 0 : 2)
+      : (absN[1] > absN[2] ? 1 : 2);
+  } else {
+    const absN = faceNormal.map(Math.abs);
+    const candidates = noHitAxes.map(a => axisKeys.indexOf(a));
+    thicknessAxisIndex = candidates.reduce((best, cur) =>
+      absN[cur] > absN[best] ? cur : best
+    );
+  }
+
+  console.log('Ray probe panel creation:', {
+    localOrigin,
+    hitCounts: { x: hitCounts[0], y: hitCounts[1], z: hitCounts[2] },
+    thicknessAxis: axisKeys[thicknessAxisIndex]
+  });
+
+  const boundsMin: [number, number, number] = [0, 0, 0];
+  const boundsMax: [number, number, number] = [0, 0, 0];
+
+  for (let i = 0; i < 3; i++) {
+    const axis = axisKeys[i];
+    const hits = hitsByAxis[axis];
+
+    if (i === thicknessAxisIndex) {
+      boundsMin[i] = localOrigin[i] - panelThickness / 2;
+      boundsMax[i] = localOrigin[i] + panelThickness / 2;
+      console.log(`${axis.toUpperCase()} = thickness: [${boundsMin[i].toFixed(2)}, ${boundsMax[i].toFixed(2)}]`);
+    } else if (hits.length > 0) {
+      const coords = hits.map(h => h.point[i]);
+      boundsMin[i] = Math.min(...coords);
+      boundsMax[i] = Math.max(...coords);
+      console.log(`${axis.toUpperCase()} = hit constrained: [${boundsMin[i].toFixed(2)}, ${boundsMax[i].toFixed(2)}]`);
+    } else {
+      boundsMin[i] = localOrigin[i] - 5000;
+      boundsMax[i] = localOrigin[i] + 5000;
+      console.log(`${axis.toUpperCase()} = no hits, using large extent`);
+    }
+  }
+
+  const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
+  const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
+  const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
+  const centerX = (boundsMin[0] + boundsMax[0]) / 2;
+  const centerY = (boundsMin[1] + boundsMax[1]) / 2;
+  const centerZ = (boundsMin[2] + boundsMax[2]) / 2;
+
+  console.log('Panel box:', {
+    size: [sizeX.toFixed(2), sizeY.toFixed(2), sizeZ.toFixed(2)],
+    center: [centerX.toFixed(2), centerY.toFixed(2), centerZ.toFixed(2)]
+  });
+
+  try {
+    const { makeBaseBox } = await import('replicad');
+    let panel = makeBaseBox(sizeX, sizeY, sizeZ);
+    panel = panel.translate(
+      centerX - sizeX / 2,
+      centerY - sizeY / 2,
+      centerZ - sizeZ / 2
+    );
+    return panel;
+  } catch (error) {
+    console.error('Failed to create ray probe panel:', error);
     throw error;
   }
 };
@@ -412,7 +471,7 @@ export const createPanelFromFace = async (
       extrusionDirection[2] * panelThickness
     );
 
-    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, true, true);
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
     prismBuilder.Build(new oc.Message_ProgressRange_1());
     const solid = prismBuilder.Shape();
 
