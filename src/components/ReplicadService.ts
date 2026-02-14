@@ -508,26 +508,52 @@ export const createPanelFromRayProbe = async (
     );
     console.log(`📍 Centered panel on face by translating ${(panelThickness / 2).toFixed(2)}mm in normal direction`);
 
-    console.log(`📦 Ray bounds: X[${boundsMin[0].toFixed(2)}, ${boundsMax[0].toFixed(2)}], Y[${boundsMin[1].toFixed(2)}, ${boundsMax[1].toFixed(2)}], Z[${boundsMin[2].toFixed(2)}, ${boundsMax[2].toFixed(2)}]`);
+    console.log(`✂️  Cutting panel with ray probe hits (${rayProbeHits.length} hits)...`);
 
-    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
-    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
-    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
-    const centerX = (boundsMin[0] + boundsMax[0]) / 2;
-    const centerY = (boundsMin[1] + boundsMax[1]) / 2;
-    const centerZ = (boundsMin[2] + boundsMax[2]) / 2;
+    const CUTTING_SIZE = 10000;
 
-    let boundingBox = makeBaseBox(sizeX, sizeY, sizeZ);
-    boundingBox = boundingBox.translate(centerX, centerY, centerZ);
+    for (const hit of rayProbeHits) {
+      try {
+        const hitPoint = toLocal(hit.point);
+        let cuttingBox: any;
+        let cutPosition: [number, number, number];
 
-    console.log(`✂️  Performing boolean intersection with ray probe bounds...`);
-    try {
-      panel = await performBooleanIntersection(panel, boundingBox);
-      console.log(`✅ Intersection successful, panel constrained by ray probe boundaries`);
-    } catch (intersectError) {
-      console.warn('⚠️  Boolean intersection with ray bounds failed, using full face panel:', intersectError);
+        switch (hit.direction) {
+          case 'x+':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0] + CUTTING_SIZE / 2, hitPoint[1], hitPoint[2]];
+            break;
+          case 'x-':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0] - CUTTING_SIZE / 2, hitPoint[1], hitPoint[2]];
+            break;
+          case 'y+':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0], hitPoint[1] + CUTTING_SIZE / 2, hitPoint[2]];
+            break;
+          case 'y-':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0], hitPoint[1] - CUTTING_SIZE / 2, hitPoint[2]];
+            break;
+          case 'z+':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0], hitPoint[1], hitPoint[2] + CUTTING_SIZE / 2];
+            break;
+          case 'z-':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0], hitPoint[1], hitPoint[2] - CUTTING_SIZE / 2];
+            break;
+        }
+
+        cuttingBox = cuttingBox.translate(cutPosition[0], cutPosition[1], cutPosition[2]);
+        panel = panel.cut(cuttingBox);
+        console.log(`   ✓ Cut panel at ${hit.direction} direction, hit point: [${hitPoint[0].toFixed(2)}, ${hitPoint[1].toFixed(2)}, ${hitPoint[2].toFixed(2)}]`);
+      } catch (cutError) {
+        console.warn(`   ⚠️  Failed to cut panel for direction ${hit.direction}:`, cutError);
+      }
     }
 
+    console.log(`✅ Panel cutting complete`);
     return panel;
   } catch (error) {
     console.error('❌ Failed to create ray probe panel:', error);
