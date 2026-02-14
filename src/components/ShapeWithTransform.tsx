@@ -406,7 +406,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           if (rayProbeMode) {
             e.stopPropagation();
             const hitPoint = e.point.clone();
-            const results = performRayProbe(hitPoint, scene);
+            const faceNormal = e.face ? e.face.normal.clone() : undefined;
+            const results = performRayProbe(hitPoint, scene, undefined, faceNormal);
             const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
             setRayProbeResults(results);
             setRayProbeHighlightedShapes(hitShapeIds);
