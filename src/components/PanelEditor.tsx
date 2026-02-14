@@ -90,7 +90,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     processedConfirmRef.current = rayProbeConfirmTimestamp;
 
     const handleRayProbeConfirm = async () => {
-      if (!selectedShape.replicadShape) return;
       const geometry = selectedShape.geometry;
       if (!geometry) return;
 
@@ -112,28 +111,19 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         }
       }
 
-      const faceGroup = faceGroups[faceGroupIndex];
-
-      const localVertices: THREE.Vector3[] = [];
-      faceGroup.faceIndices.forEach(idx => {
-        const face = faces[idx];
-        face.vertices.forEach(v => localVertices.push(v.clone()));
-      });
-
-      const localNormal = faceGroup.normal.clone().normalize();
-      const localBox = new THREE.Box3().setFromPoints(localVertices);
-      const localCenter = new THREE.Vector3();
-      localBox.getCenter(localCenter);
+      const allHits = rayProbeResults.hits;
+      const faceNormal = faceGroups[faceGroupIndex].normal;
 
       const panelThickness = 18;
 
-      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { createPanelFromRayProbe, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-      const replicadPanel = await createPanelFromFace(
-        selectedShape.replicadShape,
-        [localNormal.x, localNormal.y, localNormal.z],
-        [localCenter.x, localCenter.y, localCenter.z],
-        panelThickness
+      const replicadPanel = await createPanelFromRayProbe(
+        rayProbeResults.origin,
+        allHits.map(h => ({ direction: h.direction, point: h.point, distance: h.distance })),
+        panelThickness,
+        selectedShape.position,
+        [faceNormal.x, faceNormal.y, faceNormal.z]
       );
 
       if (!replicadPanel) return;
