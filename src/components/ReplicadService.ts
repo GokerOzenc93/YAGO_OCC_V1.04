@@ -509,7 +509,7 @@ export const createPanelFromRayProbe = async (
 
     console.log(`📦 Ray bounds: X[${boundsMin[0].toFixed(2)}, ${boundsMax[0].toFixed(2)}], Y[${boundsMin[1].toFixed(2)}, ${boundsMax[1].toFixed(2)}], Z[${boundsMin[2].toFixed(2)}, ${boundsMax[2].toFixed(2)}]`);
 
-    const INTERSECTION_PAD = 2.0;
+    const INTERSECTION_PAD = 0.1;
     const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01) + INTERSECTION_PAD * 2;
     const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01) + INTERSECTION_PAD * 2;
     const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01) + INTERSECTION_PAD * 2;
