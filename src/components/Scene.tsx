@@ -13,7 +13,6 @@ import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
 import { PanelDrawing } from './PanelDrawing';
 import { ErrorBoundary } from './ErrorBoundary';
-import { RayProbeVisualizer } from './RayProbeVisualizer';
 
 const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
   const cameraRef = useRef<THREE.PerspectiveCamera | THREE.OrthographicCamera>(null);
@@ -109,9 +108,7 @@ const Scene: React.FC = () => {
     updateShape,
     panelSelectMode,
     panelSurfaceSelectMode,
-    setSelectedPanelRow,
-    rayProbeMode,
-    rayProbeResults
+    setSelectedPanelRow
   } = useAppStore(useShallow(state => ({
     shapes: state.shapes,
     cameraType: state.cameraType,
@@ -139,9 +136,7 @@ const Scene: React.FC = () => {
     updateShape: state.updateShape,
     panelSelectMode: state.panelSelectMode,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
-    setSelectedPanelRow: state.setSelectedPanelRow,
-    rayProbeMode: state.rayProbeMode,
-    rayProbeResults: state.rayProbeResults
+    setSelectedPanelRow: state.setSelectedPanelRow
   })));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -151,10 +146,6 @@ const Scene: React.FC = () => {
       if (e.key === 'Delete' && selectedShapeId) {
         deleteShape(selectedShapeId);
       } else if (e.key === 'Escape') {
-        const currentState = useAppStore.getState();
-        if (currentState.rayProbeMode) {
-          currentState.setRayProbeMode(false);
-        }
         selectShape(null);
         exitIsolation();
         setVertexEditMode(false);
@@ -380,10 +371,6 @@ const Scene: React.FC = () => {
 
   const handleContextMenu = useCallback((e: any, shapeId: string) => {
     const state = useAppStore.getState();
-    if (state.rayProbeMode && state.rayProbeResults) {
-      e.nativeEvent.preventDefault();
-      return;
-    }
     if (state.vertexEditMode || state.faceEditMode) {
       return;
     }
@@ -564,13 +551,6 @@ const Scene: React.FC = () => {
           powerPreference: 'high-performance'
         }}
         dpr={[1, 1.5]}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          const state = useAppStore.getState();
-          if (state.rayProbeMode && state.rayProbeResults) {
-            state.confirmRayProbePanel();
-          }
-        }}
         onCreated={handleCreated}
       >
         <color attach="background" args={['#f5f5f4']} />
@@ -661,8 +641,6 @@ const Scene: React.FC = () => {
         <planeGeometry args={[30000, 30000]} />
         <shadowMaterial opacity={0.15} />
       </mesh>
-
-      {rayProbeResults && <RayProbeVisualizer results={rayProbeResults} />}
 
       <GizmoHelper alignment="bottom-right" margin={[80, 100]}>
         <GizmoViewport

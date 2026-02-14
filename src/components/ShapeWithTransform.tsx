@@ -8,7 +8,6 @@ import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
-import { performRayProbe } from './RayProbeService';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -48,14 +47,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedVertexIndex,
     setVertexDirection,
     panelSurfaceSelectMode,
-    waitingForSurfaceSelection,
-    rayProbeHighlightedShapes,
-    rayProbeMode,
-    setRayProbeResults,
-    setRayProbeHighlightedShapes,
-    setRayProbeClickInfo,
-    rayProbeResults,
-    confirmRayProbePanel
+    waitingForSurfaceSelection
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -81,14 +73,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedVertexIndex: state.setSelectedVertexIndex,
     setVertexDirection: state.setVertexDirection,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
-    waitingForSurfaceSelection: state.waitingForSurfaceSelection,
-    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes,
-    rayProbeMode: state.rayProbeMode,
-    setRayProbeResults: state.setRayProbeResults,
-    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes,
-    setRayProbeClickInfo: state.setRayProbeClickInfo,
-    rayProbeResults: state.rayProbeResults,
-    confirmRayProbePanel: state.confirmRayProbePanel
+    waitingForSurfaceSelection: state.waitingForSurfaceSelection
   })));
 
   const { scene } = useThree();
@@ -386,7 +371,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
 
-  const isRayProbeHighlighted = rayProbeHighlightedShapes.includes(shape.id);
   const isParentSelected = isPanel && shape.parameters?.parentShapeId === selectedShapeId;
   const isPanelRowSelected = isPanel &&
     isParentSelected &&
@@ -403,21 +387,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         ref={groupRef}
         name={`shape-${shape.id}`}
         onClick={(e) => {
-          if (rayProbeMode) {
-            e.stopPropagation();
-            const hitPoint = e.point.clone();
-            const faceNormal = e.face ? e.face.normal.clone() : undefined;
-            const results = performRayProbe(hitPoint, scene, undefined, faceNormal);
-            const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
-            setRayProbeResults(results);
-            setRayProbeHighlightedShapes(hitShapeIds);
-            setRayProbeClickInfo({
-              shapeId: shape.id,
-              triangleIndex: e.faceIndex ?? -1
-            });
-            return;
-          }
-
           if (panelSelectMode && hasPanels) {
             return;
           }
@@ -450,10 +419,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           setShowParametersPanel(true);
         }}
         onContextMenu={(e) => {
-          if (rayProbeMode && rayProbeResults) {
-            e.stopPropagation();
-            return;
-          }
           e.stopPropagation();
           onContextMenu(e, shape.id);
         }}
