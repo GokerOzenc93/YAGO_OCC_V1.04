@@ -506,27 +506,7 @@ export const createPanelFromRayProbe = async (
       normalVec.z * panelThickness / 2
     );
     console.log(`📍 Centered panel on face by translating ${(panelThickness / 2).toFixed(2)}mm in normal direction`);
-
-    console.log(`📦 Ray bounds: X[${boundsMin[0].toFixed(2)}, ${boundsMax[0].toFixed(2)}], Y[${boundsMin[1].toFixed(2)}, ${boundsMax[1].toFixed(2)}], Z[${boundsMin[2].toFixed(2)}, ${boundsMax[2].toFixed(2)}]`);
-
-    const INTERSECTION_PAD = 0.1;
-    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01) + INTERSECTION_PAD * 2;
-    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01) + INTERSECTION_PAD * 2;
-    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01) + INTERSECTION_PAD * 2;
-    const centerX = (boundsMin[0] + boundsMax[0]) / 2;
-    const centerY = (boundsMin[1] + boundsMax[1]) / 2;
-    const centerZ = (boundsMin[2] + boundsMax[2]) / 2;
-
-    let boundingBox = makeBaseBox(sizeX, sizeY, sizeZ);
-    boundingBox = boundingBox.translate(centerX, centerY, centerZ);
-
-    console.log(`✂️  Performing boolean intersection (pad=${INTERSECTION_PAD}mm all axes)...`);
-    try {
-      panel = await performBooleanIntersection(panel, boundingBox);
-      console.log(`✅ Intersection successful, panel type: ${panel.wrapped.ShapeType()}`);
-    } catch (intersectError) {
-      console.warn('⚠️  Boolean intersection with ray bounds failed, using full face panel:', intersectError);
-    }
+    console.log(`✅ Ray probe panel created directly from face shape without intersection`);
 
     return panel;
   } catch (error) {
