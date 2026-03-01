@@ -401,7 +401,6 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const handleCreatePanel = useCallback(async () => {
     if (!panelBounds || isCreating) return;
-    if (!shape.replicadShape) return;
 
     const { uPlus, uMinus, vPlus, vMinus, origin, u, v, normal, groupIndex } = panelBounds;
     const panelThickness = 18;
@@ -409,33 +408,10 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     const dominantGroupIndex = faceGroups.findIndex(g => g.faceIndices.includes(groupIndex));
     if (dominantGroupIndex < 0) return;
 
-    const group = faceGroups[dominantGroupIndex];
-
-    const localVertices: THREE.Vector3[] = [];
-    group.faceIndices.forEach(idx => {
-      const face = faces[idx];
-      if (face) face.vertices.forEach(v => localVertices.push(v.clone()));
-    });
-
-    const localNormal = group.normal.clone().normalize();
-    const localBox = new THREE.Box3().setFromPoints(localVertices);
-    const localCenter = new THREE.Vector3();
-    localBox.getCenter(localCenter);
-
     setIsCreating(true);
     try {
-      const { createPanelFromFace, convertReplicadToThreeGeometry, performBooleanIntersection, initReplicad } = await import('./ReplicadService');
+      const { convertReplicadToThreeGeometry, initReplicad } = await import('./ReplicadService');
       const { draw, Plane } = await import('replicad');
-
-      const replicadPanel = await createPanelFromFace(
-        shape.replicadShape,
-        [localNormal.x, localNormal.y, localNormal.z],
-        [localCenter.x, localCenter.y, localCenter.z],
-        panelThickness,
-        null
-      );
-
-      if (!replicadPanel) return;
 
       const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
       const shapeRot = shape.rotation as [number, number, number];
@@ -448,44 +424,31 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       const localV = v.clone().applyQuaternion(invRot).normalize();
       const localN = normal.clone().applyQuaternion(invRot).normalize();
 
-      const margin = 2;
-      const clipW = uPlus + uMinus + margin * 2;
-      const clipH = vPlus + vMinus + margin * 2;
-      const clipD = panelThickness + 100;
+      const panelW = uPlus + uMinus;
+      const panelH = vPlus + vMinus;
 
-      const clipCenter = localOrigin.clone()
-        .addScaledVector(localU, (uPlus - uMinus) / 2)
-        .addScaledVector(localV, (vPlus - vMinus) / 2);
-
-      const clipCorner = clipCenter.clone()
-        .addScaledVector(localU, -clipW / 2)
-        .addScaledVector(localV, -clipH / 2)
-        .addScaledVector(localN, -clipD / 2);
+      const cornerPt = localOrigin.clone()
+        .addScaledVector(localU, -uMinus)
+        .addScaledVector(localV, -vMinus);
 
       await initReplicad();
 
-      const p0: [number, number] = [0, 0];
-      const p1: [number, number] = [clipW, 0];
-      const p2: [number, number] = [clipW, clipH];
-      const p3: [number, number] = [0, clipH];
-
       const xAxis: [number, number, number] = [localU.x, localU.y, localU.z];
       const yAxis: [number, number, number] = [localV.x, localV.y, localV.z];
-      const originPt: [number, number, number] = [clipCorner.x, clipCorner.y, clipCorner.z];
+      const originPt: [number, number, number] = [cornerPt.x, cornerPt.y, cornerPt.z];
 
-      const clipPlane = new Plane(originPt, xAxis, yAxis);
+      const sketchPlane = new Plane(originPt, xAxis, yAxis);
 
-      const clipBox = draw()
-        .movePointerTo(p0)
-        .lineTo(p1)
-        .lineTo(p2)
-        .lineTo(p3)
+      const panelShape = draw()
+        .movePointerTo([0, 0])
+        .lineTo([panelW, 0])
+        .lineTo([panelW, panelH])
+        .lineTo([0, panelH])
         .close()
-        .sketchOnPlane(clipPlane)
-        .extrude(clipD);
+        .sketchOnPlane(sketchPlane)
+        .extrude(panelThickness, { extrusionDirection: [localN.x, localN.y, localN.z] });
 
-      let clippedPanel = await performBooleanIntersection(replicadPanel, clipBox);
-      const geometry = convertReplicadToThreeGeometry(clippedPanel);
+      const geometry = convertReplicadToThreeGeometry(panelShape);
 
       const extraRowId = `raycast-${Date.now()}`;
 
@@ -493,7 +456,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         type: 'panel',
         geometry,
-        replicadShape: clippedPanel,
+        replicadShape: panelShape,
         position: [...shape.position] as [number, number, number],
         rotation: [...shape.rotation] as [number, number, number],
         scale: [...shape.scale] as [number, number, number],
@@ -521,7 +484,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     } finally {
       setIsCreating(false);
     }
-  }, [panelBounds, isCreating, shape, faceGroups, faces, addShape]);
+  }, [panelBounds, isCreating, shape, faceGroups, addShape]);
 
   panelBoundsRef.current = panelBounds;
   isCreatingRef.current = isCreating;
