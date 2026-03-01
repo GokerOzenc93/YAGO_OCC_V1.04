@@ -45,7 +45,7 @@ function getFacePlaneAxes(normal: THREE.Vector3): { u: THREE.Vector3; v: THREE.V
   }
 
   const u = new THREE.Vector3().crossVectors(n, up).normalize();
-  const v = new THREE.Vector3().crossVectors(u, n).normalize();
+  const v = new THREE.Vector3().crossVectors(n, u).normalize();
   return { u, v };
 }
 
@@ -423,12 +423,13 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       const worldCorner = origin.clone()
         .addScaledVector(worldU, -uMinus)
         .addScaledVector(worldV, -vMinus)
-        .addScaledVector(worldN, -0.5);
+        .addScaledVector(worldN, 0.5);
 
       await initReplicad();
 
+      const invertedN = worldN.clone().negate();
       const xAxis: [number, number, number] = [worldU.x, worldU.y, worldU.z];
-      const normalAxis: [number, number, number] = [worldN.x, worldN.y, worldN.z];
+      const normalAxis: [number, number, number] = [invertedN.x, invertedN.y, invertedN.z];
       const originPt: [number, number, number] = [worldCorner.x, worldCorner.y, worldCorner.z];
 
       const sketchPlane = new Plane(originPt, xAxis, normalAxis);
