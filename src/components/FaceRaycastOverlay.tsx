@@ -442,6 +442,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         .sketchOnPlane(sketchPlane)
         .extrude(-panelThickness);
 
+      const hasFillets = shape.fillets && shape.fillets.length > 0;
       const parentSubtractions = shape.subtractionGeometries || [];
       if (parentSubtractions.length > 0) {
         const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
@@ -504,6 +505,27 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
           } catch (cutErr) {
             console.warn('Subtractor cut skipped:', cutErr);
           }
+        }
+      }
+
+      if (hasFillets && shape.replicadShape) {
+        try {
+          const { performBooleanIntersection } = await import('./ReplicadService');
+          const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
+          const shapeRot = shape.rotation as [number, number, number];
+          const rotDegX = shapeRot[0] * (180 / Math.PI);
+          const rotDegY = shapeRot[1] * (180 / Math.PI);
+          const rotDegZ = shapeRot[2] * (180 / Math.PI);
+
+          let parentWorld = shape.replicadShape;
+          if (Math.abs(rotDegX) > 0.01) parentWorld = parentWorld.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
+          if (Math.abs(rotDegY) > 0.01) parentWorld = parentWorld.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
+          if (Math.abs(rotDegZ) > 0.01) parentWorld = parentWorld.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
+          parentWorld = parentWorld.translate(shapePos.x, shapePos.y, shapePos.z);
+
+          panelShape = await performBooleanIntersection(panelShape, parentWorld);
+        } catch (filletErr) {
+          console.warn('Fillet intersection skipped:', filletErr);
         }
       }
 
