@@ -442,9 +442,11 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         .sketchOnPlane(sketchPlane)
         .extrude(-panelThickness);
 
-      const hasFillets = shape.fillets && shape.fillets.length > 0;
       const parentSubtractions = shape.subtractionGeometries || [];
-      if (parentSubtractions.length > 0) {
+      const hasSubtractions = parentSubtractions.length > 0;
+      const hasFillets = shape.fillets && shape.fillets.length > 0;
+
+      const applySubtractionCuts = async (panel: any) => {
         const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
         const shapeRot = shape.rotation as [number, number, number];
         const rot = new THREE.Quaternion().setFromEuler(
@@ -468,6 +470,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
           parentCornerWorld.sub(halfLocal);
         }
 
+        let result = panel;
         for (const subtraction of parentSubtractions) {
           if (!subtraction) continue;
           try {
@@ -492,8 +495,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
             const subWorldQ = rot.clone().multiply(subRotQ);
             const subWorldEuler = new THREE.Euler().setFromQuaternion(subWorldQ, 'XYZ');
 
-            panelShape = await performBooleanCut(
-              panelShape,
+            result = await performBooleanCut(
+              result,
               subBox,
               undefined,
               [subWorldPos.x, subWorldPos.y, subWorldPos.z],
@@ -506,9 +509,10 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
             console.warn('Subtractor cut skipped:', cutErr);
           }
         }
-      }
+        return result;
+      };
 
-      if (hasFillets && shape.replicadShape) {
+      if (shape.replicadShape && (hasSubtractions || hasFillets)) {
         try {
           const { performBooleanIntersection } = await import('./ReplicadService');
           const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
@@ -524,9 +528,14 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
           parentWorld = parentWorld.translate(shapePos.x, shapePos.y, shapePos.z);
 
           panelShape = await performBooleanIntersection(panelShape, parentWorld);
-        } catch (filletErr) {
-          console.warn('Fillet intersection skipped:', filletErr);
+        } catch (intersectErr) {
+          console.warn('Parent intersection failed, falling back to individual cuts:', intersectErr);
+          if (hasSubtractions) {
+            panelShape = await applySubtractionCuts(panelShape);
+          }
         }
+      } else if (hasSubtractions) {
+        panelShape = await applySubtractionCuts(panelShape);
       }
 
       const geometry = convertReplicadToThreeGeometry(panelShape);
