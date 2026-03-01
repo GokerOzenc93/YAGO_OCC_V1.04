@@ -400,7 +400,6 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
   }, []);
 
   const handleCreatePanel = useCallback(async () => {
-    console.log('[FaceRaycast] handleCreatePanel called, panelBounds:', !!panelBounds, 'isCreating:', isCreating, 'replicadShape:', !!shape.replicadShape);
     if (!panelBounds || isCreating) return;
     if (!shape.replicadShape) return;
 
@@ -426,7 +425,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     setIsCreating(true);
     try {
       const { createPanelFromFace, convertReplicadToThreeGeometry, performBooleanIntersection, initReplicad } = await import('./ReplicadService');
-      const { draw } = await import('replicad');
+      const { draw, Plane } = await import('replicad');
 
       const replicadPanel = await createPanelFromFace(
         shape.replicadShape,
@@ -475,18 +474,15 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       const originPt: [number, number, number] = [clipCorner.x, clipCorner.y, clipCorner.z];
       const nDir: [number, number, number] = [localN.x, localN.y, localN.z];
 
+      const clipPlane = new Plane(originPt, xAxis, nDir);
+
       const clipBox = draw()
         .movePointerTo(p0)
         .lineTo(p1)
         .lineTo(p2)
         .lineTo(p3)
         .close()
-        .sketchOnPlane({
-          origin: originPt,
-          xDir: xAxis,
-          yDir: yAxis,
-          zDir: nDir,
-        })
+        .sketchOnPlane(clipPlane)
         .extrude(clipD);
 
       let clippedPanel = await performBooleanIntersection(replicadPanel, clipBox);
@@ -536,7 +532,6 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     if (!raycastMode) return;
 
     const onContextMenu = (e: MouseEvent) => {
-      console.log('[FaceRaycast] contextmenu fired, panelBounds:', !!panelBoundsRef.current, 'isCreating:', isCreatingRef.current);
       if (panelBoundsRef.current && !isCreatingRef.current) {
         e.preventDefault();
         e.stopPropagation();
@@ -545,9 +540,6 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        console.log('[FaceRaycast] Enter pressed, panelBounds:', !!panelBoundsRef.current, 'isCreating:', isCreatingRef.current);
-      }
       if (e.key === 'Enter' && panelBoundsRef.current && !isCreatingRef.current) {
         e.preventDefault();
         handleCreatePanelRef.current();
