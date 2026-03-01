@@ -400,6 +400,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
   }, []);
 
   const handleCreatePanel = useCallback(async () => {
+    console.log('[FaceRaycast] handleCreatePanel called, panelBounds:', !!panelBounds, 'isCreating:', isCreating, 'replicadShape:', !!shape.replicadShape);
     if (!panelBounds || isCreating) return;
     if (!shape.replicadShape) return;
 
@@ -535,6 +536,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     if (!raycastMode) return;
 
     const onContextMenu = (e: MouseEvent) => {
+      console.log('[FaceRaycast] contextmenu fired, panelBounds:', !!panelBoundsRef.current, 'isCreating:', isCreatingRef.current);
       if (panelBoundsRef.current && !isCreatingRef.current) {
         e.preventDefault();
         e.stopPropagation();
@@ -543,6 +545,9 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     };
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        console.log('[FaceRaycast] Enter pressed, panelBounds:', !!panelBoundsRef.current, 'isCreating:', isCreatingRef.current);
+      }
       if (e.key === 'Enter' && panelBoundsRef.current && !isCreatingRef.current) {
         e.preventDefault();
         handleCreatePanelRef.current();
