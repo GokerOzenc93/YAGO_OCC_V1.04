@@ -135,7 +135,17 @@ export const convertReplicadToThreeGeometry = (shape: any): THREE.BufferGeometry
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setIndex(indices);
-    geometry.computeVertexNormals();
+
+    if (mesh.normals && mesh.normals.length === vertices.length) {
+      const normals: number[] = [];
+      for (let i = 0; i < mesh.normals.length; i++) {
+        normals.push(mesh.normals[i]);
+      }
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    } else {
+      geometry.computeVertexNormals();
+    }
+
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 
@@ -247,16 +257,160 @@ export const performBooleanIntersection = async (
   shape1: any,
   shape2: any
 ): Promise<any> => {
-  await initReplicad();
+  const oc = await initReplicad();
+  const { cast } = await import('replicad');
 
   console.log('🔀 Performing boolean intersection operation...');
 
   try {
     const result = shape1.intersect(shape2);
+    const shapeType = result.wrapped.ShapeType();
+
+    if (shapeType === oc.TopAbs_ShapeEnum.TopAbs_COMPOUND) {
+      const explorer = new oc.TopExp_Explorer_2(
+        result.wrapped,
+        oc.TopAbs_ShapeEnum.TopAbs_SOLID,
+        oc.TopAbs_ShapeEnum.TopAbs_SHAPE
+      );
+
+      const solids: any[] = [];
+      while (explorer.More()) {
+        try {
+          const solidShape = oc.TopoDS.Solid_1(explorer.Current());
+          solids.push(cast(solidShape));
+        } catch (_) {}
+        explorer.Next();
+      }
+      explorer.delete();
+
+      console.log(`✅ Boolean intersection completed: Compound with ${solids.length} solid(s)`);
+
+      if (solids.length === 1) {
+        return solids[0];
+      } else if (solids.length > 1) {
+        let largestSolid = solids[0];
+        let largestVol = 0;
+        for (const s of solids) {
+          try {
+            const bb = s.boundingBox;
+            const v = (bb.max[0] - bb.min[0]) * (bb.max[1] - bb.min[1]) * (bb.max[2] - bb.min[2]);
+            if (v > largestVol) { largestVol = v; largestSolid = s; }
+          } catch (_) {}
+        }
+        return largestSolid;
+      }
+    }
+
     console.log('✅ Boolean intersection completed:', result);
     return result;
   } catch (error) {
     console.error('❌ Boolean intersection failed:', error);
+    throw error;
+  }
+};
+
+export const createPanelFromRayProbe = async (
+  replicadShape: any,
+  rayProbeOrigin: [number, number, number],
+  rayProbeHits: Array<{
+    direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
+    point: [number, number, number];
+    distance: number;
+  }>,
+  panelThickness: number,
+  shapePosition: [number, number, number],
+  faceNormal: [number, number, number],
+  faceCenter: [number, number, number]
+): Promise<any> => {
+  const oc = await initReplicad();
+
+  const toLocal = (worldPt: [number, number, number]): [number, number, number] => [
+    worldPt[0] - shapePosition[0],
+    worldPt[1] - shapePosition[1],
+    worldPt[2] - shapePosition[2]
+  ];
+
+  const localOrigin = toLocal(rayProbeOrigin);
+
+  const hitsByAxis: Record<string, Array<{ dir: string; point: [number, number, number] }>> = {
+    x: [], y: [], z: []
+  };
+
+  rayProbeHits.forEach(hit => {
+    const axis = hit.direction[0];
+    hitsByAxis[axis].push({ dir: hit.direction, point: toLocal(hit.point) });
+  });
+
+  const axisKeys = ['x', 'y', 'z'] as const;
+  const hitCounts = axisKeys.map(a => hitsByAxis[a].length);
+  const noHitAxes = axisKeys.filter((_, i) => hitCounts[i] === 0);
+
+  let thicknessAxisIndex: number;
+
+  if (noHitAxes.length === 1) {
+    thicknessAxisIndex = axisKeys.indexOf(noHitAxes[0]);
+  } else if (noHitAxes.length === 0) {
+    const absN = faceNormal.map(Math.abs);
+    thicknessAxisIndex = absN[0] > absN[1]
+      ? (absN[0] > absN[2] ? 0 : 2)
+      : (absN[1] > absN[2] ? 1 : 2);
+  } else {
+    const absN = faceNormal.map(Math.abs);
+    const candidates = noHitAxes.map(a => axisKeys.indexOf(a));
+    thicknessAxisIndex = candidates.reduce((best, cur) =>
+      absN[cur] > absN[best] ? cur : best
+    );
+  }
+
+  const boundsMin: [number, number, number] = [0, 0, 0];
+  const boundsMax: [number, number, number] = [0, 0, 0];
+  const NO_HIT_PADDING = 50;
+
+  for (let i = 0; i < 3; i++) {
+    const axis = axisKeys[i];
+    const axisHits = hitsByAxis[axis];
+
+    if (i === thicknessAxisIndex) {
+      const normalSign = faceNormal[i] >= 0 ? 1 : -1;
+      boundsMin[i] = normalSign > 0 ? localOrigin[i] - panelThickness : localOrigin[i];
+      boundsMax[i] = normalSign > 0 ? localOrigin[i] : localOrigin[i] + panelThickness;
+    } else if (axisHits.length > 0) {
+      const coords = axisHits.map(h => h.point[i]);
+      boundsMin[i] = Math.min(...coords);
+      boundsMax[i] = Math.max(...coords);
+    } else {
+      boundsMin[i] = localOrigin[i] - NO_HIT_PADDING;
+      boundsMax[i] = localOrigin[i] + NO_HIT_PADDING;
+    }
+  }
+
+  const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
+  const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
+  const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
+
+  console.log(`📦 Ray Probe Panel: Building box from farthest hit bounds`);
+  console.log(`   BoundsMin: [${boundsMin[0].toFixed(2)}, ${boundsMin[1].toFixed(2)}, ${boundsMin[2].toFixed(2)}]`);
+  console.log(`   BoundsMax: [${boundsMax[0].toFixed(2)}, ${boundsMax[1].toFixed(2)}, ${boundsMax[2].toFixed(2)}]`);
+  console.log(`   Size: [${sizeX.toFixed(2)}, ${sizeY.toFixed(2)}, ${sizeZ.toFixed(2)}]`);
+
+  try {
+    const { draw } = await import('replicad');
+
+    let panel = draw()
+      .movePointerTo([0, 0])
+      .lineTo([sizeX, 0])
+      .lineTo([sizeX, sizeY])
+      .lineTo([0, sizeY])
+      .close()
+      .sketchOnPlane()
+      .extrude(sizeZ);
+
+    panel = panel.translate(boundsMin[0], boundsMin[1], boundsMin[2]);
+
+    console.log(`✅ Ray probe panel created as rectangular box`);
+    return panel;
+  } catch (error) {
+    console.error('❌ Failed to create ray probe panel:', error);
     throw error;
   }
 };
@@ -270,7 +424,7 @@ export const createPanelFromFace = async (
 ): Promise<any> => {
   await initReplicad();
 
-  console.log('🎨 Creating panel from face...', {
+  console.log('Creating panel from face...', {
     faceNormal,
     faceCenter,
     panelThickness,
@@ -279,7 +433,6 @@ export const createPanelFromFace = async (
 
   try {
     const faces = replicadShape.faces;
-    console.log(`📋 Found ${faces.length} faces in shape`);
 
     interface FaceCandidate {
       face: any;
@@ -318,17 +471,16 @@ export const createPanelFromFace = async (
             console.warn(`Could not mesh face ${i} for center:`, meshErr);
           }
           candidates.push({ face, dot, center });
-          console.log(`Face ${i} candidate: dot=${dot.toFixed(4)}, center=`, center);
         }
       } catch (err) {
-        console.warn(`⚠️ Could not get normal for face ${i}:`, err);
+        console.warn(`Could not get normal for face ${i}:`, err);
       }
     }
 
     let matchingFace = null;
 
     if (candidates.length === 0) {
-      console.warn('⚠️ No matching face found');
+      console.warn('No matching face found');
       return null;
     } else if (candidates.length === 1) {
       matchingFace = candidates[0].face;
@@ -352,8 +504,6 @@ export const createPanelFromFace = async (
       }
     }
 
-    console.log('✅ Found matching face from', candidates.length, 'candidates');
-
     const normalVec = matchingFace.normalAt(0.5, 0.5);
     const extrusionDirection = [
       -normalVec.x,
@@ -368,7 +518,7 @@ export const createPanelFromFace = async (
       extrusionDirection[2] * panelThickness
     );
 
-    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, true, true);
     prismBuilder.Build(new oc.Message_ProgressRange_1());
     const solid = prismBuilder.Shape();
 
@@ -376,19 +526,16 @@ export const createPanelFromFace = async (
     let panel = cast(solid);
 
     if (constraintGeometry) {
-      console.log('🔀 Applying constraint intersection...');
       try {
         panel = await performBooleanIntersection(panel, constraintGeometry);
-        console.log('✅ Constraint intersection applied successfully');
       } catch (error) {
-        console.error('❌ Failed to apply constraint intersection:', error);
+        console.error('Failed to apply constraint intersection:', error);
       }
     }
 
-    console.log('✅ Panel created from face successfully');
     return panel;
   } catch (error) {
-    console.error('❌ Failed to create panel from face:', error);
+    console.error('Failed to create panel from face:', error);
     throw error;
   }
 };

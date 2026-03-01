@@ -421,7 +421,7 @@ export async function resolveAllPanelJoints(
   const fullSettings = await loadFullProfileSettings(profileId);
   const jointConfig = config || fullSettings.jointConfig;
 
-  const panels = state.shapes.filter(
+  const rolePanels = state.shapes.filter(
     (s) =>
       s.type === 'panel' &&
       s.parameters?.parentShapeId === parentShapeId &&
@@ -430,14 +430,24 @@ export async function resolveAllPanelJoints(
       (s.parameters?.originalReplicadShape || s.replicadShape)
   );
 
+  const rayProbePanels = state.shapes.filter(
+    (s) =>
+      s.type === 'panel' &&
+      s.parameters?.parentShapeId === parentShapeId &&
+      !s.parameters?.faceRole &&
+      s.replicadShape
+  );
+
+  const panels = [...rolePanels, ...rayProbePanels];
+
   if (panels.length < 2) {
-    await restoreSinglePanels(panels);
+    await restoreSinglePanels(rolePanels);
     applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
     await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
     return;
   }
 
-  console.log(`🔗 Resolving panel joints for ${panels.length} panels...`);
+  console.log(`🔗 Resolving panel joints for ${panels.length} panels (${rolePanels.length} role, ${rayProbePanels.length} ray probe)...`);
 
   const originalShapes = new Map<string, any>();
   for (const panel of panels) {
@@ -456,20 +466,42 @@ export async function resolveAllPanelJoints(
       const roleA = pA.parameters?.faceRole as FaceRole;
       const roleB = pB.parameters?.faceRole as FaceRole;
 
-      const dominant = getDominantRole(roleA, roleB, jointConfig);
-      if (!dominant) continue;
+      const hasRoleA = Boolean(roleA);
+      const hasRoleB = Boolean(roleB);
 
-      const isADominant = dominant === roleA;
-      const subordinateId = isADominant ? pB.id : pA.id;
-      const dominantId = isADominant ? pA.id : pB.id;
+      let subordinateId: string | null = null;
+      let dominantId: string | null = null;
 
-      const existing = cutsMap.get(subordinateId) || [];
-      existing.push(dominantId);
-      cutsMap.set(subordinateId, existing);
+      if (hasRoleA && hasRoleB) {
+        const dominant = getDominantRole(roleA, roleB, jointConfig);
+        if (!dominant) continue;
+        const isADominant = dominant === roleA;
+        subordinateId = isADominant ? pB.id : pA.id;
+        dominantId = isADominant ? pA.id : pB.id;
+        console.log(`  Joint: ${roleA}-${roleB} → ${dominant} dominant, ${isADominant ? roleB : roleA} trimmed`);
+      } else if (hasRoleA && !hasRoleB) {
+        const boxA = new THREE.Box3().setFromBufferAttribute(pA.geometry.getAttribute('position') as THREE.BufferAttribute).translate(new THREE.Vector3(...pA.position));
+        const boxB = new THREE.Box3().setFromBufferAttribute(pB.geometry.getAttribute('position') as THREE.BufferAttribute).translate(new THREE.Vector3(...pB.position));
+        if (!boxA.intersectsBox(boxB)) continue;
+        subordinateId = pB.id;
+        dominantId = pA.id;
+        console.log(`  Joint: ${roleA}-rayProbe → ${roleA} dominant, ray probe trimmed`);
+      } else if (!hasRoleA && hasRoleB) {
+        const boxA = new THREE.Box3().setFromBufferAttribute(pA.geometry.getAttribute('position') as THREE.BufferAttribute).translate(new THREE.Vector3(...pA.position));
+        const boxB = new THREE.Box3().setFromBufferAttribute(pB.geometry.getAttribute('position') as THREE.BufferAttribute).translate(new THREE.Vector3(...pB.position));
+        if (!boxA.intersectsBox(boxB)) continue;
+        subordinateId = pA.id;
+        dominantId = pB.id;
+        console.log(`  Joint: rayProbe-${roleB} → ${roleB} dominant, ray probe trimmed`);
+      } else {
+        continue;
+      }
 
-      console.log(
-        `  Joint: ${roleA}-${roleB} → ${dominant} dominant, ${isADominant ? roleB : roleA} trimmed`
-      );
+      if (subordinateId && dominantId) {
+        const existing = cutsMap.get(subordinateId) || [];
+        existing.push(dominantId);
+        cutsMap.set(subordinateId, existing);
+      }
     }
   }
 

@@ -4,6 +4,8 @@ import { useAppStore } from '../store';
 import { useShallow } from 'zustand/react/shallow';
 import { PanelDirectionArrow } from './PanelDirectionArrow';
 import { extractFacesFromGeometry, groupCoplanarFaces } from './FaceEditor';
+import { performRayProbe } from './RayProbeService';
+import { useThree } from '@react-three/fiber';
 
 interface PanelDrawingProps {
   shape: any;
@@ -15,6 +17,7 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   isSelected
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const { scene } = useThree();
   const {
     selectShape,
     selectSecondaryShape,
@@ -25,7 +28,13 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSelectMode,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    triggerPanelCreationForFace
+    triggerPanelCreationForFace,
+    rayProbeHighlightedShapes,
+    rayProbeMode,
+    setRayProbeResults,
+    setRayProbeHighlightedShapes,
+    setRayProbeClickInfo,
+    confirmRayProbePanel
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -36,7 +45,13 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     panelSelectMode: state.panelSelectMode,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
     waitingForSurfaceSelection: state.waitingForSurfaceSelection,
-    triggerPanelCreationForFace: state.triggerPanelCreationForFace
+    triggerPanelCreationForFace: state.triggerPanelCreationForFace,
+    rayProbeHighlightedShapes: state.rayProbeHighlightedShapes,
+    rayProbeMode: state.rayProbeMode,
+    setRayProbeResults: state.setRayProbeResults,
+    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes,
+    setRayProbeClickInfo: state.setRayProbeClickInfo,
+    confirmRayProbePanel: state.confirmRayProbePanel
   })));
 
   const [faceGroups, setFaceGroups] = useState<any[]>([]);
@@ -97,9 +112,10 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     }
   };
 
+  const isRayProbeHighlighted = rayProbeHighlightedShapes.includes(shape.id);
   const baseColor = getRoleColor(faceRole);
-  const materialColor = isPanelRowSelected ? '#ef4444' : baseColor;
-  const edgeColor = isPanelRowSelected ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
+  const materialColor = isPanelRowSelected ? '#ef4444' : isRayProbeHighlighted ? '#ef4444' : baseColor;
+  const edgeColor = isPanelRowSelected ? '#b91c1c' : isRayProbeHighlighted ? '#ef4444' : isSelected ? '#1e40af' : '#000000';
 
   return (
     <group
@@ -115,6 +131,21 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
         receiveShadow
         onClick={(e) => {
           e.stopPropagation();
+
+          if (rayProbeMode) {
+            const hitPoint = e.point.clone();
+            const faceNormal = e.face ? e.face.normal.clone() : undefined;
+            const targetShapeId = parentShapeId || shape.id;
+            const results = performRayProbe(hitPoint, scene, undefined, faceNormal, targetShapeId);
+            const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
+            setRayProbeResults(results);
+            setRayProbeHighlightedShapes(hitShapeIds);
+            setRayProbeClickInfo({
+              shapeId: shape.id,
+              triangleIndex: e.faceIndex ?? -1
+            });
+            return;
+          }
 
           if (panelSurfaceSelectMode && waitingForSurfaceSelection && e.faceIndex !== undefined) {
             const clickedFaceIndex = e.faceIndex;
@@ -173,8 +204,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
       >
         <meshStandardMaterial
           color={materialColor}
-          emissive={isPanelRowSelected ? '#ef4444' : baseColor}
-          emissiveIntensity={isPanelRowSelected ? 0.35 : 0.1}
+          emissive={isPanelRowSelected ? '#ef4444' : isRayProbeHighlighted ? '#ef4444' : baseColor}
+          emissiveIntensity={isPanelRowSelected ? 0.35 : isRayProbeHighlighted ? 0.4 : 0.1}
           metalness={0}
           roughness={0.4}
           transparent={false}

@@ -63,6 +63,22 @@ export interface SubtractedGeometry {
 
 export type FaceRole = 'Left' | 'Right' | 'Top' | 'Bottom' | 'Back' | 'Door' | null;
 
+export type RayDirection = 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
+
+export interface RayProbeHit {
+  direction: RayDirection;
+  point: [number, number, number];
+  distance: number;
+  shapeId: string;
+  faceIndex: number;
+  normal: [number, number, number];
+}
+
+export interface RayProbeResult {
+  origin: [number, number, number];
+  hits: RayProbeHit[];
+}
+
 /**
  * Shape:
  * Sahnedeki her bir 3D nesnenin ana veri yapısı.
@@ -360,6 +376,20 @@ interface AppState {
   setBottomPanelBackShorten: (value: number) => void;
   showBottomPanelBackShorten: boolean;
   setShowBottomPanelBackShorten: (show: boolean) => void;
+
+  // Ray Probe (Isin Tarama)
+  rayProbeMode: boolean;
+  setRayProbeMode: (enabled: boolean) => void;
+  rayProbeResults: RayProbeResult | null;
+  setRayProbeResults: (results: RayProbeResult | null) => void;
+  rayProbeHighlightedShapes: string[];
+  setRayProbeHighlightedShapes: (ids: string[]) => void;
+  rayProbeSourceFace: { faceIndex: number; extraRowId?: string } | null;
+  setRayProbeSourceFace: (source: { faceIndex: number; extraRowId?: string } | null) => void;
+  rayProbeClickInfo: { shapeId: string; triangleIndex: number } | null;
+  setRayProbeClickInfo: (info: { shapeId: string; triangleIndex: number } | null) => void;
+  rayProbeConfirmTimestamp: number | null;
+  confirmRayProbePanel: () => void;
 }
 
 /**
@@ -519,6 +549,27 @@ export const useAppStore = create<AppState>((set, get) => ({
   setBottomPanelBackShorten: (value) => set({ bottomPanelBackShorten: value }),
   showBottomPanelBackShorten: false,
   setShowBottomPanelBackShorten: (show) => set({ showBottomPanelBackShorten: show }),
+
+  // Ray Probe
+  rayProbeMode: false,
+  setRayProbeMode: (enabled) => set({
+    rayProbeMode: enabled,
+    rayProbeResults: enabled ? null : null,
+    rayProbeHighlightedShapes: enabled ? [] : [],
+    rayProbeSourceFace: enabled ? get().rayProbeSourceFace : null,
+    rayProbeClickInfo: enabled ? null : null,
+    rayProbeConfirmTimestamp: enabled ? null : null
+  }),
+  rayProbeResults: null,
+  setRayProbeResults: (results) => set({ rayProbeResults: results }),
+  rayProbeHighlightedShapes: [],
+  setRayProbeHighlightedShapes: (ids) => set({ rayProbeHighlightedShapes: ids }),
+  rayProbeSourceFace: null,
+  setRayProbeSourceFace: (source) => set({ rayProbeSourceFace: source }),
+  rayProbeClickInfo: null,
+  setRayProbeClickInfo: (info) => set({ rayProbeClickInfo: info }),
+  rayProbeConfirmTimestamp: null,
+  confirmRayProbePanel: () => set({ rayProbeConfirmTimestamp: Date.now() }),
 
   // Yeni şekil ekleme
   addShape: (shape) => set((state) => ({ shapes: [...state.shapes, shape] })),
