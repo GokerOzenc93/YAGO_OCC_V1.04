@@ -69,14 +69,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     return arrowRotated ? altAxis : defaultAxis;
   };
 
-  const getPanelDimensions = (faceIndex: number): { primary: number; secondary: number; thickness: number; w: number; h: number; d: number } | null => {
-    if (!selectedShape) return null;
-    const panel = shapes.find(
-      s => s.type === 'panel' &&
-      s.parameters?.parentShapeId === selectedShape.id &&
-      s.parameters?.faceIndex === faceIndex &&
-      !s.parameters?.extraRowId
-    );
+  const computeDimensionsFromPanel = (panel: any): { primary: number; secondary: number; thickness: number; w: number; h: number; d: number } | null => {
     if (!panel || !panel.geometry) return null;
     const box = new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position'));
     const size = new THREE.Vector3();
@@ -144,6 +137,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       thickness,
       ...dimensions
     };
+  };
+
+  const getPanelDimensions = (faceIndex: number): { primary: number; secondary: number; thickness: number; w: number; h: number; d: number } | null => {
+    if (!selectedShape) return null;
+    const panel = shapes.find(
+      s => s.type === 'panel' &&
+      s.parameters?.parentShapeId === selectedShape.id &&
+      s.parameters?.faceIndex === faceIndex &&
+      !s.parameters?.extraRowId
+    );
+    return computeDimensionsFromPanel(panel);
   };
 
   useEffect(() => {
@@ -675,6 +679,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
               if (raycastPanels.length === 0) return null;
 
+              const roleOptions: FaceRole[] = ['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'];
+
               return (
                 <div className="pt-2 border-t border-stone-300 space-y-0.5">
                   <div className="text-xs font-semibold text-sky-700 mb-1">
@@ -682,47 +688,130 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   </div>
                   {raycastPanels.map((panel, idx) => {
                     const extraRowId = panel.parameters?.extraRowId;
-                    const isRowSelected = selectedPanelRow === panel.parameters?.faceIndex &&
+                    const fIdx = panel.parameters?.faceIndex;
+                    const isRowSelected = selectedPanelRow === fIdx &&
                       selectedPanelRowExtraId === extraRowId;
-
-                    const box = panel.geometry
-                      ? new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position') as THREE.BufferAttribute)
-                      : null;
-                    const size = box ? new THREE.Vector3() : null;
-                    if (box && size) box.getSize(size);
-
-                    const dims = size
-                      ? `${Math.round(size.x)}×${Math.round(size.y)}×${Math.round(size.z)}`
-                      : '—';
+                    const dimensions = computeDimensionsFromPanel(panel);
 
                     return (
                       <div
                         key={panel.id}
-                        className={`flex items-center gap-1 p-0.5 rounded transition-colors cursor-pointer ${
+                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors cursor-pointer ${
                           isRowSelected
                             ? 'bg-sky-50 ring-1 ring-sky-400'
                             : 'hover:bg-gray-50'
                         }`}
                         onClick={() => {
-                          setSelectedPanelRow(panel.parameters?.faceIndex ?? null, extraRowId);
+                          setSelectedPanelRow(fIdx ?? null, extraRowId);
                         }}
                       >
                         <input
                           type="radio"
-                          name="raycast-panel-selection"
+                          name="panel-selection"
                           checked={isRowSelected}
                           onChange={() => {
-                            setSelectedPanelRow(panel.parameters?.faceIndex ?? null, extraRowId);
+                            setSelectedPanelRow(fIdx ?? null, extraRowId);
                           }}
                           className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
                           onClick={(e) => e.stopPropagation()}
                         />
-                        <span className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-sky-50 text-sky-700 border-sky-200">
-                          {idx + 1}
-                        </span>
-                        <span className="flex-1 px-2 py-0.5 text-xs text-gray-600 font-mono bg-stone-50 border border-stone-200 rounded">
-                          {dims}
-                        </span>
+                        <input
+                          type="text"
+                          value={`N`}
+                          readOnly
+                          tabIndex={-1}
+                          className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-sky-50 text-sky-700 border-sky-200"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <select
+                          value={panel.parameters?.faceRole || ''}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
+                            updateShape(panel.id, {
+                              parameters: {
+                                ...panel.parameters,
+                                faceRole: newRole
+                              }
+                            });
+                            if (selectedProfile !== 'none') {
+                              setResolving(true);
+                              resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
+                                setResolving(false)
+                              );
+                            }
+                          }}
+                          style={{ width: '35mm' }}
+                          className="px-1 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
+                        >
+                          <option value="">none</option>
+                          {roleOptions.map(role => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={panel.parameters?.description || ''}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            updateShape(panel.id, {
+                              parameters: {
+                                ...panel.parameters,
+                                description: e.target.value
+                              }
+                            });
+                          }}
+                          placeholder="description"
+                          style={{ width: '40mm' }}
+                          className="px-2 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
+                        />
+                        <input
+                          type="text"
+                          value={dimensions?.primary || 'NaN'}
+                          readOnly
+                          tabIndex={-1}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-gray-800 border-orange-300 font-semibold"
+                          title="Arrow Direction Dimension"
+                        />
+                        <input
+                          type="text"
+                          value={dimensions?.secondary || 'NaN'}
+                          readOnly
+                          tabIndex={-1}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-gray-800 border-blue-300 font-semibold"
+                          title="Perpendicular to Arrow Direction"
+                        />
+                        <input
+                          type="text"
+                          value={dimensions?.thickness || 'NaN'}
+                          readOnly
+                          tabIndex={-1}
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
+                          title="Panel Thickness"
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const current = panel.parameters?.arrowRotated || false;
+                            updateShape(panel.id, {
+                              parameters: {
+                                ...panel.parameters,
+                                arrowRotated: !current
+                              }
+                            });
+                          }}
+                          className={`p-0.5 rounded transition-colors ${
+                            panel.parameters?.arrowRotated
+                              ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                              : 'text-slate-500 hover:bg-stone-100'
+                          }`}
+                          title="Rotate arrow direction"
+                        >
+                          <RotateCw size={13} />
+                        </button>
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
