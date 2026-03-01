@@ -16,6 +16,7 @@ interface RayLine {
 
 interface FaceRaycastOverlayProps {
   shape: any;
+  allShapes?: any[];
 }
 
 function getFacePlaneAxes(normal: THREE.Vector3): { u: THREE.Vector3; v: THREE.Vector3 } {
@@ -27,8 +28,6 @@ function getFacePlaneAxes(normal: THREE.Vector3): { u: THREE.Vector3; v: THREE.V
   let up: THREE.Vector3;
   if (absY > absX && absY > absZ) {
     up = new THREE.Vector3(1, 0, 0);
-  } else if (absZ > absX) {
-    up = new THREE.Vector3(0, 1, 0);
   } else {
     up = new THREE.Vector3(0, 1, 0);
   }
@@ -42,7 +41,6 @@ function collectBoundaryEdges(
   faces: FaceData[],
   faceIndices: number[]
 ): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
-  const faceSet = new Set(faceIndices);
   const edgeMap = new Map<string, { v1: THREE.Vector3; v2: THREE.Vector3; count: number }>();
 
   faceIndices.forEach(fi => {
@@ -97,10 +95,63 @@ function raySegmentIntersect2D(
   return null;
 }
 
+function collectPanelObstacleEdges(
+  panelShapes: any[],
+  facePlaneNormal: THREE.Vector3,
+  facePlaneOrigin: THREE.Vector3,
+  u: THREE.Vector3,
+  v: THREE.Vector3,
+  planeTolerance: number = 15
+): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
+  const obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
+
+  for (const panel of panelShapes) {
+    if (!panel.geometry) continue;
+
+    const panelPos = new THREE.Vector3(...(panel.position as [number, number, number]));
+    const panelRot = panel.rotation as [number, number, number];
+    const panelScale = panel.scale as [number, number, number];
+
+    const panelMatrix = new THREE.Matrix4().compose(
+      panelPos,
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(panelRot[0], panelRot[1], panelRot[2], 'XYZ')),
+      new THREE.Vector3(panelScale[0], panelScale[1], panelScale[2])
+    );
+
+    const posAttr = panel.geometry.getAttribute('position');
+    if (!posAttr) continue;
+
+    const edgesGeo = new THREE.EdgesGeometry(panel.geometry);
+    const edgePos = edgesGeo.getAttribute('position');
+    const count = edgePos.count;
+
+    for (let i = 0; i < count; i += 2) {
+      const va = new THREE.Vector3(
+        edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)
+      ).applyMatrix4(panelMatrix);
+      const vb = new THREE.Vector3(
+        edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)
+      ).applyMatrix4(panelMatrix);
+
+      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOrigin)));
+      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOrigin)));
+
+      if (distA < planeTolerance && distB < planeTolerance) {
+        obstacleEdges.push({ v1: va, v2: vb });
+      }
+    }
+
+    edgesGeo.dispose();
+  }
+
+  return obstacleEdges;
+}
+
 function castRayOnFace(
   originWorld: THREE.Vector3,
   dirWorld: THREE.Vector3,
   boundaryEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
+  obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
   u: THREE.Vector3,
   v: THREE.Vector3,
   planeOrigin: THREE.Vector3,
@@ -120,6 +171,15 @@ function castRayOnFace(
     }
   }
 
+  for (const edge of obstacleEdges) {
+    const a2d = projectTo2D(edge.v1, planeOrigin, u, v);
+    const b2d = projectTo2D(edge.v2, planeOrigin, u, v);
+    const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
+    if (t !== null && t < tMin) {
+      tMin = t;
+    }
+  }
+
   return originWorld.clone().addScaledVector(dirWorld, tMin);
 }
 
@@ -127,7 +187,8 @@ function generateAxisRaysFromPoint(
   clickWorldPoint: THREE.Vector3,
   group: CoplanarFaceGroup,
   faces: FaceData[],
-  parentPosition: THREE.Vector3
+  parentPosition: THREE.Vector3,
+  obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>
 ): RayLine[] {
   const normal = group.normal.clone().normalize();
   const { u, v } = getFacePlaneAxes(normal);
@@ -144,7 +205,7 @@ function generateAxisRaysFromPoint(
   const lines: RayLine[] = [];
 
   for (const dir of directions) {
-    const hitWorld = castRayOnFace(startWorld, dir, boundaryEdges, u, v, planeOrigin, maxDist);
+    const hitWorld = castRayOnFace(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
 
     lines.push({
       start: startWorld.clone().sub(parentPosition),
@@ -192,7 +253,7 @@ const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position 
 ));
 OriginDot.displayName = 'OriginDot';
 
-export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape }) => {
+export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, allShapes = [] }) => {
   const { raycastMode } = useAppStore();
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
@@ -218,6 +279,12 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
       setOriginLocal(null);
     }
   }, [raycastMode]);
+
+  const childPanels = useMemo(() => {
+    return allShapes.filter(
+      s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id
+    );
+  }, [allShapes, shape.id]);
 
   const hoverHighlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
@@ -253,9 +320,21 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
       shape.position[2]
     );
 
-    const lines = generateAxisRaysFromPoint(clickWorld, group, faces, parentPosition);
-    setRayLines(lines);
+    const facePlaneNormal = group.normal.clone().normalize();
+    const facePlaneOrigin = clickWorld.clone();
+    const { u, v } = getFacePlaneAxes(facePlaneNormal);
 
+    const obstacleEdges = collectPanelObstacleEdges(
+      childPanels,
+      facePlaneNormal,
+      facePlaneOrigin,
+      u,
+      v,
+      20
+    );
+
+    const lines = generateAxisRaysFromPoint(clickWorld, group, faces, parentPosition, obstacleEdges);
+    setRayLines(lines);
     setOriginLocal(clickWorld.clone().sub(parentPosition));
   };
 

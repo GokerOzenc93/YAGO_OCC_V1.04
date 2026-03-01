@@ -49,7 +49,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setVertexDirection,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    raycastMode
+    raycastMode,
+    shapes
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -76,7 +77,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setVertexDirection: state.setVertexDirection,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
     waitingForSurfaceSelection: state.waitingForSurfaceSelection,
-    raycastMode: state.raycastMode
+    raycastMode: state.raycastMode,
+    shapes: state.shapes
   })));
 
   const { scene } = useThree();
@@ -584,6 +586,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           <FaceRaycastOverlay
             key={`raycast-${shape.id}-${shape.geometry?.uuid || ''}`}
             shape={shape}
+            allShapes={shapes}
           />
         )}
       </group>
