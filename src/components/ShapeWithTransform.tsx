@@ -415,7 +415,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
               shapeId: shape.id,
               triangleIndex: e.faceIndex ?? -1
             });
-            confirmRayProbePanel();
             return;
           }
 

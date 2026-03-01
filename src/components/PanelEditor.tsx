@@ -745,6 +745,15 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         </div>
       </div>
 
+      {rayProbeMode && (
+        <div className={`px-3 py-1.5 text-xs font-medium flex items-center gap-2 border-b border-stone-200 ${rayProbeResults ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+          <Crosshair size={12} />
+          {rayProbeResults
+            ? 'Isınlar atıldı — paneli oluşturmak için sağ tıkla'
+            : 'Yüzeye sol tıkla — ışınları görmek için'}
+        </div>
+      )}
+
       <div className="p-3 max-h-[calc(100vh-200px)] overflow-y-auto">
         {selectedShape ? (
           <div className="space-y-3">
