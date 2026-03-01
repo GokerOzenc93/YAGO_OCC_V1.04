@@ -410,7 +410,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
     setIsCreating(true);
     try {
-      const { convertReplicadToThreeGeometry, initReplicad } = await import('./ReplicadService');
+      const { convertReplicadToThreeGeometry, initReplicad, createReplicadBox, performBooleanCut } = await import('./ReplicadService');
+      const { getOriginalSize } = await import('./ShapeUpdaterService');
       const { draw, Plane } = await import('replicad');
 
       const worldU = u.clone().normalize();
@@ -432,7 +433,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
       const sketchPlane = new Plane(originPt, xAxis, normalAxis);
 
-      const panelShape = draw()
+      let panelShape = draw()
         .movePointerTo([0, 0])
         .lineTo([panelW, 0])
         .lineTo([panelW, panelH])
@@ -440,6 +441,71 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         .close()
         .sketchOnPlane(sketchPlane)
         .extrude(-panelThickness);
+
+      const parentSubtractions = shape.subtractionGeometries || [];
+      if (parentSubtractions.length > 0) {
+        const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
+        const shapeRot = shape.rotation as [number, number, number];
+        const rot = new THREE.Quaternion().setFromEuler(
+          new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ')
+        );
+
+        const parentBox = new THREE.Box3().setFromBufferAttribute(
+          shape.geometry.attributes.position as THREE.BufferAttribute
+        );
+        const parentCenter = new THREE.Vector3();
+        const parentSize = new THREE.Vector3();
+        parentBox.getCenter(parentCenter);
+        parentBox.getSize(parentSize);
+        const isCentered = Math.abs(parentCenter.x) < 0.01 &&
+                           Math.abs(parentCenter.y) < 0.01 &&
+                           Math.abs(parentCenter.z) < 0.01;
+        const parentCornerWorld = shapePos.clone();
+        if (isCentered) {
+          const halfLocal = new THREE.Vector3(parentSize.x / 2, parentSize.y / 2, parentSize.z / 2);
+          halfLocal.applyQuaternion(rot);
+          parentCornerWorld.sub(halfLocal);
+        }
+
+        for (const subtraction of parentSubtractions) {
+          if (!subtraction) continue;
+          try {
+            const subSize = getOriginalSize(subtraction.geometry);
+            const subBox = await createReplicadBox({
+              width: subSize.x,
+              height: subSize.y,
+              depth: subSize.z,
+            });
+
+            const subLocalPos = new THREE.Vector3(
+              subtraction.relativeOffset[0],
+              subtraction.relativeOffset[1],
+              subtraction.relativeOffset[2]
+            );
+            const subWorldPos = subLocalPos.clone().applyQuaternion(rot).add(parentCornerWorld);
+
+            const subRelRot = subtraction.relativeRotation || [0, 0, 0];
+            const subRotQ = new THREE.Quaternion().setFromEuler(
+              new THREE.Euler(subRelRot[0], subRelRot[1], subRelRot[2], 'XYZ')
+            );
+            const subWorldQ = rot.clone().multiply(subRotQ);
+            const subWorldEuler = new THREE.Euler().setFromQuaternion(subWorldQ, 'XYZ');
+
+            panelShape = await performBooleanCut(
+              panelShape,
+              subBox,
+              undefined,
+              [subWorldPos.x, subWorldPos.y, subWorldPos.z],
+              undefined,
+              [subWorldEuler.x, subWorldEuler.y, subWorldEuler.z],
+              undefined,
+              subtraction.scale || [1, 1, 1] as [number, number, number]
+            );
+          } catch (cutErr) {
+            console.warn('Subtractor cut skipped:', cutErr);
+          }
+        }
+      }
 
       const geometry = convertReplicadToThreeGeometry(panelShape);
 
