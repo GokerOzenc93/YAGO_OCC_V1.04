@@ -16,12 +16,13 @@ export function performRayProbe(
   origin: THREE.Vector3,
   scene: THREE.Scene,
   excludeShapeId?: string,
-  faceNormal?: THREE.Vector3
+  faceNormal?: THREE.Vector3,
+  includeOnlyShapeId?: string
 ): RayProbeResult {
   const raycaster = new THREE.Raycaster();
   raycaster.far = MAX_RAY_DISTANCE;
 
-  const meshes = collectSceneMeshes(scene, excludeShapeId);
+  const meshes = collectSceneMeshes(scene, excludeShapeId, includeOnlyShapeId);
   const hits: RayProbeHit[] = [];
 
   let directionsToTest = RAY_DIRECTIONS;
@@ -67,7 +68,7 @@ export function performRayProbe(
   };
 }
 
-function collectSceneMeshes(scene: THREE.Scene, excludeShapeId?: string): THREE.Mesh[] {
+function collectSceneMeshes(scene: THREE.Scene, excludeShapeId?: string, includeOnlyShapeId?: string): THREE.Mesh[] {
   const meshes: THREE.Mesh[] = [];
 
   scene.traverse((object) => {
@@ -77,7 +78,13 @@ function collectSceneMeshes(scene: THREE.Scene, excludeShapeId?: string): THREE.
       const shapeGroup = findShapeGroup(object);
       if (shapeGroup) {
         const groupName = shapeGroup.name;
-        if (excludeShapeId && groupName === `shape-${excludeShapeId}`) return;
+        if (includeOnlyShapeId) {
+          if (groupName !== `shape-${includeOnlyShapeId}`) return;
+        } else if (excludeShapeId && groupName === `shape-${excludeShapeId}`) {
+          return;
+        }
+      } else if (includeOnlyShapeId) {
+        return;
       }
       meshes.push(object);
     }

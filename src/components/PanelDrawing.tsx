@@ -135,7 +135,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
           if (rayProbeMode) {
             const hitPoint = e.point.clone();
             const faceNormal = e.face ? e.face.normal.clone() : undefined;
-            const results = performRayProbe(hitPoint, scene, undefined, faceNormal);
+            const targetShapeId = parentShapeId || shape.id;
+            const results = performRayProbe(hitPoint, scene, undefined, faceNormal, targetShapeId);
             const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
             setRayProbeResults(results);
             setRayProbeHighlightedShapes(hitShapeIds);

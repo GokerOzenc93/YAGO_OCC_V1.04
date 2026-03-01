@@ -393,15 +393,18 @@ export const createPanelFromRayProbe = async (
   console.log(`   Size: [${sizeX.toFixed(2)}, ${sizeY.toFixed(2)}, ${sizeZ.toFixed(2)}]`);
 
   try {
-    const { makeBaseBox } = await import('replicad');
+    const { draw } = await import('replicad');
 
-    let panel = makeBaseBox(sizeX, sizeY, sizeZ);
+    let panel = draw()
+      .movePointerTo([0, 0])
+      .lineTo([sizeX, 0])
+      .lineTo([sizeX, sizeY])
+      .lineTo([0, sizeY])
+      .close()
+      .sketchOnPlane()
+      .extrude(sizeZ);
 
-    panel = panel.translate(
-      boundsMin[0] + sizeX / 2,
-      boundsMin[1] + sizeY / 2,
-      boundsMin[2] + sizeZ / 2
-    );
+    panel = panel.translate(boundsMin[0], boundsMin[1], boundsMin[2]);
 
     console.log(`✅ Ray probe panel created as rectangular box`);
     return panel;
