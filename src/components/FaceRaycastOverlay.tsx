@@ -422,14 +422,12 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
       const worldCorner = origin.clone()
         .addScaledVector(worldU, -uMinus)
-        .addScaledVector(worldV, -vMinus)
-        .addScaledVector(worldN, 0.5);
+        .addScaledVector(worldV, -vMinus);
 
       await initReplicad();
 
-      const invertedN = worldN.clone().negate();
       const xAxis: [number, number, number] = [worldU.x, worldU.y, worldU.z];
-      const normalAxis: [number, number, number] = [invertedN.x, invertedN.y, invertedN.z];
+      const normalAxis: [number, number, number] = [worldN.x, worldN.y, worldN.z];
       const originPt: [number, number, number] = [worldCorner.x, worldCorner.y, worldCorner.z];
 
       const sketchPlane = new Plane(originPt, xAxis, normalAxis);
@@ -441,7 +439,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         .lineTo([0, panelH])
         .close()
         .sketchOnPlane(sketchPlane)
-        .extrude(panelThickness);
+        .extrude(-panelThickness);
 
       const geometry = convertReplicadToThreeGeometry(panelShape);
 
