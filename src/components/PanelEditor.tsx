@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, deleteShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -659,6 +659,82 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           </button>
                         </div>
                       </React.Fragment>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {(() => {
+              const raycastPanels = shapes.filter(
+                s => s.type === 'panel' &&
+                s.parameters?.parentShapeId === selectedShape.id &&
+                s.parameters?.isRaycastPanel === true &&
+                s.parameters?.extraRowId
+              );
+
+              if (raycastPanels.length === 0) return null;
+
+              return (
+                <div className="pt-2 border-t border-stone-300 space-y-0.5">
+                  <div className="text-xs font-semibold text-sky-700 mb-1">
+                    Raycast Panels ({raycastPanels.length})
+                  </div>
+                  {raycastPanels.map((panel, idx) => {
+                    const extraRowId = panel.parameters?.extraRowId;
+                    const isRowSelected = selectedPanelRow === panel.parameters?.faceIndex &&
+                      selectedPanelRowExtraId === extraRowId;
+
+                    const box = panel.geometry
+                      ? new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position') as THREE.BufferAttribute)
+                      : null;
+                    const size = box ? new THREE.Vector3() : null;
+                    if (box && size) box.getSize(size);
+
+                    const dims = size
+                      ? `${Math.round(size.x)}×${Math.round(size.y)}×${Math.round(size.z)}`
+                      : '—';
+
+                    return (
+                      <div
+                        key={panel.id}
+                        className={`flex items-center gap-1 p-0.5 rounded transition-colors cursor-pointer ${
+                          isRowSelected
+                            ? 'bg-sky-50 ring-1 ring-sky-400'
+                            : 'hover:bg-gray-50'
+                        }`}
+                        onClick={() => {
+                          setSelectedPanelRow(panel.parameters?.faceIndex ?? null, extraRowId);
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="raycast-panel-selection"
+                          checked={isRowSelected}
+                          onChange={() => {
+                            setSelectedPanelRow(panel.parameters?.faceIndex ?? null, extraRowId);
+                          }}
+                          className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-sky-50 text-sky-700 border-sky-200">
+                          {idx + 1}
+                        </span>
+                        <span className="flex-1 px-2 py-0.5 text-xs text-gray-600 font-mono bg-stone-50 border border-stone-200 rounded">
+                          {dims}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isRowSelected) setSelectedPanelRow(null);
+                            deleteShape(panel.id);
+                          }}
+                          className="p-0.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                          title="Delete raycast panel"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>

@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
 import {
@@ -12,6 +12,18 @@ import {
 interface RayLine {
   start: THREE.Vector3;
   end: THREE.Vector3;
+}
+
+interface RaycastPanelBounds {
+  uPlus: number;
+  uMinus: number;
+  vPlus: number;
+  vMinus: number;
+  origin: THREE.Vector3;
+  u: THREE.Vector3;
+  v: THREE.Vector3;
+  normal: THREE.Vector3;
+  groupIndex: number;
 }
 
 interface FaceRaycastOverlayProps {
@@ -99,8 +111,6 @@ function collectPanelObstacleEdges(
   panelShapes: any[],
   facePlaneNormal: THREE.Vector3,
   facePlaneOrigin: THREE.Vector3,
-  u: THREE.Vector3,
-  v: THREE.Vector3,
   planeTolerance: number = 15
 ): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
   const obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
@@ -156,7 +166,7 @@ function castRayOnFace(
   v: THREE.Vector3,
   planeOrigin: THREE.Vector3,
   maxDist: number
-): THREE.Vector3 {
+): number {
   const o2d = projectTo2D(originWorld, planeOrigin, u, v);
   const dir2d = { x: dirWorld.dot(u), y: dirWorld.dot(v) };
 
@@ -180,47 +190,63 @@ function castRayOnFace(
     }
   }
 
-  return originWorld.clone().addScaledVector(dirWorld, tMin);
+  return tMin;
 }
 
-function generateAxisRaysFromPoint(
+function computeRaycastBounds(
   clickWorldPoint: THREE.Vector3,
   group: CoplanarFaceGroup,
   faces: FaceData[],
-  parentPosition: THREE.Vector3,
   obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>
-): RayLine[] {
+): { bounds: RaycastPanelBounds; lines: RayLine[]; startWorld: THREE.Vector3 } {
   const normal = group.normal.clone().normalize();
   const { u, v } = getFacePlaneAxes(normal);
 
   const planeOrigin = clickWorldPoint.clone();
   const boundaryEdges = collectBoundaryEdges(faces, group.faceIndices);
-
-  const directions = [u, u.clone().negate(), v, v.clone().negate()];
-
   const maxDist = 5000;
   const offset = normal.clone().multiplyScalar(0.5);
   const startWorld = clickWorldPoint.clone().add(offset);
 
-  const lines: RayLine[] = [];
+  const tUPlus = castRayOnFace(startWorld, u, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
+  const tUMinus = castRayOnFace(startWorld, u.clone().negate(), boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
+  const tVPlus = castRayOnFace(startWorld, v, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
+  const tVMinus = castRayOnFace(startWorld, v.clone().negate(), boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
 
-  for (const dir of directions) {
-    const hitWorld = castRayOnFace(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
+  const bounds: RaycastPanelBounds = {
+    uPlus: tUPlus,
+    uMinus: tUMinus,
+    vPlus: tVPlus,
+    vMinus: tVMinus,
+    origin: startWorld.clone(),
+    u,
+    v,
+    normal,
+    groupIndex: group.faceIndices[0] ?? 0,
+  };
 
-    lines.push({
-      start: startWorld.clone().sub(parentPosition),
-      end: hitWorld.clone().sub(parentPosition),
-    });
-  }
+  const hitUPlus = startWorld.clone().addScaledVector(u, tUPlus);
+  const hitUMinus = startWorld.clone().addScaledVector(u.clone().negate(), tUMinus);
+  const hitVPlus = startWorld.clone().addScaledVector(v, tVPlus);
+  const hitVMinus = startWorld.clone().addScaledVector(v.clone().negate(), tVMinus);
 
-  return lines;
+  const lines: RayLine[] = [
+    { start: startWorld.clone(), end: hitUPlus },
+    { start: startWorld.clone(), end: hitUMinus },
+    { start: startWorld.clone(), end: hitVPlus },
+    { start: startWorld.clone(), end: hitVMinus },
+  ];
+
+  return { bounds, lines, startWorld };
 }
 
-const RayLine3D: React.FC<{ start: THREE.Vector3; end: THREE.Vector3 }> = React.memo(
-  ({ start, end }) => {
+const RayLine3D: React.FC<{ start: THREE.Vector3; end: THREE.Vector3; parentPos: THREE.Vector3 }> = React.memo(
+  ({ start, end, parentPos }) => {
     const geometry = useMemo(() => {
-      return new THREE.BufferGeometry().setFromPoints([start, end]);
-    }, [start.x, start.y, start.z, end.x, end.y, end.z]);
+      const s = start.clone().sub(parentPos);
+      const e = end.clone().sub(parentPos);
+      return new THREE.BufferGeometry().setFromPoints([s, e]);
+    }, [start.x, start.y, start.z, end.x, end.y, end.z, parentPos.x, parentPos.y, parentPos.z]);
 
     return (
       <lineSegments geometry={geometry}>
@@ -237,31 +263,93 @@ const RayLine3D: React.FC<{ start: THREE.Vector3; end: THREE.Vector3 }> = React.
 );
 RayLine3D.displayName = 'RayLine3D';
 
-const HitDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => (
-  <mesh position={[position.x, position.y, position.z]}>
-    <sphereGeometry args={[2.5, 8, 8]} />
-    <meshBasicMaterial color={0xef4444} depthTest={false} transparent opacity={0.9} />
-  </mesh>
-));
+const HitDot: React.FC<{ position: THREE.Vector3; parentPos: THREE.Vector3 }> = React.memo(({ position, parentPos }) => {
+  const local = position.clone().sub(parentPos);
+  return (
+    <mesh position={[local.x, local.y, local.z]}>
+      <sphereGeometry args={[2.5, 8, 8]} />
+      <meshBasicMaterial color={0xef4444} depthTest={false} transparent opacity={0.9} />
+    </mesh>
+  );
+});
 HitDot.displayName = 'HitDot';
 
-const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => (
-  <mesh position={[position.x, position.y, position.z]}>
-    <sphereGeometry args={[3.5, 8, 8]} />
-    <meshBasicMaterial color={0xfbbf24} depthTest={false} transparent opacity={0.95} />
-  </mesh>
-));
+const OriginDot: React.FC<{ position: THREE.Vector3; parentPos: THREE.Vector3 }> = React.memo(({ position, parentPos }) => {
+  const local = position.clone().sub(parentPos);
+  return (
+    <mesh position={[local.x, local.y, local.z]}>
+      <sphereGeometry args={[3.5, 8, 8]} />
+      <meshBasicMaterial color={0xfbbf24} depthTest={false} transparent opacity={0.95} />
+    </mesh>
+  );
+});
 OriginDot.displayName = 'OriginDot';
 
+const PanelPreview: React.FC<{
+  bounds: RaycastPanelBounds;
+  parentPos: THREE.Vector3;
+}> = React.memo(({ bounds, parentPos }) => {
+  const { uPlus, uMinus, vPlus, vMinus, origin, u, v } = bounds;
+  const panelWidth = uPlus + uMinus;
+  const panelHeight = vPlus + vMinus;
+
+  const centerWorld = origin.clone()
+    .addScaledVector(u, (uPlus - uMinus) / 2)
+    .addScaledVector(v, (vPlus - vMinus) / 2);
+  const centerLocal = centerWorld.clone().sub(parentPos);
+
+  const geometry = useMemo(() => {
+    const geo = new THREE.PlaneGeometry(panelWidth, panelHeight);
+    return geo;
+  }, [panelWidth, panelHeight]);
+
+  const quaternion = useMemo(() => {
+    const n = bounds.normal.clone().normalize();
+    const q = new THREE.Quaternion();
+    q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+
+    const uAfterQ = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const angle = Math.atan2(
+      u.clone().cross(uAfterQ).dot(n),
+      u.dot(uAfterQ)
+    );
+    const qAlign = new THREE.Quaternion().setFromAxisAngle(n, -angle);
+    return qAlign.multiply(q);
+  }, [bounds.normal.x, bounds.normal.y, bounds.normal.z, u.x, u.y, u.z]);
+
+  return (
+    <mesh
+      position={[centerLocal.x, centerLocal.y, centerLocal.z]}
+      quaternion={quaternion}
+      geometry={geometry}
+    >
+      <meshBasicMaterial
+        color={0x22c55e}
+        transparent
+        opacity={0.25}
+        side={THREE.DoubleSide}
+        depthTest={false}
+      />
+    </mesh>
+  );
+});
+PanelPreview.displayName = 'PanelPreview';
+
 export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, allShapes = [] }) => {
-  const { raycastMode } = useAppStore();
+  const { raycastMode, addShape, selectedShapeId } = useAppStore();
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
   const [rayLines, setRayLines] = useState<RayLine[]>([]);
-  const [originLocal, setOriginLocal] = useState<THREE.Vector3 | null>(null);
+  const [originWorld, setOriginWorld] = useState<THREE.Vector3 | null>(null);
+  const [panelBounds, setPanelBounds] = useState<RaycastPanelBounds | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
   const geometryUuid = shape.geometry?.uuid || '';
+
+  const parentPos = useMemo(() => new THREE.Vector3(
+    shape.position[0], shape.position[1], shape.position[2]
+  ), [shape.position[0], shape.position[1], shape.position[2]]);
 
   useEffect(() => {
     if (!shape.geometry) return;
@@ -269,14 +357,16 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     setFaces(extractedFaces);
     setFaceGroups(groupCoplanarFaces(extractedFaces));
     setRayLines([]);
-    setOriginLocal(null);
+    setOriginWorld(null);
+    setPanelBounds(null);
   }, [shape.geometry, shape.id, geometryUuid]);
 
   useEffect(() => {
     if (!raycastMode) {
       setHoveredGroupIndex(null);
       setRayLines([]);
-      setOriginLocal(null);
+      setOriginWorld(null);
+      setPanelBounds(null);
     }
   }, [raycastMode]);
 
@@ -291,7 +381,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     return createFaceHighlightGeometry(faces, faceGroups[hoveredGroupIndex].faceIndices);
   }, [hoveredGroupIndex, faceGroups, faces]);
 
-  const handlePointerMove = (e: any) => {
+  const handlePointerMove = useCallback((e: any) => {
     if (!raycastMode || faces.length === 0) return;
     e.stopPropagation();
     const fi = e.faceIndex;
@@ -299,44 +389,136 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       const gi = faceGroups.findIndex(g => g.faceIndices.includes(fi));
       if (gi !== -1) setHoveredGroupIndex(gi);
     }
-  };
+  }, [raycastMode, faces, faceGroups]);
 
-  const handlePointerOut = (e: any) => {
+  const handlePointerOut = useCallback((e: any) => {
     e.stopPropagation();
     setHoveredGroupIndex(null);
-  };
+  }, []);
 
-  const handlePointerDown = (e: any) => {
+  const handleCreatePanel = useCallback(async () => {
+    if (!panelBounds || isCreating) return;
+
+    const { uPlus, uMinus, vPlus, vMinus, origin, u, v, normal, groupIndex } = panelBounds;
+    const panelWidth = uPlus + uMinus;
+    const panelHeight = vPlus + vMinus;
+    const panelThickness = 18;
+
+    if (panelWidth < 1 || panelHeight < 1) return;
+
+    setIsCreating(true);
+    try {
+      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+      const dominantAxis = Math.abs(normal.x) > Math.abs(normal.y) && Math.abs(normal.x) > Math.abs(normal.z) ? 0
+        : Math.abs(normal.y) > Math.abs(normal.z) ? 1 : 2;
+
+      let boxW: number, boxH: number, boxD: number;
+      if (dominantAxis === 0) {
+        boxW = panelThickness;
+        boxH = panelHeight;
+        boxD = panelWidth;
+      } else if (dominantAxis === 1) {
+        boxW = panelWidth;
+        boxH = panelThickness;
+        boxD = panelHeight;
+      } else {
+        boxW = panelWidth;
+        boxH = panelHeight;
+        boxD = panelThickness;
+      }
+
+      const replicadPanel = await createReplicadBox({ width: boxW, height: boxH, depth: boxD });
+      if (!replicadPanel) return;
+
+      const geometry = convertReplicadToThreeGeometry(replicadPanel);
+
+      const centerWorld = origin.clone()
+        .addScaledVector(u, (uPlus - uMinus) / 2)
+        .addScaledVector(v, (vPlus - vMinus) / 2);
+
+      const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
+      const shapeRot = shape.rotation as [number, number, number];
+
+      const invRot = new THREE.Quaternion()
+        .setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'))
+        .invert();
+
+      const localCenter = centerWorld.clone().sub(shapePos).applyQuaternion(invRot);
+
+      const panelHalfThick = panelThickness / 2;
+      const panelPos: [number, number, number] = [
+        shapePos.x + (dominantAxis === 0 ? localCenter.x - (normal.x > 0 ? -panelHalfThick : panelHalfThick) : localCenter.x),
+        shapePos.y + (dominantAxis === 1 ? localCenter.y - (normal.y > 0 ? -panelHalfThick : panelHalfThick) : localCenter.y),
+        shapePos.z + (dominantAxis === 2 ? localCenter.z - (normal.z > 0 ? -panelHalfThick : panelHalfThick) : localCenter.z),
+      ];
+
+      const extraRowId = `raycast-${Date.now()}`;
+
+      const dominantGroupIndex = faceGroups.findIndex(g => g.faceIndices.includes(groupIndex));
+
+      const newPanel: any = {
+        id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+        type: 'panel',
+        geometry,
+        replicadShape: replicadPanel,
+        position: panelPos,
+        rotation: [...shape.rotation] as [number, number, number],
+        scale: [...shape.scale] as [number, number, number],
+        color: '#ffffff',
+        parameters: {
+          width: boxW,
+          height: boxH,
+          depth: boxD,
+          parentShapeId: shape.id,
+          faceIndex: dominantGroupIndex >= 0 ? dominantGroupIndex : 0,
+          faceRole: null,
+          extraRowId,
+          isRaycastPanel: true,
+          raycastBounds: { uPlus, uMinus, vPlus, vMinus },
+        }
+      };
+
+      addShape(newPanel);
+
+      setRayLines([]);
+      setOriginWorld(null);
+      setPanelBounds(null);
+    } catch (err) {
+      console.error('Failed to create raycast panel:', err);
+    } finally {
+      setIsCreating(false);
+    }
+  }, [panelBounds, isCreating, shape, faceGroups, addShape]);
+
+  const handlePointerDown = useCallback((e: any) => {
     if (!raycastMode || e.button !== 0) return;
     e.stopPropagation();
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return;
 
+    if (panelBounds && rayLines.length > 0) {
+      handleCreatePanel();
+      return;
+    }
+
     const clickWorld: THREE.Vector3 = e.point.clone();
     const group = faceGroups[hoveredGroupIndex];
 
-    const parentPosition = new THREE.Vector3(
-      shape.position[0],
-      shape.position[1],
-      shape.position[2]
-    );
-
     const facePlaneNormal = group.normal.clone().normalize();
     const facePlaneOrigin = clickWorld.clone();
-    const { u, v } = getFacePlaneAxes(facePlaneNormal);
 
     const obstacleEdges = collectPanelObstacleEdges(
       childPanels,
       facePlaneNormal,
       facePlaneOrigin,
-      u,
-      v,
       20
     );
 
-    const lines = generateAxisRaysFromPoint(clickWorld, group, faces, parentPosition, obstacleEdges);
+    const { bounds, lines, startWorld } = computeRaycastBounds(clickWorld, group, faces, obstacleEdges);
     setRayLines(lines);
-    setOriginLocal(clickWorld.clone().sub(parentPosition));
-  };
+    setOriginWorld(startWorld);
+    setPanelBounds(bounds);
+  }, [raycastMode, hoveredGroupIndex, faceGroups, panelBounds, rayLines, handleCreatePanel, childPanels, faces]);
 
   if (!raycastMode) return null;
 
@@ -365,14 +547,18 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         </mesh>
       )}
 
-      {originLocal && <OriginDot position={originLocal} />}
+      {originWorld && <OriginDot position={originWorld} parentPos={parentPos} />}
 
       {rayLines.map((line, i) => (
         <React.Fragment key={i}>
-          <RayLine3D start={line.start} end={line.end} />
-          <HitDot position={line.end} />
+          <RayLine3D start={line.start} end={line.end} parentPos={parentPos} />
+          <HitDot position={line.end} parentPos={parentPos} />
         </React.Fragment>
       ))}
+
+      {panelBounds && (
+        <PanelPreview bounds={panelBounds} parentPos={parentPos} />
+      )}
     </>
   );
 };
