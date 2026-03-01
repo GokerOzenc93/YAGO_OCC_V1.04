@@ -287,48 +287,29 @@ OriginDot.displayName = 'OriginDot';
 
 const PanelPreview: React.FC<{
   bounds: RaycastPanelBounds;
-  parentPos: THREE.Vector3;
-}> = React.memo(({ bounds, parentPos }) => {
-  const { uPlus, uMinus, vPlus, vMinus, origin, u, v } = bounds;
-  const panelWidth = uPlus + uMinus;
-  const panelHeight = vPlus + vMinus;
-
-  const centerWorld = origin.clone()
-    .addScaledVector(u, (uPlus - uMinus) / 2)
-    .addScaledVector(v, (vPlus - vMinus) / 2);
-  const centerLocal = centerWorld.clone().sub(parentPos);
+  faces: FaceData[];
+  faceGroups: CoplanarFaceGroup[];
+}> = React.memo(({ bounds, faces, faceGroups }) => {
+  const groupIndex = faceGroups.findIndex(g => g.faceIndices.includes(bounds.groupIndex));
 
   const geometry = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(panelWidth, panelHeight);
-    return geo;
-  }, [panelWidth, panelHeight]);
+    if (groupIndex < 0 || !faceGroups[groupIndex]) return null;
+    return createFaceHighlightGeometry(faces, faceGroups[groupIndex].faceIndices);
+  }, [groupIndex, faceGroups, faces]);
 
-  const quaternion = useMemo(() => {
-    const n = bounds.normal.clone().normalize();
-    const q = new THREE.Quaternion();
-    q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
-
-    const uAfterQ = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
-    const angle = Math.atan2(
-      u.clone().cross(uAfterQ).dot(n),
-      u.dot(uAfterQ)
-    );
-    const qAlign = new THREE.Quaternion().setFromAxisAngle(n, -angle);
-    return qAlign.multiply(q);
-  }, [bounds.normal.x, bounds.normal.y, bounds.normal.z, u.x, u.y, u.z]);
+  if (!geometry) return null;
 
   return (
-    <mesh
-      position={[centerLocal.x, centerLocal.y, centerLocal.z]}
-      quaternion={quaternion}
-      geometry={geometry}
-    >
+    <mesh geometry={geometry}>
       <meshBasicMaterial
         color={0x22c55e}
         transparent
         opacity={0.25}
         side={THREE.DoubleSide}
         depthTest={false}
+        polygonOffset
+        polygonOffsetFactor={-1}
+        polygonOffsetUnits={-1}
       />
     </mesh>
   );
@@ -398,84 +379,63 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const handleCreatePanel = useCallback(async () => {
     if (!panelBounds || isCreating) return;
+    if (!shape.replicadShape) return;
 
-    const { uPlus, uMinus, vPlus, vMinus, origin, u, v, normal, groupIndex } = panelBounds;
-    const panelWidth = uPlus + uMinus;
-    const panelHeight = vPlus + vMinus;
+    const { groupIndex } = panelBounds;
     const panelThickness = 18;
 
-    if (panelWidth < 1 || panelHeight < 1) return;
+    const dominantGroupIndex = faceGroups.findIndex(g => g.faceIndices.includes(groupIndex));
+    if (dominantGroupIndex < 0) return;
+
+    const group = faceGroups[dominantGroupIndex];
+
+    const localVertices: THREE.Vector3[] = [];
+    group.faceIndices.forEach(idx => {
+      const face = faces[idx];
+      if (face) face.vertices.forEach(v => localVertices.push(v.clone()));
+    });
+
+    const localNormal = group.normal.clone().normalize();
+    const localBox = new THREE.Box3().setFromPoints(localVertices);
+    const localCenter = new THREE.Vector3();
+    localBox.getCenter(localCenter);
 
     setIsCreating(true);
     try {
-      const { createReplicadBox, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-      const dominantAxis = Math.abs(normal.x) > Math.abs(normal.y) && Math.abs(normal.x) > Math.abs(normal.z) ? 0
-        : Math.abs(normal.y) > Math.abs(normal.z) ? 1 : 2;
+      const replicadPanel = await createPanelFromFace(
+        shape.replicadShape,
+        [localNormal.x, localNormal.y, localNormal.z],
+        [localCenter.x, localCenter.y, localCenter.z],
+        panelThickness,
+        null
+      );
 
-      let boxW: number, boxH: number, boxD: number;
-      if (dominantAxis === 0) {
-        boxW = panelThickness;
-        boxH = panelHeight;
-        boxD = panelWidth;
-      } else if (dominantAxis === 1) {
-        boxW = panelWidth;
-        boxH = panelThickness;
-        boxD = panelHeight;
-      } else {
-        boxW = panelWidth;
-        boxH = panelHeight;
-        boxD = panelThickness;
-      }
-
-      const replicadPanel = await createReplicadBox({ width: boxW, height: boxH, depth: boxD });
       if (!replicadPanel) return;
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
-      const centerWorld = origin.clone()
-        .addScaledVector(u, (uPlus - uMinus) / 2)
-        .addScaledVector(v, (vPlus - vMinus) / 2);
-
-      const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
-      const shapeRot = shape.rotation as [number, number, number];
-
-      const invRot = new THREE.Quaternion()
-        .setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'))
-        .invert();
-
-      const localCenter = centerWorld.clone().sub(shapePos).applyQuaternion(invRot);
-
-      const panelHalfThick = panelThickness / 2;
-      const panelPos: [number, number, number] = [
-        shapePos.x + (dominantAxis === 0 ? localCenter.x - (normal.x > 0 ? -panelHalfThick : panelHalfThick) : localCenter.x),
-        shapePos.y + (dominantAxis === 1 ? localCenter.y - (normal.y > 0 ? -panelHalfThick : panelHalfThick) : localCenter.y),
-        shapePos.z + (dominantAxis === 2 ? localCenter.z - (normal.z > 0 ? -panelHalfThick : panelHalfThick) : localCenter.z),
-      ];
-
       const extraRowId = `raycast-${Date.now()}`;
-
-      const dominantGroupIndex = faceGroups.findIndex(g => g.faceIndices.includes(groupIndex));
 
       const newPanel: any = {
         id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         type: 'panel',
         geometry,
         replicadShape: replicadPanel,
-        position: panelPos,
+        position: [...shape.position] as [number, number, number],
         rotation: [...shape.rotation] as [number, number, number],
         scale: [...shape.scale] as [number, number, number],
         color: '#ffffff',
         parameters: {
-          width: boxW,
-          height: boxH,
-          depth: boxD,
+          width: 0,
+          height: 0,
+          depth: panelThickness,
           parentShapeId: shape.id,
-          faceIndex: dominantGroupIndex >= 0 ? dominantGroupIndex : 0,
+          faceIndex: dominantGroupIndex,
           faceRole: null,
           extraRowId,
           isRaycastPanel: true,
-          raycastBounds: { uPlus, uMinus, vPlus, vMinus },
         }
       };
 
@@ -489,7 +449,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     } finally {
       setIsCreating(false);
     }
-  }, [panelBounds, isCreating, shape, faceGroups, addShape]);
+  }, [panelBounds, isCreating, shape, faceGroups, faces, addShape]);
 
   const handlePointerDown = useCallback((e: any) => {
     if (!raycastMode) return;
@@ -561,7 +521,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       ))}
 
       {panelBounds && (
-        <PanelPreview bounds={panelBounds} parentPos={parentPos} />
+        <PanelPreview bounds={panelBounds} faces={faces} faceGroups={faceGroups} />
       )}
     </>
   );
