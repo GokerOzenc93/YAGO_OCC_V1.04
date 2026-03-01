@@ -570,8 +570,15 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     const clickWorld: THREE.Vector3 = e.point.clone();
     const group = faceGroups[hoveredGroupIndex];
 
+    const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
+    const shapeRot = shape.rotation as [number, number, number];
+    const invRot = new THREE.Quaternion()
+      .setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'))
+      .invert();
+    const clickLocal = clickWorld.clone().sub(shapePos).applyQuaternion(invRot);
+
     const facePlaneNormal = group.normal.clone().normalize();
-    const facePlaneOrigin = clickWorld.clone();
+    const facePlaneOrigin = clickLocal.clone();
 
     const obstacleEdges = collectPanelObstacleEdges(
       childPanels,
@@ -580,11 +587,27 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       20
     );
 
-    const { bounds, lines, startWorld } = computeRaycastBounds(clickWorld, group, faces, obstacleEdges);
-    setRayLines(lines);
-    setOriginWorld(startWorld);
-    setPanelBounds(bounds);
-  }, [raycastMode, hoveredGroupIndex, faceGroups, panelBounds, rayLines, handleCreatePanel, childPanels, faces]);
+    const { bounds, lines, startWorld } = computeRaycastBounds(clickLocal, group, faces, obstacleEdges);
+
+    const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'));
+    const worldLines = lines.map(l => ({
+      start: l.start.clone().applyQuaternion(rot).add(shapePos),
+      end: l.end.clone().applyQuaternion(rot).add(shapePos),
+    }));
+    const worldOrigin = startWorld.clone().applyQuaternion(rot).add(shapePos);
+
+    const worldBounds: RaycastPanelBounds = {
+      ...bounds,
+      origin: worldOrigin,
+      u: bounds.u.clone().applyQuaternion(rot),
+      v: bounds.v.clone().applyQuaternion(rot),
+      normal: bounds.normal.clone().applyQuaternion(rot),
+    };
+
+    setRayLines(worldLines);
+    setOriginWorld(worldOrigin);
+    setPanelBounds(worldBounds);
+  }, [raycastMode, hoveredGroupIndex, faceGroups, panelBounds, rayLines, handleCreatePanel, childPanels, faces, shape.position, shape.rotation]);
 
   if (!raycastMode) return null;
 
