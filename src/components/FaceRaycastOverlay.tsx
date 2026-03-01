@@ -401,48 +401,41 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const handleCreatePanel = useCallback(async () => {
     if (!panelBounds || isCreating) return;
+    if (!shape.replicadShape) return;
 
-    const { uPlus, uMinus, vPlus, vMinus, origin, u, v, normal, groupIndex } = panelBounds;
+    const { groupIndex } = panelBounds;
     const panelThickness = 18;
 
     const dominantGroupIndex = faceGroups.findIndex(g => g.faceIndices.includes(groupIndex));
     if (dominantGroupIndex < 0) return;
 
+    const group = faceGroups[dominantGroupIndex];
+
     setIsCreating(true);
     try {
-      const { convertReplicadToThreeGeometry, initReplicad } = await import('./ReplicadService');
-      const { draw, Plane } = await import('replicad');
+      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-      const worldU = u.clone().normalize();
-      const worldV = v.clone().normalize();
-      const worldN = normal.clone().normalize();
+      const localNormal = group.normal.clone().normalize();
+      const localVertices: THREE.Vector3[] = [];
+      group.faceIndices.forEach(idx => {
+        const face = faces[idx];
+        if (face) face.vertices.forEach(v => localVertices.push(v.clone()));
+      });
+      const localBox = new THREE.Box3().setFromPoints(localVertices);
+      const localCenter = new THREE.Vector3();
+      localBox.getCenter(localCenter);
 
-      const panelW = uPlus + uMinus;
-      const panelH = vPlus + vMinus;
+      const replicadPanel = await createPanelFromFace(
+        shape.replicadShape,
+        [localNormal.x, localNormal.y, localNormal.z],
+        [localCenter.x, localCenter.y, localCenter.z],
+        panelThickness,
+        null
+      );
 
-      const worldCorner = origin.clone()
-        .addScaledVector(worldU, -uMinus)
-        .addScaledVector(worldV, -vMinus)
-        .addScaledVector(worldN, -0.5);
+      if (!replicadPanel) return;
 
-      await initReplicad();
-
-      const xAxis: [number, number, number] = [worldU.x, worldU.y, worldU.z];
-      const normalAxis: [number, number, number] = [worldN.x, worldN.y, worldN.z];
-      const originPt: [number, number, number] = [worldCorner.x, worldCorner.y, worldCorner.z];
-
-      const sketchPlane = new Plane(originPt, xAxis, normalAxis);
-
-      const panelShape = draw()
-        .movePointerTo([0, 0])
-        .lineTo([panelW, 0])
-        .lineTo([panelW, panelH])
-        .lineTo([0, panelH])
-        .close()
-        .sketchOnPlane(sketchPlane)
-        .extrude(panelThickness);
-
-      const geometry = convertReplicadToThreeGeometry(panelShape);
+      const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
       const extraRowId = `raycast-${Date.now()}`;
 
@@ -450,21 +443,20 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         type: 'panel',
         geometry,
-        replicadShape: panelShape,
-        position: [0, 0, 0] as [number, number, number],
-        rotation: [0, 0, 0] as [number, number, number],
+        replicadShape: replicadPanel,
+        position: [...shape.position] as [number, number, number],
+        rotation: [...shape.rotation] as [number, number, number],
         scale: [...shape.scale] as [number, number, number],
         color: '#ffffff',
         parameters: {
-          width: uPlus + uMinus,
-          height: vPlus + vMinus,
+          width: 0,
+          height: 0,
           depth: panelThickness,
           parentShapeId: shape.id,
           faceIndex: dominantGroupIndex,
           faceRole: null,
           extraRowId,
           isRaycastPanel: true,
-          raycastBounds: { uPlus, uMinus, vPlus, vMinus },
         }
       };
 
@@ -478,7 +470,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     } finally {
       setIsCreating(false);
     }
-  }, [panelBounds, isCreating, shape, faceGroups, addShape]);
+  }, [panelBounds, isCreating, shape, faceGroups, faces, addShape]);
 
   panelBoundsRef.current = panelBounds;
   isCreatingRef.current = isCreating;
