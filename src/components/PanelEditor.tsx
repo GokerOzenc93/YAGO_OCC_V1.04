@@ -178,13 +178,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       setRayProbeClickInfo(null);
       setRayProbeHighlightedShapes([]);
 
-      if (selectedProfile !== 'none') {
-        setResolving(true);
-        try {
-          await resolveAllPanelJoints(selectedShape.id, selectedProfile);
-        } finally {
-          setResolving(false);
-        }
+      setResolving(true);
+      try {
+        await resolveAllPanelJoints(selectedShape.id, selectedProfile !== 'none' ? selectedProfile : 'none');
+      } finally {
+        setResolving(false);
       }
     };
 
