@@ -289,6 +289,12 @@ interface AppState {
   setRoleEditMode: (enabled: boolean) => void;
   updateFaceRole: (shapeId: string, faceIndex: number, role: FaceRole) => void;
 
+  // Raycast Modu (Panel Editor + düğmesi)
+  raycastMode: boolean;
+  setRaycastMode: (enabled: boolean) => void;
+  raycastResults: Array<{ origin: [number, number, number]; direction: [number, number, number]; hitPoint: [number, number, number] }>;
+  setRaycastResults: (results: Array<{ origin: [number, number, number]; direction: [number, number, number]; hitPoint: [number, number, number] }>) => void;
+
   // Baza Ayarları
   bazaHeight: number;
   setBazaHeight: (height: number) => void;
@@ -434,6 +440,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Role Edit Modu
   roleEditMode: false,
   setRoleEditMode: (enabled) => set({ roleEditMode: enabled }),
+
+  // Raycast Modu
+  raycastMode: false,
+  setRaycastMode: (enabled) => set({ raycastMode: enabled, raycastResults: enabled ? get().raycastResults : [] }),
+  raycastResults: [],
+  setRaycastResults: (results) => set({ raycastResults: results }),
+
   updateFaceRole: (shapeId, faceIndex, role) => set((state) => ({
     shapes: state.shapes.map((shape) => {
       if (shape.id !== shapeId) return shape;

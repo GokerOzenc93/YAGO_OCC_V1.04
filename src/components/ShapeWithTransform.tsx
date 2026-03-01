@@ -8,6 +8,7 @@ import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
+import { FaceRaycastOverlay } from './FaceRaycastOverlay';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -47,7 +48,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedVertexIndex,
     setVertexDirection,
     panelSurfaceSelectMode,
-    waitingForSurfaceSelection
+    waitingForSurfaceSelection,
+    raycastMode
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -73,7 +75,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setSelectedVertexIndex: state.setSelectedVertexIndex,
     setVertexDirection: state.setVertexDirection,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
-    waitingForSurfaceSelection: state.waitingForSurfaceSelection
+    waitingForSurfaceSelection: state.waitingForSurfaceSelection,
+    raycastMode: state.raycastMode
   })));
 
   const { scene } = useThree();
@@ -575,6 +578,12 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             key={`role-labels-${shape.id}-${shape.geometry?.uuid || ''}`}
             shape={shape}
             isActive={true}
+          />
+        )}
+        {isSelected && raycastMode && !isPanel && (
+          <FaceRaycastOverlay
+            key={`raycast-${shape.id}-${shape.geometry?.uuid || ''}`}
+            shape={shape}
           />
         )}
       </group>
