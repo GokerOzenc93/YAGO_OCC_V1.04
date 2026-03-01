@@ -1,6 +1,5 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import * as THREE from 'three';
-import { useThree } from '@react-three/fiber';
 import { useAppStore } from '../store';
 import { extractFacesFromGeometry, groupCoplanarFaces, createFaceHighlightGeometry, FaceData, CoplanarFaceGroup } from './FaceEditor';
 
@@ -15,30 +14,16 @@ interface FaceRaycastOverlayProps {
   shape: any;
 }
 
-function buildFacePolygon(faces: FaceData[], faceIndices: number[]): THREE.Vector2[] {
-  const allVerts: THREE.Vector3[] = [];
-  faceIndices.forEach(idx => {
-    const face = faces[idx];
-    if (face) face.vertices.forEach(v => allVerts.push(v.clone()));
-  });
-  return allVerts.map(v => new THREE.Vector2(v.x, v.z));
-}
-
 function projectToFacePlane(
   vertices: THREE.Vector3[],
   normal: THREE.Vector3
 ): { u: THREE.Vector3; v: THREE.Vector3; origin: THREE.Vector3 } {
-  const absX = Math.abs(normal.x);
-  const absY = Math.abs(normal.y);
-  const absZ = Math.abs(normal.z);
-
   let up: THREE.Vector3;
-  if (absY < 0.9) {
+  if (Math.abs(normal.y) < 0.9) {
     up = new THREE.Vector3(0, 1, 0);
   } else {
     up = new THREE.Vector3(1, 0, 0);
   }
-
   const u = new THREE.Vector3().crossVectors(up, normal).normalize();
   const v = new THREE.Vector3().crossVectors(normal, u).normalize();
 
@@ -72,31 +57,80 @@ function isPointInFaceGroup(
   point3d: THREE.Vector3,
   faces: FaceData[],
   faceIndices: number[],
-  normal: THREE.Vector3,
-  tolerance: number = 2.0
+  tolerance: number
 ): boolean {
   for (const idx of faceIndices) {
     const face = faces[idx];
     if (!face) continue;
-    const [a, b, c] = face.vertices;
-
-    const baryResult = new THREE.Vector3();
-    const triangle = new THREE.Triangle(a, b, c);
-
-    const closestPoint = new THREE.Vector3();
-    triangle.closestPointToPoint(point3d, closestPoint);
-
-    if (closestPoint.distanceTo(point3d) < tolerance) {
-      return true;
-    }
+    const triangle = new THREE.Triangle(...face.vertices as [THREE.Vector3, THREE.Vector3, THREE.Vector3]);
+    const closest = new THREE.Vector3();
+    triangle.closestPointToPoint(point3d, closest);
+    if (closest.distanceTo(point3d) < tolerance) return true;
   }
   return false;
+}
+
+function buildTargetMeshes(
+  parentShape: any,
+  allShapes: any[],
+  parentPosition: THREE.Vector3
+): THREE.Mesh[] {
+  const meshes: THREE.Mesh[] = [];
+
+  if (parentShape.geometry) {
+    const parentMesh = new THREE.Mesh(parentShape.geometry.clone());
+    parentMesh.position.copy(parentPosition);
+    parentMesh.updateMatrixWorld(true);
+    meshes.push(parentMesh);
+  }
+
+  const childPanels = allShapes.filter(
+    s => s.type === 'panel' && s.parameters?.parentShapeId === parentShape.id && s.geometry
+  );
+
+  childPanels.forEach(panel => {
+    const panelMesh = new THREE.Mesh(panel.geometry.clone());
+    panelMesh.position.set(panel.position[0], panel.position[1], panel.position[2]);
+    panelMesh.rotation.set(panel.rotation[0], panel.rotation[1], panel.rotation[2]);
+    panelMesh.scale.set(panel.scale[0], panel.scale[1], panel.scale[2]);
+    panelMesh.updateMatrixWorld(true);
+    meshes.push(panelMesh);
+  });
+
+  return meshes;
+}
+
+function castRayAgainstMeshes(
+  rayOrigin: THREE.Vector3,
+  rayDirection: THREE.Vector3,
+  meshes: THREE.Mesh[],
+  maxDistance: number
+): THREE.Vector3 | null {
+  const raycaster = new THREE.Raycaster(rayOrigin, rayDirection.clone().normalize(), 0.1, maxDistance);
+
+  let closestHit: THREE.Vector3 | null = null;
+  let closestDist = Infinity;
+
+  meshes.forEach(mesh => {
+    const hits = raycaster.intersectObject(mesh, false);
+    if (hits.length > 0) {
+      const hit = hits[0];
+      if (hit.distance < closestDist) {
+        closestDist = hit.distance;
+        closestHit = hit.point.clone();
+      }
+    }
+  });
+
+  return closestHit;
 }
 
 function generateRaysForFace(
   faces: FaceData[],
   group: CoplanarFaceGroup,
-  gridCount: number = 5
+  parentShape: any,
+  allShapes: any[],
+  gridCount: number = 4
 ): RayArrow[] {
   const faceVertices: THREE.Vector3[] = [];
   group.faceIndices.forEach(idx => {
@@ -112,8 +146,18 @@ function generateRaysForFace(
 
   const stepU = (maxU - minU) / (gridCount + 1);
   const stepV = (maxV - minV) / (gridCount + 1);
+  const tolerance = Math.max(stepU, stepV) * 0.8;
 
   const inwardDir = normal.clone().negate();
+
+  const parentPosition = new THREE.Vector3(
+    parentShape.position[0],
+    parentShape.position[1],
+    parentShape.position[2]
+  );
+
+  const targetMeshes = buildTargetMeshes(parentShape, allShapes, parentPosition);
+  const maxRayLength = 2000;
 
   const rays: RayArrow[] = [];
 
@@ -126,19 +170,25 @@ function generateRaysForFace(
         .add(u.clone().multiplyScalar(pu))
         .add(v.clone().multiplyScalar(pv));
 
-      if (!isPointInFaceGroup(candidatePoint, faces, group.faceIndices, normal, Math.max(stepU, stepV) * 0.8)) {
+      if (!isPointInFaceGroup(candidatePoint, faces, group.faceIndices, tolerance)) {
         continue;
       }
 
-      const rayOrigin = candidatePoint.clone().add(normal.clone().multiplyScalar(5));
-      const rayLength = 80;
-      const hitPoint = rayOrigin.clone().add(inwardDir.clone().multiplyScalar(rayLength));
+      const rayOriginLocal = candidatePoint.clone().add(normal.clone().multiplyScalar(1));
+      const rayOriginWorld = rayOriginLocal.clone().add(parentPosition);
+
+      const hitPointWorld = castRayAgainstMeshes(rayOriginWorld, inwardDir, targetMeshes, maxRayLength);
+
+      if (!hitPointWorld) continue;
+
+      const hitPointLocal = hitPointWorld.clone().sub(parentPosition);
+      const actualLength = rayOriginLocal.distanceTo(hitPointLocal);
 
       rays.push({
-        origin: rayOrigin,
+        origin: rayOriginLocal,
         direction: inwardDir.clone(),
-        hitPoint,
-        length: rayLength,
+        hitPoint: hitPointLocal,
+        length: actualLength,
       });
     }
   }
@@ -146,20 +196,21 @@ function generateRaysForFace(
   return rays;
 }
 
-const ArrowMesh: React.FC<{ origin: THREE.Vector3; direction: THREE.Vector3; length: number }> = ({ origin, direction, length }) => {
-  const shaftLength = length * 0.75;
-  const headLength = length * 0.25;
+const ArrowMesh: React.FC<{ origin: THREE.Vector3; direction: THREE.Vector3; length: number }> = React.memo(({ origin, direction, length }) => {
+  const shaftLength = Math.max(length * 0.8, 1);
+  const headLength = Math.max(length * 0.2, 1);
   const shaftRadius = 1.2;
   const headRadius = 3.0;
 
-  const shaftEnd = origin.clone().add(direction.clone().multiplyScalar(shaftLength));
-  const shaftMid = origin.clone().add(direction.clone().multiplyScalar(shaftLength / 2));
+  const normDir = direction.clone().normalize();
+  const shaftMid = origin.clone().add(normDir.clone().multiplyScalar(shaftLength / 2));
+  const headCenter = origin.clone().add(normDir.clone().multiplyScalar(shaftLength + headLength / 2));
 
   const quaternion = useMemo(() => {
     const q = new THREE.Quaternion();
-    q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.clone().normalize());
+    q.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normDir);
     return q;
-  }, [direction]);
+  }, [normDir.x, normDir.y, normDir.z]);
 
   const euler = useMemo(() => {
     const e = new THREE.Euler();
@@ -174,21 +225,34 @@ const ArrowMesh: React.FC<{ origin: THREE.Vector3; direction: THREE.Vector3; len
         rotation={[euler.x, euler.y, euler.z]}
       >
         <cylinderGeometry args={[shaftRadius, shaftRadius, shaftLength, 8]} />
-        <meshBasicMaterial color={0xd97706} transparent opacity={0.9} />
+        <meshBasicMaterial color={0xd97706} transparent opacity={0.9} depthTest={false} />
       </mesh>
       <mesh
-        position={[shaftEnd.x + direction.x * headLength / 2, shaftEnd.y + direction.y * headLength / 2, shaftEnd.z + direction.z * headLength / 2]}
+        position={[headCenter.x, headCenter.y, headCenter.z]}
         rotation={[euler.x, euler.y, euler.z]}
       >
         <coneGeometry args={[headRadius, headLength, 8]} />
-        <meshBasicMaterial color={0xb45309} transparent opacity={0.95} />
+        <meshBasicMaterial color={0xb45309} transparent opacity={0.95} depthTest={false} />
       </mesh>
     </>
   );
-};
+});
+
+ArrowMesh.displayName = 'ArrowMesh';
+
+const HitPointMarker: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => {
+  return (
+    <mesh position={[position.x, position.y, position.z]}>
+      <sphereGeometry args={[3.5, 10, 10]} />
+      <meshBasicMaterial color={0xef4444} transparent opacity={0.9} depthTest={false} />
+    </mesh>
+  );
+});
+
+HitPointMarker.displayName = 'HitPointMarker';
 
 export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape }) => {
-  const { raycastMode } = useAppStore();
+  const { raycastMode, shapes } = useAppStore();
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
@@ -217,14 +281,12 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
 
   const hoverHighlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
-    const group = faceGroups[hoveredGroupIndex];
-    return createFaceHighlightGeometry(faces, group.faceIndices);
+    return createFaceHighlightGeometry(faces, faceGroups[hoveredGroupIndex].faceIndices);
   }, [hoveredGroupIndex, faceGroups, faces]);
 
   const clickedHighlightGeometry = useMemo(() => {
     if (clickedGroupIndex === null || !faceGroups[clickedGroupIndex]) return null;
-    const group = faceGroups[clickedGroupIndex];
-    return createFaceHighlightGeometry(faces, group.faceIndices);
+    return createFaceHighlightGeometry(faces, faceGroups[clickedGroupIndex].faceIndices);
   }, [clickedGroupIndex, faceGroups, faces]);
 
   const handlePointerMove = (e: any) => {
@@ -233,9 +295,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
     const faceIndex = e.faceIndex;
     if (faceIndex !== undefined) {
       const groupIndex = faceGroups.findIndex(group => group.faceIndices.includes(faceIndex));
-      if (groupIndex !== -1) {
-        setHoveredGroupIndex(groupIndex);
-      }
+      if (groupIndex !== -1) setHoveredGroupIndex(groupIndex);
     }
   };
 
@@ -253,7 +313,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
     const group = faceGroups[hoveredGroupIndex];
     setClickedGroupIndex(hoveredGroupIndex);
 
-    const generatedRays = generateRaysForFace(faces, group, 4);
+    const generatedRays = generateRaysForFace(faces, group, shape, shapes, 4);
     setRays(generatedRays);
   };
 
@@ -299,12 +359,14 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
       )}
 
       {rays.map((ray, i) => (
-        <ArrowMesh
-          key={i}
-          origin={ray.origin}
-          direction={ray.direction}
-          length={ray.length}
-        />
+        <React.Fragment key={i}>
+          <ArrowMesh
+            origin={ray.origin}
+            direction={ray.direction}
+            length={ray.length}
+          />
+          <HitPointMarker position={ray.hitPoint} />
+        </React.Fragment>
       ))}
     </>
   );
