@@ -953,16 +953,41 @@ export const useAppStore = create<AppState>((set, get) => ({
             });
 
             // --- 2. CAD Şekillerini Oluştur ---
-            const shape1Replicad = await createReplicadBox({
+            let shape1Replicad = await createReplicadBox({
               width: shape1Size[0], height: shape1Size[1], depth: shape1Size[2]
             });
+
+            const existingSubtractions = shape1.subtractionGeometries || [];
+            if (existingSubtractions.length > 0) {
+              const { getOriginalSize } = await import('./components/ShapeUpdaterService');
+              for (const sub of existingSubtractions) {
+                if (!sub) continue;
+                try {
+                  const subSize = getOriginalSize(sub.geometry);
+                  const subBox = await createReplicadBox({
+                    width: subSize.x, height: subSize.y, depth: subSize.z
+                  });
+                  shape1Replicad = await performBooleanCut(
+                    shape1Replicad,
+                    subBox,
+                    undefined,
+                    sub.relativeOffset,
+                    undefined,
+                    sub.relativeRotation,
+                    undefined,
+                    sub.scale
+                  );
+                } catch (subErr) {
+                  console.warn('Re-applying existing subtraction skipped:', subErr);
+                }
+              }
+            }
 
             const shape2Replicad = await createReplicadBox({
               width: shape2Size[0], height: shape2Size[1], depth: shape2Size[2]
             });
 
             // --- 3. Boolean Cut İşlemi ---
-            // Shape1'den Shape2'yi çıkar - RELATIVE offset kullan (world koordinatları DEĞİL!)
             let resultShape = await performBooleanCut(
               shape1Replicad,
               shape2Replicad,
