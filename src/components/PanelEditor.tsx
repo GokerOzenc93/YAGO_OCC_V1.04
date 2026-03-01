@@ -658,6 +658,83 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             <RotateCw size={13} />
                           </button>
                         </div>
+                        {(() => {
+                          if (!facePanels[i]) return null;
+                          const panelShape = shapes.find(s =>
+                            s.type === 'panel' &&
+                            s.parameters?.parentShapeId === selectedShape.id &&
+                            s.parameters?.faceIndex === i &&
+                            !s.parameters?.extraRowId
+                          );
+                          if (!panelShape) return null;
+                          const mr = panelShape.parameters?.manualRotation || [0, 0, 0];
+                          const rxDeg = Math.round(mr[0] * (180 / Math.PI) * 10) / 10;
+                          const ryDeg = Math.round(mr[1] * (180 / Math.PI) * 10) / 10;
+                          const rzDeg = Math.round(mr[2] * (180 / Math.PI) * 10) / 10;
+                          const handleRotChange = (axis: number, deg: string) => {
+                            const parsed = parseFloat(deg);
+                            if (isNaN(parsed)) return;
+                            const rad = parsed * (Math.PI / 180);
+                            const current = panelShape.parameters?.manualRotation || [0, 0, 0];
+                            const newRot: [number, number, number] = [...current] as [number, number, number];
+                            newRot[axis] = rad;
+                            const parentRot = selectedShape.rotation || [0, 0, 0];
+                            updateShape(panelShape.id, {
+                              rotation: [
+                                parentRot[0] + newRot[0],
+                                parentRot[1] + newRot[1],
+                                parentRot[2] + newRot[2]
+                              ] as [number, number, number],
+                              parameters: {
+                                ...panelShape.parameters,
+                                manualRotation: newRot
+                              }
+                            });
+                          };
+                          return (
+                            <div className="flex gap-0.5 items-center pl-6 pb-0.5" onClick={(e) => e.stopPropagation()}>
+                              {(['RX', 'RY', 'RZ'] as const).map((label, axis) => {
+                                const degVal = axis === 0 ? rxDeg : axis === 1 ? ryDeg : rzDeg;
+                                return (
+                                  <div key={label} className="flex items-center gap-0.5">
+                                    <span className="text-[10px] font-mono text-stone-400 w-5 text-right">{label}</span>
+                                    <input
+                                      type="number"
+                                      defaultValue={degVal}
+                                      key={`${panelShape.id}-${label}-${degVal}`}
+                                      onBlur={(e) => handleRotChange(axis, e.target.value)}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleRotChange(axis, (e.target as HTMLInputElement).value);
+                                      }}
+                                      step={1}
+                                      className="w-14 px-1 py-0.5 text-[10px] font-mono bg-white text-gray-800 border border-stone-300 rounded text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                      title={`${label} rotation (degrees)`}
+                                    />
+                                  </div>
+                                );
+                              })}
+                              {(rxDeg !== 0 || ryDeg !== 0 || rzDeg !== 0) && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const parentRot = selectedShape.rotation || [0, 0, 0];
+                                    updateShape(panelShape.id, {
+                                      rotation: [...parentRot] as [number, number, number],
+                                      parameters: {
+                                        ...panelShape.parameters,
+                                        manualRotation: [0, 0, 0]
+                                      }
+                                    });
+                                  }}
+                                  className="p-0.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                  title="Reset rotation"
+                                >
+                                  <X size={11} />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </React.Fragment>
                     );
                   })}

@@ -395,12 +395,21 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         const update = updates.find(u => u.id === s.id);
         if (update) {
           const parent = st.shapes.find(p => p.id === parentShapeId);
+          const manualRotation = s.parameters?.manualRotation as [number, number, number] | undefined;
+          const parentRot = parent ? parent.rotation : s.rotation;
+          const finalRotation: [number, number, number] = manualRotation
+            ? [
+                parentRot[0] + manualRotation[0],
+                parentRot[1] + manualRotation[1],
+                parentRot[2] + manualRotation[2]
+              ]
+            : parentRot;
           return {
             ...s,
             geometry: update.geometry,
             replicadShape: update.replicadShape,
             position: parent ? [...parent.position] as [number, number, number] : s.position,
-            rotation: parent ? parent.rotation : s.rotation,
+            rotation: finalRotation,
             scale: parent ? [...parent.scale] as [number, number, number] : s.scale,
             parameters: update.parameters,
           };
