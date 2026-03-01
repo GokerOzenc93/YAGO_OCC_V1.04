@@ -413,29 +413,23 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       const { convertReplicadToThreeGeometry, initReplicad } = await import('./ReplicadService');
       const { draw, Plane } = await import('replicad');
 
-      const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
-      const shapeRot = shape.rotation as [number, number, number];
-      const invRot = new THREE.Quaternion()
-        .setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'))
-        .invert();
-
-      const localOrigin = origin.clone().sub(shapePos).applyQuaternion(invRot);
-      const localU = u.clone().applyQuaternion(invRot).normalize();
-      const localV = v.clone().applyQuaternion(invRot).normalize();
-      const localN = normal.clone().applyQuaternion(invRot).normalize();
+      const worldU = u.clone().normalize();
+      const worldV = v.clone().normalize();
+      const worldN = normal.clone().normalize();
 
       const panelW = uPlus + uMinus;
       const panelH = vPlus + vMinus;
 
-      const cornerPt = localOrigin.clone()
-        .addScaledVector(localU, -uMinus)
-        .addScaledVector(localV, -vMinus);
+      const worldCorner = origin.clone()
+        .addScaledVector(worldU, -uMinus)
+        .addScaledVector(worldV, -vMinus)
+        .addScaledVector(worldN, -0.5);
 
       await initReplicad();
 
-      const xAxis: [number, number, number] = [localU.x, localU.y, localU.z];
-      const normalAxis: [number, number, number] = [localN.x, localN.y, localN.z];
-      const originPt: [number, number, number] = [cornerPt.x, cornerPt.y, cornerPt.z];
+      const xAxis: [number, number, number] = [worldU.x, worldU.y, worldU.z];
+      const normalAxis: [number, number, number] = [worldN.x, worldN.y, worldN.z];
+      const originPt: [number, number, number] = [worldCorner.x, worldCorner.y, worldCorner.z];
 
       const sketchPlane = new Plane(originPt, xAxis, normalAxis);
 
@@ -457,8 +451,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         type: 'panel',
         geometry,
         replicadShape: panelShape,
-        position: [...shape.position] as [number, number, number],
-        rotation: [...shape.rotation] as [number, number, number],
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
         scale: [...shape.scale] as [number, number, number],
         color: '#ffffff',
         parameters: {
