@@ -135,7 +135,17 @@ export const convertReplicadToThreeGeometry = (shape: any): THREE.BufferGeometry
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
     geometry.setIndex(indices);
-    geometry.computeVertexNormals();
+
+    if (mesh.normals && mesh.normals.length === vertices.length) {
+      const normals: number[] = [];
+      for (let i = 0; i < mesh.normals.length; i++) {
+        normals.push(mesh.normals[i]);
+      }
+      geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+    } else {
+      geometry.computeVertexNormals();
+    }
+
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
 
@@ -247,12 +257,50 @@ export const performBooleanIntersection = async (
   shape1: any,
   shape2: any
 ): Promise<any> => {
-  await initReplicad();
+  const oc = await initReplicad();
+  const { cast } = await import('replicad');
 
   console.log('🔀 Performing boolean intersection operation...');
 
   try {
     const result = shape1.intersect(shape2);
+    const shapeType = result.wrapped.ShapeType();
+
+    if (shapeType === oc.TopAbs_ShapeEnum.TopAbs_COMPOUND) {
+      const explorer = new oc.TopExp_Explorer_2(
+        result.wrapped,
+        oc.TopAbs_ShapeEnum.TopAbs_SOLID,
+        oc.TopAbs_ShapeEnum.TopAbs_SHAPE
+      );
+
+      const solids: any[] = [];
+      while (explorer.More()) {
+        try {
+          const solidShape = oc.TopoDS.Solid_1(explorer.Current());
+          solids.push(cast(solidShape));
+        } catch (_) {}
+        explorer.Next();
+      }
+      explorer.delete();
+
+      console.log(`✅ Boolean intersection completed: Compound with ${solids.length} solid(s)`);
+
+      if (solids.length === 1) {
+        return solids[0];
+      } else if (solids.length > 1) {
+        let largestSolid = solids[0];
+        let largestVol = 0;
+        for (const s of solids) {
+          try {
+            const bb = s.boundingBox;
+            const v = (bb.max[0] - bb.min[0]) * (bb.max[1] - bb.min[1]) * (bb.max[2] - bb.min[2]);
+            if (v > largestVol) { largestVol = v; largestSolid = s; }
+          } catch (_) {}
+        }
+        return largestSolid;
+      }
+    }
+
     console.log('✅ Boolean intersection completed:', result);
     return result;
   } catch (error) {
@@ -262,6 +310,7 @@ export const performBooleanIntersection = async (
 };
 
 export const createPanelFromRayProbe = async (
+  replicadShape: any,
   rayProbeOrigin: [number, number, number],
   rayProbeHits: Array<{
     direction: 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
@@ -270,9 +319,10 @@ export const createPanelFromRayProbe = async (
   }>,
   panelThickness: number,
   shapePosition: [number, number, number],
-  faceNormal: [number, number, number]
+  faceNormal: [number, number, number],
+  faceCenter: [number, number, number]
 ): Promise<any> => {
-  await initReplicad();
+  const oc = await initReplicad();
 
   const toLocal = (worldPt: [number, number, number]): [number, number, number] => [
     worldPt[0] - shapePosition[0],
@@ -312,14 +362,9 @@ export const createPanelFromRayProbe = async (
     );
   }
 
-  console.log('Ray probe panel creation:', {
-    localOrigin,
-    hitCounts: { x: hitCounts[0], y: hitCounts[1], z: hitCounts[2] },
-    thicknessAxis: axisKeys[thicknessAxisIndex]
-  });
-
   const boundsMin: [number, number, number] = [0, 0, 0];
   const boundsMax: [number, number, number] = [0, 0, 0];
+  const NO_HIT_PADDING = 50;
 
   for (let i = 0; i < 3; i++) {
     const axis = axisKeys[i];
@@ -328,42 +373,190 @@ export const createPanelFromRayProbe = async (
     if (i === thicknessAxisIndex) {
       boundsMin[i] = localOrigin[i] - panelThickness / 2;
       boundsMax[i] = localOrigin[i] + panelThickness / 2;
-      console.log(`${axis.toUpperCase()} = thickness: [${boundsMin[i].toFixed(2)}, ${boundsMax[i].toFixed(2)}]`);
     } else if (hits.length > 0) {
       const coords = hits.map(h => h.point[i]);
       boundsMin[i] = Math.min(...coords);
       boundsMax[i] = Math.max(...coords);
-      console.log(`${axis.toUpperCase()} = hit constrained: [${boundsMin[i].toFixed(2)}, ${boundsMax[i].toFixed(2)}]`);
     } else {
-      boundsMin[i] = localOrigin[i] - 5000;
-      boundsMax[i] = localOrigin[i] + 5000;
-      console.log(`${axis.toUpperCase()} = no hits, using large extent`);
+      boundsMin[i] = localOrigin[i] - NO_HIT_PADDING;
+      boundsMax[i] = localOrigin[i] + NO_HIT_PADDING;
     }
   }
 
-  const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
-  const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
-  const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
-  const centerX = (boundsMin[0] + boundsMax[0]) / 2;
-  const centerY = (boundsMin[1] + boundsMax[1]) / 2;
-  const centerZ = (boundsMin[2] + boundsMax[2]) / 2;
+  const faces = replicadShape.faces;
 
-  console.log('Panel box:', {
-    size: [sizeX.toFixed(2), sizeY.toFixed(2), sizeZ.toFixed(2)],
-    center: [centerX.toFixed(2), centerY.toFixed(2), centerZ.toFixed(2)]
-  });
+  interface FaceCandidate {
+    face: any;
+    dot: number;
+    center: [number, number, number] | null;
+    index: number;
+  }
 
-  try {
+  const candidates: FaceCandidate[] = [];
+
+  console.log(`🔍 Ray Probe Panel: Searching for matching face among ${faces.length} faces`);
+  console.log(`   Target normal: [${faceNormal[0].toFixed(3)}, ${faceNormal[1].toFixed(3)}, ${faceNormal[2].toFixed(3)}]`);
+  console.log(`   Target center: [${faceCenter[0].toFixed(2)}, ${faceCenter[1].toFixed(2)}, ${faceCenter[2].toFixed(2)}]`);
+
+  for (let i = 0; i < faces.length; i++) {
+    const face = faces[i];
+    try {
+      const normalVec = face.normalAt(0.5, 0.5);
+      const normal = [normalVec.x, normalVec.y, normalVec.z];
+      const dot =
+        normal[0] * faceNormal[0] +
+        normal[1] * faceNormal[1] +
+        normal[2] * faceNormal[2];
+
+      if (dot > 0.7) {
+        let center: [number, number, number] | null = null;
+        try {
+          const faceMesh = face.mesh({ tolerance: 0.5, angularTolerance: 30 });
+          if (faceMesh.vertices && faceMesh.vertices.length >= 3) {
+            let sx = 0, sy = 0, sz = 0;
+            const nv = faceMesh.vertices.length / 3;
+            for (let j = 0; j < faceMesh.vertices.length; j += 3) {
+              sx += faceMesh.vertices[j];
+              sy += faceMesh.vertices[j + 1];
+              sz += faceMesh.vertices[j + 2];
+            }
+            center = [sx / nv, sy / nv, sz / nv];
+          }
+        } catch (meshErr) {
+          console.warn(`Could not mesh face ${i} for center:`, meshErr);
+        }
+        candidates.push({ face, dot, center, index: i });
+        console.log(`   ✓ Face ${i}: dot=${dot.toFixed(3)}, center=${center ? `[${center[0].toFixed(2)}, ${center[1].toFixed(2)}, ${center[2].toFixed(2)}]` : 'null'}`);
+      }
+    } catch (err) {
+      console.warn(`Could not get normal for face ${i}:`, err);
+    }
+  }
+
+  let matchingFace = null;
+  let matchingFaceIndex = -1;
+
+  if (candidates.length === 0) {
+    console.warn('❌ No matching face found, falling back to box');
     const { makeBaseBox } = await import('replicad');
+    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
+    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
+    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
     let panel = makeBaseBox(sizeX, sizeY, sizeZ);
     panel = panel.translate(
-      centerX - sizeX / 2,
-      centerY - sizeY / 2,
-      centerZ - sizeZ / 2
+      (boundsMin[0] + boundsMax[0]) / 2,
+      (boundsMin[1] + boundsMax[1]) / 2,
+      (boundsMin[2] + boundsMax[2]) / 2
     );
     return panel;
+  } else if (candidates.length === 1) {
+    matchingFace = candidates[0].face;
+    matchingFaceIndex = candidates[0].index;
+    console.log(`✅ Single candidate face ${matchingFaceIndex} selected`);
+  } else {
+    let bestDist = Infinity;
+    for (const candidate of candidates) {
+      if (candidate.center) {
+        const dist = Math.sqrt(
+          (candidate.center[0] - faceCenter[0]) ** 2 +
+          (candidate.center[1] - faceCenter[1]) ** 2 +
+          (candidate.center[2] - faceCenter[2]) ** 2
+        );
+        if (dist < bestDist) {
+          bestDist = dist;
+          matchingFace = candidate.face;
+          matchingFaceIndex = candidate.index;
+        }
+      }
+    }
+    if (!matchingFace) {
+      matchingFace = candidates[0].face;
+      matchingFaceIndex = candidates[0].index;
+    }
+    console.log(`✅ Best matching face ${matchingFaceIndex} selected (distance: ${bestDist.toFixed(2)})`);
+  }
+
+  try {
+    const normalVec = matchingFace.normalAt(0.5, 0.5);
+    console.log(`📐 Face normal: [${normalVec.x.toFixed(3)}, ${normalVec.y.toFixed(3)}, ${normalVec.z.toFixed(3)}]`);
+
+    const extrusionDirection = [
+      -normalVec.x,
+      -normalVec.y,
+      -normalVec.z
+    ];
+
+    const vec = new oc.gp_Vec_4(
+      extrusionDirection[0] * panelThickness,
+      extrusionDirection[1] * panelThickness,
+      extrusionDirection[2] * panelThickness
+    );
+
+    console.log(`🔨 Extruding face by ${panelThickness}mm in direction [${extrusionDirection[0].toFixed(3)}, ${extrusionDirection[1].toFixed(3)}, ${extrusionDirection[2].toFixed(3)}]`);
+
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, true, true);
+    prismBuilder.Build(new oc.Message_ProgressRange_1());
+    const solid = prismBuilder.Shape();
+
+    const { cast, makeBaseBox } = await import('replicad');
+    let panel = cast(solid);
+
+    panel = panel.translate(
+      normalVec.x * panelThickness / 2,
+      normalVec.y * panelThickness / 2,
+      normalVec.z * panelThickness / 2
+    );
+    console.log(`📍 Centered panel on face by translating ${(panelThickness / 2).toFixed(2)}mm in normal direction`);
+
+    console.log(`✂️  Cutting panel with ray probe hits (${rayProbeHits.length} hits)...`);
+
+    const CUTTING_SIZE = 10000;
+
+    for (const hit of rayProbeHits) {
+      try {
+        const hitPoint = toLocal(hit.point);
+        let cuttingBox: any;
+        let cutPosition: [number, number, number];
+
+        switch (hit.direction) {
+          case 'x+':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0] + CUTTING_SIZE / 2, hitPoint[1], hitPoint[2]];
+            break;
+          case 'x-':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0] - CUTTING_SIZE / 2, hitPoint[1], hitPoint[2]];
+            break;
+          case 'y+':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0], hitPoint[1] + CUTTING_SIZE / 2, hitPoint[2]];
+            break;
+          case 'y-':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0], hitPoint[1] - CUTTING_SIZE / 2, hitPoint[2]];
+            break;
+          case 'z+':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0], hitPoint[1], hitPoint[2] + CUTTING_SIZE / 2];
+            break;
+          case 'z-':
+            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
+            cutPosition = [hitPoint[0], hitPoint[1], hitPoint[2] - CUTTING_SIZE / 2];
+            break;
+        }
+
+        cuttingBox = cuttingBox.translate(cutPosition[0], cutPosition[1], cutPosition[2]);
+        panel = panel.cut(cuttingBox);
+        console.log(`   ✓ Cut panel at ${hit.direction} direction, hit point: [${hitPoint[0].toFixed(2)}, ${hitPoint[1].toFixed(2)}, ${hitPoint[2].toFixed(2)}]`);
+      } catch (cutError) {
+        console.warn(`   ⚠️  Failed to cut panel for direction ${hit.direction}:`, cutError);
+      }
+    }
+
+    console.log(`✅ Panel cutting complete`);
+    return panel;
   } catch (error) {
-    console.error('Failed to create ray probe panel:', error);
+    console.error('❌ Failed to create ray probe panel:', error);
     throw error;
   }
 };
@@ -471,7 +664,7 @@ export const createPanelFromFace = async (
       extrusionDirection[2] * panelThickness
     );
 
-    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, true, true);
     prismBuilder.Build(new oc.Message_ProgressRange_1());
     const solid = prismBuilder.Shape();
 

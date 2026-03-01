@@ -15,7 +15,8 @@ const MAX_RAY_DISTANCE = 50000;
 export function performRayProbe(
   origin: THREE.Vector3,
   scene: THREE.Scene,
-  excludeShapeId?: string
+  excludeShapeId?: string,
+  faceNormal?: THREE.Vector3
 ): RayProbeResult {
   const raycaster = new THREE.Raycaster();
   raycaster.far = MAX_RAY_DISTANCE;
@@ -23,7 +24,23 @@ export function performRayProbe(
   const meshes = collectSceneMeshes(scene, excludeShapeId);
   const hits: RayProbeHit[] = [];
 
-  for (const { key, vector } of RAY_DIRECTIONS) {
+  let directionsToTest = RAY_DIRECTIONS;
+
+  if (faceNormal) {
+    const absX = Math.abs(faceNormal.x);
+    const absY = Math.abs(faceNormal.y);
+    const absZ = Math.abs(faceNormal.z);
+
+    if (absX > absY && absX > absZ) {
+      directionsToTest = RAY_DIRECTIONS.filter(d => d.key[0] !== 'x');
+    } else if (absY > absX && absY > absZ) {
+      directionsToTest = RAY_DIRECTIONS.filter(d => d.key[0] !== 'y');
+    } else {
+      directionsToTest = RAY_DIRECTIONS.filter(d => d.key[0] !== 'z');
+    }
+  }
+
+  for (const { key, vector } of directionsToTest) {
     raycaster.set(origin, vector);
     const intersections = raycaster.intersectObjects(meshes, false);
 
