@@ -500,8 +500,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         scale: [...shape.scale] as [number, number, number],
         color: '#ffffff',
         parameters: {
-          width: 0,
-          height: 0,
+          width: uPlus + uMinus,
+          height: vPlus + vMinus,
           depth: panelThickness,
           parentShapeId: shape.id,
           faceIndex: dominantGroupIndex,
