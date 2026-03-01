@@ -472,9 +472,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       const xAxis: [number, number, number] = [localU.x, localU.y, localU.z];
       const yAxis: [number, number, number] = [localV.x, localV.y, localV.z];
       const originPt: [number, number, number] = [clipCorner.x, clipCorner.y, clipCorner.z];
-      const nDir: [number, number, number] = [localN.x, localN.y, localN.z];
 
-      const clipPlane = new Plane(originPt, xAxis, nDir);
+      const clipPlane = new Plane(originPt, xAxis, yAxis);
 
       const clipBox = draw()
         .movePointerTo(p0)
