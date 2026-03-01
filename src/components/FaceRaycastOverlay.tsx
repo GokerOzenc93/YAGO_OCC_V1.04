@@ -218,7 +218,7 @@ function computeRaycastBounds(
     uMinus: tUMinus,
     vPlus: tVPlus,
     vMinus: tVMinus,
-    origin: startWorld.clone(),
+    origin: clickWorldPoint.clone(),
     u,
     v,
     normal,
@@ -545,14 +545,14 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       20
     );
 
-    const { bounds, lines, startWorld } = computeRaycastBounds(clickLocal, group, faces, obstacleEdges);
+    const { bounds, lines } = computeRaycastBounds(clickLocal, group, faces, obstacleEdges);
 
     const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'));
     const worldLines = lines.map(l => ({
       start: l.start.clone().applyQuaternion(rot).add(shapePos),
       end: l.end.clone().applyQuaternion(rot).add(shapePos),
     }));
-    const worldOrigin = startWorld.clone().applyQuaternion(rot).add(shapePos);
+    const worldOrigin = bounds.origin.clone().applyQuaternion(rot).add(shapePos);
 
     const worldBounds: RaycastPanelBounds = {
       ...bounds,
