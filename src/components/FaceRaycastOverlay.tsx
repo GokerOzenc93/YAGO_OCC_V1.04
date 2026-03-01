@@ -492,14 +492,18 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
   }, [panelBounds, isCreating, shape, faceGroups, addShape]);
 
   const handlePointerDown = useCallback((e: any) => {
-    if (!raycastMode || e.button !== 0) return;
+    if (!raycastMode) return;
     e.stopPropagation();
-    if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return;
 
-    if (panelBounds && rayLines.length > 0) {
-      handleCreatePanel();
+    if (e.button === 2) {
+      if (panelBounds && rayLines.length > 0) {
+        handleCreatePanel();
+      }
       return;
     }
+
+    if (e.button !== 0) return;
+    if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return;
 
     const clickWorld: THREE.Vector3 = e.point.clone();
     const group = faceGroups[hoveredGroupIndex];
@@ -530,7 +534,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
         onPointerDown={handlePointerDown}
-        onContextMenu={(e) => e.stopPropagation()}
+        onContextMenu={(e) => { e.stopPropagation(); e.nativeEvent?.preventDefault?.(); }}
       />
 
       {hoverHighlightGeometry && (
