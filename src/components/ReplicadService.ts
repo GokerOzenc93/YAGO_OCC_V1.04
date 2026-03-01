@@ -371,8 +371,9 @@ export const createPanelFromRayProbe = async (
     const axisHits = hitsByAxis[axis];
 
     if (i === thicknessAxisIndex) {
-      boundsMin[i] = localOrigin[i] - panelThickness / 2;
-      boundsMax[i] = localOrigin[i] + panelThickness / 2;
+      const normalSign = faceNormal[i] >= 0 ? 1 : -1;
+      boundsMin[i] = normalSign > 0 ? localOrigin[i] - panelThickness : localOrigin[i];
+      boundsMax[i] = normalSign > 0 ? localOrigin[i] : localOrigin[i] + panelThickness;
     } else if (axisHits.length > 0) {
       const coords = axisHits.map(h => h.point[i]);
       boundsMin[i] = Math.min(...coords);
