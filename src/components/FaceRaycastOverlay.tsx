@@ -369,6 +369,10 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     }
   }, [raycastMode]);
 
+  const panelBoundsRef = React.useRef(panelBounds);
+  const isCreatingRef = React.useRef(isCreating);
+  const handleCreatePanelRef = React.useRef<() => void>(() => {});
+
   const childPanels = useMemo(() => {
     return allShapes.filter(
       s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id
@@ -523,6 +527,36 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     }
   }, [panelBounds, isCreating, shape, faceGroups, faces, addShape]);
 
+  panelBoundsRef.current = panelBounds;
+  isCreatingRef.current = isCreating;
+  handleCreatePanelRef.current = handleCreatePanel;
+
+  useEffect(() => {
+    if (!raycastMode) return;
+
+    const onContextMenu = (e: MouseEvent) => {
+      if (panelBoundsRef.current && !isCreatingRef.current) {
+        e.preventDefault();
+        e.stopPropagation();
+        handleCreatePanelRef.current();
+      }
+    };
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && panelBoundsRef.current && !isCreatingRef.current) {
+        e.preventDefault();
+        handleCreatePanelRef.current();
+      }
+    };
+
+    window.addEventListener('contextmenu', onContextMenu, true);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('contextmenu', onContextMenu, true);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [raycastMode]);
+
   const handlePointerDown = useCallback((e: any) => {
     if (!raycastMode) return;
     e.stopPropagation();
@@ -566,7 +600,13 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         onPointerMove={handlePointerMove}
         onPointerOut={handlePointerOut}
         onPointerDown={handlePointerDown}
-        onContextMenu={(e) => { e.stopPropagation(); e.nativeEvent?.preventDefault?.(); }}
+        onContextMenu={(e) => {
+          e.stopPropagation();
+          e.nativeEvent?.preventDefault?.();
+          if (panelBounds && rayLines.length > 0) {
+            handleCreatePanel();
+          }
+        }}
       />
 
       {hoverHighlightGeometry && (
