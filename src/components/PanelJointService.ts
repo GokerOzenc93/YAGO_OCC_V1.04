@@ -363,11 +363,13 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
     const panelThickness = panel.parameters?.depth || 18;
 
     try {
+      const hasFillets = parentShape.fillets && parentShape.fillets.length > 0;
       const replicadPanel = await createPanelFromFace(
         parentShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
-        panelThickness
+        panelThickness,
+        hasFillets ? parentShape.replicadShape : undefined
       );
 
       if (!replicadPanel) continue;

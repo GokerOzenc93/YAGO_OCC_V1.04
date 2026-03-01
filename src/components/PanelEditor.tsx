@@ -256,12 +256,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
       const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
+      const hasFillets = selectedShape.fillets && selectedShape.fillets.length > 0;
       let replicadPanel = await createPanelFromFace(
         selectedShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
         panelThickness,
-        null
+        hasFillets ? selectedShape.replicadShape : null
       );
 
       if (!replicadPanel) return;
