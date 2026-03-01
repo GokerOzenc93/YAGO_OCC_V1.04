@@ -32,7 +32,9 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     rayProbeHighlightedShapes,
     rayProbeMode,
     setRayProbeResults,
-    setRayProbeHighlightedShapes
+    setRayProbeHighlightedShapes,
+    setRayProbeClickInfo,
+    confirmRayProbePanel
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -47,7 +49,9 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     rayProbeHighlightedShapes: state.rayProbeHighlightedShapes,
     rayProbeMode: state.rayProbeMode,
     setRayProbeResults: state.setRayProbeResults,
-    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes
+    setRayProbeHighlightedShapes: state.setRayProbeHighlightedShapes,
+    setRayProbeClickInfo: state.setRayProbeClickInfo,
+    confirmRayProbePanel: state.confirmRayProbePanel
   })));
 
   const [faceGroups, setFaceGroups] = useState<any[]>([]);
@@ -130,10 +134,16 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
 
           if (rayProbeMode) {
             const hitPoint = e.point.clone();
-            const results = performRayProbe(hitPoint, scene);
+            const faceNormal = e.face ? e.face.normal.clone() : undefined;
+            const results = performRayProbe(hitPoint, scene, undefined, faceNormal);
             const hitShapeIds = [...new Set(results.hits.map(h => h.shapeId))];
             setRayProbeResults(results);
             setRayProbeHighlightedShapes(hitShapeIds);
+            setRayProbeClickInfo({
+              shapeId: shape.id,
+              triangleIndex: e.faceIndex ?? -1
+            });
+            confirmRayProbePanel();
             return;
           }
 

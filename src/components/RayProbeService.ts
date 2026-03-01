@@ -45,17 +45,17 @@ export function performRayProbe(
     const intersections = raycaster.intersectObjects(meshes, false);
 
     if (intersections.length > 0) {
-      const closest = intersections[0];
-      const shapeId = findShapeIdFromObject(closest.object);
+      const farthest = intersections[intersections.length - 1];
+      const shapeId = findShapeIdFromObject(farthest.object);
 
-      if (shapeId && closest.face) {
+      if (shapeId && farthest.face) {
         hits.push({
           direction: key,
-          point: [closest.point.x, closest.point.y, closest.point.z],
-          distance: closest.distance,
+          point: [farthest.point.x, farthest.point.y, farthest.point.z],
+          distance: farthest.distance,
           shapeId,
-          faceIndex: closest.faceIndex ?? -1,
-          normal: [closest.face.normal.x, closest.face.normal.y, closest.face.normal.z],
+          faceIndex: farthest.faceIndex ?? -1,
+          normal: [farthest.face.normal.x, farthest.face.normal.y, farthest.face.normal.z],
         });
       }
     }

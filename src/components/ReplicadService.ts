@@ -368,13 +368,13 @@ export const createPanelFromRayProbe = async (
 
   for (let i = 0; i < 3; i++) {
     const axis = axisKeys[i];
-    const hits = hitsByAxis[axis];
+    const axisHits = hitsByAxis[axis];
 
     if (i === thicknessAxisIndex) {
       boundsMin[i] = localOrigin[i] - panelThickness / 2;
       boundsMax[i] = localOrigin[i] + panelThickness / 2;
-    } else if (hits.length > 0) {
-      const coords = hits.map(h => h.point[i]);
+    } else if (axisHits.length > 0) {
+      const coords = axisHits.map(h => h.point[i]);
       boundsMin[i] = Math.min(...coords);
       boundsMax[i] = Math.max(...coords);
     } else {
@@ -383,177 +383,27 @@ export const createPanelFromRayProbe = async (
     }
   }
 
-  const faces = replicadShape.faces;
+  const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
+  const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
+  const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
 
-  interface FaceCandidate {
-    face: any;
-    dot: number;
-    center: [number, number, number] | null;
-    index: number;
-  }
-
-  const candidates: FaceCandidate[] = [];
-
-  console.log(`🔍 Ray Probe Panel: Searching for matching face among ${faces.length} faces`);
-  console.log(`   Target normal: [${faceNormal[0].toFixed(3)}, ${faceNormal[1].toFixed(3)}, ${faceNormal[2].toFixed(3)}]`);
-  console.log(`   Target center: [${faceCenter[0].toFixed(2)}, ${faceCenter[1].toFixed(2)}, ${faceCenter[2].toFixed(2)}]`);
-
-  for (let i = 0; i < faces.length; i++) {
-    const face = faces[i];
-    try {
-      const normalVec = face.normalAt(0.5, 0.5);
-      const normal = [normalVec.x, normalVec.y, normalVec.z];
-      const dot =
-        normal[0] * faceNormal[0] +
-        normal[1] * faceNormal[1] +
-        normal[2] * faceNormal[2];
-
-      if (dot > 0.7) {
-        let center: [number, number, number] | null = null;
-        try {
-          const faceMesh = face.mesh({ tolerance: 0.5, angularTolerance: 30 });
-          if (faceMesh.vertices && faceMesh.vertices.length >= 3) {
-            let sx = 0, sy = 0, sz = 0;
-            const nv = faceMesh.vertices.length / 3;
-            for (let j = 0; j < faceMesh.vertices.length; j += 3) {
-              sx += faceMesh.vertices[j];
-              sy += faceMesh.vertices[j + 1];
-              sz += faceMesh.vertices[j + 2];
-            }
-            center = [sx / nv, sy / nv, sz / nv];
-          }
-        } catch (meshErr) {
-          console.warn(`Could not mesh face ${i} for center:`, meshErr);
-        }
-        candidates.push({ face, dot, center, index: i });
-        console.log(`   ✓ Face ${i}: dot=${dot.toFixed(3)}, center=${center ? `[${center[0].toFixed(2)}, ${center[1].toFixed(2)}, ${center[2].toFixed(2)}]` : 'null'}`);
-      }
-    } catch (err) {
-      console.warn(`Could not get normal for face ${i}:`, err);
-    }
-  }
-
-  let matchingFace = null;
-  let matchingFaceIndex = -1;
-
-  if (candidates.length === 0) {
-    console.warn('❌ No matching face found, falling back to box');
-    const { makeBaseBox } = await import('replicad');
-    const sizeX = Math.max(boundsMax[0] - boundsMin[0], 0.01);
-    const sizeY = Math.max(boundsMax[1] - boundsMin[1], 0.01);
-    const sizeZ = Math.max(boundsMax[2] - boundsMin[2], 0.01);
-    let panel = makeBaseBox(sizeX, sizeY, sizeZ);
-    panel = panel.translate(
-      (boundsMin[0] + boundsMax[0]) / 2,
-      (boundsMin[1] + boundsMax[1]) / 2,
-      (boundsMin[2] + boundsMax[2]) / 2
-    );
-    return panel;
-  } else if (candidates.length === 1) {
-    matchingFace = candidates[0].face;
-    matchingFaceIndex = candidates[0].index;
-    console.log(`✅ Single candidate face ${matchingFaceIndex} selected`);
-  } else {
-    let bestDist = Infinity;
-    for (const candidate of candidates) {
-      if (candidate.center) {
-        const dist = Math.sqrt(
-          (candidate.center[0] - faceCenter[0]) ** 2 +
-          (candidate.center[1] - faceCenter[1]) ** 2 +
-          (candidate.center[2] - faceCenter[2]) ** 2
-        );
-        if (dist < bestDist) {
-          bestDist = dist;
-          matchingFace = candidate.face;
-          matchingFaceIndex = candidate.index;
-        }
-      }
-    }
-    if (!matchingFace) {
-      matchingFace = candidates[0].face;
-      matchingFaceIndex = candidates[0].index;
-    }
-    console.log(`✅ Best matching face ${matchingFaceIndex} selected (distance: ${bestDist.toFixed(2)})`);
-  }
+  console.log(`📦 Ray Probe Panel: Building box from farthest hit bounds`);
+  console.log(`   BoundsMin: [${boundsMin[0].toFixed(2)}, ${boundsMin[1].toFixed(2)}, ${boundsMin[2].toFixed(2)}]`);
+  console.log(`   BoundsMax: [${boundsMax[0].toFixed(2)}, ${boundsMax[1].toFixed(2)}, ${boundsMax[2].toFixed(2)}]`);
+  console.log(`   Size: [${sizeX.toFixed(2)}, ${sizeY.toFixed(2)}, ${sizeZ.toFixed(2)}]`);
 
   try {
-    const normalVec = matchingFace.normalAt(0.5, 0.5);
-    console.log(`📐 Face normal: [${normalVec.x.toFixed(3)}, ${normalVec.y.toFixed(3)}, ${normalVec.z.toFixed(3)}]`);
+    const { makeBaseBox } = await import('replicad');
 
-    const extrusionDirection = [
-      -normalVec.x,
-      -normalVec.y,
-      -normalVec.z
-    ];
-
-    const vec = new oc.gp_Vec_4(
-      extrusionDirection[0] * panelThickness,
-      extrusionDirection[1] * panelThickness,
-      extrusionDirection[2] * panelThickness
-    );
-
-    console.log(`🔨 Extruding face by ${panelThickness}mm in direction [${extrusionDirection[0].toFixed(3)}, ${extrusionDirection[1].toFixed(3)}, ${extrusionDirection[2].toFixed(3)}]`);
-
-    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, true, true);
-    prismBuilder.Build(new oc.Message_ProgressRange_1());
-    const solid = prismBuilder.Shape();
-
-    const { cast, makeBaseBox } = await import('replicad');
-    let panel = cast(solid);
+    let panel = makeBaseBox(sizeX, sizeY, sizeZ);
 
     panel = panel.translate(
-      normalVec.x * panelThickness / 2,
-      normalVec.y * panelThickness / 2,
-      normalVec.z * panelThickness / 2
+      boundsMin[0] + sizeX / 2,
+      boundsMin[1] + sizeY / 2,
+      boundsMin[2] + sizeZ / 2
     );
-    console.log(`📍 Centered panel on face by translating ${(panelThickness / 2).toFixed(2)}mm in normal direction`);
 
-    console.log(`✂️  Cutting panel with ray probe hits (${rayProbeHits.length} hits)...`);
-
-    const CUTTING_SIZE = 10000;
-
-    for (const hit of rayProbeHits) {
-      try {
-        const hitPoint = toLocal(hit.point);
-        let cuttingBox: any;
-        let cutPosition: [number, number, number];
-
-        switch (hit.direction) {
-          case 'x+':
-            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
-            cutPosition = [hitPoint[0] + CUTTING_SIZE / 2, hitPoint[1], hitPoint[2]];
-            break;
-          case 'x-':
-            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
-            cutPosition = [hitPoint[0] - CUTTING_SIZE / 2, hitPoint[1], hitPoint[2]];
-            break;
-          case 'y+':
-            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
-            cutPosition = [hitPoint[0], hitPoint[1] + CUTTING_SIZE / 2, hitPoint[2]];
-            break;
-          case 'y-':
-            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
-            cutPosition = [hitPoint[0], hitPoint[1] - CUTTING_SIZE / 2, hitPoint[2]];
-            break;
-          case 'z+':
-            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
-            cutPosition = [hitPoint[0], hitPoint[1], hitPoint[2] + CUTTING_SIZE / 2];
-            break;
-          case 'z-':
-            cuttingBox = makeBaseBox(CUTTING_SIZE, CUTTING_SIZE, CUTTING_SIZE);
-            cutPosition = [hitPoint[0], hitPoint[1], hitPoint[2] - CUTTING_SIZE / 2];
-            break;
-        }
-
-        cuttingBox = cuttingBox.translate(cutPosition[0], cutPosition[1], cutPosition[2]);
-        panel = panel.cut(cuttingBox);
-        console.log(`   ✓ Cut panel at ${hit.direction} direction, hit point: [${hitPoint[0].toFixed(2)}, ${hitPoint[1].toFixed(2)}, ${hitPoint[2].toFixed(2)}]`);
-      } catch (cutError) {
-        console.warn(`   ⚠️  Failed to cut panel for direction ${hit.direction}:`, cutError);
-      }
-    }
-
-    console.log(`✅ Panel cutting complete`);
+    console.log(`✅ Ray probe panel created as rectangular box`);
     return panel;
   } catch (error) {
     console.error('❌ Failed to create ray probe panel:', error);
