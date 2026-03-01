@@ -24,10 +24,6 @@ interface RaycastPanelBounds {
   v: THREE.Vector3;
   normal: THREE.Vector3;
   groupIndex: number;
-  localOrigin: THREE.Vector3;
-  localU: THREE.Vector3;
-  localV: THREE.Vector3;
-  localNormal: THREE.Vector3;
 }
 
 interface FaceRaycastOverlayProps {
@@ -405,70 +401,48 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const handleCreatePanel = useCallback(async () => {
     if (!panelBounds || isCreating) return;
-    if (!shape.replicadShape) return;
 
-    const { groupIndex, uPlus, uMinus, vPlus, vMinus, localOrigin, localU, localV, localNormal: localN } = panelBounds;
+    const { uPlus, uMinus, vPlus, vMinus, origin, u, v, normal, groupIndex } = panelBounds;
     const panelThickness = 18;
 
     const dominantGroupIndex = faceGroups.findIndex(g => g.faceIndices.includes(groupIndex));
     if (dominantGroupIndex < 0) return;
 
-    const group = faceGroups[dominantGroupIndex];
-
     setIsCreating(true);
     try {
-      const { createPanelFromFace, convertReplicadToThreeGeometry, initReplicad } = await import('./ReplicadService');
+      const { convertReplicadToThreeGeometry, initReplicad } = await import('./ReplicadService');
       const { draw, Plane } = await import('replicad');
 
-      const localNormal = group.normal.clone().normalize();
-      const localVertices: THREE.Vector3[] = [];
-      group.faceIndices.forEach(idx => {
-        const face = faces[idx];
-        if (face) face.vertices.forEach(v => localVertices.push(v.clone()));
-      });
-      const localBox = new THREE.Box3().setFromPoints(localVertices);
-      const localCenter = new THREE.Vector3();
-      localBox.getCenter(localCenter);
-
-      await initReplicad();
-
-      const wu = localU.clone().normalize();
-      const wv = localV.clone().normalize();
-      const wn = localN.clone().normalize();
-
-      const cornerPt = localOrigin.clone()
-        .addScaledVector(wu, -uMinus)
-        .addScaledVector(wv, -vMinus);
-
-      const xAxis: [number, number, number] = [wu.x, wu.y, wu.z];
-      const normalAxis: [number, number, number] = [wn.x, wn.y, wn.z];
-      const originPt: [number, number, number] = [cornerPt.x, cornerPt.y, cornerPt.z];
+      const worldU = u.clone().normalize();
+      const worldV = v.clone().normalize();
+      const worldN = normal.clone().normalize();
 
       const panelW = uPlus + uMinus;
       const panelH = vPlus + vMinus;
-      const bigDepth = panelThickness * 4;
+
+      const worldCorner = origin.clone()
+        .addScaledVector(worldU, -uMinus)
+        .addScaledVector(worldV, -vMinus)
+        .addScaledVector(worldN, -0.5);
+
+      await initReplicad();
+
+      const xAxis: [number, number, number] = [worldU.x, worldU.y, worldU.z];
+      const normalAxis: [number, number, number] = [worldN.x, worldN.y, worldN.z];
+      const originPt: [number, number, number] = [worldCorner.x, worldCorner.y, worldCorner.z];
 
       const sketchPlane = new Plane(originPt, xAxis, normalAxis);
-      const constraintShape = draw()
+
+      const panelShape = draw()
         .movePointerTo([0, 0])
         .lineTo([panelW, 0])
         .lineTo([panelW, panelH])
         .lineTo([0, panelH])
         .close()
         .sketchOnPlane(sketchPlane)
-        .extrude(bigDepth);
+        .extrude(panelThickness);
 
-      const replicadPanel = await createPanelFromFace(
-        shape.replicadShape,
-        [localNormal.x, localNormal.y, localNormal.z],
-        [localCenter.x, localCenter.y, localCenter.z],
-        panelThickness,
-        constraintShape
-      );
-
-      if (!replicadPanel) return;
-
-      const geometry = convertReplicadToThreeGeometry(replicadPanel);
+      const geometry = convertReplicadToThreeGeometry(panelShape);
 
       const extraRowId = `raycast-${Date.now()}`;
 
@@ -476,20 +450,21 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         type: 'panel',
         geometry,
-        replicadShape: replicadPanel,
-        position: [...shape.position] as [number, number, number],
-        rotation: [...shape.rotation] as [number, number, number],
+        replicadShape: panelShape,
+        position: [0, 0, 0] as [number, number, number],
+        rotation: [0, 0, 0] as [number, number, number],
         scale: [...shape.scale] as [number, number, number],
         color: '#ffffff',
         parameters: {
-          width: 0,
-          height: 0,
+          width: uPlus + uMinus,
+          height: vPlus + vMinus,
           depth: panelThickness,
           parentShapeId: shape.id,
           faceIndex: dominantGroupIndex,
           faceRole: null,
           extraRowId,
           isRaycastPanel: true,
+          raycastBounds: { uPlus, uMinus, vPlus, vMinus },
         }
       };
 
@@ -503,7 +478,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     } finally {
       setIsCreating(false);
     }
-  }, [panelBounds, isCreating, shape, faceGroups, faces, addShape]);
+  }, [panelBounds, isCreating, shape, faceGroups, addShape]);
 
   panelBoundsRef.current = panelBounds;
   isCreatingRef.current = isCreating;
@@ -584,10 +559,6 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       u: bounds.u.clone().applyQuaternion(rot),
       v: bounds.v.clone().applyQuaternion(rot),
       normal: bounds.normal.clone().applyQuaternion(rot),
-      localOrigin: bounds.origin.clone(),
-      localU: bounds.u.clone(),
-      localV: bounds.v.clone(),
-      localNormal: bounds.normal.clone(),
     };
 
     setRayLines(worldLines);
