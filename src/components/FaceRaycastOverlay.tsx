@@ -287,29 +287,47 @@ OriginDot.displayName = 'OriginDot';
 
 const PanelPreview: React.FC<{
   bounds: RaycastPanelBounds;
-  faces: FaceData[];
-  faceGroups: CoplanarFaceGroup[];
-}> = React.memo(({ bounds, faces, faceGroups }) => {
-  const groupIndex = faceGroups.findIndex(g => g.faceIndices.includes(bounds.groupIndex));
+  parentPos: THREE.Vector3;
+}> = React.memo(({ bounds, parentPos }) => {
+  const { uPlus, uMinus, vPlus, vMinus, origin, u, v } = bounds;
+  const panelWidth = uPlus + uMinus;
+  const panelHeight = vPlus + vMinus;
+
+  const centerWorld = origin.clone()
+    .addScaledVector(u, (uPlus - uMinus) / 2)
+    .addScaledVector(v, (vPlus - vMinus) / 2);
+  const centerLocal = centerWorld.clone().sub(parentPos);
 
   const geometry = useMemo(() => {
-    if (groupIndex < 0 || !faceGroups[groupIndex]) return null;
-    return createFaceHighlightGeometry(faces, faceGroups[groupIndex].faceIndices);
-  }, [groupIndex, faceGroups, faces]);
+    return new THREE.PlaneGeometry(panelWidth, panelHeight);
+  }, [panelWidth, panelHeight]);
 
-  if (!geometry) return null;
+  const quaternion = useMemo(() => {
+    const n = bounds.normal.clone().normalize();
+    const q = new THREE.Quaternion();
+    q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), n);
+
+    const uAfterQ = new THREE.Vector3(1, 0, 0).applyQuaternion(q);
+    const angle = Math.atan2(
+      u.clone().cross(uAfterQ).dot(n),
+      u.dot(uAfterQ)
+    );
+    const qAlign = new THREE.Quaternion().setFromAxisAngle(n, -angle);
+    return qAlign.multiply(q);
+  }, [bounds.normal.x, bounds.normal.y, bounds.normal.z, u.x, u.y, u.z]);
 
   return (
-    <mesh geometry={geometry}>
+    <mesh
+      position={[centerLocal.x, centerLocal.y, centerLocal.z]}
+      quaternion={quaternion}
+      geometry={geometry}
+    >
       <meshBasicMaterial
         color={0x22c55e}
         transparent
         opacity={0.25}
         side={THREE.DoubleSide}
         depthTest={false}
-        polygonOffset
-        polygonOffsetFactor={-1}
-        polygonOffsetUnits={-1}
       />
     </mesh>
   );
@@ -381,7 +399,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     if (!panelBounds || isCreating) return;
     if (!shape.replicadShape) return;
 
-    const { groupIndex } = panelBounds;
+    const { uPlus, uMinus, vPlus, vMinus, origin, u, v, normal, groupIndex } = panelBounds;
     const panelThickness = 18;
 
     const dominantGroupIndex = faceGroups.findIndex(g => g.faceIndices.includes(groupIndex));
@@ -402,7 +420,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
     setIsCreating(true);
     try {
-      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { createPanelFromFace, convertReplicadToThreeGeometry, performBooleanIntersection, initReplicad } = await import('./ReplicadService');
+      const { draw } = await import('replicad');
 
       const replicadPanel = await createPanelFromFace(
         shape.replicadShape,
@@ -414,7 +433,59 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
       if (!replicadPanel) return;
 
-      const geometry = convertReplicadToThreeGeometry(replicadPanel);
+      const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
+      const shapeRot = shape.rotation as [number, number, number];
+      const invRot = new THREE.Quaternion()
+        .setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'))
+        .invert();
+
+      const localOrigin = origin.clone().sub(shapePos).applyQuaternion(invRot);
+      const localU = u.clone().applyQuaternion(invRot).normalize();
+      const localV = v.clone().applyQuaternion(invRot).normalize();
+      const localN = normal.clone().applyQuaternion(invRot).normalize();
+
+      const margin = 2;
+      const clipW = uPlus + uMinus + margin * 2;
+      const clipH = vPlus + vMinus + margin * 2;
+      const clipD = panelThickness + 100;
+
+      const clipCenter = localOrigin.clone()
+        .addScaledVector(localU, (uPlus - uMinus) / 2)
+        .addScaledVector(localV, (vPlus - vMinus) / 2);
+
+      const clipCorner = clipCenter.clone()
+        .addScaledVector(localU, -clipW / 2)
+        .addScaledVector(localV, -clipH / 2)
+        .addScaledVector(localN, -clipD / 2);
+
+      await initReplicad();
+
+      const p0: [number, number] = [0, 0];
+      const p1: [number, number] = [clipW, 0];
+      const p2: [number, number] = [clipW, clipH];
+      const p3: [number, number] = [0, clipH];
+
+      const xAxis: [number, number, number] = [localU.x, localU.y, localU.z];
+      const yAxis: [number, number, number] = [localV.x, localV.y, localV.z];
+      const originPt: [number, number, number] = [clipCorner.x, clipCorner.y, clipCorner.z];
+      const nDir: [number, number, number] = [localN.x, localN.y, localN.z];
+
+      const clipBox = draw()
+        .movePointerTo(p0)
+        .lineTo(p1)
+        .lineTo(p2)
+        .lineTo(p3)
+        .close()
+        .sketchOnPlane({
+          origin: originPt,
+          xDir: xAxis,
+          yDir: yAxis,
+          zDir: nDir,
+        })
+        .extrude(clipD);
+
+      let clippedPanel = await performBooleanIntersection(replicadPanel, clipBox);
+      const geometry = convertReplicadToThreeGeometry(clippedPanel);
 
       const extraRowId = `raycast-${Date.now()}`;
 
@@ -422,7 +493,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         type: 'panel',
         geometry,
-        replicadShape: replicadPanel,
+        replicadShape: clippedPanel,
         position: [...shape.position] as [number, number, number],
         rotation: [...shape.rotation] as [number, number, number],
         scale: [...shape.scale] as [number, number, number],
@@ -436,6 +507,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
           faceRole: null,
           extraRowId,
           isRaycastPanel: true,
+          raycastBounds: { uPlus, uMinus, vPlus, vMinus },
         }
       };
 
@@ -521,7 +593,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       ))}
 
       {panelBounds && (
-        <PanelPreview bounds={panelBounds} faces={faces} faceGroups={faceGroups} />
+        <PanelPreview bounds={panelBounds} parentPos={parentPos} />
       )}
     </>
   );
