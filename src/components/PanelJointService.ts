@@ -54,15 +54,11 @@ async function toGeometry(replicadShape: any) {
   return convertReplicadToThreeGeometry(replicadShape);
 }
 
-async function buildInflatedCutter(
-  dominantReplicad: any,
+async function buildCutterSlab(
   dominantPanel: any,
-  subordinatePanel: any,
-  epsilon: number
+  subordinatePanel: any
 ): Promise<any> {
-  if (!dominantPanel?.geometry || !subordinatePanel?.geometry) {
-    return dominantReplicad;
-  }
+  const { createReplicadBox } = await import('./ReplicadService');
 
   const domBox = new THREE.Box3().setFromBufferAttribute(
     dominantPanel.geometry.getAttribute('position') as THREE.BufferAttribute
@@ -78,20 +74,76 @@ async function buildInflatedCutter(
     subBox.translate(new THREE.Vector3(...(subordinatePanel.position as [number, number, number])));
   }
 
-  const domCenter = new THREE.Vector3();
+  const domSize = new THREE.Vector3();
+  domBox.getSize(domSize);
+
+  const subSize = new THREE.Vector3();
+  subBox.getSize(subSize);
   const subCenter = new THREE.Vector3();
-  domBox.getCenter(domCenter);
   subBox.getCenter(subCenter);
 
-  const towardSub = subCenter.clone().sub(domCenter).normalize();
+  const LARGE = 100000;
+  const OVERLAP = 2.0;
 
-  const inflated = dominantReplicad.translate(
-    towardSub.x * epsilon,
-    towardSub.y * epsilon,
-    towardSub.z * epsilon
-  );
+  const distXPos = Math.abs(domBox.max.x - subBox.min.x);
+  const distXNeg = Math.abs(subBox.max.x - domBox.min.x);
+  const distYPos = Math.abs(domBox.max.y - subBox.min.y);
+  const distYNeg = Math.abs(subBox.max.y - domBox.min.y);
+  const distZPos = Math.abs(domBox.max.z - subBox.min.z);
+  const distZNeg = Math.abs(subBox.max.z - domBox.min.z);
 
-  return inflated;
+  const candidates = [
+    { dist: distXPos, axis: 'x', dir: +1, face: domBox.max.x },
+    { dist: distXNeg, axis: 'x', dir: -1, face: domBox.min.x },
+    { dist: distYPos, axis: 'y', dir: +1, face: domBox.max.y },
+    { dist: distYNeg, axis: 'y', dir: -1, face: domBox.min.y },
+    { dist: distZPos, axis: 'z', dir: +1, face: domBox.max.z },
+    { dist: distZNeg, axis: 'z', dir: -1, face: domBox.min.z },
+  ];
+
+  const closest = candidates.reduce((a, b) => a.dist < b.dist ? a : b);
+
+  let slabW: number, slabH: number, slabD: number;
+  let slabX: number, slabY: number, slabZ: number;
+
+  if (closest.axis === 'x') {
+    const thickness = domSize.x + OVERLAP;
+    slabW = thickness;
+    slabH = LARGE;
+    slabD = LARGE;
+    slabX = closest.dir > 0
+      ? closest.face - OVERLAP
+      : closest.face - domSize.x;
+    slabY = subCenter.y - LARGE / 2;
+    slabZ = subCenter.z - LARGE / 2;
+  } else if (closest.axis === 'y') {
+    const thickness = domSize.y + OVERLAP;
+    slabW = LARGE;
+    slabH = thickness;
+    slabD = LARGE;
+    slabX = subCenter.x - LARGE / 2;
+    slabY = closest.dir > 0
+      ? closest.face - OVERLAP
+      : closest.face - domSize.y;
+    slabZ = subCenter.z - LARGE / 2;
+  } else {
+    const thickness = domSize.z + OVERLAP;
+    slabW = LARGE;
+    slabH = LARGE;
+    slabD = thickness;
+    slabX = subCenter.x - LARGE / 2;
+    slabY = subCenter.y - LARGE / 2;
+    slabZ = closest.dir > 0
+      ? closest.face - OVERLAP
+      : closest.face - domSize.z;
+  }
+
+  if (slabW < 0.1 || slabH < 0.1 || slabD < 0.1) {
+    throw new Error('Degenerate slab dimensions');
+  }
+
+  const slabShape = await createReplicadBox({ width: slabW, height: slabH, depth: slabD });
+  return slabShape.translate(slabX, slabY, slabZ);
 }
 
 export async function loadJointConfig(profileId: string): Promise<PanelJointConfig> {
@@ -745,11 +797,12 @@ export async function resolveAllPanelJoints(
   profileId: string | null | undefined,
   config?: PanelJointConfig
 ): Promise<void> {
-  const state = useAppStore.getState();
   const fullSettings = profileId && profileId !== 'none'
     ? await loadFullProfileSettings(profileId)
     : { jointConfig: DEFAULT_CONFIG, selectedBodyType: null, bazaHeight: 100, frontBaseDistance: 10 };
   const jointConfig = config || fullSettings.jointConfig;
+
+  const state = useAppStore.getState();
 
   const panels = state.shapes.filter(
     (s) =>
@@ -808,8 +861,6 @@ export async function resolveAllPanelJoints(
     { geometry: any; replicadShape: any; jointTrimmed: boolean }
   >();
 
-  const EPSILON = 0.5;
-
   for (const panel of panels) {
     const original = originalShapes.get(panel.id);
     if (!original) continue;
@@ -821,22 +872,17 @@ export async function resolveAllPanelJoints(
       for (const dominantId of dominantIds) {
         const cuttingShape = originalShapes.get(dominantId);
         if (!cuttingShape) continue;
+        const dominantPanel = panels.find(p => p.id === dominantId);
+        const subordinatePanel = panels.find(p => p.id === panel.id);
         try {
-          const dominantPanel = panels.find(p => p.id === dominantId);
-          const subordinatePanel = panels.find(p => p.id === panel.id);
-          const cutterShape = await buildInflatedCutter(
-            cuttingShape,
-            dominantPanel,
-            subordinatePanel,
-            EPSILON
-          );
-          currentShape = currentShape.cut(cutterShape);
-        } catch (err) {
-          console.error(`Joint cut failed for panel ${panel.id}:`, err);
+          const slabCutter = await buildCutterSlab(dominantPanel, subordinatePanel);
+          currentShape = currentShape.cut(slabCutter);
+        } catch (slabErr) {
+          console.warn(`Slab cut failed for panel ${panel.id}, trying direct cut:`, slabErr);
           try {
             currentShape = currentShape.cut(cuttingShape);
           } catch (fallbackErr) {
-            console.error(`Fallback cut also failed:`, fallbackErr);
+            console.error(`All cut strategies failed for panel ${panel.id}:`, fallbackErr);
           }
         }
       }
