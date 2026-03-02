@@ -597,10 +597,20 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
-  const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+  const { createPanelFromFace, convertReplicadToThreeGeometry, createReplicadBox } = await import('./ReplicadService');
 
-  const faces = extractFacesFromGeometry(parentShape.geometry);
-  const faceGroups = groupCoplanarFaces(faces);
+  const baseW = parentShape.parameters?.width || 1;
+  const baseH = parentShape.parameters?.height || 1;
+  const baseD = parentShape.parameters?.depth || 1;
+
+  const cleanBox = await createReplicadBox({ width: baseW, height: baseH, depth: baseD });
+  const cleanGeometry = convertReplicadToThreeGeometry(cleanBox);
+
+  const cleanFaces = extractFacesFromGeometry(cleanGeometry);
+  const cleanFaceGroups = groupCoplanarFaces(cleanFaces);
+
+  const complexFaces = extractFacesFromGeometry(parentShape.geometry);
+  const complexFaceGroups = groupCoplanarFaces(complexFaces);
 
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
@@ -609,13 +619,13 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
   for (const panel of faceRolePanels) {
     const faceIndex = panel.parameters?.faceIndex;
-    if (faceIndex === undefined || faceIndex >= faceGroups.length) continue;
+    if (faceIndex === undefined || faceIndex >= complexFaceGroups.length) continue;
 
-    const faceGroup = faceGroups[faceIndex];
+    const faceGroup = complexFaceGroups[faceIndex];
 
     const localVertices: THREE.Vector3[] = [];
     faceGroup.faceIndices.forEach((idx: number) => {
-      const face = faces[idx];
+      const face = complexFaces[idx];
       face.vertices.forEach((v: THREE.Vector3) => localVertices.push(v.clone()));
     });
 
@@ -657,7 +667,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
   for (const panel of raycastPanels) {
     try {
-      const result = await rebuildRaycastPanel(panel, parentShape, faces, faceGroups, childPanels);
+      const result = await rebuildRaycastPanel(panel, parentShape, cleanFaces, cleanFaceGroups, childPanels);
       if (result) {
         updates.push(result);
       }
