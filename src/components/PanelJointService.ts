@@ -54,6 +54,46 @@ async function toGeometry(replicadShape: any) {
   return convertReplicadToThreeGeometry(replicadShape);
 }
 
+async function buildInflatedCutter(
+  dominantReplicad: any,
+  dominantPanel: any,
+  subordinatePanel: any,
+  epsilon: number
+): Promise<any> {
+  if (!dominantPanel?.geometry || !subordinatePanel?.geometry) {
+    return dominantReplicad;
+  }
+
+  const domBox = new THREE.Box3().setFromBufferAttribute(
+    dominantPanel.geometry.getAttribute('position') as THREE.BufferAttribute
+  );
+  const subBox = new THREE.Box3().setFromBufferAttribute(
+    subordinatePanel.geometry.getAttribute('position') as THREE.BufferAttribute
+  );
+
+  if (dominantPanel.position) {
+    domBox.translate(new THREE.Vector3(...(dominantPanel.position as [number, number, number])));
+  }
+  if (subordinatePanel.position) {
+    subBox.translate(new THREE.Vector3(...(subordinatePanel.position as [number, number, number])));
+  }
+
+  const domCenter = new THREE.Vector3();
+  const subCenter = new THREE.Vector3();
+  domBox.getCenter(domCenter);
+  subBox.getCenter(subCenter);
+
+  const towardSub = subCenter.clone().sub(domCenter).normalize();
+
+  const inflated = dominantReplicad.translate(
+    towardSub.x * epsilon,
+    towardSub.y * epsilon,
+    towardSub.z * epsilon
+  );
+
+  return inflated;
+}
+
 export async function loadJointConfig(profileId: string): Promise<PanelJointConfig> {
   try {
     const settings = await globalSettingsService.getProfileSettings(profileId, 'panel_joint');
@@ -768,6 +808,8 @@ export async function resolveAllPanelJoints(
     { geometry: any; replicadShape: any; jointTrimmed: boolean }
   >();
 
+  const EPSILON = 0.5;
+
   for (const panel of panels) {
     const original = originalShapes.get(panel.id);
     if (!original) continue;
@@ -780,9 +822,22 @@ export async function resolveAllPanelJoints(
         const cuttingShape = originalShapes.get(dominantId);
         if (!cuttingShape) continue;
         try {
-          currentShape = currentShape.cut(cuttingShape);
+          const dominantPanel = panels.find(p => p.id === dominantId);
+          const subordinatePanel = panels.find(p => p.id === panel.id);
+          const cutterShape = await buildInflatedCutter(
+            cuttingShape,
+            dominantPanel,
+            subordinatePanel,
+            EPSILON
+          );
+          currentShape = currentShape.cut(cutterShape);
         } catch (err) {
           console.error(`Joint cut failed for panel ${panel.id}:`, err);
+          try {
+            currentShape = currentShape.cut(cuttingShape);
+          } catch (fallbackErr) {
+            console.error(`Fallback cut also failed:`, fallbackErr);
+          }
         }
       }
 
