@@ -334,10 +334,6 @@ async function rebuildRaycastPanel(
     raycastParentDimensions,
   } = panel.parameters || {};
 
-  if (!raycastLocalOrigin || !raycastFaceNormal || !raycastParentDimensions) {
-    return null;
-  }
-
   const { convertReplicadToThreeGeometry, initReplicad, createReplicadBox, performBooleanCut } = await import('./ReplicadService');
   const { draw, Plane } = await import('replicad');
 
@@ -345,22 +341,44 @@ async function rebuildRaycastPanel(
   const newHeight = parentShape.parameters?.height || 1;
   const newDepth = parentShape.parameters?.depth || 1;
 
-  const scaleX = newWidth / (raycastParentDimensions.width || 1);
-  const scaleY = newHeight / (raycastParentDimensions.height || 1);
-  const scaleZ = newDepth / (raycastParentDimensions.depth || 1);
+  let matchedGroup: any = null;
+  let scaledOrigin: THREE.Vector3;
 
-  const scaledOrigin = new THREE.Vector3(
-    raycastLocalOrigin[0] * scaleX,
-    raycastLocalOrigin[1] * scaleY,
-    raycastLocalOrigin[2] * scaleZ
-  );
+  if (raycastFaceNormal) {
+    const targetNormal = new THREE.Vector3(...(raycastFaceNormal as [number,number,number])).normalize();
+    matchedGroup = faceGroups.find((g: any) => {
+      const gn = g.normal.clone().normalize();
+      return gn.dot(targetNormal) > 0.95;
+    });
+  } else if (panel.parameters?.faceIndex !== undefined) {
+    const fi = panel.parameters.faceIndex;
+    matchedGroup = fi < faceGroups.length ? faceGroups[fi] : null;
+  }
 
-  const targetNormal = new THREE.Vector3(...raycastFaceNormal).normalize();
-  let matchedGroup = faceGroups.find((g: any) => {
-    const gn = g.normal.clone().normalize();
-    return gn.dot(targetNormal) > 0.95;
-  });
   if (!matchedGroup) return null;
+
+  if (raycastLocalOrigin && raycastParentDimensions) {
+    const scaleX = newWidth / (raycastParentDimensions.width || 1);
+    const scaleY = newHeight / (raycastParentDimensions.height || 1);
+    const scaleZ = newDepth / (raycastParentDimensions.depth || 1);
+    scaledOrigin = new THREE.Vector3(
+      (raycastLocalOrigin as [number,number,number])[0] * scaleX,
+      (raycastLocalOrigin as [number,number,number])[1] * scaleY,
+      (raycastLocalOrigin as [number,number,number])[2] * scaleZ
+    );
+  } else {
+    const localVertices: THREE.Vector3[] = [];
+    matchedGroup.faceIndices.forEach((idx: number) => {
+      const face = faces[idx];
+      if (face) face.vertices.forEach((v: THREE.Vector3) => localVertices.push(v.clone()));
+    });
+    const localBox = new THREE.Box3().setFromPoints(localVertices);
+    scaledOrigin = new THREE.Vector3();
+    localBox.getCenter(scaledOrigin);
+    const faceN = matchedGroup.normal.clone().normalize();
+    const inset = Math.min(newWidth, newHeight, newDepth) * 0.1;
+    scaledOrigin.addScaledVector(faceN.negate(), inset);
+  }
 
   const { collectBoundaryEdges, getFacePlaneAxes, castRayOnFace, collectPanelObstacleEdges } = await import('./RaycastUtils');
 
@@ -417,24 +435,126 @@ async function rebuildRaycastPanel(
     .sketchOnPlane(sketchPlane)
     .extrude(-panelThickness);
 
-  const hasFillets = parentShape.fillets && parentShape.fillets.length > 0;
-  if (parentShape.replicadShape && hasFillets) {
-    try {
-      const { performBooleanIntersection } = await import('./ReplicadService');
-      const rotDegX = shapeRot[0] * (180 / Math.PI);
-      const rotDegY = shapeRot[1] * (180 / Math.PI);
-      const rotDegZ = shapeRot[2] * (180 / Math.PI);
+  const parentSubtractions = (parentShape.subtractionGeometries || []).filter(Boolean);
+  const hasSubtractions = parentSubtractions.length > 0;
+  const hasFillets = (parentShape.fillets || []).length > 0;
 
-      let parentWorld = parentShape.replicadShape;
-      if (Math.abs(rotDegX) > 0.01) parentWorld = parentWorld.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
-      if (Math.abs(rotDegY) > 0.01) parentWorld = parentWorld.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
-      if (Math.abs(rotDegZ) > 0.01) parentWorld = parentWorld.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
-      parentWorld = parentWorld.translate(shapePos.x, shapePos.y, shapePos.z);
+  const buildParentWorld = async (parentReplicad: any) => {
+    const rotDegX = shapeRot[0] * (180 / Math.PI);
+    const rotDegY = shapeRot[1] * (180 / Math.PI);
+    const rotDegZ = shapeRot[2] * (180 / Math.PI);
+    let pw = parentReplicad;
+    if (Math.abs(rotDegX) > 0.01) pw = pw.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
+    if (Math.abs(rotDegY) > 0.01) pw = pw.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
+    if (Math.abs(rotDegZ) > 0.01) pw = pw.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
+    return pw.translate(shapePos.x, shapePos.y, shapePos.z);
+  };
 
-      panelShape = await performBooleanIntersection(panelShape, parentWorld);
-    } catch (e) {
-      console.warn('Raycast panel rebuild: fillet intersection failed', e);
+  const applySubtractionCuts = async (panel: any) => {
+    const { createReplicadBox, performBooleanCut } = await import('./ReplicadService');
+    const { getOriginalSize } = await import('./ShapeUpdaterService');
+
+    const parentBox = new THREE.Box3().setFromBufferAttribute(
+      parentShape.geometry.attributes.position as THREE.BufferAttribute
+    );
+    const parentCenter = new THREE.Vector3();
+    const parentSize = new THREE.Vector3();
+    parentBox.getCenter(parentCenter);
+    parentBox.getSize(parentSize);
+    const isCentered = Math.abs(parentCenter.x) < 0.01 &&
+                       Math.abs(parentCenter.y) < 0.01 &&
+                       Math.abs(parentCenter.z) < 0.01;
+    const rot2 = new THREE.Quaternion().setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'));
+    const parentCornerWorld = shapePos.clone();
+    if (isCentered) {
+      const halfLocal = new THREE.Vector3(parentSize.x / 2, parentSize.y / 2, parentSize.z / 2);
+      halfLocal.applyQuaternion(rot2);
+      parentCornerWorld.sub(halfLocal);
     }
+
+    let result = panel;
+    for (const subtraction of parentSubtractions) {
+      try {
+        const subSize = getOriginalSize(subtraction.geometry);
+        const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
+        const subLocalPos = new THREE.Vector3(...subtraction.relativeOffset as [number, number, number]);
+        const subWorldPos = subLocalPos.clone().applyQuaternion(rot2).add(parentCornerWorld);
+        const subRelRot = subtraction.relativeRotation || [0, 0, 0];
+        const subRotQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(subRelRot[0], subRelRot[1], subRelRot[2], 'XYZ'));
+        const subWorldQ = rot2.clone().multiply(subRotQ);
+        const subWorldEuler = new THREE.Euler().setFromQuaternion(subWorldQ, 'XYZ');
+        result = await performBooleanCut(
+          result, subBox, undefined,
+          [subWorldPos.x, subWorldPos.y, subWorldPos.z],
+          undefined,
+          [subWorldEuler.x, subWorldEuler.y, subWorldEuler.z],
+          undefined,
+          subtraction.scale || [1, 1, 1] as [number, number, number]
+        );
+      } catch (cutErr) {
+        console.warn('Subtractor cut skipped:', cutErr);
+      }
+    }
+    return result;
+  };
+
+  const rebuildParentWithFillets = async () => {
+    const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry: cvt } = await import('./ReplicadService');
+    const { getOriginalSize, applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
+    const baseWidth = parentShape.parameters?.width || 1;
+    const baseHeight = parentShape.parameters?.height || 1;
+    const baseDepth = parentShape.parameters?.depth || 1;
+
+    let rebuilt = await createReplicadBox({ width: baseWidth, height: baseHeight, depth: baseDepth });
+
+    for (const sub of parentSubtractions) {
+      try {
+        const subSize = getOriginalSize(sub.geometry);
+        const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
+        rebuilt = await performBooleanCut(
+          rebuilt, subBox, undefined, sub.relativeOffset,
+          undefined, sub.relativeRotation || [0, 0, 0],
+          undefined, sub.scale || [1, 1, 1] as [number, number, number]
+        );
+      } catch (e) { /* skip */ }
+    }
+
+    if (hasFillets) {
+      const geom = cvt(rebuilt);
+      const updatedFillets = await updateFilletCentersForNewGeometry(parentShape.fillets, geom, {
+        width: baseWidth, height: baseHeight, depth: baseDepth
+      });
+      rebuilt = await applyFillets(rebuilt, updatedFillets, { width: baseWidth, height: baseHeight, depth: baseDepth });
+    }
+
+    return rebuilt;
+  };
+
+  if (parentShape.replicadShape && (hasSubtractions || hasFillets)) {
+    const { performBooleanIntersection } = await import('./ReplicadService');
+    let intersected = false;
+    try {
+      const parentWorld = await buildParentWorld(parentShape.replicadShape);
+      panelShape = await performBooleanIntersection(panelShape, parentWorld);
+      intersected = true;
+    } catch (intersectErr) {
+      console.warn('Raycast panel rebuild: stored shape intersection failed, rebuilding parent:', intersectErr);
+    }
+
+    if (!intersected) {
+      try {
+        const rebuilt = await rebuildParentWithFillets();
+        const parentWorld = await buildParentWorld(rebuilt);
+        panelShape = await (await import('./ReplicadService')).performBooleanIntersection(panelShape, parentWorld);
+      } catch (rebuildErr) {
+        console.warn('Raycast panel rebuild: rebuilt intersection failed, falling back to cuts:', rebuildErr);
+        if (hasSubtractions) {
+          panelShape = await applySubtractionCuts(panelShape);
+        }
+      }
+    }
+  } else if (hasSubtractions) {
+    panelShape = await applySubtractionCuts(panelShape);
   }
 
   const geometry = convertReplicadToThreeGeometry(panelShape);
