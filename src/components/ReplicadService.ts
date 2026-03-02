@@ -261,6 +261,68 @@ export const performBooleanIntersection = async (
   }
 };
 
+async function rebuildReplicadShape(staleShape: any): Promise<any> {
+  try {
+    const { useAppStore } = await import('../store');
+    const state = useAppStore.getState();
+
+    const parentShape = state.shapes.find(
+      (s: any) => s.replicadShape === staleShape
+    );
+    if (!parentShape || !parentShape.parameters) return null;
+
+    const width = parentShape.parameters.width || 1;
+    const height = parentShape.parameters.height || 1;
+    const depth = parentShape.parameters.depth || 1;
+
+    let rebuilt = await createReplicadBox({ width, height, depth });
+
+    const subtractions = (parentShape.subtractionGeometries || []).filter(Boolean);
+    for (const sub of subtractions) {
+      try {
+        const subBox = new (await import('three')).Box3().setFromBufferAttribute(
+          sub.geometry.getAttribute('position')
+        );
+        const subSize = new (await import('three')).Vector3();
+        subBox.getSize(subSize);
+
+        const cuttingShape = await createReplicadBox({
+          width: subSize.x,
+          height: subSize.y,
+          depth: subSize.z,
+        });
+
+        rebuilt = await performBooleanCut(
+          rebuilt,
+          cuttingShape,
+          undefined,
+          sub.relativeOffset,
+          undefined,
+          sub.relativeRotation || [0, 0, 0],
+          undefined,
+          sub.scale || [1, 1, 1]
+        );
+      } catch {
+        // skip failed subtraction
+      }
+    }
+
+    if (parentShape.fillets && parentShape.fillets.length > 0) {
+      const { applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
+      const geom = convertReplicadToThreeGeometry(rebuilt);
+      const updatedFillets = await updateFilletCentersForNewGeometry(parentShape.fillets, geom, { width, height, depth });
+      rebuilt = await applyFillets(rebuilt, updatedFillets, { width, height, depth });
+    }
+
+    useAppStore.getState().updateShape(parentShape.id, { replicadShape: rebuilt });
+    console.log('✅ Rebuilt replicadShape from parameters');
+    return rebuilt;
+  } catch (err) {
+    console.error('❌ Failed to rebuild replicadShape:', err);
+    return null;
+  }
+}
+
 export const createPanelFromFace = async (
   replicadShape: any,
   faceNormal: [number, number, number],
@@ -278,7 +340,27 @@ export const createPanelFromFace = async (
   });
 
   try {
-    const faces = replicadShape.faces;
+    let faces: any;
+    try {
+      faces = replicadShape.faces;
+    } catch (deletedErr: any) {
+      if (deletedErr?.message?.includes('deleted')) {
+        console.warn('⚠️ replicadShape was deleted, attempting rebuild...');
+        const rebuilt = await rebuildReplicadShape(replicadShape);
+        if (!rebuilt) throw deletedErr;
+        faces = rebuilt.faces;
+        replicadShape = rebuilt;
+        if (constraintGeometry) {
+          try {
+            constraintGeometry.faces;
+          } catch {
+            constraintGeometry = rebuilt;
+          }
+        }
+      } else {
+        throw deletedErr;
+      }
+    }
     console.log(`📋 Found ${faces.length} faces in shape`);
 
     interface FaceCandidate {

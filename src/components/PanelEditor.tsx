@@ -264,15 +264,50 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
       const panelThickness = 18;
 
-      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { createPanelFromFace, convertReplicadToThreeGeometry, createReplicadBox, performBooleanCut } = await import('./ReplicadService');
+      const { getOriginalSize, applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
+
+      let shapeToUse = selectedShape.replicadShape;
+      let isShapeValid = true;
+      try {
+        if (shapeToUse) shapeToUse.faces;
+      } catch {
+        isShapeValid = false;
+      }
+
+      if (!isShapeValid) {
+        console.warn('replicadShape is stale, rebuilding from parameters...');
+        const w = selectedShape.parameters?.width || 1;
+        const h = selectedShape.parameters?.height || 1;
+        const d = selectedShape.parameters?.depth || 1;
+        let rebuilt = await createReplicadBox({ width: w, height: h, depth: d });
+
+        const subs = (selectedShape.subtractionGeometries || []).filter(Boolean);
+        for (const sub of subs) {
+          try {
+            const subSize = getOriginalSize(sub.geometry);
+            const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
+            rebuilt = await performBooleanCut(rebuilt, subBox, undefined, sub.relativeOffset, undefined, sub.relativeRotation || [0, 0, 0], undefined, sub.scale || [1, 1, 1]);
+          } catch { /* skip */ }
+        }
+
+        if (selectedShape.fillets && selectedShape.fillets.length > 0) {
+          const geom = convertReplicadToThreeGeometry(rebuilt);
+          const updatedFillets = await updateFilletCentersForNewGeometry(selectedShape.fillets, geom, { width: w, height: h, depth: d });
+          rebuilt = await applyFillets(rebuilt, updatedFillets, { width: w, height: h, depth: d });
+        }
+
+        shapeToUse = rebuilt;
+        updateShape(selectedShape.id, { replicadShape: rebuilt });
+      }
 
       const hasFillets = selectedShape.fillets && selectedShape.fillets.length > 0;
       let replicadPanel = await createPanelFromFace(
-        selectedShape.replicadShape,
+        shapeToUse,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
         panelThickness,
-        hasFillets ? selectedShape.replicadShape : null
+        hasFillets ? shapeToUse : null
       );
 
       if (!replicadPanel) return;

@@ -582,6 +582,46 @@ async function rebuildRaycastPanel(
   };
 }
 
+async function ensureValidReplicadShape(parentShape: any): Promise<any> {
+  let shape = parentShape.replicadShape;
+  if (!shape) return null;
+
+  try {
+    shape.faces;
+    return shape;
+  } catch (err: any) {
+    if (!err?.message?.includes('deleted')) throw err;
+  }
+
+  console.warn('rebuildAllPanels: replicadShape is stale, rebuilding...');
+  const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+  const { getOriginalSize, applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
+
+  const w = parentShape.parameters?.width || 1;
+  const h = parentShape.parameters?.height || 1;
+  const d = parentShape.parameters?.depth || 1;
+
+  let rebuilt = await createReplicadBox({ width: w, height: h, depth: d });
+
+  const subs = (parentShape.subtractionGeometries || []).filter(Boolean);
+  for (const sub of subs) {
+    try {
+      const subSize = getOriginalSize(sub.geometry);
+      const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
+      rebuilt = await performBooleanCut(rebuilt, subBox, undefined, sub.relativeOffset, undefined, sub.relativeRotation || [0, 0, 0], undefined, sub.scale || [1, 1, 1]);
+    } catch { /* skip */ }
+  }
+
+  if (parentShape.fillets && parentShape.fillets.length > 0) {
+    const geom = convertReplicadToThreeGeometry(rebuilt);
+    const updatedFillets = await updateFilletCentersForNewGeometry(parentShape.fillets, geom, { width: w, height: h, depth: d });
+    rebuilt = await applyFillets(rebuilt, updatedFillets, { width: w, height: h, depth: d });
+  }
+
+  useAppStore.getState().updateShape(parentShape.id, { replicadShape: rebuilt });
+  return rebuilt;
+}
+
 export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
@@ -595,6 +635,9 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   if (childPanels.length === 0) return;
 
   console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
+
+  const validReplicadShape = await ensureValidReplicadShape(parentShape);
+  if (!validReplicadShape) return;
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
   const { createPanelFromFace, convertReplicadToThreeGeometry, createReplicadBox } = await import('./ReplicadService');
@@ -639,11 +682,11 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
     try {
       const hasFillets = parentShape.fillets && parentShape.fillets.length > 0;
       const replicadPanel = await createPanelFromFace(
-        parentShape.replicadShape,
+        validReplicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
         panelThickness,
-        hasFillets ? parentShape.replicadShape : undefined
+        hasFillets ? validReplicadShape : undefined
       );
 
       if (!replicadPanel) continue;
