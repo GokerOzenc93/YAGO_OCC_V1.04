@@ -179,7 +179,7 @@ const PanelPreview: React.FC<{
 PanelPreview.displayName = 'PanelPreview';
 
 export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, allShapes = [] }) => {
-  const { raycastMode, addShape, selectedShapeId, setRaycastMode } = useAppStore();
+  const { raycastMode, addShape, selectedShapeId } = useAppStore();
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
@@ -478,13 +478,12 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       setRayLines([]);
       setOriginWorld(null);
       setPanelBounds(null);
-      setRaycastMode(false);
     } catch (err) {
       console.error('Failed to create raycast panel:', err);
     } finally {
       setIsCreating(false);
     }
-  }, [panelBounds, isCreating, shape, faceGroups, addShape, setRaycastMode]);
+  }, [panelBounds, isCreating, shape, faceGroups, addShape]);
 
   panelBoundsRef.current = panelBounds;
   isCreatingRef.current = isCreating;
