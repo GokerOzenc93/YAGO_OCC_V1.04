@@ -530,28 +530,30 @@ async function rebuildRaycastPanel(
     return rebuilt;
   };
 
-  if (parentShape.replicadShape && (hasSubtractions || hasFillets)) {
+  if (hasSubtractions || hasFillets) {
     const { performBooleanIntersection } = await import('./ReplicadService');
     let intersected = false;
     try {
-      const parentWorld = await buildParentWorld(parentShape.replicadShape);
+      const freshParent = await rebuildParentWithFillets();
+      const parentWorld = await buildParentWorld(freshParent);
       panelShape = await performBooleanIntersection(panelShape, parentWorld);
       intersected = true;
-    } catch (intersectErr) {
-      console.warn('Raycast panel rebuild: stored shape intersection failed, rebuilding parent:', intersectErr);
+    } catch (rebuildErr) {
+      console.warn('Raycast panel rebuild: fresh parent intersection failed, trying stored shape:', rebuildErr);
     }
 
-    if (!intersected) {
+    if (!intersected && parentShape.replicadShape) {
       try {
-        const rebuilt = await rebuildParentWithFillets();
-        const parentWorld = await buildParentWorld(rebuilt);
-        panelShape = await (await import('./ReplicadService')).performBooleanIntersection(panelShape, parentWorld);
-      } catch (rebuildErr) {
-        console.warn('Raycast panel rebuild: rebuilt intersection failed, falling back to cuts:', rebuildErr);
-        if (hasSubtractions) {
-          panelShape = await applySubtractionCuts(panelShape);
-        }
+        const parentWorld = await buildParentWorld(parentShape.replicadShape);
+        panelShape = await performBooleanIntersection(panelShape, parentWorld);
+        intersected = true;
+      } catch (storedErr) {
+        console.warn('Raycast panel rebuild: stored shape intersection failed, falling back to cuts:', storedErr);
       }
+    }
+
+    if (!intersected && hasSubtractions) {
+      panelShape = await applySubtractionCuts(panelShape);
     }
   } else if (hasSubtractions) {
     panelShape = await applySubtractionCuts(panelShape);
