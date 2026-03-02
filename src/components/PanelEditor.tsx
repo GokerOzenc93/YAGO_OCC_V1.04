@@ -429,12 +429,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 faceRole: newRole
                               }
                             });
-                            if (selectedProfile !== 'none') {
-                              setResolving(true);
-                              resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
-                                setResolving(false)
-                              );
-                            }
+                            setResolving(true);
+                            resolveAllPanelJoints(
+                              selectedShape.id,
+                              selectedProfile !== 'none' ? selectedProfile : null
+                            ).finally(() => setResolving(false));
                           }}
                           style={{ width: '35mm' }}
                           className="px-1 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"

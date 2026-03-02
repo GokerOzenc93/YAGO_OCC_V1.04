@@ -702,11 +702,13 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
 export async function resolveAllPanelJoints(
   parentShapeId: string,
-  profileId: string,
+  profileId: string | null | undefined,
   config?: PanelJointConfig
 ): Promise<void> {
   const state = useAppStore.getState();
-  const fullSettings = await loadFullProfileSettings(profileId);
+  const fullSettings = profileId && profileId !== 'none'
+    ? await loadFullProfileSettings(profileId)
+    : { jointConfig: DEFAULT_CONFIG, selectedBodyType: null, bazaHeight: 100, frontBaseDistance: 10 };
   const jointConfig = config || fullSettings.jointConfig;
 
   const panels = state.shapes.filter(
