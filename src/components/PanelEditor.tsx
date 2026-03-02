@@ -264,15 +264,46 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
       const panelThickness = 18;
 
-      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { createPanelFromFace, convertReplicadToThreeGeometry, createReplicadBox, performBooleanCut } = await import('./ReplicadService');
 
       const hasFillets = selectedShape.fillets && selectedShape.fillets.length > 0;
+
+      const getOrRebuildShape = async (): Promise<any> => {
+        try {
+          const shape = selectedShape.replicadShape;
+          shape.faces;
+          return shape;
+        } catch (_) {
+          const { applyFillets, updateFilletCentersForNewGeometry, getOriginalSize } = await import('./ShapeUpdaterService');
+          const baseWidth = selectedShape.parameters?.width || 1;
+          const baseHeight = selectedShape.parameters?.height || 1;
+          const baseDepth = selectedShape.parameters?.depth || 1;
+          let rebuilt = await createReplicadBox({ width: baseWidth, height: baseHeight, depth: baseDepth });
+          for (const sub of (selectedShape.subtractionGeometries || [])) {
+            if (!sub) continue;
+            try {
+              const subSize = getOriginalSize(sub.geometry);
+              const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
+              rebuilt = await performBooleanCut(rebuilt, subBox, undefined, sub.relativeOffset, undefined, sub.relativeRotation || [0,0,0], undefined, sub.scale || [1,1,1] as [number,number,number]);
+            } catch (_e) { /* skip */ }
+          }
+          if (hasFillets) {
+            const geom = convertReplicadToThreeGeometry(rebuilt);
+            const updatedFillets = await updateFilletCentersForNewGeometry(selectedShape.fillets!, geom, { width: baseWidth, height: baseHeight, depth: baseDepth });
+            rebuilt = await applyFillets(rebuilt, updatedFillets, { width: baseWidth, height: baseHeight, depth: baseDepth });
+          }
+          return rebuilt;
+        }
+      };
+
+      const shapeForPanel = await getOrRebuildShape();
+
       let replicadPanel = await createPanelFromFace(
-        selectedShape.replicadShape,
+        shapeForPanel,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
         panelThickness,
-        hasFillets ? selectedShape.replicadShape : null
+        hasFillets ? shapeForPanel : null
       );
 
       if (!replicadPanel) return;
