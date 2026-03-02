@@ -321,6 +321,145 @@ async function generateFrontBazaPanels(
   }
 }
 
+async function rebuildRaycastPanel(
+  panel: any,
+  parentShape: any,
+  faces: any[],
+  faceGroups: any[],
+  allPanels: any[]
+): Promise<{ id: string; geometry: any; replicadShape: any; parameters: any } | null> {
+  const {
+    raycastLocalOrigin,
+    raycastFaceNormal,
+    raycastParentDimensions,
+  } = panel.parameters || {};
+
+  if (!raycastLocalOrigin || !raycastFaceNormal || !raycastParentDimensions) {
+    return null;
+  }
+
+  const { convertReplicadToThreeGeometry, initReplicad, createReplicadBox, performBooleanCut } = await import('./ReplicadService');
+  const { draw, Plane } = await import('replicad');
+
+  const newWidth = parentShape.parameters?.width || 1;
+  const newHeight = parentShape.parameters?.height || 1;
+  const newDepth = parentShape.parameters?.depth || 1;
+
+  const scaleX = newWidth / (raycastParentDimensions.width || 1);
+  const scaleY = newHeight / (raycastParentDimensions.height || 1);
+  const scaleZ = newDepth / (raycastParentDimensions.depth || 1);
+
+  const scaledOrigin = new THREE.Vector3(
+    raycastLocalOrigin[0] * scaleX,
+    raycastLocalOrigin[1] * scaleY,
+    raycastLocalOrigin[2] * scaleZ
+  );
+
+  const targetNormal = new THREE.Vector3(...raycastFaceNormal).normalize();
+  let matchedGroup = faceGroups.find((g: any) => {
+    const gn = g.normal.clone().normalize();
+    return gn.dot(targetNormal) > 0.95;
+  });
+  if (!matchedGroup) return null;
+
+  const { collectBoundaryEdges, getFacePlaneAxes, castRayOnFace, collectPanelObstacleEdges } = await import('./RaycastUtils');
+
+  const facePlaneNormal = matchedGroup.normal.clone().normalize();
+  const obstacleEdges = collectPanelObstacleEdges(
+    allPanels.filter(p => p.id !== panel.id),
+    facePlaneNormal,
+    scaledOrigin,
+    20
+  );
+
+  const { u, v } = getFacePlaneAxes(facePlaneNormal);
+  const boundaryEdges = collectBoundaryEdges(faces, matchedGroup.faceIndices);
+  const offset = facePlaneNormal.clone().multiplyScalar(0.5);
+  const startWorld = scaledOrigin.clone().add(offset);
+  const maxDist = 5000;
+
+  const tUPlus = castRayOnFace(startWorld, u, boundaryEdges, obstacleEdges, u, v, scaledOrigin, maxDist);
+  const tUMinus = castRayOnFace(startWorld, u.clone().negate(), boundaryEdges, obstacleEdges, u, v, scaledOrigin, maxDist);
+  const tVPlus = castRayOnFace(startWorld, v, boundaryEdges, obstacleEdges, u, v, scaledOrigin, maxDist);
+  const tVMinus = castRayOnFace(startWorld, v.clone().negate(), boundaryEdges, obstacleEdges, u, v, scaledOrigin, maxDist);
+
+  const panelW = tUPlus + tUMinus;
+  const panelH = tVPlus + tVMinus;
+  const panelThickness = panel.parameters?.depth || 18;
+
+  const shapePos = new THREE.Vector3(parentShape.position[0], parentShape.position[1], parentShape.position[2]);
+  const shapeRot = parentShape.rotation as [number, number, number];
+  const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'));
+
+  const worldOrigin = scaledOrigin.clone().applyQuaternion(rot).add(shapePos);
+  const worldU = u.clone().applyQuaternion(rot).normalize();
+  const worldV = v.clone().applyQuaternion(rot).normalize();
+  const worldN = facePlaneNormal.clone().applyQuaternion(rot).normalize();
+
+  const worldCorner = worldOrigin.clone()
+    .addScaledVector(worldU, -tUMinus)
+    .addScaledVector(worldV, -tVMinus);
+
+  await initReplicad();
+
+  const xAxis: [number, number, number] = [worldU.x, worldU.y, worldU.z];
+  const normalAxis: [number, number, number] = [worldN.x, worldN.y, worldN.z];
+  const originPt: [number, number, number] = [worldCorner.x, worldCorner.y, worldCorner.z];
+
+  const sketchPlane = new Plane(originPt, xAxis, normalAxis);
+
+  let panelShape = draw()
+    .movePointerTo([0, 0])
+    .lineTo([panelW, 0])
+    .lineTo([panelW, panelH])
+    .lineTo([0, panelH])
+    .close()
+    .sketchOnPlane(sketchPlane)
+    .extrude(-panelThickness);
+
+  const hasFillets = parentShape.fillets && parentShape.fillets.length > 0;
+  if (parentShape.replicadShape && hasFillets) {
+    try {
+      const { performBooleanIntersection } = await import('./ReplicadService');
+      const rotDegX = shapeRot[0] * (180 / Math.PI);
+      const rotDegY = shapeRot[1] * (180 / Math.PI);
+      const rotDegZ = shapeRot[2] * (180 / Math.PI);
+
+      let parentWorld = parentShape.replicadShape;
+      if (Math.abs(rotDegX) > 0.01) parentWorld = parentWorld.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
+      if (Math.abs(rotDegY) > 0.01) parentWorld = parentWorld.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
+      if (Math.abs(rotDegZ) > 0.01) parentWorld = parentWorld.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
+      parentWorld = parentWorld.translate(shapePos.x, shapePos.y, shapePos.z);
+
+      panelShape = await performBooleanIntersection(panelShape, parentWorld);
+    } catch (e) {
+      console.warn('Raycast panel rebuild: fillet intersection failed', e);
+    }
+  }
+
+  const geometry = convertReplicadToThreeGeometry(panelShape);
+
+  return {
+    id: panel.id,
+    geometry,
+    replicadShape: panelShape,
+    parameters: {
+      ...panel.parameters,
+      width: panelW,
+      height: panelH,
+      originalReplicadShape: null,
+      jointTrimmed: false,
+      raycastBounds: { uPlus: tUPlus, uMinus: tUMinus, vPlus: tVPlus, vMinus: tVMinus },
+      raycastParentDimensions: {
+        width: newWidth,
+        height: newHeight,
+        depth: newDepth,
+      },
+      raycastLocalOrigin: [scaledOrigin.x, scaledOrigin.y, scaledOrigin.z] as [number, number, number],
+    }
+  };
+}
+
 export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
@@ -343,7 +482,10 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
-  for (const panel of childPanels) {
+  const faceRolePanels = childPanels.filter(p => !p.parameters?.isRaycastPanel);
+  const raycastPanels = childPanels.filter(p => p.parameters?.isRaycastPanel);
+
+  for (const panel of faceRolePanels) {
     const faceIndex = panel.parameters?.faceIndex;
     if (faceIndex === undefined || faceIndex >= faceGroups.length) continue;
 
@@ -387,7 +529,18 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         }
       });
     } catch (error) {
-      console.error(`Failed to rebuild panel ${panel.id}:`, error);
+      console.error(`Failed to rebuild face-role panel ${panel.id}:`, error);
+    }
+  }
+
+  for (const panel of raycastPanels) {
+    try {
+      const result = await rebuildRaycastPanel(panel, parentShape, faces, faceGroups, childPanels);
+      if (result) {
+        updates.push(result);
+      }
+    } catch (error) {
+      console.error(`Failed to rebuild raycast panel ${panel.id}:`, error);
     }
   }
 
@@ -397,12 +550,13 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         const update = updates.find(u => u.id === s.id);
         if (update) {
           const parent = st.shapes.find(p => p.id === parentShapeId);
+          const isRaycast = s.parameters?.isRaycastPanel;
           return {
             ...s,
             geometry: update.geometry,
             replicadShape: update.replicadShape,
-            position: parent ? [...parent.position] as [number, number, number] : s.position,
-            rotation: parent ? parent.rotation : s.rotation,
+            position: isRaycast ? ([0, 0, 0] as [number, number, number]) : (parent ? [...parent.position] as [number, number, number] : s.position),
+            rotation: isRaycast ? ([0, 0, 0] as [number, number, number]) : (parent ? parent.rotation : s.rotation),
             scale: parent ? [...parent.scale] as [number, number, number] : s.scale,
             parameters: update.parameters,
           };

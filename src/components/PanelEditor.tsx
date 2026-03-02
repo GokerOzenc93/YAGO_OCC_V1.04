@@ -183,8 +183,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     }
   }, [selectedProfile, selectedShapeId]);
 
+  const hasRaycastChildren = selectedShapeId ? shapes.some(
+    s => s.type === 'panel' && s.parameters?.parentShapeId === selectedShapeId && s.parameters?.isRaycastPanel
+  ) : false;
+
   useEffect(() => {
-    if (!selectedShape || !selectedShapeId || selectedProfile === 'none') return;
+    if (!selectedShape || !selectedShapeId) return;
+    if (selectedProfile === 'none' && !hasRaycastChildren) return;
 
     const geometryKey = [
       selectedShape.parameters?.width,
@@ -200,7 +205,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       console.log('Geometry changed, rebuilding and updating panels...');
       setResolving(true);
       rebuildAllPanels(selectedShapeId)
-        .then(() => resolveAllPanelJoints(selectedShapeId, selectedProfile))
+        .then(() => {
+          if (selectedProfile !== 'none') {
+            return resolveAllPanelJoints(selectedShapeId, selectedProfile);
+          }
+        })
         .finally(() => setResolving(false));
     }
 
@@ -214,7 +223,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     selectedShape?.position,
     selectedShape?.scale,
     selectedShapeId,
-    selectedProfile
+    selectedProfile,
+    hasRaycastChildren
   ]);
 
   const loadProfiles = async () => {
