@@ -442,7 +442,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         .sketchOnPlane(sketchPlane)
         .extrude(-panelThickness);
 
-      const parentSubtractions = shape.subtractionGeometries || [];
+      const parentSubtractions = (shape.subtractionGeometries || []).filter(Boolean);
       const hasSubtractions = parentSubtractions.length > 0;
       const hasFillets = shape.fillets && shape.fillets.length > 0;
 
@@ -512,26 +512,76 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         return result;
       };
 
+      const buildParentWorld = async (parentReplicad: any) => {
+        const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
+        const shapeRot = shape.rotation as [number, number, number];
+        const rotDegX = shapeRot[0] * (180 / Math.PI);
+        const rotDegY = shapeRot[1] * (180 / Math.PI);
+        const rotDegZ = shapeRot[2] * (180 / Math.PI);
+
+        let pw = parentReplicad;
+        if (Math.abs(rotDegX) > 0.01) pw = pw.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
+        if (Math.abs(rotDegY) > 0.01) pw = pw.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
+        if (Math.abs(rotDegZ) > 0.01) pw = pw.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
+        pw = pw.translate(shapePos.x, shapePos.y, shapePos.z);
+        return pw;
+      };
+
+      const rebuildParentWithFillets = async () => {
+        const { applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
+        const baseWidth = shape.parameters?.width || 1;
+        const baseHeight = shape.parameters?.height || 1;
+        const baseDepth = shape.parameters?.depth || 1;
+
+        let rebuilt = await createReplicadBox({ width: baseWidth, height: baseHeight, depth: baseDepth });
+
+        for (const sub of parentSubtractions) {
+          try {
+            const subSize = (await import('./ShapeUpdaterService')).getOriginalSize(sub.geometry);
+            const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
+            rebuilt = await performBooleanCut(
+              rebuilt, subBox, undefined, sub.relativeOffset,
+              undefined, sub.relativeRotation || [0, 0, 0],
+              undefined, sub.scale || [1, 1, 1] as [number, number, number]
+            );
+          } catch (e) { /* skip failed subtraction */ }
+        }
+
+        if (hasFillets) {
+          const geom = convertReplicadToThreeGeometry(rebuilt);
+          const updatedFillets = await updateFilletCentersForNewGeometry(shape.fillets, geom, {
+            width: baseWidth, height: baseHeight, depth: baseDepth
+          });
+          rebuilt = await applyFillets(rebuilt, updatedFillets, {
+            width: baseWidth, height: baseHeight, depth: baseDepth
+          });
+        }
+
+        return rebuilt;
+      };
+
       if (shape.replicadShape && (hasSubtractions || hasFillets)) {
+        const { performBooleanIntersection } = await import('./ReplicadService');
+        let intersected = false;
+
         try {
-          const { performBooleanIntersection } = await import('./ReplicadService');
-          const shapePos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
-          const shapeRot = shape.rotation as [number, number, number];
-          const rotDegX = shapeRot[0] * (180 / Math.PI);
-          const rotDegY = shapeRot[1] * (180 / Math.PI);
-          const rotDegZ = shapeRot[2] * (180 / Math.PI);
-
-          let parentWorld = shape.replicadShape;
-          if (Math.abs(rotDegX) > 0.01) parentWorld = parentWorld.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
-          if (Math.abs(rotDegY) > 0.01) parentWorld = parentWorld.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
-          if (Math.abs(rotDegZ) > 0.01) parentWorld = parentWorld.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
-          parentWorld = parentWorld.translate(shapePos.x, shapePos.y, shapePos.z);
-
+          const parentWorld = await buildParentWorld(shape.replicadShape);
           panelShape = await performBooleanIntersection(panelShape, parentWorld);
+          intersected = true;
         } catch (intersectErr) {
-          console.warn('Parent intersection failed, falling back to individual cuts:', intersectErr);
-          if (hasSubtractions) {
-            panelShape = await applySubtractionCuts(panelShape);
+          console.warn('Parent intersection failed with stored shape, rebuilding:', intersectErr);
+        }
+
+        if (!intersected) {
+          try {
+            const rebuilt = await rebuildParentWithFillets();
+            const parentWorld = await buildParentWorld(rebuilt);
+            panelShape = await performBooleanIntersection(panelShape, parentWorld);
+          } catch (rebuildErr) {
+            console.warn('Rebuilt intersection also failed, falling back to cuts:', rebuildErr);
+            if (hasSubtractions) {
+              panelShape = await applySubtractionCuts(panelShape);
+            }
           }
         }
       } else if (hasSubtractions) {

@@ -1198,7 +1198,7 @@ export const useAppStore = create<AppState>((set, get) => ({
               ...s,
               geometry: finalGeometry,
               replicadShape: finalShape,
-              subtractionGeometries: newSubtractionGeometries,
+              subtractionGeometries: newSubtractionGeometries.filter(Boolean),
               fillets: updatedFillets,
               position: preservedPosition,
               parameters: {
