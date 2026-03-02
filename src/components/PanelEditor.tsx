@@ -264,18 +264,48 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
       const panelThickness = 18;
 
-      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+      const { createPanelFromFace, convertReplicadToThreeGeometry, createReplicadBox, performBooleanIntersection } = await import('./ReplicadService');
 
+      const hasSubtractions = (selectedShape.subtractionGeometries || []).filter(Boolean).length > 0;
       const hasFillets = selectedShape.fillets && selectedShape.fillets.length > 0;
+
+      let shapeForFaceMatch = selectedShape.replicadShape;
+      if (hasSubtractions || hasFillets) {
+        const baseW = selectedShape.parameters?.width || 1;
+        const baseH = selectedShape.parameters?.height || 1;
+        const baseD = selectedShape.parameters?.depth || 1;
+        shapeForFaceMatch = await createReplicadBox({ width: baseW, height: baseH, depth: baseD });
+      }
+
       let replicadPanel = await createPanelFromFace(
-        selectedShape.replicadShape,
+        shapeForFaceMatch,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
         panelThickness,
-        hasFillets ? selectedShape.replicadShape : null
+        undefined
       );
 
       if (!replicadPanel) return;
+
+      if (hasSubtractions || hasFillets) {
+        try {
+          const shapePos = new THREE.Vector3(...selectedShape.position);
+          const shapeRot = selectedShape.rotation as [number, number, number];
+
+          let parentWorld = selectedShape.replicadShape;
+          const rotDegX = shapeRot[0] * (180 / Math.PI);
+          const rotDegY = shapeRot[1] * (180 / Math.PI);
+          const rotDegZ = shapeRot[2] * (180 / Math.PI);
+          if (Math.abs(rotDegX) > 0.01) parentWorld = parentWorld.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
+          if (Math.abs(rotDegY) > 0.01) parentWorld = parentWorld.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
+          if (Math.abs(rotDegZ) > 0.01) parentWorld = parentWorld.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
+          parentWorld = parentWorld.translate(shapePos.x, shapePos.y, shapePos.z);
+
+          replicadPanel = await performBooleanIntersection(replicadPanel, parentWorld);
+        } catch (intersectErr) {
+          console.warn('Panel intersection with complex parent failed, using clean panel:', intersectErr);
+        }
+      }
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
