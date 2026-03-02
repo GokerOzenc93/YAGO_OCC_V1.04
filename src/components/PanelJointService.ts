@@ -617,25 +617,6 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   const faceRolePanels = childPanels.filter(p => !p.parameters?.isRaycastPanel);
   const raycastPanels = childPanels.filter(p => p.parameters?.isRaycastPanel);
 
-  const hasSubtractions = (parentShape.subtractionGeometries || []).filter(Boolean).length > 0;
-  const hasFillets = (parentShape.fillets || []).length > 0;
-  const needsPostIntersection = hasSubtractions || hasFillets;
-
-  const { performBooleanIntersection } = await import('./ReplicadService');
-
-  const buildParentWorldShape = () => {
-    const shapePos = new THREE.Vector3(parentShape.position[0], parentShape.position[1], parentShape.position[2]);
-    const shapeRot = parentShape.rotation as [number, number, number];
-    const rotDegX = shapeRot[0] * (180 / Math.PI);
-    const rotDegY = shapeRot[1] * (180 / Math.PI);
-    const rotDegZ = shapeRot[2] * (180 / Math.PI);
-    let pw = parentShape.replicadShape;
-    if (Math.abs(rotDegX) > 0.01) pw = pw.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
-    if (Math.abs(rotDegY) > 0.01) pw = pw.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
-    if (Math.abs(rotDegZ) > 0.01) pw = pw.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
-    return pw.translate(shapePos.x, shapePos.y, shapePos.z);
-  };
-
   for (const panel of faceRolePanels) {
     const faceIndex = panel.parameters?.faceIndex;
     if (faceIndex === undefined || faceIndex >= complexFaceGroups.length) continue;
@@ -656,24 +637,16 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
     const panelThickness = panel.parameters?.depth || 18;
 
     try {
-      let replicadPanel = await createPanelFromFace(
-        needsPostIntersection ? cleanBox : parentShape.replicadShape,
+      const hasFillets = parentShape.fillets && parentShape.fillets.length > 0;
+      const replicadPanel = await createPanelFromFace(
+        parentShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
         panelThickness,
-        undefined
+        hasFillets ? parentShape.replicadShape : undefined
       );
 
       if (!replicadPanel) continue;
-
-      if (needsPostIntersection) {
-        try {
-          const parentWorld = buildParentWorldShape();
-          replicadPanel = await performBooleanIntersection(replicadPanel, parentWorld);
-        } catch (intersectErr) {
-          console.warn(`Face-role panel ${panel.id} intersection failed, using clean panel:`, intersectErr);
-        }
-      }
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
