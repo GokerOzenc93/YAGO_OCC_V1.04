@@ -460,7 +460,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
           depth: panelThickness,
           parentShapeId: shape.id,
           faceIndex: dominantGroupIndex,
-          faceRole: shape.faceRoles?.[dominantGroupIndex] || null,
+          faceRole: null,
           extraRowId,
           isRaycastPanel: true,
           raycastBounds: { uPlus, uMinus, vPlus, vMinus },

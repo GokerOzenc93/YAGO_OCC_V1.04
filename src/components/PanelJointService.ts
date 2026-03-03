@@ -358,27 +358,19 @@ async function rebuildRaycastPanel(
 
   if (!matchedGroup) return null;
 
-  const faceVertices: THREE.Vector3[] = [];
-  matchedGroup.faceIndices.forEach((idx: number) => {
-    const face = faces[idx];
-    if (face) face.vertices.forEach((vt: THREE.Vector3) => faceVertices.push(vt.clone()));
-  });
-
   if (raycastLocalOrigin) {
     localOrigin = new THREE.Vector3(
       (raycastLocalOrigin as [number,number,number])[0],
       (raycastLocalOrigin as [number,number,number])[1],
       (raycastLocalOrigin as [number,number,number])[2]
     );
-
-    if (faceVertices.length > 0) {
-      const faceN = matchedGroup.normal.clone().normalize();
-      const facePoint = faceVertices[0];
-      const distToFace = faceN.dot(new THREE.Vector3().subVectors(facePoint, localOrigin));
-      localOrigin.addScaledVector(faceN, distToFace);
-    }
   } else {
-    const localBox = new THREE.Box3().setFromPoints(faceVertices);
+    const localVertices: THREE.Vector3[] = [];
+    matchedGroup.faceIndices.forEach((idx: number) => {
+      const face = faces[idx];
+      if (face) face.vertices.forEach((v: THREE.Vector3) => localVertices.push(v.clone()));
+    });
+    const localBox = new THREE.Box3().setFromPoints(localVertices);
     localOrigin = new THREE.Vector3();
     localBox.getCenter(localOrigin);
     const faceN = matchedGroup.normal.clone().normalize();
@@ -587,14 +579,6 @@ async function rebuildRaycastPanel(
 
   const geometry = convertReplicadToThreeGeometry(panelShape);
 
-  let derivedFaceRole = panel.parameters?.faceRole || null;
-  if (!derivedFaceRole && parentShape.faceRoles) {
-    const matchedIdx = faceGroups.indexOf(matchedGroup);
-    if (matchedIdx >= 0 && parentShape.faceRoles[matchedIdx]) {
-      derivedFaceRole = parentShape.faceRoles[matchedIdx];
-    }
-  }
-
   return {
     id: panel.id,
     geometry,
@@ -603,7 +587,6 @@ async function rebuildRaycastPanel(
       ...panel.parameters,
       width: panelW,
       height: panelH,
-      faceRole: derivedFaceRole,
       originalReplicadShape: null,
       jointTrimmed: false,
       raycastBounds: { uPlus: tUPlus, uMinus: tUMinus, vPlus: tVPlus, vMinus: tVMinus },
@@ -781,29 +764,6 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   }
 }
 
-function transformReplicadLocalToWorld(shape: any, pos: THREE.Vector3, rot: [number, number, number]): any {
-  const degX = rot[0] * (180 / Math.PI);
-  const degY = rot[1] * (180 / Math.PI);
-  const degZ = rot[2] * (180 / Math.PI);
-  let result = shape.clone();
-  if (Math.abs(degX) > 0.01) result = result.rotate(degX, [0, 0, 0], [1, 0, 0]);
-  if (Math.abs(degY) > 0.01) result = result.rotate(degY, [0, 0, 0], [0, 1, 0]);
-  if (Math.abs(degZ) > 0.01) result = result.rotate(degZ, [0, 0, 0], [0, 0, 1]);
-  return result.translate(pos.x, pos.y, pos.z);
-}
-
-function transformReplicadWorldToLocal(shape: any, pos: THREE.Vector3, rot: [number, number, number]): any {
-  let result = shape.clone();
-  result = result.translate(-pos.x, -pos.y, -pos.z);
-  const degX = rot[0] * (180 / Math.PI);
-  const degY = rot[1] * (180 / Math.PI);
-  const degZ = rot[2] * (180 / Math.PI);
-  if (Math.abs(degZ) > 0.01) result = result.rotate(-degZ, [0, 0, 0], [0, 0, 1]);
-  if (Math.abs(degY) > 0.01) result = result.rotate(-degY, [0, 0, 0], [0, 1, 0]);
-  if (Math.abs(degX) > 0.01) result = result.rotate(-degX, [0, 0, 0], [1, 0, 0]);
-  return result;
-}
-
 export async function resolveAllPanelJoints(
   parentShapeId: string,
   profileId: string,
@@ -812,12 +772,6 @@ export async function resolveAllPanelJoints(
   const state = useAppStore.getState();
   const fullSettings = await loadFullProfileSettings(profileId);
   const jointConfig = config || fullSettings.jointConfig;
-
-  const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  const parentPos = parentShape
-    ? new THREE.Vector3(parentShape.position[0], parentShape.position[1], parentShape.position[2])
-    : new THREE.Vector3();
-  const parentRot = (parentShape?.rotation || [0, 0, 0]) as [number, number, number];
 
   const panels = state.shapes.filter(
     (s) =>
@@ -835,7 +789,7 @@ export async function resolveAllPanelJoints(
     return;
   }
 
-  console.log(`Resolving panel joints for ${panels.length} panels...`);
+  console.log(`🔗 Resolving panel joints for ${panels.length} panels...`);
 
   const originalShapes = new Map<string, any>();
   for (const panel of panels) {
@@ -843,11 +797,6 @@ export async function resolveAllPanelJoints(
       panel.id,
       panel.parameters?.originalReplicadShape || panel.replicadShape
     );
-  }
-
-  const isRaycastMap = new Map<string, boolean>();
-  for (const panel of panels) {
-    isRaycastMap.set(panel.id, !!panel.parameters?.isRaycastPanel);
   }
 
   const cutsMap = new Map<string, string[]>();
@@ -871,7 +820,7 @@ export async function resolveAllPanelJoints(
       cutsMap.set(subordinateId, existing);
 
       console.log(
-        `  Joint: ${roleA}-${roleB} -> ${dominant} dominant, ${isADominant ? roleB : roleA} trimmed`
+        `  Joint: ${roleA}-${roleB} → ${dominant} dominant, ${isADominant ? roleB : roleA} trimmed`
       );
     }
   }
@@ -887,24 +836,14 @@ export async function resolveAllPanelJoints(
 
     if (cutsMap.has(panel.id)) {
       let currentShape = original;
-      const subordinateIsRaycast = isRaycastMap.get(panel.id) || false;
       const dominantIds = cutsMap.get(panel.id)!;
 
       for (const dominantId of dominantIds) {
         const cuttingShape = originalShapes.get(dominantId);
         if (!cuttingShape) continue;
-        const dominantIsRaycast = isRaycastMap.get(dominantId) || false;
-
         try {
-          let cuttingInSubSpace: any;
-          if (subordinateIsRaycast === dominantIsRaycast) {
-            cuttingInSubSpace = cuttingShape.clone();
-          } else if (subordinateIsRaycast && !dominantIsRaycast) {
-            cuttingInSubSpace = transformReplicadLocalToWorld(cuttingShape, parentPos, parentRot);
-          } else {
-            cuttingInSubSpace = transformReplicadWorldToLocal(cuttingShape, parentPos, parentRot);
-          }
-          currentShape = currentShape.cut(cuttingInSubSpace);
+          const cuttingClone = cuttingShape.clone();
+          currentShape = currentShape.cut(cuttingClone);
         } catch (err) {
           console.error(`Joint cut failed for panel ${panel.id}:`, err);
         }
