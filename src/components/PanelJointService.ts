@@ -321,325 +321,6 @@ async function generateFrontBazaPanels(
   }
 }
 
-async function rebuildRaycastPanel(
-  panel: any,
-  parentShape: any,
-  faces: any[],
-  faceGroups: any[],
-  allPanels: any[],
-  complexFaces?: any[],
-  complexFaceGroups?: any[]
-): Promise<{ id: string; geometry: any; replicadShape: any; parameters: any } | null> {
-  const {
-    raycastLocalOrigin,
-    raycastFaceNormal,
-  } = panel.parameters || {};
-
-  const { convertReplicadToThreeGeometry, initReplicad, createReplicadBox, performBooleanCut } = await import('./ReplicadService');
-  const { draw, Plane } = await import('replicad');
-
-  const newWidth = parentShape.parameters?.width || 1;
-  const newHeight = parentShape.parameters?.height || 1;
-  const newDepth = parentShape.parameters?.depth || 1;
-
-  let matchedGroup: any = null;
-  let localOrigin: THREE.Vector3;
-
-  if (raycastFaceNormal) {
-    const targetNormal = new THREE.Vector3(...(raycastFaceNormal as [number,number,number])).normalize();
-    matchedGroup = faceGroups.find((g: any) => {
-      const gn = g.normal.clone().normalize();
-      return gn.dot(targetNormal) > 0.95;
-    });
-  } else if (panel.parameters?.faceIndex !== undefined) {
-    const fi = panel.parameters.faceIndex;
-    matchedGroup = fi < faceGroups.length ? faceGroups[fi] : null;
-  }
-
-  if (!matchedGroup) return null;
-
-  if (raycastLocalOrigin) {
-    localOrigin = new THREE.Vector3(
-      (raycastLocalOrigin as [number,number,number])[0],
-      (raycastLocalOrigin as [number,number,number])[1],
-      (raycastLocalOrigin as [number,number,number])[2]
-    );
-  } else {
-    const localVertices: THREE.Vector3[] = [];
-    matchedGroup.faceIndices.forEach((idx: number) => {
-      const face = faces[idx];
-      if (face) face.vertices.forEach((v: THREE.Vector3) => localVertices.push(v.clone()));
-    });
-    const localBox = new THREE.Box3().setFromPoints(localVertices);
-    localOrigin = new THREE.Vector3();
-    localBox.getCenter(localOrigin);
-    const faceN = matchedGroup.normal.clone().normalize();
-    const inset = Math.min(newWidth, newHeight, newDepth) * 0.1;
-    localOrigin.addScaledVector(faceN.negate(), inset);
-  }
-
-  const { collectBoundaryEdges, getFacePlaneAxes, castRayOnFace, collectPanelObstacleEdgesLocal } = await import('./RaycastUtils');
-
-  const facePlaneNormal = matchedGroup.normal.clone().normalize();
-
-  const shapePos = new THREE.Vector3(parentShape.position[0], parentShape.position[1], parentShape.position[2]);
-  const shapeRot = parentShape.rotation as [number, number, number];
-  const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'));
-  const invRot = rot.clone().invert();
-
-  const obstacleEdges = collectPanelObstacleEdgesLocal(
-    allPanels.filter(p => p.id !== panel.id),
-    facePlaneNormal,
-    localOrigin,
-    shapePos,
-    invRot,
-    20
-  );
-
-  const actualFaces = complexFaces || faces;
-  const actualFaceGroups = complexFaceGroups || faceGroups;
-
-  let boundaryFaceGroup = matchedGroup;
-  if (actualFaceGroups !== faceGroups) {
-    const targetNormal = facePlaneNormal.clone();
-    const matched = actualFaceGroups.find((g: any) => {
-      const gn = g.normal.clone().normalize();
-      return gn.dot(targetNormal) > 0.95;
-    });
-    if (matched) {
-      boundaryFaceGroup = matched;
-    }
-  }
-
-  const { u, v } = getFacePlaneAxes(facePlaneNormal);
-  const boundaryEdges = collectBoundaryEdges(actualFaces, boundaryFaceGroup.faceIndices);
-  const offset = facePlaneNormal.clone().multiplyScalar(0.5);
-  const startWorld = localOrigin.clone().add(offset);
-  const maxDist = 5000;
-
-  const tUPlus = castRayOnFace(startWorld, u, boundaryEdges, obstacleEdges, u, v, localOrigin, maxDist);
-  const tUMinus = castRayOnFace(startWorld, u.clone().negate(), boundaryEdges, obstacleEdges, u, v, localOrigin, maxDist);
-  const tVPlus = castRayOnFace(startWorld, v, boundaryEdges, obstacleEdges, u, v, localOrigin, maxDist);
-  const tVMinus = castRayOnFace(startWorld, v.clone().negate(), boundaryEdges, obstacleEdges, u, v, localOrigin, maxDist);
-
-  const panelW = tUPlus + tUMinus;
-  const panelH = tVPlus + tVMinus;
-  const panelThickness = panel.parameters?.depth || 18;
-
-  const worldOrigin = localOrigin.clone().applyQuaternion(rot).add(shapePos);
-  const worldU = u.clone().applyQuaternion(rot).normalize();
-  const worldV = v.clone().applyQuaternion(rot).normalize();
-  const worldN = facePlaneNormal.clone().applyQuaternion(rot).normalize();
-
-  const worldCorner = worldOrigin.clone()
-    .addScaledVector(worldU, -tUMinus)
-    .addScaledVector(worldV, -tVMinus);
-
-  await initReplicad();
-
-  const xAxis: [number, number, number] = [worldU.x, worldU.y, worldU.z];
-  const normalAxis: [number, number, number] = [worldN.x, worldN.y, worldN.z];
-  const originPt: [number, number, number] = [worldCorner.x, worldCorner.y, worldCorner.z];
-
-  const sketchPlane = new Plane(originPt, xAxis, normalAxis);
-
-  let panelShape = draw()
-    .movePointerTo([0, 0])
-    .lineTo([panelW, 0])
-    .lineTo([panelW, panelH])
-    .lineTo([0, panelH])
-    .close()
-    .sketchOnPlane(sketchPlane)
-    .extrude(-panelThickness);
-
-  const parentSubtractions = (parentShape.subtractionGeometries || []).filter(Boolean);
-  const hasSubtractions = parentSubtractions.length > 0;
-  const hasFillets = (parentShape.fillets || []).length > 0;
-
-  const buildParentWorld = async (parentReplicad: any) => {
-    const rotDegX = shapeRot[0] * (180 / Math.PI);
-    const rotDegY = shapeRot[1] * (180 / Math.PI);
-    const rotDegZ = shapeRot[2] * (180 / Math.PI);
-    let pw = parentReplicad;
-    if (Math.abs(rotDegX) > 0.01) pw = pw.rotate(rotDegX, [0, 0, 0], [1, 0, 0]);
-    if (Math.abs(rotDegY) > 0.01) pw = pw.rotate(rotDegY, [0, 0, 0], [0, 1, 0]);
-    if (Math.abs(rotDegZ) > 0.01) pw = pw.rotate(rotDegZ, [0, 0, 0], [0, 0, 1]);
-    return pw.translate(shapePos.x, shapePos.y, shapePos.z);
-  };
-
-  const applySubtractionCuts = async (panel: any) => {
-    const { createReplicadBox, performBooleanCut } = await import('./ReplicadService');
-    const { getOriginalSize } = await import('./ShapeUpdaterService');
-
-    const parentBox = new THREE.Box3().setFromBufferAttribute(
-      parentShape.geometry.attributes.position as THREE.BufferAttribute
-    );
-    const parentCenter = new THREE.Vector3();
-    const parentSize = new THREE.Vector3();
-    parentBox.getCenter(parentCenter);
-    parentBox.getSize(parentSize);
-    const isCentered = Math.abs(parentCenter.x) < 0.01 &&
-                       Math.abs(parentCenter.y) < 0.01 &&
-                       Math.abs(parentCenter.z) < 0.01;
-    const rot2 = new THREE.Quaternion().setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'));
-    const parentCornerWorld = shapePos.clone();
-    if (isCentered) {
-      const halfLocal = new THREE.Vector3(parentSize.x / 2, parentSize.y / 2, parentSize.z / 2);
-      halfLocal.applyQuaternion(rot2);
-      parentCornerWorld.sub(halfLocal);
-    }
-
-    let result = panel;
-    for (const subtraction of parentSubtractions) {
-      try {
-        const subSize = getOriginalSize(subtraction.geometry);
-        const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
-        const subLocalPos = new THREE.Vector3(...subtraction.relativeOffset as [number, number, number]);
-        const subWorldPos = subLocalPos.clone().applyQuaternion(rot2).add(parentCornerWorld);
-        const subRelRot = subtraction.relativeRotation || [0, 0, 0];
-        const subRotQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(subRelRot[0], subRelRot[1], subRelRot[2], 'XYZ'));
-        const subWorldQ = rot2.clone().multiply(subRotQ);
-        const subWorldEuler = new THREE.Euler().setFromQuaternion(subWorldQ, 'XYZ');
-        result = await performBooleanCut(
-          result, subBox, undefined,
-          [subWorldPos.x, subWorldPos.y, subWorldPos.z],
-          undefined,
-          [subWorldEuler.x, subWorldEuler.y, subWorldEuler.z],
-          undefined,
-          subtraction.scale || [1, 1, 1] as [number, number, number]
-        );
-      } catch (cutErr) {
-        console.warn('Subtractor cut skipped:', cutErr);
-      }
-    }
-    return result;
-  };
-
-  const rebuildParentWithFillets = async () => {
-    const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry: cvt } = await import('./ReplicadService');
-    const { getOriginalSize, applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
-    const baseWidth = parentShape.parameters?.width || 1;
-    const baseHeight = parentShape.parameters?.height || 1;
-    const baseDepth = parentShape.parameters?.depth || 1;
-
-    let rebuilt = await createReplicadBox({ width: baseWidth, height: baseHeight, depth: baseDepth });
-
-    for (const sub of parentSubtractions) {
-      try {
-        const subSize = getOriginalSize(sub.geometry);
-        const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
-        rebuilt = await performBooleanCut(
-          rebuilt, subBox, undefined, sub.relativeOffset,
-          undefined, sub.relativeRotation || [0, 0, 0],
-          undefined, sub.scale || [1, 1, 1] as [number, number, number]
-        );
-      } catch (e) { /* skip */ }
-    }
-
-    if (hasFillets) {
-      const geom = cvt(rebuilt);
-      const updatedFillets = await updateFilletCentersForNewGeometry(parentShape.fillets, geom, {
-        width: baseWidth, height: baseHeight, depth: baseDepth
-      });
-      rebuilt = await applyFillets(rebuilt, updatedFillets, { width: baseWidth, height: baseHeight, depth: baseDepth });
-    }
-
-    return rebuilt;
-  };
-
-  if (hasSubtractions || hasFillets) {
-    const { performBooleanIntersection } = await import('./ReplicadService');
-    let intersected = false;
-    try {
-      const freshParent = await rebuildParentWithFillets();
-      const parentWorld = await buildParentWorld(freshParent);
-      panelShape = await performBooleanIntersection(panelShape, parentWorld);
-      intersected = true;
-    } catch (rebuildErr) {
-      console.warn('Raycast panel rebuild: fresh parent intersection failed, trying stored shape:', rebuildErr);
-    }
-
-    if (!intersected && parentShape.replicadShape) {
-      try {
-        const storedClone = parentShape.replicadShape.clone();
-        const parentWorld = await buildParentWorld(storedClone);
-        panelShape = await performBooleanIntersection(panelShape, parentWorld);
-        intersected = true;
-      } catch (storedErr) {
-        console.warn('Raycast panel rebuild: stored shape intersection failed, falling back to cuts:', storedErr);
-      }
-    }
-
-    if (!intersected && hasSubtractions) {
-      panelShape = await applySubtractionCuts(panelShape);
-    }
-  } else if (hasSubtractions) {
-    panelShape = await applySubtractionCuts(panelShape);
-  }
-
-  const geometry = convertReplicadToThreeGeometry(panelShape);
-
-  return {
-    id: panel.id,
-    geometry,
-    replicadShape: panelShape,
-    parameters: {
-      ...panel.parameters,
-      width: panelW,
-      height: panelH,
-      originalReplicadShape: null,
-      jointTrimmed: false,
-      raycastBounds: { uPlus: tUPlus, uMinus: tUMinus, vPlus: tVPlus, vMinus: tVMinus },
-      raycastParentDimensions: {
-        width: newWidth,
-        height: newHeight,
-        depth: newDepth,
-      },
-      raycastLocalOrigin: [localOrigin.x, localOrigin.y, localOrigin.z] as [number, number, number],
-    }
-  };
-}
-
-async function ensureValidReplicadShape(parentShape: any): Promise<any> {
-  let shape = parentShape.replicadShape;
-  if (!shape) return null;
-
-  try {
-    shape.faces;
-    return shape;
-  } catch (err: any) {
-    if (!err?.message?.includes('deleted')) throw err;
-  }
-
-  console.warn('rebuildAllPanels: replicadShape is stale, rebuilding...');
-  const { createReplicadBox, performBooleanCut, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-  const { getOriginalSize, applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
-
-  const w = parentShape.parameters?.width || 1;
-  const h = parentShape.parameters?.height || 1;
-  const d = parentShape.parameters?.depth || 1;
-
-  let rebuilt = await createReplicadBox({ width: w, height: h, depth: d });
-
-  const subs = (parentShape.subtractionGeometries || []).filter(Boolean);
-  for (const sub of subs) {
-    try {
-      const subSize = getOriginalSize(sub.geometry);
-      const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
-      rebuilt = await performBooleanCut(rebuilt, subBox, undefined, sub.relativeOffset, undefined, sub.relativeRotation || [0, 0, 0], undefined, sub.scale || [1, 1, 1]);
-    } catch { /* skip */ }
-  }
-
-  if (parentShape.fillets && parentShape.fillets.length > 0) {
-    const geom = convertReplicadToThreeGeometry(rebuilt);
-    const updatedFillets = await updateFilletCentersForNewGeometry(parentShape.fillets, geom, { width: w, height: h, depth: d });
-    rebuilt = await applyFillets(rebuilt, updatedFillets, { width: w, height: h, depth: d });
-  }
-
-  useAppStore.getState().updateShape(parentShape.id, { replicadShape: rebuilt });
-  return rebuilt;
-}
-
 export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
@@ -654,39 +335,23 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
   console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
 
-  const validReplicadShape = await ensureValidReplicadShape(parentShape);
-  if (!validReplicadShape) return;
-
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
-  const { createPanelFromFace, convertReplicadToThreeGeometry, createReplicadBox } = await import('./ReplicadService');
+  const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-  const baseW = parentShape.parameters?.width || 1;
-  const baseH = parentShape.parameters?.height || 1;
-  const baseD = parentShape.parameters?.depth || 1;
-
-  const cleanBox = await createReplicadBox({ width: baseW, height: baseH, depth: baseD });
-  const cleanGeometry = convertReplicadToThreeGeometry(cleanBox);
-
-  const cleanFaces = extractFacesFromGeometry(cleanGeometry);
-  const cleanFaceGroups = groupCoplanarFaces(cleanFaces);
-
-  const complexFaces = extractFacesFromGeometry(parentShape.geometry);
-  const complexFaceGroups = groupCoplanarFaces(complexFaces);
+  const faces = extractFacesFromGeometry(parentShape.geometry);
+  const faceGroups = groupCoplanarFaces(faces);
 
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
-  const faceRolePanels = childPanels.filter(p => !p.parameters?.isRaycastPanel);
-  const raycastPanels = childPanels.filter(p => p.parameters?.isRaycastPanel);
-
-  for (const panel of faceRolePanels) {
+  for (const panel of childPanels) {
     const faceIndex = panel.parameters?.faceIndex;
-    if (faceIndex === undefined || faceIndex >= complexFaceGroups.length) continue;
+    if (faceIndex === undefined || faceIndex >= faceGroups.length) continue;
 
-    const faceGroup = complexFaceGroups[faceIndex];
+    const faceGroup = faceGroups[faceIndex];
 
     const localVertices: THREE.Vector3[] = [];
     faceGroup.faceIndices.forEach((idx: number) => {
-      const face = complexFaces[idx];
+      const face = faces[idx];
       face.vertices.forEach((v: THREE.Vector3) => localVertices.push(v.clone()));
     });
 
@@ -698,13 +363,11 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
     const panelThickness = panel.parameters?.depth || 18;
 
     try {
-      const hasFillets = parentShape.fillets && parentShape.fillets.length > 0;
       const replicadPanel = await createPanelFromFace(
-        validReplicadShape,
+        parentShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
-        panelThickness,
-        hasFillets ? validReplicadShape : undefined
+        panelThickness
       );
 
       if (!replicadPanel) continue;
@@ -722,21 +385,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         }
       });
     } catch (error) {
-      console.error(`Failed to rebuild face-role panel ${panel.id}:`, error);
-    }
-  }
-
-  for (const panel of raycastPanels) {
-    try {
-      const result = await rebuildRaycastPanel(
-        panel, parentShape, cleanFaces, cleanFaceGroups, childPanels,
-        complexFaces, complexFaceGroups
-      );
-      if (result) {
-        updates.push(result);
-      }
-    } catch (error) {
-      console.error(`Failed to rebuild raycast panel ${panel.id}:`, error);
+      console.error(`Failed to rebuild panel ${panel.id}:`, error);
     }
   }
 
@@ -746,13 +395,12 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         const update = updates.find(u => u.id === s.id);
         if (update) {
           const parent = st.shapes.find(p => p.id === parentShapeId);
-          const isRaycast = s.parameters?.isRaycastPanel;
           return {
             ...s,
             geometry: update.geometry,
             replicadShape: update.replicadShape,
-            position: isRaycast ? ([0, 0, 0] as [number, number, number]) : (parent ? [...parent.position] as [number, number, number] : s.position),
-            rotation: isRaycast ? ([0, 0, 0] as [number, number, number]) : (parent ? parent.rotation : s.rotation),
+            position: parent ? [...parent.position] as [number, number, number] : s.position,
+            rotation: parent ? parent.rotation : s.rotation,
             scale: parent ? [...parent.scale] as [number, number, number] : s.scale,
             parameters: update.parameters,
           };
@@ -842,8 +490,7 @@ export async function resolveAllPanelJoints(
         const cuttingShape = originalShapes.get(dominantId);
         if (!cuttingShape) continue;
         try {
-          const cuttingClone = cuttingShape.clone();
-          currentShape = currentShape.cut(cuttingClone);
+          currentShape = currentShape.cut(cuttingShape);
         } catch (err) {
           console.error(`Joint cut failed for panel ${panel.id}:`, err);
         }

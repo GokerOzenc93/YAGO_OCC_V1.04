@@ -373,11 +373,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
   const isPanel = shape.type === 'panel';
-  const hasFacePanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
-  const hasRaycastPanels = !isPanel && shapes.some(
-    s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id && s.parameters?.isRaycastPanel
-  );
-  const hasPanels = hasFacePanels || hasRaycastPanels;
+  const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
   const hasFillets = shape.fillets && shape.fillets.length > 0;
 
   const isParentSelected = isPanel && shape.parameters?.parentShapeId === selectedShapeId;

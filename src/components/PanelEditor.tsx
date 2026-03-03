@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, deleteShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -69,7 +69,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     return arrowRotated ? altAxis : defaultAxis;
   };
 
-  const computeDimensionsFromPanel = (panel: any): { primary: number; secondary: number; thickness: number; w: number; h: number; d: number } | null => {
+  const getPanelDimensions = (faceIndex: number): { primary: number; secondary: number; thickness: number; w: number; h: number; d: number } | null => {
+    if (!selectedShape) return null;
+    const panel = shapes.find(
+      s => s.type === 'panel' &&
+      s.parameters?.parentShapeId === selectedShape.id &&
+      s.parameters?.faceIndex === faceIndex &&
+      !s.parameters?.extraRowId
+    );
     if (!panel || !panel.geometry) return null;
     const box = new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position'));
     const size = new THREE.Vector3();
@@ -139,17 +146,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     };
   };
 
-  const getPanelDimensions = (faceIndex: number): { primary: number; secondary: number; thickness: number; w: number; h: number; d: number } | null => {
-    if (!selectedShape) return null;
-    const panel = shapes.find(
-      s => s.type === 'panel' &&
-      s.parameters?.parentShapeId === selectedShape.id &&
-      s.parameters?.faceIndex === faceIndex &&
-      !s.parameters?.extraRowId
-    );
-    return computeDimensionsFromPanel(panel);
-  };
-
   useEffect(() => {
     if (isOpen) {
       loadProfiles();
@@ -183,13 +179,8 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     }
   }, [selectedProfile, selectedShapeId]);
 
-  const hasRaycastChildren = selectedShapeId ? shapes.some(
-    s => s.type === 'panel' && s.parameters?.parentShapeId === selectedShapeId && s.parameters?.isRaycastPanel
-  ) : false;
-
   useEffect(() => {
-    if (!selectedShape || !selectedShapeId) return;
-    if (selectedProfile === 'none' && !hasRaycastChildren) return;
+    if (!selectedShape || !selectedShapeId || selectedProfile === 'none') return;
 
     const geometryKey = [
       selectedShape.parameters?.width,
@@ -205,11 +196,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       console.log('Geometry changed, rebuilding and updating panels...');
       setResolving(true);
       rebuildAllPanels(selectedShapeId)
-        .then(() => {
-          if (selectedProfile !== 'none') {
-            return resolveAllPanelJoints(selectedShapeId, selectedProfile);
-          }
-        })
+        .then(() => resolveAllPanelJoints(selectedShapeId, selectedProfile))
         .finally(() => setResolving(false));
     }
 
@@ -223,8 +210,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     selectedShape?.position,
     selectedShape?.scale,
     selectedShapeId,
-    selectedProfile,
-    hasRaycastChildren
+    selectedProfile
   ]);
 
   const loadProfiles = async () => {
@@ -264,50 +250,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
       const panelThickness = 18;
 
-      const { createPanelFromFace, convertReplicadToThreeGeometry, createReplicadBox, performBooleanCut } = await import('./ReplicadService');
-      const { getOriginalSize, applyFillets, updateFilletCentersForNewGeometry } = await import('./ShapeUpdaterService');
+      const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
-      let shapeToUse = selectedShape.replicadShape;
-      let isShapeValid = true;
-      try {
-        if (shapeToUse) shapeToUse.faces;
-      } catch {
-        isShapeValid = false;
-      }
-
-      if (!isShapeValid) {
-        console.warn('replicadShape is stale, rebuilding from parameters...');
-        const w = selectedShape.parameters?.width || 1;
-        const h = selectedShape.parameters?.height || 1;
-        const d = selectedShape.parameters?.depth || 1;
-        let rebuilt = await createReplicadBox({ width: w, height: h, depth: d });
-
-        const subs = (selectedShape.subtractionGeometries || []).filter(Boolean);
-        for (const sub of subs) {
-          try {
-            const subSize = getOriginalSize(sub.geometry);
-            const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
-            rebuilt = await performBooleanCut(rebuilt, subBox, undefined, sub.relativeOffset, undefined, sub.relativeRotation || [0, 0, 0], undefined, sub.scale || [1, 1, 1]);
-          } catch { /* skip */ }
-        }
-
-        if (selectedShape.fillets && selectedShape.fillets.length > 0) {
-          const geom = convertReplicadToThreeGeometry(rebuilt);
-          const updatedFillets = await updateFilletCentersForNewGeometry(selectedShape.fillets, geom, { width: w, height: h, depth: d });
-          rebuilt = await applyFillets(rebuilt, updatedFillets, { width: w, height: h, depth: d });
-        }
-
-        shapeToUse = rebuilt;
-        updateShape(selectedShape.id, { replicadShape: rebuilt });
-      }
-
-      const hasFillets = selectedShape.fillets && selectedShape.fillets.length > 0;
       let replicadPanel = await createPanelFromFace(
-        shapeToUse,
+        selectedShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
         [localCenter.x, localCenter.y, localCenter.z],
         panelThickness,
-        hasFillets ? shapeToUse : null
+        null
       );
 
       if (!replicadPanel) return;
@@ -709,167 +659,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           </button>
                         </div>
                       </React.Fragment>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-
-            {(() => {
-              const raycastPanels = shapes.filter(
-                s => s.type === 'panel' &&
-                s.parameters?.parentShapeId === selectedShape.id &&
-                s.parameters?.isRaycastPanel === true &&
-                s.parameters?.extraRowId
-              );
-
-              if (raycastPanels.length === 0) return null;
-
-              const roleOptions: FaceRole[] = ['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'];
-
-              return (
-                <div className="pt-2 border-t border-stone-300 space-y-0.5">
-                  <div className="text-xs font-semibold text-sky-700 mb-1">
-                    Raycast Panels ({raycastPanels.length})
-                  </div>
-                  {raycastPanels.map((panel, idx) => {
-                    const extraRowId = panel.parameters?.extraRowId;
-                    const fIdx = panel.parameters?.faceIndex;
-                    const isRowSelected = selectedPanelRow === fIdx &&
-                      selectedPanelRowExtraId === extraRowId;
-                    const dimensions = computeDimensionsFromPanel(panel);
-
-                    return (
-                      <div
-                        key={panel.id}
-                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors cursor-pointer ${
-                          isRowSelected
-                            ? 'bg-sky-50 ring-1 ring-sky-400'
-                            : 'hover:bg-gray-50'
-                        }`}
-                        onClick={() => {
-                          setSelectedPanelRow(fIdx ?? null, extraRowId);
-                        }}
-                      >
-                        <input
-                          type="radio"
-                          name="panel-selection"
-                          checked={isRowSelected}
-                          onChange={() => {
-                            setSelectedPanelRow(fIdx ?? null, extraRowId);
-                          }}
-                          className="w-4 h-4 text-sky-600 focus:ring-sky-500 cursor-pointer"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <input
-                          type="text"
-                          value={`N`}
-                          readOnly
-                          tabIndex={-1}
-                          className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-sky-50 text-sky-700 border-sky-200"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <select
-                          value={panel.parameters?.faceRole || ''}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
-                            updateShape(panel.id, {
-                              parameters: {
-                                ...panel.parameters,
-                                faceRole: newRole
-                              }
-                            });
-                            if (selectedProfile !== 'none') {
-                              setResolving(true);
-                              resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
-                                setResolving(false)
-                              );
-                            }
-                          }}
-                          style={{ width: '35mm' }}
-                          className="px-1 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
-                        >
-                          <option value="">none</option>
-                          {roleOptions.map(role => (
-                            <option key={role} value={role}>{role}</option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          value={panel.parameters?.description || ''}
-                          onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            updateShape(panel.id, {
-                              parameters: {
-                                ...panel.parameters,
-                                description: e.target.value
-                              }
-                            });
-                          }}
-                          placeholder="description"
-                          style={{ width: '40mm' }}
-                          className="px-2 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
-                        />
-                        <input
-                          type="text"
-                          value={dimensions?.primary || 'NaN'}
-                          readOnly
-                          tabIndex={-1}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-gray-800 border-orange-300 font-semibold"
-                          title="Arrow Direction Dimension"
-                        />
-                        <input
-                          type="text"
-                          value={dimensions?.secondary || 'NaN'}
-                          readOnly
-                          tabIndex={-1}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-gray-800 border-blue-300 font-semibold"
-                          title="Perpendicular to Arrow Direction"
-                        />
-                        <input
-                          type="text"
-                          value={dimensions?.thickness || 'NaN'}
-                          readOnly
-                          tabIndex={-1}
-                          onClick={(e) => e.stopPropagation()}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
-                          title="Panel Thickness"
-                        />
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const current = panel.parameters?.arrowRotated || false;
-                            updateShape(panel.id, {
-                              parameters: {
-                                ...panel.parameters,
-                                arrowRotated: !current
-                              }
-                            });
-                          }}
-                          className={`p-0.5 rounded transition-colors ${
-                            panel.parameters?.arrowRotated
-                              ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                              : 'text-slate-500 hover:bg-stone-100'
-                          }`}
-                          title="Rotate arrow direction"
-                        >
-                          <RotateCw size={13} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isRowSelected) setSelectedPanelRow(null);
-                            deleteShape(panel.id);
-                          }}
-                          className="p-0.5 text-stone-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
-                          title="Delete raycast panel"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
                     );
                   })}
                 </div>
