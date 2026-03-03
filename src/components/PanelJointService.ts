@@ -326,7 +326,9 @@ async function rebuildRaycastPanel(
   parentShape: any,
   faces: any[],
   faceGroups: any[],
-  allPanels: any[]
+  allPanels: any[],
+  complexFaces?: any[],
+  complexFaceGroups?: any[]
 ): Promise<{ id: string; geometry: any; replicadShape: any; parameters: any } | null> {
   const {
     raycastLocalOrigin,
@@ -390,8 +392,23 @@ async function rebuildRaycastPanel(
     20
   );
 
+  const actualFaces = complexFaces || faces;
+  const actualFaceGroups = complexFaceGroups || faceGroups;
+
+  let boundaryFaceGroup = matchedGroup;
+  if (actualFaceGroups !== faceGroups) {
+    const targetNormal = facePlaneNormal.clone();
+    const matched = actualFaceGroups.find((g: any) => {
+      const gn = g.normal.clone().normalize();
+      return gn.dot(targetNormal) > 0.95;
+    });
+    if (matched) {
+      boundaryFaceGroup = matched;
+    }
+  }
+
   const { u, v } = getFacePlaneAxes(facePlaneNormal);
-  const boundaryEdges = collectBoundaryEdges(faces, matchedGroup.faceIndices);
+  const boundaryEdges = collectBoundaryEdges(actualFaces, boundaryFaceGroup.faceIndices);
   const offset = facePlaneNormal.clone().multiplyScalar(0.5);
   const startWorld = scaledOrigin.clone().add(offset);
   const maxDist = 5000;
@@ -711,7 +728,10 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
   for (const panel of raycastPanels) {
     try {
-      const result = await rebuildRaycastPanel(panel, parentShape, cleanFaces, cleanFaceGroups, childPanels);
+      const result = await rebuildRaycastPanel(
+        panel, parentShape, cleanFaces, cleanFaceGroups, childPanels,
+        complexFaces, complexFaceGroups
+      );
       if (result) {
         updates.push(result);
       }
