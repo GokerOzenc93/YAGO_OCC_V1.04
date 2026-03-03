@@ -136,6 +136,76 @@ function collectPanelObstacleEdgesWorld(
   return obstacleEdges;
 }
 
+function getSubtractionWorldMatrix(
+  parentLocalToWorld: THREE.Matrix4,
+  subtraction: any
+): THREE.Matrix4 {
+  const box = new THREE.Box3().setFromBufferAttribute(
+    subtraction.geometry.attributes.position as THREE.BufferAttribute
+  );
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+  const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
+  const meshOffset = isCentered
+    ? new THREE.Vector3(size.x / 2, size.y / 2, size.z / 2)
+    : new THREE.Vector3();
+
+  const groupMatrix = new THREE.Matrix4().compose(
+    new THREE.Vector3(...subtraction.relativeOffset),
+    new THREE.Quaternion().setFromEuler(
+      new THREE.Euler(
+        subtraction.relativeRotation?.[0] || 0,
+        subtraction.relativeRotation?.[1] || 0,
+        subtraction.relativeRotation?.[2] || 0,
+        'XYZ'
+      )
+    ),
+    new THREE.Vector3(
+      subtraction.scale?.[0] || 1,
+      subtraction.scale?.[1] || 1,
+      subtraction.scale?.[2] || 1
+    )
+  );
+
+  const meshMatrix = new THREE.Matrix4().makeTranslation(meshOffset.x, meshOffset.y, meshOffset.z);
+  return new THREE.Matrix4().multiplyMatrices(parentLocalToWorld, groupMatrix).multiply(meshMatrix);
+}
+
+function collectSubtractionObstacleEdgesWorld(
+  subtractions: any[],
+  parentLocalToWorld: THREE.Matrix4,
+  facePlaneNormal: THREE.Vector3,
+  facePlaneOrigin: THREE.Vector3,
+  planeTolerance: number = 20
+): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
+  const edges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
+
+  for (const sub of subtractions) {
+    if (!sub || !sub.geometry) continue;
+
+    const subWorldMatrix = getSubtractionWorldMatrix(parentLocalToWorld, sub);
+    const edgesGeo = new THREE.EdgesGeometry(sub.geometry);
+    const edgePos = edgesGeo.getAttribute('position');
+    const count = edgePos.count;
+
+    for (let i = 0; i < count; i += 2) {
+      const va = new THREE.Vector3(edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)).applyMatrix4(subWorldMatrix);
+      const vb = new THREE.Vector3(edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)).applyMatrix4(subWorldMatrix);
+
+      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOrigin)));
+      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOrigin)));
+
+      if (distA < planeTolerance && distB < planeTolerance) {
+        edges.push({ v1: va, v2: vb });
+      }
+    }
+    edgesGeo.dispose();
+  }
+  return edges;
+}
+
 function castRayOnFaceWorld(
   originWorld: THREE.Vector3,
   dirWorld: THREE.Vector3,
@@ -182,7 +252,8 @@ function buildPreview(
   localToWorld: THREE.Matrix4,
   worldToLocal: THREE.Matrix4,
   childPanels: any[],
-  shapeId: string
+  shapeId: string,
+  subtractions: any[] = []
 ): PendingPreview | null {
   const localNormal = group.normal.clone().normalize();
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(localToWorld);
@@ -192,7 +263,9 @@ function buildPreview(
   const planeOrigin = clickWorld.clone();
 
   const boundaryEdges = collectBoundaryEdgesWorld(faces, group.faceIndices, localToWorld);
-  const obstacleEdges = collectPanelObstacleEdgesWorld(childPanels, worldNormal, planeOrigin, 20);
+  const panelEdges = collectPanelObstacleEdgesWorld(childPanels, worldNormal, planeOrigin, 20);
+  const subEdges = collectSubtractionObstacleEdgesWorld(subtractions, localToWorld, worldNormal, planeOrigin, 20);
+  const obstacleEdges = [...panelEdges, ...subEdges];
 
   const maxDist = 5000;
   const offset = worldNormal.clone().multiplyScalar(0.5);
@@ -399,7 +472,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       localToWorld,
       worldToLocal,
       childPanels,
-      shape.id
+      shape.id,
+      shape.subtractionGeometries || []
     );
 
     setPending(preview);
