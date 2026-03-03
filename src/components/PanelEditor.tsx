@@ -542,7 +542,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
               return (
                 <div className={`space-y-0.5 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
                   <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-orange-700'}`}>
-                    <span>Face Roles ({faceGroups.length} faces{shapeVirtualFaces.length > 0 ? ` + ${shapeVirtualFaces.length} virtual` : ''})</span>
+                    <span>Face Roles ({faceGroups.length + shapeVirtualFaces.length} faces)</span>
                     {resolving && (
                       <span className="text-[10px] font-normal text-orange-500 animate-pulse">
                         resolving joints...
@@ -720,88 +720,119 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                     );
                   })}
 
-                  {shapeVirtualFaces.length > 0 && (
-                    <div className="mt-1 pt-1 border-t border-green-200 space-y-0.5">
-                      <div className="text-[10px] font-semibold text-green-700 mb-0.5">Virtual Faces (Raycast)</div>
-                      {shapeVirtualFaces.map((vf, vfIdx) => {
-                        const roleOptions: FaceRole[] = ['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'];
-                        return (
-                          <div key={vf.id} className="flex gap-0.5 items-center p-0.5 rounded bg-green-50 ring-1 ring-green-200">
-                            <input
-                              type="text"
-                              value={`V${vfIdx + 1}`}
-                              readOnly
-                              tabIndex={-1}
-                              className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-100 text-green-800 border-green-300"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <select
-                              value={vf.role || ''}
-                              disabled={isDisabled}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
-                                updateVirtualFace(vf.id, { role: newRole });
-                              }}
-                              style={{ width: '35mm' }}
-                              className={`px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-green-300'}`}
-                            >
-                              <option value="">none</option>
-                              {roleOptions.map(role => (
-                                <option key={role} value={role}>{role}</option>
-                              ))}
-                            </select>
-                            <input
-                              type="text"
-                              value={vf.description || ''}
-                              disabled={isDisabled}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => {
-                                updateVirtualFace(vf.id, { description: e.target.value });
-                              }}
-                              placeholder="description"
-                              style={{ width: '40mm' }}
-                              className={`px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-green-300'}`}
-                            />
-                            <input
-                              type="checkbox"
-                              checked={vf.hasPanel}
-                              disabled={isDisabled}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={async () => {
-                                if (vf.hasPanel) {
-                                  removeVirtualPanel(vf.id, vfIdx);
-                                } else {
-                                  await createVirtualPanel(vf.id, vfIdx);
-                                  if (selectedProfile !== 'none') {
-                                    setResolving(true);
-                                    try {
-                                      await resolveAllPanelJoints(selectedShape.id, selectedProfile);
-                                    } finally {
-                                      setResolving(false);
-                                    }
-                                  }
+                  {shapeVirtualFaces.map((vf, vfIdx) => {
+                    return (
+                      <div key={vf.id} className="flex gap-0.5 items-center p-0.5 rounded hover:bg-green-50 ring-1 ring-green-200 bg-green-50/50">
+                        <input
+                          type="radio"
+                          name="panel-selection"
+                          checked={false}
+                          disabled={true}
+                          readOnly
+                          className="w-4 h-4 text-stone-300 cursor-not-allowed"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <input
+                          type="text"
+                          value={`V${vfIdx + 1}`}
+                          readOnly
+                          tabIndex={-1}
+                          className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-100 text-green-800 border-green-300"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <select
+                          value={vf.role || ''}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
+                            updateVirtualFace(vf.id, { role: newRole });
+                          }}
+                          style={{ width: '35mm' }}
+                          className={`px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-green-300'}`}
+                        >
+                          <option value="">none</option>
+                          {roleOptions.map(role => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          value={vf.description || ''}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            updateVirtualFace(vf.id, { description: e.target.value });
+                          }}
+                          placeholder="description"
+                          style={{ width: '40mm' }}
+                          className={`px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-green-300'}`}
+                        />
+                        <input
+                          type="text"
+                          value="—"
+                          readOnly
+                          tabIndex={-1}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-stone-400 border-orange-200"
+                          title="Arrow Direction Dimension"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <input
+                          type="text"
+                          value="—"
+                          readOnly
+                          tabIndex={-1}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-stone-400 border-blue-200"
+                          title="Perpendicular Dimension"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <input
+                          type="text"
+                          value="—"
+                          readOnly
+                          tabIndex={-1}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-stone-400 border-green-200"
+                          title="Panel Thickness"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <input
+                          type="checkbox"
+                          checked={vf.hasPanel}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={async () => {
+                            if (vf.hasPanel) {
+                              removeVirtualPanel(vf.id, vfIdx);
+                            } else {
+                              await createVirtualPanel(vf.id, vfIdx);
+                              if (selectedProfile !== 'none') {
+                                setResolving(true);
+                                try {
+                                  await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                } finally {
+                                  setResolving(false);
                                 }
-                              }}
-                              className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
-                              title={`Toggle panel for virtual face V${vfIdx + 1}`}
-                            />
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (vf.hasPanel) removeVirtualPanel(vf.id, vfIdx);
-                                deleteVirtualFace(vf.id);
-                              }}
-                              className="p-0.5 hover:bg-red-100 rounded transition-colors"
-                              title="Delete virtual face"
-                            >
-                              <Trash2 size={12} className="text-red-500" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                              }
+                            }
+                          }}
+                          className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
+                          title={`Toggle panel for virtual face V${vfIdx + 1}`}
+                        />
+                        <button
+                          disabled={isDisabled}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (vf.hasPanel) removeVirtualPanel(vf.id, vfIdx);
+                            deleteVirtualFace(vf.id);
+                          }}
+                          className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                          title="Delete virtual face"
+                        >
+                          <Trash2 size={13} className="text-red-400" />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               );
             })()}

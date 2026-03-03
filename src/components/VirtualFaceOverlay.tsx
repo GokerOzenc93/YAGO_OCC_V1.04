@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
 import type { VirtualFace } from '../store';
@@ -7,45 +7,10 @@ interface VirtualFaceOverlayProps {
   shape: any;
 }
 
-function getFacePlaneAxes(normal: THREE.Vector3): { u: THREE.Vector3; v: THREE.Vector3 } {
-  const n = normal.clone().normalize();
-  const absX = Math.abs(n.x);
-  const absY = Math.abs(n.y);
-  const absZ = Math.abs(n.z);
-
-  let up: THREE.Vector3;
-  if (absY > absX && absY > absZ) {
-    up = new THREE.Vector3(1, 0, 0);
-  } else {
-    up = new THREE.Vector3(0, 1, 0);
-  }
-
-  const u = new THREE.Vector3().crossVectors(n, up).normalize();
-  const v = new THREE.Vector3().crossVectors(u, n).normalize();
-  return { u, v };
-}
-
-interface SurfaceMeshData {
-  id: string;
-  geo: THREE.BufferGeometry;
-  edgeGeo: THREE.BufferGeometry;
-}
-
-function buildSurfaceMeshes(vf: VirtualFace, parentPosition: THREE.Vector3): SurfaceMeshData | null {
+function buildSurfaceMeshes(vf: VirtualFace): { geo: THREE.BufferGeometry; edgeGeo: THREE.BufferGeometry } | null {
   if (vf.vertices.length < 4) return null;
 
-  const normal = new THREE.Vector3(...vf.normal);
-  const { u, v } = getFacePlaneAxes(normal);
-  const center = new THREE.Vector3(...vf.center);
-  const uHalfLen = new THREE.Vector3(...vf.vertices[0]).distanceTo(new THREE.Vector3(...vf.vertices[1])) / 2;
-  const vHalfLen = new THREE.Vector3(...vf.vertices[0]).distanceTo(new THREE.Vector3(...vf.vertices[3])) / 2;
-
-  const corners = [
-    center.clone().addScaledVector(u, uHalfLen).addScaledVector(v, vHalfLen),
-    center.clone().addScaledVector(u, -uHalfLen).addScaledVector(v, vHalfLen),
-    center.clone().addScaledVector(u, -uHalfLen).addScaledVector(v, -vHalfLen),
-    center.clone().addScaledVector(u, uHalfLen).addScaledVector(v, -vHalfLen),
-  ];
+  const corners = vf.vertices.map(v => new THREE.Vector3(v[0], v[1], v[2]));
 
   const positions = new Float32Array([
     corners[0].x, corners[0].y, corners[0].z,
@@ -72,18 +37,11 @@ function buildSurfaceMeshes(vf: VirtualFace, parentPosition: THREE.Vector3): Sur
   const edgeGeo = new THREE.BufferGeometry();
   edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
 
-  return { id: vf.id, geo, edgeGeo };
+  return { geo, edgeGeo };
 }
 
 export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape }) => {
-  const {
-    virtualFaces,
-    panelSurfaceSelectMode,
-    waitingForSurfaceSelection,
-    triggerPanelCreationForFace,
-    updateVirtualFace,
-  } = useAppStore();
-
+  const { virtualFaces, panelSurfaceSelectMode, waitingForSurfaceSelection, triggerPanelCreationForFace } = useAppStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const shapeFaces = useMemo(
@@ -91,22 +49,18 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
     [virtualFaces, shape.id]
   );
 
-  const parentPosition = useMemo(
-    () => new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]),
-    [shape.position[0], shape.position[1], shape.position[2]]
-  );
+  const meshes = useMemo(() => {
+    return shapeFaces.map(vf => {
+      const result = buildSurfaceMeshes(vf);
+      return result ? { id: vf.id, vf, ...result } : null;
+    }).filter(Boolean) as Array<{ id: string; vf: VirtualFace; geo: THREE.BufferGeometry; edgeGeo: THREE.BufferGeometry }>;
+  }, [shapeFaces]);
 
-  const surfaceMeshes = useMemo(() => {
-    return shapeFaces.map(vf => buildSurfaceMeshes(vf, parentPosition)).filter(Boolean) as SurfaceMeshData[];
-  }, [shapeFaces, parentPosition]);
-
-  if (surfaceMeshes.length === 0) return null;
+  if (meshes.length === 0) return null;
 
   return (
     <>
-      {surfaceMeshes.map((surface, idx) => {
-        const vf = shapeFaces[idx];
-        if (!vf) return null;
+      {meshes.map((surface, idx) => {
         const isHovered = hoveredId === surface.id;
         const isWaitingForSelection = panelSurfaceSelectMode && !!waitingForSurfaceSelection;
 
@@ -121,9 +75,9 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
                     -(idx + 1),
                     shape.id,
                     {
-                      center: vf.center,
-                      normal: vf.normal,
-                      constraintPanelId: vf.id,
+                      center: surface.vf.center,
+                      normal: surface.vf.normal,
+                      constraintPanelId: surface.vf.id,
                     }
                   );
                 }
@@ -143,13 +97,7 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
               />
             </mesh>
             <lineSegments geometry={surface.edgeGeo}>
-              <lineBasicMaterial
-                color={0x16a34a}
-                linewidth={2}
-                depthTest={false}
-                transparent
-                opacity={0.9}
-              />
+              <lineBasicMaterial color={0x16a34a} linewidth={2} depthTest={false} transparent opacity={0.9} />
             </lineSegments>
           </React.Fragment>
         );
