@@ -392,3 +392,51 @@ export const createPanelFromFace = async (
     throw error;
   }
 };
+
+export const createPanelFromVirtualFace = async (
+  vertices: [number, number, number][],
+  normal: [number, number, number],
+  panelThickness: number
+): Promise<any> => {
+  await initReplicad();
+
+  const { draw, Plane } = await import('replicad');
+
+  const n = new THREE.Vector3(...normal).normalize();
+
+  let up: THREE.Vector3;
+  if (Math.abs(n.y) > Math.abs(n.x) && Math.abs(n.y) > Math.abs(n.z)) {
+    up = new THREE.Vector3(1, 0, 0);
+  } else {
+    up = new THREE.Vector3(0, 1, 0);
+  }
+  const uAxis = new THREE.Vector3().crossVectors(n, up).normalize();
+  const vAxis = new THREE.Vector3().crossVectors(uAxis, n).normalize();
+
+  const v3s = vertices.map(v => new THREE.Vector3(v[0], v[1], v[2]));
+  const center = new THREE.Vector3();
+  v3s.forEach(v => center.add(v));
+  center.divideScalar(v3s.length);
+
+  const projected: [number, number][] = v3s.map(v => {
+    const d = new THREE.Vector3().subVectors(v, center);
+    return [d.dot(uAxis), d.dot(vAxis)] as [number, number];
+  });
+
+  let sketch = draw().movePointerTo(projected[0]);
+  for (let i = 1; i < projected.length; i++) {
+    sketch = sketch.lineTo(projected[i]);
+  }
+  const closed = sketch.close();
+
+  const plane = new Plane(
+    [center.x, center.y, center.z],
+    [uAxis.x, uAxis.y, uAxis.z],
+    [n.x, n.y, n.z]
+  );
+
+  const sketched = closed.sketchOnPlane(plane);
+  const panel = sketched.extrude(-panelThickness);
+
+  return panel;
+};

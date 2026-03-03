@@ -234,26 +234,22 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     if (!constraint?.constraintPanelId) return;
 
     const vf = virtualFaces.find(f => f.id === constraint.constraintPanelId);
-    if (!vf) return;
+    if (!vf || vf.hasPanel) return;
 
     const currentShape = useAppStore.getState().shapes.find(s => s.id === vf.shapeId);
-    if (!currentShape?.replicadShape) return;
+    if (!currentShape) return;
 
     const vfIdx = virtualFaces.filter(f => f.shapeId === vf.shapeId).findIndex(f => f.id === vf.id);
     if (vfIdx === -1) return;
 
     (async () => {
       try {
-        const localNormal = new THREE.Vector3(...vf.normal).normalize();
-        const localCenter = new THREE.Vector3(...vf.center);
         const panelThickness = 18;
-        const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-        const replicadPanel = await createPanelFromFace(
-          currentShape.replicadShape,
-          [localNormal.x, localNormal.y, localNormal.z],
-          [localCenter.x, localCenter.y, localCenter.z],
-          panelThickness,
-          null
+        const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+        const replicadPanel = await createPanelFromVirtualFace(
+          vf.vertices,
+          vf.normal,
+          panelThickness
         );
         if (!replicadPanel) return;
         const geometry = convertReplicadToThreeGeometry(replicadPanel);
@@ -554,18 +550,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
               const createVirtualPanel = async (vfId: string, vfIndex: number) => {
                 const vf = shapeVirtualFaces[vfIndex];
-                if (!vf || !selectedShape.replicadShape) return;
+                if (!vf) return;
                 try {
-                  const localNormal = new THREE.Vector3(...vf.normal).normalize();
-                  const localCenter = new THREE.Vector3(...vf.center);
                   const panelThickness = 18;
-                  const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-                  let replicadPanel = await createPanelFromFace(
-                    selectedShape.replicadShape,
-                    [localNormal.x, localNormal.y, localNormal.z],
-                    [localCenter.x, localCenter.y, localCenter.z],
-                    panelThickness,
-                    null
+                  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+                  const replicadPanel = await createPanelFromVirtualFace(
+                    vf.vertices,
+                    vf.normal,
+                    panelThickness
                   );
                   if (!replicadPanel) return;
                   const geometry = convertReplicadToThreeGeometry(replicadPanel);
