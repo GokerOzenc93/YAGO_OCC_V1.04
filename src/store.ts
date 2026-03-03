@@ -63,6 +63,12 @@ export interface SubtractedGeometry {
 
 export type FaceRole = 'Left' | 'Right' | 'Top' | 'Bottom' | 'Back' | 'Door' | null;
 
+export interface VirtualFaceRaycastRecipe {
+  clickLocalPoint: [number, number, number];
+  faceGroupNormal: [number, number, number];
+  faceGroupDescriptor: FaceDescriptor;
+}
+
 export interface VirtualFace {
   id: string;
   shapeId: string;
@@ -72,6 +78,7 @@ export interface VirtualFace {
   role: FaceRole;
   description: string;
   hasPanel: boolean;
+  raycastRecipe?: VirtualFaceRaycastRecipe;
 }
 
 /**
@@ -487,7 +494,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       const currentShape = currentState.shapes.find(s => s.id === shapeId);
       if (!currentShape) return;
 
-      const updatedFaces = recalculateVirtualFacesForShape(currentShape, currentState.virtualFaces);
+      const updatedFaces = recalculateVirtualFacesForShape(currentShape, currentState.virtualFaces, currentState.shapes);
       set({ virtualFaces: updatedFaces });
     });
   },

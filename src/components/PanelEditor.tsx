@@ -180,7 +180,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   }, [selectedProfile, selectedShapeId]);
 
   useEffect(() => {
-    if (!selectedShape || !selectedShapeId || selectedProfile === 'none') return;
+    if (!selectedShape || !selectedShapeId) return;
 
     const geometryKey = [
       selectedShape.parameters?.width,
@@ -193,11 +193,22 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     ].join('|');
 
     if (prevGeometryRef.current && prevGeometryRef.current !== geometryKey) {
-      console.log('Geometry changed, rebuilding and updating panels...');
+      console.log('Geometry changed, recalculating virtual faces and rebuilding panels...');
+
+      const { recalculateVirtualFacesForShape } = useAppStore.getState();
+      recalculateVirtualFacesForShape(selectedShapeId);
+
       setResolving(true);
-      rebuildAllPanels(selectedShapeId)
-        .then(() => resolveAllPanelJoints(selectedShapeId, selectedProfile))
-        .finally(() => setResolving(false));
+      setTimeout(async () => {
+        try {
+          await rebuildAllPanels(selectedShapeId);
+          if (selectedProfileRef.current !== 'none') {
+            await resolveAllPanelJoints(selectedShapeId, selectedProfileRef.current);
+          }
+        } finally {
+          setResolving(false);
+        }
+      }, 100);
     }
 
     prevGeometryRef.current = geometryKey;

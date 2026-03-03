@@ -336,16 +336,52 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
-  const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+  const { createPanelFromFace, createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
   const faces = extractFacesFromGeometry(parentShape.geometry);
   const faceGroups = groupCoplanarFaces(faces);
 
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
+  const currentVirtualFaces = useAppStore.getState().virtualFaces;
+
   for (const panel of childPanels) {
     const faceIndex = panel.parameters?.faceIndex;
-    if (faceIndex === undefined || faceIndex >= faceGroups.length) continue;
+    if (faceIndex === undefined) continue;
+
+    const virtualFaceId = panel.parameters?.virtualFaceId;
+    if (virtualFaceId) {
+      const vf = currentVirtualFaces.find(f => f.id === virtualFaceId);
+      if (!vf || vf.vertices.length < 3) continue;
+
+      const panelThickness = panel.parameters?.depth || 18;
+      try {
+        const replicadPanel = await createPanelFromVirtualFace(
+          vf.vertices,
+          vf.normal,
+          panelThickness
+        );
+        if (!replicadPanel) continue;
+
+        const geometry = convertReplicadToThreeGeometry(replicadPanel);
+
+        updates.push({
+          id: panel.id,
+          geometry,
+          replicadShape: replicadPanel,
+          parameters: {
+            ...panel.parameters,
+            originalReplicadShape: null,
+            jointTrimmed: false,
+          }
+        });
+      } catch (error) {
+        console.error(`Failed to rebuild virtual face panel ${panel.id}:`, error);
+      }
+      continue;
+    }
+
+    if (faceIndex < 0 || faceIndex >= faceGroups.length) continue;
 
     const faceGroup = faceGroups[faceIndex];
 

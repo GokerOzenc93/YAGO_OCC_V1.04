@@ -6,6 +6,7 @@ import {
   extractFacesFromGeometry,
   groupCoplanarFaces,
   createFaceHighlightGeometry,
+  createFaceDescriptor,
   FaceData,
   CoplanarFaceGroup,
 } from './FaceEditor';
@@ -584,7 +585,8 @@ function buildPreview(
   worldToLocal: THREE.Matrix4,
   childPanels: any[],
   shapeId: string,
-  subtractions: any[] = []
+  subtractions: any[] = [],
+  geometry?: THREE.BufferGeometry
 ): PendingPreview | null {
   const localNormal = group.normal.clone().normalize();
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(localToWorld);
@@ -685,6 +687,16 @@ function buildPreview(
   const edgeGeo = new THREE.BufferGeometry();
   edgeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(edgeVerts), 3));
 
+  const clickLocal = clickWorld.clone().applyMatrix4(worldToLocal);
+
+  let faceGroupDescriptor: import('../store').FaceDescriptor | undefined;
+  if (geometry && group.faceIndices.length > 0) {
+    const representativeFace = faces[group.faceIndices[0]];
+    if (representativeFace) {
+      faceGroupDescriptor = createFaceDescriptor(representativeFace, geometry);
+    }
+  }
+
   const newId = `vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
   const virtualFace: VirtualFace = {
     id: newId,
@@ -695,6 +707,11 @@ function buildPreview(
     role: null,
     description: '',
     hasPanel: false,
+    raycastRecipe: faceGroupDescriptor ? {
+      clickLocalPoint: [clickLocal.x, clickLocal.y, clickLocal.z],
+      faceGroupNormal: [localNormal.x, localNormal.y, localNormal.z],
+      faceGroupDescriptor,
+    } : undefined,
   };
 
   return {
@@ -822,7 +839,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       worldToLocal,
       childPanels,
       shape.id,
-      shape.subtractionGeometries || []
+      shape.subtractionGeometries || [],
+      shape.geometry
     );
 
     setPending(preview);
