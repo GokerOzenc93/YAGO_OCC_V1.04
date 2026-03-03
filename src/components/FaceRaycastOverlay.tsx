@@ -206,6 +206,337 @@ function collectSubtractionObstacleEdgesWorld(
   return edges;
 }
 
+type Point2D = { x: number; y: number };
+
+function getSubtractorFootprints2D(
+  subtractions: any[],
+  parentLocalToWorld: THREE.Matrix4,
+  facePlaneNormal: THREE.Vector3,
+  facePlaneOrigin: THREE.Vector3,
+  u: THREE.Vector3,
+  v: THREE.Vector3,
+  planeTolerance: number = 50
+): Point2D[][] {
+  const footprints: Point2D[][] = [];
+
+  for (const sub of subtractions) {
+    if (!sub || !sub.geometry) continue;
+
+    const subWorldMatrix = getSubtractionWorldMatrix(parentLocalToWorld, sub);
+    const posAttr = sub.geometry.getAttribute('position');
+    const vertCount = posAttr.count;
+
+    const onPlaneVerts: THREE.Vector3[] = [];
+    for (let i = 0; i < vertCount; i++) {
+      const wp = new THREE.Vector3(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).applyMatrix4(subWorldMatrix);
+      const dist = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(wp, facePlaneOrigin)));
+      if (dist < planeTolerance) {
+        onPlaneVerts.push(wp);
+      }
+    }
+
+    if (onPlaneVerts.length < 3) continue;
+
+    const projected = onPlaneVerts.map(wp => projectTo2D(wp, facePlaneOrigin, u, v));
+    const hull = convexHull2D(projected);
+    if (hull.length >= 3) {
+      footprints.push(hull);
+    }
+  }
+  return footprints;
+}
+
+function convexHull2D(points: Point2D[]): Point2D[] {
+  if (points.length < 3) return [...points];
+
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+
+  const cross = (o: Point2D, a: Point2D, b: Point2D) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+
+  const lower: Point2D[] = [];
+  for (const p of sorted) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+
+  const upper: Point2D[] = [];
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    const p = sorted[i];
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+function sutherlandHodgmanClip(subject: Point2D[], clip: Point2D[]): Point2D[] {
+  let output = [...subject];
+
+  for (let i = 0; i < clip.length && output.length > 0; i++) {
+    const input = [...output];
+    output = [];
+    const edgeStart = clip[i];
+    const edgeEnd = clip[(i + 1) % clip.length];
+
+    for (let j = 0; j < input.length; j++) {
+      const current = input[j];
+      const prev = input[(j + input.length - 1) % input.length];
+
+      const currInside = isInsideEdge(current, edgeStart, edgeEnd);
+      const prevInside = isInsideEdge(prev, edgeStart, edgeEnd);
+
+      if (currInside) {
+        if (!prevInside) {
+          const inter = lineIntersect2D(prev, current, edgeStart, edgeEnd);
+          if (inter) output.push(inter);
+        }
+        output.push(current);
+      } else if (prevInside) {
+        const inter = lineIntersect2D(prev, current, edgeStart, edgeEnd);
+        if (inter) output.push(inter);
+      }
+    }
+  }
+  return output;
+}
+
+function isInsideEdge(p: Point2D, edgeStart: Point2D, edgeEnd: Point2D): boolean {
+  return (edgeEnd.x - edgeStart.x) * (p.y - edgeStart.y) - (edgeEnd.y - edgeStart.y) * (p.x - edgeStart.x) >= 0;
+}
+
+function lineIntersect2D(p1: Point2D, p2: Point2D, p3: Point2D, p4: Point2D): Point2D | null {
+  const x1 = p1.x, y1 = p1.y, x2 = p2.x, y2 = p2.y;
+  const x3 = p3.x, y3 = p3.y, x4 = p4.x, y4 = p4.y;
+  const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+  if (Math.abs(denom) < 1e-10) return null;
+  const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+  return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
+}
+
+function subtractPolygon(subject: Point2D[], hole: Point2D[]): Point2D[] {
+  const invertedHole = [...hole].reverse();
+  const clipped = sutherlandHodgmanClip(subject, invertedHole);
+  if (clipped.length < 3) return subject;
+
+  const subjectEdges: [Point2D, Point2D][] = [];
+  for (let i = 0; i < subject.length; i++) {
+    subjectEdges.push([subject[i], subject[(i + 1) % subject.length]]);
+  }
+
+  const holeEdges: [Point2D, Point2D][] = [];
+  for (let i = 0; i < hole.length; i++) {
+    holeEdges.push([hole[i], hole[(i + 1) % hole.length]]);
+  }
+
+  const result: Point2D[] = [];
+  const EPS = 0.5;
+
+  for (let i = 0; i < subject.length; i++) {
+    const pt = subject[i];
+    if (!isPointInsidePolygon(pt, hole)) {
+      result.push(pt);
+    }
+
+    const nextIdx = (i + 1) % subject.length;
+    const intersections = findEdgeIntersections(pt, subject[nextIdx], holeEdges);
+    intersections.sort((a, b) => {
+      const da = (a.x - pt.x) ** 2 + (a.y - pt.y) ** 2;
+      const db = (b.x - pt.x) ** 2 + (b.y - pt.y) ** 2;
+      return da - db;
+    });
+
+    for (const inter of intersections) {
+      result.push(inter);
+
+      const holeTraversal = traceHoleEdge(inter, hole, subject);
+      for (const hp of holeTraversal) {
+        result.push(hp);
+      }
+    }
+  }
+
+  if (result.length < 3) return subject;
+
+  const deduplicated: Point2D[] = [result[0]];
+  for (let i = 1; i < result.length; i++) {
+    const prev = deduplicated[deduplicated.length - 1];
+    if (Math.abs(result[i].x - prev.x) > EPS || Math.abs(result[i].y - prev.y) > EPS) {
+      deduplicated.push(result[i]);
+    }
+  }
+
+  if (deduplicated.length >= 2) {
+    const first = deduplicated[0];
+    const last = deduplicated[deduplicated.length - 1];
+    if (Math.abs(first.x - last.x) < EPS && Math.abs(first.y - last.y) < EPS) {
+      deduplicated.pop();
+    }
+  }
+
+  return deduplicated.length >= 3 ? deduplicated : subject;
+}
+
+function isPointInsidePolygon(p: Point2D, poly: Point2D[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    if ((yi > p.y) !== (yj > p.y) && p.x < (xj - xi) * (p.y - yi) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function findEdgeIntersections(
+  a: Point2D, b: Point2D,
+  edges: [Point2D, Point2D][]
+): Point2D[] {
+  const results: Point2D[] = [];
+  for (const [e1, e2] of edges) {
+    const inter = segmentIntersect2D(a, b, e1, e2);
+    if (inter) results.push(inter);
+  }
+  return results;
+}
+
+function segmentIntersect2D(p1: Point2D, p2: Point2D, p3: Point2D, p4: Point2D): Point2D | null {
+  const dx1 = p2.x - p1.x, dy1 = p2.y - p1.y;
+  const dx2 = p4.x - p3.x, dy2 = p4.y - p3.y;
+  const denom = dx1 * dy2 - dy1 * dx2;
+  if (Math.abs(denom) < 1e-10) return null;
+  const t = ((p3.x - p1.x) * dy2 - (p3.y - p1.y) * dx2) / denom;
+  const s = ((p3.x - p1.x) * dy1 - (p3.y - p1.y) * dx1) / denom;
+  if (t > 1e-6 && t < 1 - 1e-6 && s > 1e-6 && s < 1 - 1e-6) {
+    return { x: p1.x + t * dx1, y: p1.y + t * dy1 };
+  }
+  return null;
+}
+
+function traceHoleEdge(
+  entryPoint: Point2D,
+  hole: Point2D[],
+  subject: Point2D[]
+): Point2D[] {
+  const subjectEdges: [Point2D, Point2D][] = [];
+  for (let i = 0; i < subject.length; i++) {
+    subjectEdges.push([subject[i], subject[(i + 1) % subject.length]]);
+  }
+
+  let closestEdgeIdx = 0;
+  let minDist = Infinity;
+  for (let i = 0; i < hole.length; i++) {
+    const mid = {
+      x: (hole[i].x + hole[(i + 1) % hole.length].x) / 2,
+      y: (hole[i].y + hole[(i + 1) % hole.length].y) / 2,
+    };
+    const d = (mid.x - entryPoint.x) ** 2 + (mid.y - entryPoint.y) ** 2;
+    if (d < minDist) {
+      minDist = d;
+      closestEdgeIdx = i;
+    }
+  }
+
+  const trace: Point2D[] = [];
+  let startIdx = (closestEdgeIdx + 1) % hole.length;
+
+  for (let step = 0; step < hole.length; step++) {
+    const idx = (startIdx + step) % hole.length;
+    const pt = hole[idx];
+
+    if (!isPointInsidePolygon(pt, subject)) continue;
+
+    trace.push(pt);
+
+    const nextIdx = (idx + 1) % hole.length;
+    const intersections = findEdgeIntersections(pt, hole[nextIdx], subjectEdges);
+    if (intersections.length > 0) {
+      trace.push(intersections[0]);
+      break;
+    }
+  }
+
+  return trace;
+}
+
+function earClipTriangulate(vertices: Point2D[]): number[] {
+  if (vertices.length < 3) return [];
+  if (vertices.length === 3) return [0, 1, 2];
+
+  const indices: number[] = [];
+  const remaining = vertices.map((_, i) => i);
+
+  let safety = remaining.length * remaining.length;
+  while (remaining.length > 3 && safety > 0) {
+    safety--;
+    let earFound = false;
+
+    for (let i = 0; i < remaining.length; i++) {
+      const prevIdx = (i + remaining.length - 1) % remaining.length;
+      const nextIdx = (i + 1) % remaining.length;
+
+      const a = vertices[remaining[prevIdx]];
+      const b = vertices[remaining[i]];
+      const c = vertices[remaining[nextIdx]];
+
+      const cross = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+      if (cross < 1e-10) continue;
+
+      let isEar = true;
+      for (let j = 0; j < remaining.length; j++) {
+        if (j === prevIdx || j === i || j === nextIdx) continue;
+        if (pointInTriangle(vertices[remaining[j]], a, b, c)) {
+          isEar = false;
+          break;
+        }
+      }
+
+      if (isEar) {
+        indices.push(remaining[prevIdx], remaining[i], remaining[nextIdx]);
+        remaining.splice(i, 1);
+        earFound = true;
+        break;
+      }
+    }
+
+    if (!earFound) {
+      remaining.reverse();
+    }
+  }
+
+  if (remaining.length === 3) {
+    indices.push(remaining[0], remaining[1], remaining[2]);
+  }
+
+  return indices;
+}
+
+function pointInTriangle(p: Point2D, a: Point2D, b: Point2D, c: Point2D): boolean {
+  const d1 = sign(p, a, b);
+  const d2 = sign(p, b, c);
+  const d3 = sign(p, c, a);
+  const hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+  const hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+  return !(hasNeg && hasPos);
+}
+
+function sign(p1: Point2D, p2: Point2D, p3: Point2D): number {
+  return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+}
+
+function ensureCCW(poly: Point2D[]): Point2D[] {
+  let area = 0;
+  for (let i = 0; i < poly.length; i++) {
+    const j = (i + 1) % poly.length;
+    area += poly[i].x * poly[j].y;
+    area -= poly[j].x * poly[i].y;
+  }
+  return area < 0 ? [...poly].reverse() : poly;
+}
+
 function castRayOnFaceWorld(
   originWorld: THREE.Vector3,
   dirWorld: THREE.Vector3,
@@ -299,42 +630,60 @@ function buildPreview(
   const vPosT = vPosHit.distanceTo(startWorld);
   const vNegT = vNegHit.distanceTo(startWorld);
 
-  const cornersWorld = [
-    startWorld.clone().addScaledVector(u, uPosT).addScaledVector(v, vPosT),
-    startWorld.clone().addScaledVector(u, -uNegT).addScaledVector(v, vPosT),
-    startWorld.clone().addScaledVector(u, -uNegT).addScaledVector(v, -vNegT),
-    startWorld.clone().addScaledVector(u, uPosT).addScaledVector(v, -vNegT),
-  ];
-
-  const center = cornersWorld[0].clone().add(cornersWorld[1]).add(cornersWorld[2]).add(cornersWorld[3]).divideScalar(4);
-
-  const cornersLocal = cornersWorld.map(c => c.clone().applyMatrix4(worldToLocal));
-  const centerLocal = center.clone().applyMatrix4(worldToLocal);
-
-  const localPositions = new Float32Array([
-    cornersLocal[0].x, cornersLocal[0].y, cornersLocal[0].z,
-    cornersLocal[1].x, cornersLocal[1].y, cornersLocal[1].z,
-    cornersLocal[2].x, cornersLocal[2].y, cornersLocal[2].z,
-    cornersLocal[0].x, cornersLocal[0].y, cornersLocal[0].z,
-    cornersLocal[2].x, cornersLocal[2].y, cornersLocal[2].z,
-    cornersLocal[3].x, cornersLocal[3].y, cornersLocal[3].z,
+  let rect2D: Point2D[] = ensureCCW([
+    { x: uPosT, y: vPosT },
+    { x: -uNegT, y: vPosT },
+    { x: -uNegT, y: -vNegT },
+    { x: uPosT, y: -vNegT },
   ]);
+
+  const footprints = getSubtractorFootprints2D(
+    subtractions, localToWorld, worldNormal, planeOrigin, u, v, 50
+  );
+
+  let clippedPoly = rect2D;
+  for (const footprint of footprints) {
+    const ccwFootprint = ensureCCW(footprint);
+    const hasOverlap = ccwFootprint.some(p => isPointInsidePolygon(p, clippedPoly)) ||
+      clippedPoly.some(p => isPointInsidePolygon(p, ccwFootprint));
+    if (hasOverlap) {
+      clippedPoly = subtractPolygon(clippedPoly, ccwFootprint);
+    }
+  }
+
+  if (clippedPoly.length < 3) return null;
+
+  const finalCornersWorld = clippedPoly.map(p =>
+    startWorld.clone().addScaledVector(u, p.x).addScaledVector(v, p.y)
+  );
+
+  const centerW = new THREE.Vector3();
+  finalCornersWorld.forEach(c => centerW.add(c));
+  centerW.divideScalar(finalCornersWorld.length);
+
+  const cornersLocal = finalCornersWorld.map(c => c.clone().applyMatrix4(worldToLocal));
+  const centerLocal = centerW.clone().applyMatrix4(worldToLocal);
+
+  const triIndices = earClipTriangulate(clippedPoly);
+  const localPositions = new Float32Array(triIndices.length * 3);
+  for (let i = 0; i < triIndices.length; i++) {
+    const cl = cornersLocal[triIndices[i]];
+    localPositions[i * 3] = cl.x;
+    localPositions[i * 3 + 1] = cl.y;
+    localPositions[i * 3 + 2] = cl.z;
+  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(localPositions, 3));
   geo.computeVertexNormals();
 
-  const edgePositions = new Float32Array([
-    cornersLocal[0].x, cornersLocal[0].y, cornersLocal[0].z,
-    cornersLocal[1].x, cornersLocal[1].y, cornersLocal[1].z,
-    cornersLocal[1].x, cornersLocal[1].y, cornersLocal[1].z,
-    cornersLocal[2].x, cornersLocal[2].y, cornersLocal[2].z,
-    cornersLocal[2].x, cornersLocal[2].y, cornersLocal[2].z,
-    cornersLocal[3].x, cornersLocal[3].y, cornersLocal[3].z,
-    cornersLocal[3].x, cornersLocal[3].y, cornersLocal[3].z,
-    cornersLocal[0].x, cornersLocal[0].y, cornersLocal[0].z,
-  ]);
+  const edgeVerts: number[] = [];
+  for (let i = 0; i < cornersLocal.length; i++) {
+    const a = cornersLocal[i];
+    const b = cornersLocal[(i + 1) % cornersLocal.length];
+    edgeVerts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+  }
   const edgeGeo = new THREE.BufferGeometry();
-  edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
+  edgeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(edgeVerts), 3));
 
   const newId = `vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
   const virtualFace: VirtualFace = {
