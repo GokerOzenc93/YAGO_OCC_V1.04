@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
 import type { VirtualFace } from '../store';
@@ -136,141 +136,7 @@ function collectPanelObstacleEdgesWorld(
   return obstacleEdges;
 }
 
-function getSubtractionWorldMatrix(
-  parentLocalToWorld: THREE.Matrix4,
-  subtraction: any
-): THREE.Matrix4 {
-  const box = new THREE.Box3().setFromBufferAttribute(
-    subtraction.geometry.attributes.position as THREE.BufferAttribute
-  );
-  const size = new THREE.Vector3();
-  const center = new THREE.Vector3();
-  box.getSize(size);
-  box.getCenter(center);
-  const isCentered = Math.abs(center.x) < 0.01 && Math.abs(center.y) < 0.01 && Math.abs(center.z) < 0.01;
-  const meshOffset = isCentered
-    ? new THREE.Vector3(size.x / 2, size.y / 2, size.z / 2)
-    : new THREE.Vector3();
-
-  const groupMatrix = new THREE.Matrix4().compose(
-    new THREE.Vector3(...subtraction.relativeOffset),
-    new THREE.Quaternion().setFromEuler(
-      new THREE.Euler(
-        subtraction.relativeRotation?.[0] || 0,
-        subtraction.relativeRotation?.[1] || 0,
-        subtraction.relativeRotation?.[2] || 0,
-        'XYZ'
-      )
-    ),
-    new THREE.Vector3(
-      subtraction.scale?.[0] || 1,
-      subtraction.scale?.[1] || 1,
-      subtraction.scale?.[2] || 1
-    )
-  );
-
-  const meshMatrix = new THREE.Matrix4().makeTranslation(meshOffset.x, meshOffset.y, meshOffset.z);
-  return new THREE.Matrix4().multiplyMatrices(parentLocalToWorld, groupMatrix).multiply(meshMatrix);
-}
-
-function collectSubtractionObstacleEdgesWorld(
-  subtractions: any[],
-  parentLocalToWorld: THREE.Matrix4,
-  facePlaneNormal: THREE.Vector3,
-  facePlaneOrigin: THREE.Vector3,
-  planeTolerance: number = 20
-): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
-  const edges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-
-  for (const sub of subtractions) {
-    if (!sub || !sub.geometry) continue;
-
-    const subWorldMatrix = getSubtractionWorldMatrix(parentLocalToWorld, sub);
-    const edgesGeo = new THREE.EdgesGeometry(sub.geometry);
-    const edgePos = edgesGeo.getAttribute('position');
-    const count = edgePos.count;
-
-    for (let i = 0; i < count; i += 2) {
-      const va = new THREE.Vector3(edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)).applyMatrix4(subWorldMatrix);
-      const vb = new THREE.Vector3(edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)).applyMatrix4(subWorldMatrix);
-
-      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOrigin)));
-      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOrigin)));
-
-      if (distA < planeTolerance && distB < planeTolerance) {
-        edges.push({ v1: va, v2: vb });
-      }
-    }
-    edgesGeo.dispose();
-  }
-  return edges;
-}
-
 type Point2D = { x: number; y: number };
-
-function getSubtractorFootprints2D(
-  subtractions: any[],
-  parentLocalToWorld: THREE.Matrix4,
-  facePlaneNormal: THREE.Vector3,
-  facePlaneOrigin: THREE.Vector3,
-  u: THREE.Vector3,
-  v: THREE.Vector3,
-  planeTolerance: number = 50
-): Point2D[][] {
-  const footprints: Point2D[][] = [];
-
-  for (const sub of subtractions) {
-    if (!sub || !sub.geometry) continue;
-
-    const subWorldMatrix = getSubtractionWorldMatrix(parentLocalToWorld, sub);
-    const posAttr = sub.geometry.getAttribute('position');
-    const vertCount = posAttr.count;
-
-    const onPlaneVerts: THREE.Vector3[] = [];
-    for (let i = 0; i < vertCount; i++) {
-      const wp = new THREE.Vector3(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i)).applyMatrix4(subWorldMatrix);
-      const dist = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(wp, facePlaneOrigin)));
-      if (dist < planeTolerance) {
-        onPlaneVerts.push(wp);
-      }
-    }
-
-    if (onPlaneVerts.length < 3) continue;
-
-    const projected = onPlaneVerts.map(wp => projectTo2D(wp, facePlaneOrigin, u, v));
-    const hull = convexHull2D(projected);
-    if (hull.length >= 3) {
-      footprints.push(hull);
-    }
-  }
-  return footprints;
-}
-
-function convexHull2D(points: Point2D[]): Point2D[] {
-  if (points.length < 3) return [...points];
-
-  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-
-  const cross = (o: Point2D, a: Point2D, b: Point2D) =>
-    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-
-  const lower: Point2D[] = [];
-  for (const p of sorted) {
-    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
-    lower.push(p);
-  }
-
-  const upper: Point2D[] = [];
-  for (let i = sorted.length - 1; i >= 0; i--) {
-    const p = sorted[i];
-    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
-    upper.push(p);
-  }
-
-  lower.pop();
-  upper.pop();
-  return lower.concat(upper);
-}
 
 function sutherlandHodgmanClip(subject: Point2D[], clip: Point2D[]): Point2D[] {
   let output = [...subject];
@@ -537,43 +403,136 @@ function ensureCCW(poly: Point2D[]): Point2D[] {
   return area < 0 ? [...poly].reverse() : poly;
 }
 
-function castRayOnFaceWorld(
-  originWorld: THREE.Vector3,
-  dirWorld: THREE.Vector3,
-  boundaryEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
-  obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
-  u: THREE.Vector3,
-  v: THREE.Vector3,
-  planeOrigin: THREE.Vector3,
-  maxDist: number
-): THREE.Vector3 {
-  const o2d = projectTo2D(originWorld, planeOrigin, u, v);
-  const dir2d = { x: dirWorld.dot(u), y: dirWorld.dot(v) };
-  let tMin = maxDist;
-
-  for (const edge of boundaryEdges) {
-    const a2d = projectTo2D(edge.v1, planeOrigin, u, v);
-    const b2d = projectTo2D(edge.v2, planeOrigin, u, v);
-    const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
-    if (t !== null && t < tMin) tMin = t;
-  }
-
-  for (const edge of obstacleEdges) {
-    const a2d = projectTo2D(edge.v1, planeOrigin, u, v);
-    const b2d = projectTo2D(edge.v2, planeOrigin, u, v);
-    const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
-    if (t !== null && t < tMin) tMin = t;
-  }
-
-  return originWorld.clone().addScaledVector(dirWorld, tMin);
-}
-
 interface PendingPreview {
   rayLines: RayLine[];
   originLocal: THREE.Vector3;
   geo: THREE.BufferGeometry;
   edgeGeo: THREE.BufferGeometry;
   virtualFace: VirtualFace;
+}
+
+function chainBoundaryEdges(
+  edges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>
+): THREE.Vector3[][] {
+  if (edges.length === 0) return [];
+
+  const EPS = 0.5;
+  const keyFn = (v: THREE.Vector3) => `${v.x.toFixed(1)},${v.y.toFixed(1)},${v.z.toFixed(1)}`;
+
+  const adj = new Map<string, Array<{ to: THREE.Vector3; toKey: string; edgeIdx: number }>>();
+  edges.forEach((e, idx) => {
+    const k1 = keyFn(e.v1);
+    const k2 = keyFn(e.v2);
+    if (!adj.has(k1)) adj.set(k1, []);
+    if (!adj.has(k2)) adj.set(k2, []);
+    adj.get(k1)!.push({ to: e.v2, toKey: k2, edgeIdx: idx });
+    adj.get(k2)!.push({ to: e.v1, toKey: k1, edgeIdx: idx });
+  });
+
+  const usedEdges = new Set<number>();
+  const loops: THREE.Vector3[][] = [];
+
+  for (const [startKey] of adj) {
+    const startNeighbors = adj.get(startKey)!;
+    const availableStart = startNeighbors.find(n => !usedEdges.has(n.edgeIdx));
+    if (!availableStart) continue;
+
+    const loop: THREE.Vector3[] = [];
+    let currentKey = startKey;
+
+    const firstEdge = availableStart;
+    usedEdges.add(firstEdge.edgeIdx);
+
+    const startEdge = edges[firstEdge.edgeIdx];
+    const startVert = keyFn(startEdge.v1) === startKey ? startEdge.v1 : startEdge.v2;
+    loop.push(startVert);
+
+    currentKey = firstEdge.toKey;
+    loop.push(firstEdge.to);
+
+    let safety = edges.length + 2;
+    while (currentKey !== startKey && safety > 0) {
+      safety--;
+      const neighbors = adj.get(currentKey);
+      if (!neighbors) break;
+      const next = neighbors.find(n => !usedEdges.has(n.edgeIdx));
+      if (!next) break;
+      usedEdges.add(next.edgeIdx);
+      currentKey = next.toKey;
+      if (currentKey !== startKey) {
+        loop.push(next.to);
+      }
+    }
+
+    if (loop.length >= 3) {
+      loops.push(loop);
+    }
+  }
+
+  return loops;
+}
+
+function selectContainingLoop(
+  loops: THREE.Vector3[][],
+  clickWorld: THREE.Vector3,
+  u: THREE.Vector3,
+  v: THREE.Vector3,
+  planeOrigin: THREE.Vector3
+): THREE.Vector3[] | null {
+  const click2D = projectTo2D(clickWorld, planeOrigin, u, v);
+
+  for (const loop of loops) {
+    const poly2D = loop.map(p => projectTo2D(p, planeOrigin, u, v));
+    if (isPointInsidePolygon(click2D, poly2D)) {
+      return loop;
+    }
+  }
+
+  if (loops.length > 0) {
+    let bestLoop = loops[0];
+    let bestArea = 0;
+    for (const loop of loops) {
+      const poly2D = loop.map(p => projectTo2D(p, planeOrigin, u, v));
+      let area = 0;
+      for (let i = 0; i < poly2D.length; i++) {
+        const j = (i + 1) % poly2D.length;
+        area += poly2D[i].x * poly2D[j].y - poly2D[j].x * poly2D[i].y;
+      }
+      const absArea = Math.abs(area);
+      if (absArea > bestArea) {
+        bestArea = absArea;
+        bestLoop = loop;
+      }
+    }
+    return bestLoop;
+  }
+
+  return null;
+}
+
+function simplifyPolygon(points: Point2D[], tolerance: number = 1.0): Point2D[] {
+  if (points.length <= 3) return points;
+
+  const result: Point2D[] = [];
+  for (let i = 0; i < points.length; i++) {
+    const prev = points[(i + points.length - 1) % points.length];
+    const curr = points[i];
+    const next = points[(i + 1) % points.length];
+
+    const dx1 = curr.x - prev.x, dy1 = curr.y - prev.y;
+    const dx2 = next.x - curr.x, dy2 = next.y - curr.y;
+    const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+    const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+
+    if (len1 < 1e-6 || len2 < 1e-6) continue;
+
+    const cross = Math.abs(dx1 * dy2 - dy1 * dx2) / (len1 * len2);
+    if (cross > tolerance * 0.01) {
+      result.push(curr);
+    }
+  }
+
+  return result.length >= 3 ? result : points;
 }
 
 function buildPreview(
@@ -583,8 +542,7 @@ function buildPreview(
   localToWorld: THREE.Matrix4,
   worldToLocal: THREE.Matrix4,
   childPanels: any[],
-  shapeId: string,
-  subtractions: any[] = []
+  shapeId: string
 ): PendingPreview | null {
   const localNormal = group.normal.clone().normalize();
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(localToWorld);
@@ -593,68 +551,40 @@ function buildPreview(
   const { u, v } = getFacePlaneAxes(worldNormal);
   const planeOrigin = clickWorld.clone();
 
-  const boundaryEdges = collectBoundaryEdgesWorld(faces, group.faceIndices, localToWorld);
-  const panelEdges = collectPanelObstacleEdgesWorld(childPanels, worldNormal, planeOrigin, 20);
-  const subEdges = collectSubtractionObstacleEdgesWorld(subtractions, localToWorld, worldNormal, planeOrigin, 20);
-  const obstacleEdges = [...panelEdges, ...subEdges];
-
-  const maxDist = 5000;
-  const offset = worldNormal.clone().multiplyScalar(0.5);
-  const startWorld = clickWorld.clone().add(offset);
-  const directions = [u, u.clone().negate(), v, v.clone().negate()];
-
-  const lines: RayLine[] = [];
-  const hitPointsWorld: THREE.Vector3[] = [];
-
   const parentPos = new THREE.Vector3();
   localToWorld.decompose(parentPos, new THREE.Quaternion(), new THREE.Vector3());
 
-  for (const dir of directions) {
-    const hitWorld = castRayOnFaceWorld(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
-    lines.push({
-      start: startWorld.clone().sub(parentPos),
-      end: hitWorld.clone().sub(parentPos),
-    });
-    hitPointsWorld.push(hitWorld);
-  }
+  const boundaryEdges = collectBoundaryEdgesWorld(faces, group.faceIndices, localToWorld);
+  const loops = chainBoundaryEdges(boundaryEdges);
 
-  if (hitPointsWorld.length < 4) return null;
+  const selectedLoop = selectContainingLoop(loops, clickWorld, u, v, planeOrigin);
+  if (!selectedLoop || selectedLoop.length < 3) return null;
 
-  const uPosHit = hitPointsWorld[0];
-  const uNegHit = hitPointsWorld[1];
-  const vPosHit = hitPointsWorld[2];
-  const vNegHit = hitPointsWorld[3];
+  let poly2D = selectedLoop.map(p => projectTo2D(p, planeOrigin, u, v));
+  poly2D = ensureCCW(poly2D);
+  poly2D = simplifyPolygon(poly2D, 0.5);
 
-  const uPosT = uPosHit.distanceTo(startWorld);
-  const uNegT = uNegHit.distanceTo(startWorld);
-  const vPosT = vPosHit.distanceTo(startWorld);
-  const vNegT = vNegHit.distanceTo(startWorld);
+  if (poly2D.length < 3) return null;
 
-  let rect2D: Point2D[] = ensureCCW([
-    { x: uPosT, y: vPosT },
-    { x: -uNegT, y: vPosT },
-    { x: -uNegT, y: -vNegT },
-    { x: uPosT, y: -vNegT },
-  ]);
-
-  const footprints = getSubtractorFootprints2D(
-    subtractions, localToWorld, worldNormal, planeOrigin, u, v, 50
-  );
-
-  let clippedPoly = rect2D;
-  for (const footprint of footprints) {
-    const ccwFootprint = ensureCCW(footprint);
-    const hasOverlap = ccwFootprint.some(p => isPointInsidePolygon(p, clippedPoly)) ||
-      clippedPoly.some(p => isPointInsidePolygon(p, ccwFootprint));
-    if (hasOverlap) {
-      clippedPoly = subtractPolygon(clippedPoly, ccwFootprint);
+  const panelEdges = collectPanelObstacleEdgesWorld(childPanels, worldNormal, planeOrigin, 20);
+  if (panelEdges.length > 0) {
+    const panelLoops = chainBoundaryEdges(panelEdges);
+    for (const pLoop of panelLoops) {
+      if (pLoop.length < 3) continue;
+      let panelPoly = pLoop.map(p => projectTo2D(p, planeOrigin, u, v));
+      panelPoly = ensureCCW(panelPoly);
+      const hasOverlap = panelPoly.some(p => isPointInsidePolygon(p, poly2D)) ||
+        poly2D.some(p => isPointInsidePolygon(p, panelPoly));
+      if (hasOverlap) {
+        poly2D = subtractPolygon(poly2D, panelPoly);
+      }
     }
   }
 
-  if (clippedPoly.length < 3) return null;
+  if (poly2D.length < 3) return null;
 
-  const finalCornersWorld = clippedPoly.map(p =>
-    startWorld.clone().addScaledVector(u, p.x).addScaledVector(v, p.y)
+  const finalCornersWorld = poly2D.map(p =>
+    planeOrigin.clone().addScaledVector(u, p.x).addScaledVector(v, p.y)
   );
 
   const centerW = new THREE.Vector3();
@@ -664,7 +594,8 @@ function buildPreview(
   const cornersLocal = finalCornersWorld.map(c => c.clone().applyMatrix4(worldToLocal));
   const centerLocal = centerW.clone().applyMatrix4(worldToLocal);
 
-  const triIndices = earClipTriangulate(clippedPoly);
+  const ccwPoly = ensureCCW(poly2D);
+  const triIndices = earClipTriangulate(ccwPoly);
   const localPositions = new Float32Array(triIndices.length * 3);
   for (let i = 0; i < triIndices.length; i++) {
     const cl = cornersLocal[triIndices[i]];
@@ -684,6 +615,30 @@ function buildPreview(
   }
   const edgeGeo = new THREE.BufferGeometry();
   edgeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(edgeVerts), 3));
+
+  const offset = worldNormal.clone().multiplyScalar(0.5);
+  const startWorld = clickWorld.clone().add(offset);
+  const directions = [u, u.clone().negate(), v, v.clone().negate()];
+  const lines: RayLine[] = [];
+
+  for (const dir of directions) {
+    const o2d = projectTo2D(startWorld, planeOrigin, u, v);
+    const dir2d = { x: dir.dot(u), y: dir.dot(v) };
+    let tMin = 5000;
+
+    for (let i = 0; i < poly2D.length; i++) {
+      const a2d = poly2D[i];
+      const b2d = poly2D[(i + 1) % poly2D.length];
+      const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
+      if (t !== null && t < tMin) tMin = t;
+    }
+
+    const hitWorld = startWorld.clone().addScaledVector(dir, tMin);
+    lines.push({
+      start: startWorld.clone().sub(parentPos),
+      end: hitWorld.clone().sub(parentPos),
+    });
+  }
 
   const newId = `vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
   const virtualFace: VirtualFace = {
@@ -821,8 +776,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       localToWorld,
       worldToLocal,
       childPanels,
-      shape.id,
-      shape.subtractionGeometries || []
+      shape.id
     );
 
     setPending(preview);
