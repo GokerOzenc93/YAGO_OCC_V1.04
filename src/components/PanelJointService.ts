@@ -358,19 +358,27 @@ async function rebuildRaycastPanel(
 
   if (!matchedGroup) return null;
 
+  const faceVertices: THREE.Vector3[] = [];
+  matchedGroup.faceIndices.forEach((idx: number) => {
+    const face = faces[idx];
+    if (face) face.vertices.forEach((vt: THREE.Vector3) => faceVertices.push(vt.clone()));
+  });
+
   if (raycastLocalOrigin) {
     localOrigin = new THREE.Vector3(
       (raycastLocalOrigin as [number,number,number])[0],
       (raycastLocalOrigin as [number,number,number])[1],
       (raycastLocalOrigin as [number,number,number])[2]
     );
+
+    if (faceVertices.length > 0) {
+      const faceN = matchedGroup.normal.clone().normalize();
+      const facePoint = faceVertices[0];
+      const distToFace = faceN.dot(new THREE.Vector3().subVectors(facePoint, localOrigin));
+      localOrigin.addScaledVector(faceN, distToFace);
+    }
   } else {
-    const localVertices: THREE.Vector3[] = [];
-    matchedGroup.faceIndices.forEach((idx: number) => {
-      const face = faces[idx];
-      if (face) face.vertices.forEach((v: THREE.Vector3) => localVertices.push(v.clone()));
-    });
-    const localBox = new THREE.Box3().setFromPoints(localVertices);
+    const localBox = new THREE.Box3().setFromPoints(faceVertices);
     localOrigin = new THREE.Vector3();
     localBox.getCenter(localOrigin);
     const faceN = matchedGroup.normal.clone().normalize();
