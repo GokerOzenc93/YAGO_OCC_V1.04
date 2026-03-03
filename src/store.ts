@@ -63,6 +63,17 @@ export interface SubtractedGeometry {
 
 export type FaceRole = 'Left' | 'Right' | 'Top' | 'Bottom' | 'Back' | 'Door' | null;
 
+export interface VirtualFace {
+  id: string;
+  shapeId: string;
+  normal: [number, number, number];
+  center: [number, number, number];
+  vertices: [number, number, number][];
+  role: FaceRole;
+  description: string;
+  hasPanel: boolean;
+}
+
 /**
  * Shape:
  * Sahnedeki her bir 3D nesnenin ana veri yapısı.
@@ -295,6 +306,13 @@ interface AppState {
   raycastResults: Array<{ origin: [number, number, number]; direction: [number, number, number]; hitPoint: [number, number, number] }>;
   setRaycastResults: (results: Array<{ origin: [number, number, number]; direction: [number, number, number]; hitPoint: [number, number, number] }>) => void;
 
+  // Virtual Faces (Raycast ile oluşturulan sanal yüzeyler)
+  virtualFaces: VirtualFace[];
+  addVirtualFace: (face: VirtualFace) => void;
+  updateVirtualFace: (id: string, updates: Partial<VirtualFace>) => void;
+  deleteVirtualFace: (id: string) => void;
+  getVirtualFacesForShape: (shapeId: string) => VirtualFace[];
+
   // Baza Ayarları
   bazaHeight: number;
   setBazaHeight: (height: number) => void;
@@ -446,6 +464,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setRaycastMode: (enabled) => set({ raycastMode: enabled, raycastResults: enabled ? get().raycastResults : [] }),
   raycastResults: [],
   setRaycastResults: (results) => set({ raycastResults: results }),
+
+  // Virtual Faces
+  virtualFaces: [],
+  addVirtualFace: (face) => set((state) => ({ virtualFaces: [...state.virtualFaces, face] })),
+  updateVirtualFace: (id, updates) => set((state) => ({
+    virtualFaces: state.virtualFaces.map(f => f.id === id ? { ...f, ...updates } : f)
+  })),
+  deleteVirtualFace: (id) => set((state) => ({ virtualFaces: state.virtualFaces.filter(f => f.id !== id) })),
+  getVirtualFacesForShape: (shapeId) => get().virtualFaces.filter(f => f.shapeId === shapeId),
 
   updateFaceRole: (shapeId, faceIndex, role) => set((state) => ({
     shapes: state.shapes.map((shape) => {
