@@ -544,7 +544,8 @@ async function rebuildRaycastPanel(
 
     if (!intersected && parentShape.replicadShape) {
       try {
-        const parentWorld = await buildParentWorld(parentShape.replicadShape);
+        const storedClone = parentShape.replicadShape.clone();
+        const parentWorld = await buildParentWorld(storedClone);
         panelShape = await performBooleanIntersection(panelShape, parentWorld);
         intersected = true;
       } catch (storedErr) {
@@ -821,7 +822,8 @@ export async function resolveAllPanelJoints(
         const cuttingShape = originalShapes.get(dominantId);
         if (!cuttingShape) continue;
         try {
-          currentShape = currentShape.cut(cuttingShape);
+          const cuttingClone = cuttingShape.clone();
+          currentShape = currentShape.cut(cuttingClone);
         } catch (err) {
           console.error(`Joint cut failed for panel ${panel.id}:`, err);
         }

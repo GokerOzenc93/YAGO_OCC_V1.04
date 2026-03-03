@@ -409,7 +409,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
         let intersected = false;
 
         try {
-          const parentWorld = await buildParentWorld(shape.replicadShape);
+          const shapeClone = shape.replicadShape.clone();
+          const parentWorld = await buildParentWorld(shapeClone);
           panelShape = await performBooleanIntersection(panelShape, parentWorld);
           intersected = true;
         } catch (intersectErr) {

@@ -460,7 +460,8 @@ export const createPanelFromFace = async (
     if (constraintGeometry) {
       console.log('🔀 Applying constraint intersection...');
       try {
-        panel = await performBooleanIntersection(panel, constraintGeometry);
+        const constraintClone = constraintGeometry.clone();
+        panel = await performBooleanIntersection(panel, constraintClone);
         console.log('✅ Constraint intersection applied successfully');
       } catch (error) {
         console.error('❌ Failed to apply constraint intersection:', error);
