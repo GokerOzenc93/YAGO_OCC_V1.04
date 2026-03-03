@@ -4,7 +4,7 @@ import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDa
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 import { extractFacesFromGeometry, groupCoplanarFaces, FaceData, CoplanarFaceGroup } from './FaceEditor';
-import { resolveAllPanelJoints, restoreAllPanels, rebuildAllPanels } from './PanelJointService';
+import { resolveAllPanelJoints, restoreAllPanels, rebuildAllPanels, subtractRaycastPanelsFromParent } from './PanelJointService';
 import * as THREE from 'three';
 
 interface PanelEditorProps {
@@ -205,6 +205,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       console.log('Geometry changed, rebuilding and updating panels...');
       setResolving(true);
       rebuildAllPanels(selectedShapeId)
+        .then(() => {
+          if (hasRaycastChildren) {
+            return subtractRaycastPanelsFromParent(selectedShapeId);
+          }
+        })
         .then(() => {
           if (selectedProfile !== 'none') {
             return resolveAllPanelJoints(selectedShapeId, selectedProfile);
