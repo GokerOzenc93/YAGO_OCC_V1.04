@@ -70,7 +70,7 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
               geometry={surface.geo}
               onClick={(e) => {
                 e.stopPropagation();
-                if (isWaitingForSelection) {
+                if (panelSurfaceSelectMode) {
                   triggerPanelCreationForFace(
                     -(idx + 1),
                     shape.id,
@@ -86,7 +86,7 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
               onPointerOut={(e) => { e.stopPropagation(); setHoveredId(null); }}
             >
               <meshBasicMaterial
-                color={isHovered && isWaitingForSelection ? 0x00cc44 : 0x22c55e}
+                color={isHovered && panelSurfaceSelectMode ? 0x00cc44 : 0x22c55e}
                 transparent
                 opacity={isHovered ? 0.65 : 0.38}
                 side={THREE.DoubleSide}

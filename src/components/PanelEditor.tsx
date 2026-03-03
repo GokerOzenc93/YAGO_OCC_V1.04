@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode, virtualFaces, updateVirtualFace, deleteVirtualFace } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode, virtualFaces, updateVirtualFace, deleteVirtualFace, pendingPanelCreation } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -224,6 +224,75 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       setLoading(false);
     }
   };
+
+  const selectedProfileRef = useRef<string>('none');
+  selectedProfileRef.current = selectedProfile;
+
+  useEffect(() => {
+    if (!pendingPanelCreation || !isOpen) return;
+    const constraint = pendingPanelCreation.surfaceConstraint;
+    if (!constraint?.constraintPanelId) return;
+
+    const vf = virtualFaces.find(f => f.id === constraint.constraintPanelId);
+    if (!vf) return;
+
+    const currentShape = useAppStore.getState().shapes.find(s => s.id === vf.shapeId);
+    if (!currentShape?.replicadShape) return;
+
+    const vfIdx = virtualFaces.filter(f => f.shapeId === vf.shapeId).findIndex(f => f.id === vf.id);
+    if (vfIdx === -1) return;
+
+    (async () => {
+      try {
+        const localNormal = new THREE.Vector3(...vf.normal).normalize();
+        const localCenter = new THREE.Vector3(...vf.center);
+        const panelThickness = 18;
+        const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+        const replicadPanel = await createPanelFromFace(
+          currentShape.replicadShape,
+          [localNormal.x, localNormal.y, localNormal.z],
+          [localCenter.x, localCenter.y, localCenter.z],
+          panelThickness,
+          null
+        );
+        if (!replicadPanel) return;
+        const geometry = convertReplicadToThreeGeometry(replicadPanel);
+        const newPanel: any = {
+          id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          type: 'panel',
+          geometry,
+          replicadShape: replicadPanel,
+          position: [...currentShape.position] as [number, number, number],
+          rotation: currentShape.rotation,
+          scale: [...currentShape.scale] as [number, number, number],
+          color: '#ffffff',
+          parameters: {
+            width: 0,
+            height: 0,
+            depth: panelThickness,
+            parentShapeId: currentShape.id,
+            faceIndex: -(vfIdx + 1),
+            faceRole: vf.role,
+            virtualFaceId: vf.id,
+          }
+        };
+        addShape(newPanel);
+        updateVirtualFace(vf.id, { hasPanel: true });
+
+        const currentProfile = selectedProfileRef.current;
+        if (currentProfile !== 'none') {
+          setResolving(true);
+          try {
+            await resolveAllPanelJoints(currentShape.id, currentProfile);
+          } finally {
+            setResolving(false);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to create panel for virtual face via click:', err);
+      }
+    })();
+  }, [pendingPanelCreation]);
 
   const createPanelForFace = async (
     faceGroup: CoplanarFaceGroup,
