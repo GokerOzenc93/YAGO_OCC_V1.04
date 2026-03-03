@@ -767,7 +767,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 export async function subtractRaycastPanelsFromParent(parentShapeId: string): Promise<void> {
   const state = useAppStore.getState();
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
-  if (!parentShape || !parentShape.replicadShape || !parentShape.geometry) return;
+  if (!parentShape || !parentShape.geometry) return;
 
   const raycastPanels = state.shapes.filter(
     s =>
@@ -817,10 +817,12 @@ export async function subtractRaycastPanelsFromParent(parentShapeId: string): Pr
   const baseH = parentShape.parameters?.height || 1;
   const baseD = parentShape.parameters?.depth || 1;
 
+  const allSubs = (parentShape.subtractionGeometries || []).filter(Boolean);
+  const nonRaycastSubs = allSubs.filter((s: any) => !s.isRaycastPanelSub);
+
   let currentReplicadShape = await createReplicadBox({ width: baseW, height: baseH, depth: baseD });
 
-  const existingSubs = (parentShape.subtractionGeometries || []).filter(Boolean);
-  for (const sub of existingSubs) {
+  for (const sub of nonRaycastSubs) {
     try {
       const subSize = getOriginalSize(sub.geometry);
       const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
@@ -833,7 +835,7 @@ export async function subtractRaycastPanelsFromParent(parentShapeId: string): Pr
     } catch (e) { /* skip */ }
   }
 
-  const newSubtractions: any[] = [...existingSubs];
+  const newRaycastSubs: any[] = [];
 
   for (const panel of raycastPanels) {
     try {
@@ -845,8 +847,7 @@ export async function subtractRaycastPanelsFromParent(parentShapeId: string): Pr
       panelGeoBox.getCenter(panelGeoCenter);
       panelGeoBox.getSize(panelGeoSize);
 
-      const panelWorld = panelGeoCenter.clone();
-      const panelLocalFromParentCorner = panelWorld.clone().sub(parentCornerWorld).applyQuaternion(invRot);
+      const panelLocalFromParentCorner = panelGeoCenter.clone().sub(parentCornerWorld).applyQuaternion(invRot);
 
       const panelCornerLocal = new THREE.Vector3(
         panelLocalFromParentCorner.x - panelGeoSize.x / 2,
@@ -873,12 +874,15 @@ export async function subtractRaycastPanelsFromParent(parentShapeId: string): Pr
         undefined, [1, 1, 1] as [number, number, number]
       );
 
-      const subGeometry = convertReplicadToThreeGeometry(cutBox);
-      newSubtractions.push({
+      const subGeometry = convertReplicadToThreeGeometry(
+        await createReplicadBox({ width: panelGeoSize.x, height: panelGeoSize.y, depth: panelGeoSize.z })
+      );
+      newRaycastSubs.push({
         geometry: subGeometry,
         relativeOffset: relOffset,
         relativeRotation: [0, 0, 0] as [number, number, number],
         scale: [1, 1, 1] as [number, number, number],
+        isRaycastPanelSub: true,
         parameters: {
           width: String(panelGeoSize.x),
           height: String(panelGeoSize.y),
@@ -916,7 +920,7 @@ export async function subtractRaycastPanelsFromParent(parentShapeId: string): Pr
   useAppStore.getState().updateShape(parentShapeId, {
     geometry: newGeometry,
     replicadShape: currentReplicadShape,
-    subtractionGeometries: newSubtractions,
+    subtractionGeometries: [...nonRaycastSubs, ...newRaycastSubs],
     fillets: updatedFillets,
     position: preservedPosition,
     parameters: {

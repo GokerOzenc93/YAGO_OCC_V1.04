@@ -23,6 +23,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const [resolving, setResolving] = useState(false);
   const prevProfileRef = useRef<string>('none');
   const prevGeometryRef = useRef<string>('');
+  const isRebuildingRef = useRef<boolean>(false);
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
@@ -196,13 +197,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       selectedShape.parameters?.height,
       selectedShape.parameters?.depth,
       selectedShape.geometry?.uuid,
-      (selectedShape.subtractionGeometries || []).length,
       JSON.stringify(selectedShape.position),
       JSON.stringify(selectedShape.scale)
     ].join('|');
 
     if (prevGeometryRef.current && prevGeometryRef.current !== geometryKey) {
+      if (isRebuildingRef.current) return;
       console.log('Geometry changed, rebuilding and updating panels...');
+      isRebuildingRef.current = true;
       setResolving(true);
       rebuildAllPanels(selectedShapeId)
         .then(() => {
@@ -215,7 +217,10 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             return resolveAllPanelJoints(selectedShapeId, selectedProfile);
           }
         })
-        .finally(() => setResolving(false));
+        .finally(() => {
+          isRebuildingRef.current = false;
+          setResolving(false);
+        });
     }
 
     prevGeometryRef.current = geometryKey;
@@ -224,7 +229,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     selectedShape?.parameters?.height,
     selectedShape?.parameters?.depth,
     selectedShape?.geometry?.uuid,
-    selectedShape?.subtractionGeometries?.length,
     selectedShape?.position,
     selectedShape?.scale,
     selectedShapeId,
