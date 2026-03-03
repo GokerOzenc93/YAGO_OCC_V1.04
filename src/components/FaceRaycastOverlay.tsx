@@ -20,7 +20,7 @@ interface FaceRaycastOverlayProps {
   allShapes?: any[];
 }
 
-function getFacePlaneAxes(normal: THREE.Vector3): { u: THREE.Vector3; v: THREE.Vector3 } {
+export function getFacePlaneAxes(normal: THREE.Vector3): { u: THREE.Vector3; v: THREE.Vector3 } {
   const n = normal.clone().normalize();
   const absX = Math.abs(n.x);
   const absY = Math.abs(n.y);
@@ -38,7 +38,7 @@ function getFacePlaneAxes(normal: THREE.Vector3): { u: THREE.Vector3; v: THREE.V
   return { u, v };
 }
 
-function getShapeMatrix(shape: any): THREE.Matrix4 {
+export function getShapeMatrix(shape: any): THREE.Matrix4 {
   const pos = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
   const quat = new THREE.Quaternion().setFromEuler(
     new THREE.Euler(shape.rotation[0], shape.rotation[1], shape.rotation[2], 'XYZ')
@@ -78,7 +78,7 @@ function collectBoundaryEdgesWorld(
   return boundary;
 }
 
-function projectTo2D(
+export function projectTo2D(
   p: THREE.Vector3,
   origin: THREE.Vector3,
   u: THREE.Vector3,
@@ -136,7 +136,7 @@ function collectPanelObstacleEdgesWorld(
   return obstacleEdges;
 }
 
-function getSubtractionWorldMatrix(
+export function getSubtractionWorldMatrix(
   parentLocalToWorld: THREE.Matrix4,
   subtraction: any
 ): THREE.Matrix4 {
@@ -206,9 +206,9 @@ function collectSubtractionObstacleEdgesWorld(
   return edges;
 }
 
-type Point2D = { x: number; y: number };
+export type Point2D = { x: number; y: number };
 
-function getSubtractorFootprints2D(
+export function getSubtractorFootprints2D(
   subtractions: any[],
   parentLocalToWorld: THREE.Matrix4,
   facePlaneNormal: THREE.Vector3,
@@ -246,7 +246,7 @@ function getSubtractorFootprints2D(
   return footprints;
 }
 
-function convexHull2D(points: Point2D[]): Point2D[] {
+export function convexHull2D(points: Point2D[]): Point2D[] {
   if (points.length < 3) return [...points];
 
   const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
@@ -316,7 +316,7 @@ function lineIntersect2D(p1: Point2D, p2: Point2D, p3: Point2D, p4: Point2D): Po
   return { x: x1 + t * (x2 - x1), y: y1 + t * (y2 - y1) };
 }
 
-function subtractPolygon(subject: Point2D[], hole: Point2D[]): Point2D[] {
+export function subtractPolygon(subject: Point2D[], hole: Point2D[]): Point2D[] {
   const invertedHole = [...hole].reverse();
   const clipped = sutherlandHodgmanClip(subject, invertedHole);
   if (clipped.length < 3) return subject;
@@ -379,7 +379,7 @@ function subtractPolygon(subject: Point2D[], hole: Point2D[]): Point2D[] {
   return deduplicated.length >= 3 ? deduplicated : subject;
 }
 
-function isPointInsidePolygon(p: Point2D, poly: Point2D[]): boolean {
+export function isPointInsidePolygon(p: Point2D, poly: Point2D[]): boolean {
   let inside = false;
   for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
     const xi = poly[i].x, yi = poly[i].y;
@@ -462,7 +462,7 @@ function traceHoleEdge(
   return trace;
 }
 
-function earClipTriangulate(vertices: Point2D[]): number[] {
+export function earClipTriangulate(vertices: Point2D[]): number[] {
   if (vertices.length < 3) return [];
   if (vertices.length === 3) return [0, 1, 2];
 
@@ -527,7 +527,7 @@ function sign(p1: Point2D, p2: Point2D, p3: Point2D): number {
   return (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
 }
 
-function ensureCCW(poly: Point2D[]): Point2D[] {
+export function ensureCCW(poly: Point2D[]): Point2D[] {
   let area = 0;
   for (let i = 0; i < poly.length; i++) {
     const j = (i + 1) % poly.length;

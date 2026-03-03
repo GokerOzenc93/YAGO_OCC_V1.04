@@ -312,6 +312,7 @@ interface AppState {
   updateVirtualFace: (id: string, updates: Partial<VirtualFace>) => void;
   deleteVirtualFace: (id: string) => void;
   getVirtualFacesForShape: (shapeId: string) => VirtualFace[];
+  recalculateVirtualFacesForShape: (shapeId: string) => void;
 
   // Baza Ayarları
   bazaHeight: number;
@@ -473,6 +474,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   deleteVirtualFace: (id) => set((state) => ({ virtualFaces: state.virtualFaces.filter(f => f.id !== id) })),
   getVirtualFacesForShape: (shapeId) => get().virtualFaces.filter(f => f.shapeId === shapeId),
+  recalculateVirtualFacesForShape: (shapeId) => {
+    const state = get();
+    const shape = state.shapes.find(s => s.id === shapeId);
+    if (!shape) return;
+
+    const shapeFaces = state.virtualFaces.filter(vf => vf.shapeId === shapeId);
+    if (shapeFaces.length === 0) return;
+
+    import('./components/VirtualFaceUpdateService').then(({ recalculateVirtualFacesForShape }) => {
+      const currentState = get();
+      const currentShape = currentState.shapes.find(s => s.id === shapeId);
+      if (!currentShape) return;
+
+      const updatedFaces = recalculateVirtualFacesForShape(currentShape, currentState.virtualFaces);
+      set({ virtualFaces: updatedFaces });
+    });
+  },
 
   updateFaceRole: (shapeId, faceIndex, role) => set((state) => ({
     shapes: state.shapes.map((shape) => {
@@ -1085,7 +1103,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             }));
 
             console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
-            return; // İlk başarılı işlemde çık (Tek seferde tek işlem)
+            get().recalculateVirtualFacesForShape(shape1.id);
+            return;
 
           } catch (error) {
             console.error('❌ Failed to perform boolean operation:', error);
@@ -1215,6 +1234,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
       console.log('✅ Subtraction deleted, shape updated, position preserved:', preservedPosition);
+      get().recalculateVirtualFacesForShape(shapeId);
     } catch (error) {
       console.error('❌ Failed to delete subtraction:', error);
     }
