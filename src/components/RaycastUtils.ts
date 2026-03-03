@@ -124,6 +124,58 @@ export function collectPanelObstacleEdges(
   return obstacleEdges;
 }
 
+export function collectPanelObstacleEdgesLocal(
+  panelShapes: any[],
+  facePlaneNormal: THREE.Vector3,
+  facePlaneOrigin: THREE.Vector3,
+  parentPos: THREE.Vector3,
+  parentInvRot: THREE.Quaternion,
+  planeTolerance: number = 15
+): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
+  const obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
+
+  for (const panel of panelShapes) {
+    if (!panel.geometry) continue;
+
+    const panelPos = new THREE.Vector3(...(panel.position as [number, number, number]));
+    const panelRot = panel.rotation as [number, number, number];
+    const panelScale = panel.scale as [number, number, number];
+
+    const panelMatrix = new THREE.Matrix4().compose(
+      panelPos,
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(panelRot[0], panelRot[1], panelRot[2], 'XYZ')),
+      new THREE.Vector3(panelScale[0], panelScale[1], panelScale[2])
+    );
+
+    const edgesGeo = new THREE.EdgesGeometry(panel.geometry);
+    const edgePos = edgesGeo.getAttribute('position');
+    const count = edgePos.count;
+
+    for (let i = 0; i < count; i += 2) {
+      const va = new THREE.Vector3(
+        edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)
+      ).applyMatrix4(panelMatrix);
+      const vb = new THREE.Vector3(
+        edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)
+      ).applyMatrix4(panelMatrix);
+
+      va.sub(parentPos).applyQuaternion(parentInvRot);
+      vb.sub(parentPos).applyQuaternion(parentInvRot);
+
+      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOrigin)));
+      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOrigin)));
+
+      if (distA < planeTolerance && distB < planeTolerance) {
+        obstacleEdges.push({ v1: va, v2: vb });
+      }
+    }
+
+    edgesGeo.dispose();
+  }
+
+  return obstacleEdges;
+}
+
 export function castRayOnFace(
   originWorld: THREE.Vector3,
   dirWorld: THREE.Vector3,

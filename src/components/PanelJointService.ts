@@ -333,7 +333,6 @@ async function rebuildRaycastPanel(
   const {
     raycastLocalOrigin,
     raycastFaceNormal,
-    raycastParentDimensions,
   } = panel.parameters || {};
 
   const { convertReplicadToThreeGeometry, initReplicad, createReplicadBox, performBooleanCut } = await import('./ReplicadService');
@@ -344,7 +343,7 @@ async function rebuildRaycastPanel(
   const newDepth = parentShape.parameters?.depth || 1;
 
   let matchedGroup: any = null;
-  let scaledOrigin: THREE.Vector3;
+  let localOrigin: THREE.Vector3;
 
   if (raycastFaceNormal) {
     const targetNormal = new THREE.Vector3(...(raycastFaceNormal as [number,number,number])).normalize();
@@ -359,14 +358,11 @@ async function rebuildRaycastPanel(
 
   if (!matchedGroup) return null;
 
-  if (raycastLocalOrigin && raycastParentDimensions) {
-    const scaleX = newWidth / (raycastParentDimensions.width || 1);
-    const scaleY = newHeight / (raycastParentDimensions.height || 1);
-    const scaleZ = newDepth / (raycastParentDimensions.depth || 1);
-    scaledOrigin = new THREE.Vector3(
-      (raycastLocalOrigin as [number,number,number])[0] * scaleX,
-      (raycastLocalOrigin as [number,number,number])[1] * scaleY,
-      (raycastLocalOrigin as [number,number,number])[2] * scaleZ
+  if (raycastLocalOrigin) {
+    localOrigin = new THREE.Vector3(
+      (raycastLocalOrigin as [number,number,number])[0],
+      (raycastLocalOrigin as [number,number,number])[1],
+      (raycastLocalOrigin as [number,number,number])[2]
     );
   } else {
     const localVertices: THREE.Vector3[] = [];
@@ -375,20 +371,28 @@ async function rebuildRaycastPanel(
       if (face) face.vertices.forEach((v: THREE.Vector3) => localVertices.push(v.clone()));
     });
     const localBox = new THREE.Box3().setFromPoints(localVertices);
-    scaledOrigin = new THREE.Vector3();
-    localBox.getCenter(scaledOrigin);
+    localOrigin = new THREE.Vector3();
+    localBox.getCenter(localOrigin);
     const faceN = matchedGroup.normal.clone().normalize();
     const inset = Math.min(newWidth, newHeight, newDepth) * 0.1;
-    scaledOrigin.addScaledVector(faceN.negate(), inset);
+    localOrigin.addScaledVector(faceN.negate(), inset);
   }
 
-  const { collectBoundaryEdges, getFacePlaneAxes, castRayOnFace, collectPanelObstacleEdges } = await import('./RaycastUtils');
+  const { collectBoundaryEdges, getFacePlaneAxes, castRayOnFace, collectPanelObstacleEdgesLocal } = await import('./RaycastUtils');
 
   const facePlaneNormal = matchedGroup.normal.clone().normalize();
-  const obstacleEdges = collectPanelObstacleEdges(
+
+  const shapePos = new THREE.Vector3(parentShape.position[0], parentShape.position[1], parentShape.position[2]);
+  const shapeRot = parentShape.rotation as [number, number, number];
+  const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'));
+  const invRot = rot.clone().invert();
+
+  const obstacleEdges = collectPanelObstacleEdgesLocal(
     allPanels.filter(p => p.id !== panel.id),
     facePlaneNormal,
-    scaledOrigin,
+    localOrigin,
+    shapePos,
+    invRot,
     20
   );
 
@@ -410,23 +414,19 @@ async function rebuildRaycastPanel(
   const { u, v } = getFacePlaneAxes(facePlaneNormal);
   const boundaryEdges = collectBoundaryEdges(actualFaces, boundaryFaceGroup.faceIndices);
   const offset = facePlaneNormal.clone().multiplyScalar(0.5);
-  const startWorld = scaledOrigin.clone().add(offset);
+  const startWorld = localOrigin.clone().add(offset);
   const maxDist = 5000;
 
-  const tUPlus = castRayOnFace(startWorld, u, boundaryEdges, obstacleEdges, u, v, scaledOrigin, maxDist);
-  const tUMinus = castRayOnFace(startWorld, u.clone().negate(), boundaryEdges, obstacleEdges, u, v, scaledOrigin, maxDist);
-  const tVPlus = castRayOnFace(startWorld, v, boundaryEdges, obstacleEdges, u, v, scaledOrigin, maxDist);
-  const tVMinus = castRayOnFace(startWorld, v.clone().negate(), boundaryEdges, obstacleEdges, u, v, scaledOrigin, maxDist);
+  const tUPlus = castRayOnFace(startWorld, u, boundaryEdges, obstacleEdges, u, v, localOrigin, maxDist);
+  const tUMinus = castRayOnFace(startWorld, u.clone().negate(), boundaryEdges, obstacleEdges, u, v, localOrigin, maxDist);
+  const tVPlus = castRayOnFace(startWorld, v, boundaryEdges, obstacleEdges, u, v, localOrigin, maxDist);
+  const tVMinus = castRayOnFace(startWorld, v.clone().negate(), boundaryEdges, obstacleEdges, u, v, localOrigin, maxDist);
 
   const panelW = tUPlus + tUMinus;
   const panelH = tVPlus + tVMinus;
   const panelThickness = panel.parameters?.depth || 18;
 
-  const shapePos = new THREE.Vector3(parentShape.position[0], parentShape.position[1], parentShape.position[2]);
-  const shapeRot = parentShape.rotation as [number, number, number];
-  const rot = new THREE.Quaternion().setFromEuler(new THREE.Euler(shapeRot[0], shapeRot[1], shapeRot[2], 'XYZ'));
-
-  const worldOrigin = scaledOrigin.clone().applyQuaternion(rot).add(shapePos);
+  const worldOrigin = localOrigin.clone().applyQuaternion(rot).add(shapePos);
   const worldU = u.clone().applyQuaternion(rot).normalize();
   const worldV = v.clone().applyQuaternion(rot).normalize();
   const worldN = facePlaneNormal.clone().applyQuaternion(rot).normalize();
@@ -595,7 +595,7 @@ async function rebuildRaycastPanel(
         height: newHeight,
         depth: newDepth,
       },
-      raycastLocalOrigin: [scaledOrigin.x, scaledOrigin.y, scaledOrigin.z] as [number, number, number],
+      raycastLocalOrigin: [localOrigin.x, localOrigin.y, localOrigin.z] as [number, number, number],
     }
   };
 }
