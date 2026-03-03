@@ -9,6 +9,7 @@ import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
 import { FaceRaycastOverlay } from './FaceRaycastOverlay';
+import { VirtualFaceOverlay } from './VirtualFaceOverlay';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -588,6 +589,9 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             shape={shape}
             allShapes={shapes}
           />
+        )}
+        {!isPanel && (
+          <VirtualFaceOverlay shape={shape} />
         )}
       </group>
 

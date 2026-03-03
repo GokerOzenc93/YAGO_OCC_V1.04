@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
+import type { VirtualFace } from '../store';
 import {
   extractFacesFromGeometry,
   groupCoplanarFaces,
@@ -189,7 +190,7 @@ function generateAxisRaysFromPoint(
   faces: FaceData[],
   parentPosition: THREE.Vector3,
   obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>
-): RayLine[] {
+): { lines: RayLine[]; hitPointsWorld: THREE.Vector3[] } {
   const normal = group.normal.clone().normalize();
   const { u, v } = getFacePlaneAxes(normal);
 
@@ -203,6 +204,7 @@ function generateAxisRaysFromPoint(
   const startWorld = clickWorldPoint.clone().add(offset);
 
   const lines: RayLine[] = [];
+  const hitPointsWorld: THREE.Vector3[] = [];
 
   for (const dir of directions) {
     const hitWorld = castRayOnFace(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
@@ -211,9 +213,93 @@ function generateAxisRaysFromPoint(
       start: startWorld.clone().sub(parentPosition),
       end: hitWorld.clone().sub(parentPosition),
     });
+    hitPointsWorld.push(hitWorld);
   }
 
-  return lines;
+  return { lines, hitPointsWorld };
+}
+
+function buildVirtualSurfaceGeometry(
+  hitPointsWorld: THREE.Vector3[],
+  normal: THREE.Vector3,
+  parentPosition: THREE.Vector3
+): THREE.BufferGeometry | null {
+  if (hitPointsWorld.length < 4) return null;
+
+  const { u, v } = getFacePlaneAxes(normal);
+
+  const uPos = hitPointsWorld[0];
+  const uNeg = hitPointsWorld[1];
+  const vPos = hitPointsWorld[2];
+  const vNeg = hitPointsWorld[3];
+
+  const center = uPos.clone().add(uNeg).add(vPos).add(vNeg).divideScalar(4);
+
+  const uHalfLen = uPos.distanceTo(uNeg) / 2;
+  const vHalfLen = vPos.distanceTo(vNeg) / 2;
+
+  const corners = [
+    center.clone().addScaledVector(u, uHalfLen).addScaledVector(v, vHalfLen),
+    center.clone().addScaledVector(u, -uHalfLen).addScaledVector(v, vHalfLen),
+    center.clone().addScaledVector(u, -uHalfLen).addScaledVector(v, -vHalfLen),
+    center.clone().addScaledVector(u, uHalfLen).addScaledVector(v, -vHalfLen),
+  ].map(c => c.sub(parentPosition));
+
+  const positions = new Float32Array([
+    corners[0].x, corners[0].y, corners[0].z,
+    corners[1].x, corners[1].y, corners[1].z,
+    corners[2].x, corners[2].y, corners[2].z,
+    corners[0].x, corners[0].y, corners[0].z,
+    corners[2].x, corners[2].y, corners[2].z,
+    corners[3].x, corners[3].y, corners[3].z,
+  ]);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function buildVirtualSurfaceEdgeGeometry(
+  hitPointsWorld: THREE.Vector3[],
+  normal: THREE.Vector3,
+  parentPosition: THREE.Vector3
+): THREE.BufferGeometry | null {
+  if (hitPointsWorld.length < 4) return null;
+
+  const { u, v } = getFacePlaneAxes(normal);
+
+  const uPos = hitPointsWorld[0];
+  const uNeg = hitPointsWorld[1];
+  const vPos = hitPointsWorld[2];
+  const vNeg = hitPointsWorld[3];
+
+  const center = uPos.clone().add(uNeg).add(vPos).add(vNeg).divideScalar(4);
+
+  const uHalfLen = uPos.distanceTo(uNeg) / 2;
+  const vHalfLen = vPos.distanceTo(vNeg) / 2;
+
+  const corners = [
+    center.clone().addScaledVector(u, uHalfLen).addScaledVector(v, vHalfLen),
+    center.clone().addScaledVector(u, -uHalfLen).addScaledVector(v, vHalfLen),
+    center.clone().addScaledVector(u, -uHalfLen).addScaledVector(v, -vHalfLen),
+    center.clone().addScaledVector(u, uHalfLen).addScaledVector(v, -vHalfLen),
+  ].map(c => c.sub(parentPosition));
+
+  const positions = new Float32Array([
+    corners[0].x, corners[0].y, corners[0].z,
+    corners[1].x, corners[1].y, corners[1].z,
+    corners[1].x, corners[1].y, corners[1].z,
+    corners[2].x, corners[2].y, corners[2].z,
+    corners[2].x, corners[2].y, corners[2].z,
+    corners[3].x, corners[3].y, corners[3].z,
+    corners[3].x, corners[3].y, corners[3].z,
+    corners[0].x, corners[0].y, corners[0].z,
+  ]);
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  return geo;
 }
 
 const RayLine3D: React.FC<{ start: THREE.Vector3; end: THREE.Vector3 }> = React.memo(
@@ -253,13 +339,64 @@ const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position 
 ));
 OriginDot.displayName = 'OriginDot';
 
+interface VirtualSurfaceProps {
+  geo: THREE.BufferGeometry;
+  edgeGeo: THREE.BufferGeometry;
+  isHovered: boolean;
+  onClick: () => void;
+  onPointerOver: () => void;
+  onPointerOut: () => void;
+}
+
+const VirtualSurface: React.FC<VirtualSurfaceProps> = ({ geo, edgeGeo, isHovered, onClick, onPointerOver, onPointerOut }) => (
+  <>
+    <mesh
+      geometry={geo}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onPointerOver={(e) => { e.stopPropagation(); onPointerOver(); }}
+      onPointerOut={(e) => { e.stopPropagation(); onPointerOut(); }}
+    >
+      <meshBasicMaterial
+        color={isHovered ? 0x00cc44 : 0x22c55e}
+        transparent
+        opacity={isHovered ? 0.6 : 0.4}
+        side={THREE.DoubleSide}
+        polygonOffset
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
+        depthTest={false}
+      />
+    </mesh>
+    <lineSegments geometry={edgeGeo}>
+      <lineBasicMaterial
+        color={0x16a34a}
+        linewidth={2}
+        depthTest={false}
+        transparent
+        opacity={0.9}
+      />
+    </lineSegments>
+  </>
+);
+
+interface StoredSurface {
+  id: string;
+  geo: THREE.BufferGeometry;
+  edgeGeo: THREE.BufferGeometry;
+  normal: THREE.Vector3;
+  center: THREE.Vector3;
+  vertices: THREE.Vector3[];
+}
+
 export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, allShapes = [] }) => {
-  const { raycastMode } = useAppStore();
+  const { raycastMode, addVirtualFace, virtualFaces, selectedShapeId } = useAppStore();
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
   const [rayLines, setRayLines] = useState<RayLine[]>([]);
   const [originLocal, setOriginLocal] = useState<THREE.Vector3 | null>(null);
+  const [storedSurfaces, setStoredSurfaces] = useState<StoredSurface[]>([]);
+  const [hoveredSurfaceId, setHoveredSurfaceId] = useState<string | null>(null);
 
   const geometryUuid = shape.geometry?.uuid || '';
 
@@ -279,6 +416,63 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       setOriginLocal(null);
     }
   }, [raycastMode]);
+
+  useEffect(() => {
+    const existing = virtualFaces.filter(f => f.shapeId === shape.id);
+    const parentPosition = new THREE.Vector3(shape.position[0], shape.position[1], shape.position[2]);
+
+    const rebuilt: StoredSurface[] = existing.map(vf => {
+      const verts = vf.vertices.map(v => new THREE.Vector3(v[0], v[1], v[2]).add(parentPosition));
+      const normal = new THREE.Vector3(...vf.normal);
+      const { u, v: vAxis } = getFacePlaneAxes(normal);
+
+      const center = new THREE.Vector3(...vf.center).add(parentPosition);
+      const uHalfLen = verts[0].distanceTo(verts[1]) / 2;
+      const vHalfLen = verts[0].distanceTo(verts[3]) / 2;
+
+      const corners = [
+        center.clone().addScaledVector(u, uHalfLen).addScaledVector(vAxis, vHalfLen),
+        center.clone().addScaledVector(u, -uHalfLen).addScaledVector(vAxis, vHalfLen),
+        center.clone().addScaledVector(u, -uHalfLen).addScaledVector(vAxis, -vHalfLen),
+        center.clone().addScaledVector(u, uHalfLen).addScaledVector(vAxis, -vHalfLen),
+      ].map(c => c.sub(parentPosition));
+
+      const positions = new Float32Array([
+        corners[0].x, corners[0].y, corners[0].z,
+        corners[1].x, corners[1].y, corners[1].z,
+        corners[2].x, corners[2].y, corners[2].z,
+        corners[0].x, corners[0].y, corners[0].z,
+        corners[2].x, corners[2].y, corners[2].z,
+        corners[3].x, corners[3].y, corners[3].z,
+      ]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.computeVertexNormals();
+
+      const edgePositions = new Float32Array([
+        corners[0].x, corners[0].y, corners[0].z,
+        corners[1].x, corners[1].y, corners[1].z,
+        corners[1].x, corners[1].y, corners[1].z,
+        corners[2].x, corners[2].y, corners[2].z,
+        corners[2].x, corners[2].y, corners[2].z,
+        corners[3].x, corners[3].y, corners[3].z,
+        corners[3].x, corners[3].y, corners[3].z,
+        corners[0].x, corners[0].y, corners[0].z,
+      ]);
+      const edgeGeo = new THREE.BufferGeometry();
+      edgeGeo.setAttribute('position', new THREE.BufferAttribute(edgePositions, 3));
+
+      return {
+        id: vf.id,
+        geo,
+        edgeGeo,
+        normal,
+        center: new THREE.Vector3(...vf.center),
+        vertices: verts,
+      };
+    });
+    setStoredSurfaces(rebuilt);
+  }, [virtualFaces, shape.id, shape.position]);
 
   const childPanels = useMemo(() => {
     return allShapes.filter(
@@ -333,9 +527,53 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       20
     );
 
-    const lines = generateAxisRaysFromPoint(clickWorld, group, faces, parentPosition, obstacleEdges);
+    const { lines, hitPointsWorld } = generateAxisRaysFromPoint(clickWorld, group, faces, parentPosition, obstacleEdges);
     setRayLines(lines);
     setOriginLocal(clickWorld.clone().sub(parentPosition));
+
+    if (hitPointsWorld.length === 4) {
+      const surfaceGeo = buildVirtualSurfaceGeometry(hitPointsWorld, facePlaneNormal, parentPosition);
+      const surfaceEdgeGeo = buildVirtualSurfaceEdgeGeometry(hitPointsWorld, facePlaneNormal, parentPosition);
+
+      if (surfaceGeo && surfaceEdgeGeo) {
+        const uVec = u;
+        const vVec = v;
+        const uPos = hitPointsWorld[0];
+        const uNeg = hitPointsWorld[1];
+        const vPos = hitPointsWorld[2];
+        const vNeg = hitPointsWorld[3];
+        const center = uPos.clone().add(uNeg).add(vPos).add(vNeg).divideScalar(4);
+        const uHalfLen = uPos.distanceTo(uNeg) / 2;
+        const vHalfLen = vPos.distanceTo(vNeg) / 2;
+
+        const cornersWorld = [
+          center.clone().addScaledVector(uVec, uHalfLen).addScaledVector(vVec, vHalfLen),
+          center.clone().addScaledVector(uVec, -uHalfLen).addScaledVector(vVec, vHalfLen),
+          center.clone().addScaledVector(uVec, -uHalfLen).addScaledVector(vVec, -vHalfLen),
+          center.clone().addScaledVector(uVec, uHalfLen).addScaledVector(vVec, -vHalfLen),
+        ];
+
+        const centerLocal = center.clone().sub(parentPosition);
+
+        const newId = `vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+
+        const newVirtualFace: VirtualFace = {
+          id: newId,
+          shapeId: shape.id,
+          normal: [facePlaneNormal.x, facePlaneNormal.y, facePlaneNormal.z],
+          center: [centerLocal.x, centerLocal.y, centerLocal.z],
+          vertices: cornersWorld.map(c => {
+            const local = c.clone().sub(parentPosition);
+            return [local.x, local.y, local.z] as [number, number, number];
+          }),
+          role: null,
+          description: '',
+          hasPanel: false,
+        };
+
+        addVirtualFace(newVirtualFace);
+      }
+    }
   };
 
   if (!raycastMode) return null;
@@ -372,6 +610,18 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
           <RayLine3D start={line.start} end={line.end} />
           <HitDot position={line.end} />
         </React.Fragment>
+      ))}
+
+      {storedSurfaces.map(surface => (
+        <VirtualSurface
+          key={surface.id}
+          geo={surface.geo}
+          edgeGeo={surface.edgeGeo}
+          isHovered={hoveredSurfaceId === surface.id}
+          onClick={() => {}}
+          onPointerOver={() => setHoveredSurfaceId(surface.id)}
+          onPointerOut={() => setHoveredSurfaceId(null)}
+        />
       ))}
     </>
   );

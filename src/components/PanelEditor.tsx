@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode, virtualFaces, updateVirtualFace, deleteVirtualFace } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -481,10 +481,68 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                 setSelectedPanelRow(faceIndex, null);
               };
 
+              const shapeVirtualFaces = virtualFaces.filter(vf => vf.shapeId === selectedShape.id);
+
+              const createVirtualPanel = async (vfId: string, vfIndex: number) => {
+                const vf = shapeVirtualFaces[vfIndex];
+                if (!vf || !selectedShape.replicadShape) return;
+                try {
+                  const localNormal = new THREE.Vector3(...vf.normal).normalize();
+                  const localCenter = new THREE.Vector3(...vf.center);
+                  const panelThickness = 18;
+                  const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+                  let replicadPanel = await createPanelFromFace(
+                    selectedShape.replicadShape,
+                    [localNormal.x, localNormal.y, localNormal.z],
+                    [localCenter.x, localCenter.y, localCenter.z],
+                    panelThickness,
+                    null
+                  );
+                  if (!replicadPanel) return;
+                  const geometry = convertReplicadToThreeGeometry(replicadPanel);
+                  const newPanel: any = {
+                    id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+                    type: 'panel',
+                    geometry,
+                    replicadShape: replicadPanel,
+                    position: [...selectedShape.position] as [number, number, number],
+                    rotation: selectedShape.rotation,
+                    scale: [...selectedShape.scale] as [number, number, number],
+                    color: '#ffffff',
+                    parameters: {
+                      width: 0,
+                      height: 0,
+                      depth: panelThickness,
+                      parentShapeId: selectedShape.id,
+                      faceIndex: -(vfIndex + 1),
+                      faceRole: vf.role,
+                      virtualFaceId: vf.id,
+                    }
+                  };
+                  addShape(newPanel);
+                  updateVirtualFace(vf.id, { hasPanel: true });
+                } catch (err) {
+                  console.error('Failed to create panel for virtual face:', err);
+                }
+              };
+
+              const removeVirtualPanel = (vfId: string, vfIndex: number) => {
+                const panelToRemove = shapes.find(s =>
+                  s.type === 'panel' &&
+                  s.parameters?.parentShapeId === selectedShape.id &&
+                  s.parameters?.virtualFaceId === vfId
+                );
+                if (panelToRemove) {
+                  const { deleteShape } = useAppStore.getState();
+                  deleteShape(panelToRemove.id);
+                }
+                updateVirtualFace(vfId, { hasPanel: false });
+              };
+
               return (
                 <div className={`space-y-0.5 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
                   <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-orange-700'}`}>
-                    <span>Face Roles ({faceGroups.length} faces)</span>
+                    <span>Face Roles ({faceGroups.length} faces{shapeVirtualFaces.length > 0 ? ` + ${shapeVirtualFaces.length} virtual` : ''})</span>
                     {resolving && (
                       <span className="text-[10px] font-normal text-orange-500 animate-pulse">
                         resolving joints...
@@ -661,6 +719,89 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                       </React.Fragment>
                     );
                   })}
+
+                  {shapeVirtualFaces.length > 0 && (
+                    <div className="mt-1 pt-1 border-t border-green-200 space-y-0.5">
+                      <div className="text-[10px] font-semibold text-green-700 mb-0.5">Virtual Faces (Raycast)</div>
+                      {shapeVirtualFaces.map((vf, vfIdx) => {
+                        const roleOptions: FaceRole[] = ['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'];
+                        return (
+                          <div key={vf.id} className="flex gap-0.5 items-center p-0.5 rounded bg-green-50 ring-1 ring-green-200">
+                            <input
+                              type="text"
+                              value={`V${vfIdx + 1}`}
+                              readOnly
+                              tabIndex={-1}
+                              className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-100 text-green-800 border-green-300"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <select
+                              value={vf.role || ''}
+                              disabled={isDisabled}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
+                                updateVirtualFace(vf.id, { role: newRole });
+                              }}
+                              style={{ width: '35mm' }}
+                              className={`px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-green-300'}`}
+                            >
+                              <option value="">none</option>
+                              {roleOptions.map(role => (
+                                <option key={role} value={role}>{role}</option>
+                              ))}
+                            </select>
+                            <input
+                              type="text"
+                              value={vf.description || ''}
+                              disabled={isDisabled}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                updateVirtualFace(vf.id, { description: e.target.value });
+                              }}
+                              placeholder="description"
+                              style={{ width: '40mm' }}
+                              className={`px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-green-300'}`}
+                            />
+                            <input
+                              type="checkbox"
+                              checked={vf.hasPanel}
+                              disabled={isDisabled}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={async () => {
+                                if (vf.hasPanel) {
+                                  removeVirtualPanel(vf.id, vfIdx);
+                                } else {
+                                  await createVirtualPanel(vf.id, vfIdx);
+                                  if (selectedProfile !== 'none') {
+                                    setResolving(true);
+                                    try {
+                                      await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                    } finally {
+                                      setResolving(false);
+                                    }
+                                  }
+                                }
+                              }}
+                              className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
+                              title={`Toggle panel for virtual face V${vfIdx + 1}`}
+                            />
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (vf.hasPanel) removeVirtualPanel(vf.id, vfIdx);
+                                deleteVirtualFace(vf.id);
+                              }}
+                              className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                              title="Delete virtual face"
+                            >
+                              <Trash2 size={12} className="text-red-500" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })()}
