@@ -216,20 +216,24 @@ function buildPreview(
 
   if (hitPointsWorld.length < 4) return null;
 
-  const uPos = hitPointsWorld[0];
-  const uNeg = hitPointsWorld[1];
-  const vPos = hitPointsWorld[2];
-  const vNeg = hitPointsWorld[3];
-  const center = uPos.clone().add(uNeg).add(vPos).add(vNeg).divideScalar(4);
-  const uHalfLen = uPos.distanceTo(uNeg) / 2;
-  const vHalfLen = vPos.distanceTo(vNeg) / 2;
+  const uPosHit = hitPointsWorld[0];
+  const uNegHit = hitPointsWorld[1];
+  const vPosHit = hitPointsWorld[2];
+  const vNegHit = hitPointsWorld[3];
+
+  const uPosT = uPosHit.distanceTo(startWorld);
+  const uNegT = uNegHit.distanceTo(startWorld);
+  const vPosT = vPosHit.distanceTo(startWorld);
+  const vNegT = vNegHit.distanceTo(startWorld);
 
   const cornersWorld = [
-    center.clone().addScaledVector(u, uHalfLen).addScaledVector(v, vHalfLen),
-    center.clone().addScaledVector(u, -uHalfLen).addScaledVector(v, vHalfLen),
-    center.clone().addScaledVector(u, -uHalfLen).addScaledVector(v, -vHalfLen),
-    center.clone().addScaledVector(u, uHalfLen).addScaledVector(v, -vHalfLen),
+    startWorld.clone().addScaledVector(u, uPosT).addScaledVector(v, vPosT),
+    startWorld.clone().addScaledVector(u, -uNegT).addScaledVector(v, vPosT),
+    startWorld.clone().addScaledVector(u, -uNegT).addScaledVector(v, -vNegT),
+    startWorld.clone().addScaledVector(u, uPosT).addScaledVector(v, -vNegT),
   ];
+
+  const center = cornersWorld[0].clone().add(cornersWorld[1]).add(cornersWorld[2]).add(cornersWorld[3]).divideScalar(4);
 
   const cornersLocal = cornersWorld.map(c => c.clone().applyMatrix4(worldToLocal));
   const centerLocal = center.clone().applyMatrix4(worldToLocal);
