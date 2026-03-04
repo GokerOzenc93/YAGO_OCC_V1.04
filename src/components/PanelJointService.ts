@@ -451,7 +451,8 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 export async function resolveAllPanelJoints(
   parentShapeId: string,
   profileId: string,
-  config?: PanelJointConfig
+  config?: PanelJointConfig,
+  skipVirtualFaceUpdate?: boolean
 ): Promise<void> {
   const state = useAppStore.getState();
   const fullSettings = await loadFullProfileSettings(profileId);
@@ -565,6 +566,10 @@ export async function resolveAllPanelJoints(
 
   applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
   await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
+
+  if (!skipVirtualFaceUpdate) {
+    await recalculateAndRebuildVirtualFaces(parentShapeId);
+  }
 }
 
 export async function restoreAllPanels(parentShapeId: string): Promise<void> {
@@ -641,45 +646,41 @@ function batchApplyUpdates(
   }));
 }
 
+async function recalculateAndRebuildVirtualFaces(parentShapeId: string): Promise<void> {
+  const shapeFaces = useAppStore.getState().virtualFaces.filter(vf => vf.shapeId === parentShapeId);
+  if (shapeFaces.length === 0) return;
+
+  const { recalculateVirtualFacesForShape } = await import('./VirtualFaceUpdateService');
+  const currentState = useAppStore.getState();
+  const currentShape = currentState.shapes.find(s => s.id === parentShapeId);
+  if (!currentShape) return;
+
+  const updatedFaces = recalculateVirtualFacesForShape(
+    currentShape,
+    currentState.virtualFaces,
+    currentState.shapes
+  );
+  useAppStore.setState({ virtualFaces: updatedFaces });
+
+  const hasVirtualPanels = updatedFaces.some(
+    vf => vf.shapeId === parentShapeId && vf.hasPanel
+  );
+  if (hasVirtualPanels) {
+    await rebuildVirtualFacePanels(parentShapeId, updatedFaces);
+  }
+}
+
 export async function rebuildAndRecalculatePipeline(
   parentShapeId: string,
   profileId: string | null
 ): Promise<void> {
   await rebuildAllPanels(parentShapeId);
 
-  await new Promise<void>((resolve) => {
-    const shapeFaces = useAppStore.getState().virtualFaces.filter(vf => vf.shapeId === parentShapeId);
-    if (shapeFaces.length === 0) {
-      resolve();
-      return;
-    }
-
-    import('./VirtualFaceUpdateService').then(({ recalculateVirtualFacesForShape }) => {
-      const currentState = useAppStore.getState();
-      const currentShape = currentState.shapes.find(s => s.id === parentShapeId);
-      if (!currentShape) { resolve(); return; }
-
-      const updatedFaces = recalculateVirtualFacesForShape(
-        currentShape,
-        currentState.virtualFaces,
-        currentState.shapes
-      );
-      useAppStore.setState({ virtualFaces: updatedFaces });
-
-      const hasVirtualPanels = updatedFaces.some(
-        vf => vf.shapeId === parentShapeId && vf.hasPanel
-      );
-      if (hasVirtualPanels) {
-        rebuildVirtualFacePanels(parentShapeId, updatedFaces).then(resolve);
-      } else {
-        resolve();
-      }
-    });
-  });
-
   if (profileId && profileId !== 'none') {
-    await resolveAllPanelJoints(parentShapeId, profileId);
+    await resolveAllPanelJoints(parentShapeId, profileId, undefined, true);
   }
+
+  await recalculateAndRebuildVirtualFaces(parentShapeId);
 }
 
 async function rebuildVirtualFacePanels(
