@@ -1110,7 +1110,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             }));
 
             console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
-            get().recalculateVirtualFacesForShape(shape1.id);
+            import('./components/PanelJointService').then(({ rebuildAndRecalculatePipeline }) => {
+              rebuildAndRecalculatePipeline(shape1.id, null);
+            });
             return;
 
           } catch (error) {
@@ -1241,7 +1243,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
       console.log('✅ Subtraction deleted, shape updated, position preserved:', preservedPosition);
-      get().recalculateVirtualFacesForShape(shapeId);
+      import('./components/PanelJointService').then(({ rebuildAndRecalculatePipeline }) => {
+        rebuildAndRecalculatePipeline(shapeId, null);
+      });
     } catch (error) {
       console.error('❌ Failed to delete subtraction:', error);
     }

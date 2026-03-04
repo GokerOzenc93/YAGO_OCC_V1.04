@@ -4,7 +4,7 @@ import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDa
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 import { extractFacesFromGeometry, groupCoplanarFaces, FaceData, CoplanarFaceGroup } from './FaceEditor';
-import { resolveAllPanelJoints, restoreAllPanels, rebuildAllPanels } from './PanelJointService';
+import { resolveAllPanelJoints, restoreAllPanels, rebuildAllPanels, rebuildAndRecalculatePipeline } from './PanelJointService';
 import * as THREE from 'three';
 
 interface PanelEditorProps {
@@ -193,22 +193,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     ].join('|');
 
     if (prevGeometryRef.current && prevGeometryRef.current !== geometryKey) {
-      console.log('Geometry changed, recalculating virtual faces and rebuilding panels...');
-
-      const { recalculateVirtualFacesForShape } = useAppStore.getState();
-      recalculateVirtualFacesForShape(selectedShapeId);
-
       setResolving(true);
-      setTimeout(async () => {
-        try {
-          await rebuildAllPanels(selectedShapeId);
-          if (selectedProfileRef.current !== 'none') {
-            await resolveAllPanelJoints(selectedShapeId, selectedProfileRef.current);
-          }
-        } finally {
-          setResolving(false);
-        }
-      }, 100);
+      rebuildAndRecalculatePipeline(
+        selectedShapeId,
+        selectedProfileRef.current !== 'none' ? selectedProfileRef.current : null
+      ).finally(() => setResolving(false));
     }
 
     prevGeometryRef.current = geometryKey;

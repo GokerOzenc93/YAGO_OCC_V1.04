@@ -641,6 +641,118 @@ function batchApplyUpdates(
   }));
 }
 
+export async function rebuildAndRecalculatePipeline(
+  parentShapeId: string,
+  profileId: string | null
+): Promise<void> {
+  await rebuildAllPanels(parentShapeId);
+
+  await new Promise<void>((resolve) => {
+    const shapeFaces = useAppStore.getState().virtualFaces.filter(vf => vf.shapeId === parentShapeId);
+    if (shapeFaces.length === 0) {
+      resolve();
+      return;
+    }
+
+    import('./VirtualFaceUpdateService').then(({ recalculateVirtualFacesForShape }) => {
+      const currentState = useAppStore.getState();
+      const currentShape = currentState.shapes.find(s => s.id === parentShapeId);
+      if (!currentShape) { resolve(); return; }
+
+      const updatedFaces = recalculateVirtualFacesForShape(
+        currentShape,
+        currentState.virtualFaces,
+        currentState.shapes
+      );
+      useAppStore.setState({ virtualFaces: updatedFaces });
+
+      const hasVirtualPanels = updatedFaces.some(
+        vf => vf.shapeId === parentShapeId && vf.hasPanel
+      );
+      if (hasVirtualPanels) {
+        rebuildVirtualFacePanels(parentShapeId, updatedFaces).then(resolve);
+      } else {
+        resolve();
+      }
+    });
+  });
+
+  if (profileId && profileId !== 'none') {
+    await resolveAllPanelJoints(parentShapeId, profileId);
+  }
+}
+
+async function rebuildVirtualFacePanels(
+  parentShapeId: string,
+  updatedVirtualFaces: import('../store').VirtualFace[]
+): Promise<void> {
+  const state = useAppStore.getState();
+  const parentShape = state.shapes.find(s => s.id === parentShapeId);
+  if (!parentShape) return;
+
+  const virtualPanels = state.shapes.filter(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.virtualFaceId
+  );
+  if (virtualPanels.length === 0) return;
+
+  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+
+  const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
+
+  for (const panel of virtualPanels) {
+    const vfId = panel.parameters.virtualFaceId;
+    const vf = updatedVirtualFaces.find(f => f.id === vfId);
+    if (!vf || vf.vertices.length < 3) continue;
+
+    const panelThickness = panel.parameters?.depth || 18;
+    try {
+      const replicadPanel = await createPanelFromVirtualFace(
+        vf.vertices,
+        vf.normal,
+        panelThickness
+      );
+      if (!replicadPanel) continue;
+
+      const geometry = convertReplicadToThreeGeometry(replicadPanel);
+      updates.push({
+        id: panel.id,
+        geometry,
+        replicadShape: replicadPanel,
+        parameters: {
+          ...panel.parameters,
+          originalReplicadShape: null,
+          jointTrimmed: false,
+        }
+      });
+    } catch (err) {
+      console.error(`Failed to rebuild virtual face panel ${panel.id}:`, err);
+    }
+  }
+
+  if (updates.length > 0) {
+    useAppStore.setState((st) => ({
+      shapes: st.shapes.map(s => {
+        const update = updates.find(u => u.id === s.id);
+        if (update) {
+          const parent = st.shapes.find(p => p.id === parentShapeId);
+          return {
+            ...s,
+            geometry: update.geometry,
+            replicadShape: update.replicadShape,
+            position: parent ? [...parent.position] as [number, number, number] : s.position,
+            rotation: parent ? parent.rotation : s.rotation,
+            scale: parent ? [...parent.scale] as [number, number, number] : s.scale,
+            parameters: update.parameters,
+          };
+        }
+        return s;
+      })
+    }));
+  }
+}
+
 function saveOriginalShapes(panels: any[], parentShapeId: string) {
   const needsSave = panels.some((p) => !p.parameters?.originalReplicadShape);
   if (!needsSave) return;
