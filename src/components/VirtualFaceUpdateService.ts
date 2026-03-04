@@ -132,6 +132,42 @@ function findMatchingFaceGroup(
   return bestGroup;
 }
 
+function collectPanelObstacleEdgesLocal(
+  childPanels: any[],
+  localToWorld: THREE.Matrix4,
+  facePlaneNormal: THREE.Vector3,
+  facePlaneOriginLocal: THREE.Vector3,
+  planeTolerance: number = 20
+): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
+  const obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
+  const worldToLocal = localToWorld.clone().invert();
+
+  for (const panel of childPanels) {
+    if (!panel.geometry) continue;
+
+    const panelMatrix = getShapeMatrix(panel);
+    const panelToLocal = worldToLocal.clone().multiply(panelMatrix);
+
+    const edgesGeo = new THREE.EdgesGeometry(panel.geometry);
+    const edgePos = edgesGeo.getAttribute('position');
+    const count = edgePos.count;
+
+    for (let i = 0; i < count; i += 2) {
+      const va = new THREE.Vector3(edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)).applyMatrix4(panelToLocal);
+      const vb = new THREE.Vector3(edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)).applyMatrix4(panelToLocal);
+
+      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOriginLocal)));
+      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOriginLocal)));
+
+      if (distA < planeTolerance && distB < planeTolerance) {
+        obstacleEdges.push({ v1: va, v2: vb });
+      }
+    }
+    edgesGeo.dispose();
+  }
+  return obstacleEdges;
+}
+
 function reraycastVirtualFace(
   vf: VirtualFace,
   shape: Shape,
@@ -175,7 +211,14 @@ function reraycastVirtualFace(
   const boundaryEdges = collectBoundaryEdgesLocal(faces, matchedGroup.faceIndices);
   const subtractions = shape.subtractionGeometries || [];
 
-  const subEdgesWorld = subtractions.length > 0 ? (() => {
+  const panelsExcludingSelf = childPanels.filter(
+    p => p.parameters?.virtualFaceId !== vf.id
+  );
+  const panelObstacleEdges = collectPanelObstacleEdgesLocal(
+    panelsExcludingSelf, localToWorld, localNormal, startLocal, 20
+  );
+
+  const subEdgesLocal = subtractions.length > 0 ? (() => {
     const worldToLocal = localToWorld.clone().invert();
     const edges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
 
@@ -204,7 +247,7 @@ function reraycastVirtualFace(
     return edges;
   })() : [];
 
-  const obstacleEdges = [...subEdgesWorld];
+  const obstacleEdges = [...panelObstacleEdges, ...subEdgesLocal];
 
   const maxDist = 5000;
   const directions = [localU, localU.clone().negate(), localV, localV.clone().negate()];
