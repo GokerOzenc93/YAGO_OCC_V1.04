@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Zap } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -425,7 +425,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             }`}
             title={raycastMode ? 'Raycast Modu Aktif (kapat)' : 'Raycast Modunu Aç'}
           >
-            <Zap size={14} />
+            <Plus size={14} />
           </button>
           <button
             onClick={() => setPanelSelectMode(!panelSelectMode)}
