@@ -119,7 +119,7 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
     }).filter(Boolean) as Array<{ id: string; vf: VirtualFace; geo: THREE.BufferGeometry; edgeGeo: THREE.BufferGeometry }>;
   }, [shapeFaces]);
 
-  if (meshes.length === 0) return null;
+  if (meshes.length === 0 || !panelSurfaceSelectMode) return null;
 
   return (
     <>
@@ -151,7 +151,7 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
               <meshBasicMaterial
                 color={isHovered && panelSurfaceSelectMode ? 0x00cc44 : 0x22c55e}
                 transparent
-                opacity={isHovered ? 0.65 : 0.38}
+                opacity={isHovered ? 0.65 : 0.15}
                 side={THREE.DoubleSide}
                 polygonOffset
                 polygonOffsetFactor={-2}
