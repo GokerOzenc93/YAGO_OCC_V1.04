@@ -817,16 +817,32 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                     const panelHeight = virtualPanel?.parameters?.height || 0;
                     const panelDepth = virtualPanel?.parameters?.depth || 0;
                     const arrowRotated = virtualPanel?.parameters?.arrowRotated || false;
+                    const isRowSelected = selectedPanelRow === `vf-${vf.id}`;
+
+                    const handleVirtualRowClick = () => {
+                      if (!vf.hasPanel) return;
+                      setSelectedPanelRow(null, `vf-${vf.id}`);
+                    };
 
                     return (
-                      <div key={vf.id} className="flex gap-0.5 items-center p-0.5 rounded hover:bg-gray-50">
+                      <div
+                        key={vf.id}
+                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ${isRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : 'hover:bg-gray-50'} ${vf.hasPanel ? 'cursor-pointer' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (vf.hasPanel) handleVirtualRowClick();
+                        }}
+                      >
                         <input
                           type="radio"
                           name="panel-selection"
-                          checked={false}
-                          disabled={true}
-                          readOnly
-                          className="w-4 h-4 text-stone-300 cursor-not-allowed"
+                          checked={isRowSelected}
+                          disabled={isDisabled || !vf.hasPanel}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleVirtualRowClick();
+                          }}
+                          className={`w-4 h-4 ${isDisabled || !vf.hasPanel ? 'text-stone-300 cursor-not-allowed' : 'text-orange-600 focus:ring-orange-500 cursor-pointer'}`}
                           onClick={(e) => e.stopPropagation()}
                         />
                         <input

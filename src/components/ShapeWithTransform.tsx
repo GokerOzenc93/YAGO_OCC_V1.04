@@ -382,7 +382,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     isParentSelected &&
     shape.parameters?.faceIndex !== undefined &&
     shape.parameters.faceIndex === selectedPanelRow;
-  const panelColor = isPanelRowSelected ? '#ef4444' : (shape.color || '#ffffff');
+  const isVirtualPanelRowSelected = isPanel &&
+    isParentSelected &&
+    shape.parameters?.virtualFaceId &&
+    `vf-${shape.parameters.virtualFaceId}` === selectedPanelRow;
+  const panelColor = (isPanelRowSelected || isVirtualPanelRowSelected) ? '#ef4444' : (shape.color || '#ffffff');
   if (shape.isolated === false) {
     return null;
   }
