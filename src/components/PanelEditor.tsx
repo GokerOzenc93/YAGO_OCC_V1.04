@@ -572,6 +572,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   );
                   if (!replicadPanel) return;
                   const geometry = convertReplicadToThreeGeometry(replicadPanel);
+
+                  const bbox = new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
+                  const size = new THREE.Vector3();
+                  bbox.getSize(size);
+
+                  const sortedDims = [
+                    { axis: 'x', value: size.x },
+                    { axis: 'y', value: size.y },
+                    { axis: 'z', value: size.z }
+                  ].sort((a, b) => a.value - b.value);
+
+                  const width = sortedDims[1].value;
+                  const height = sortedDims[2].value;
+
                   const newPanel: any = {
                     id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
                     type: 'panel',
@@ -582,13 +596,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                     scale: [...selectedShape.scale] as [number, number, number],
                     color: '#ffffff',
                     parameters: {
-                      width: 0,
-                      height: 0,
+                      width,
+                      height,
                       depth: panelThickness,
                       parentShapeId: selectedShape.id,
                       faceIndex: -(vfIndex + 1),
                       faceRole: vf.role,
                       virtualFaceId: vf.id,
+                      arrowRotated: false
                     }
                   };
                   addShape(newPanel);
@@ -793,8 +808,18 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   })}
 
                   {shapeVirtualFaces.map((vf, vfIdx) => {
+                    const virtualPanel = shapes.find(s =>
+                      s.type === 'panel' &&
+                      s.parameters?.parentShapeId === selectedShape.id &&
+                      s.parameters?.virtualFaceId === vf.id
+                    );
+                    const panelWidth = virtualPanel?.parameters?.width || 0;
+                    const panelHeight = virtualPanel?.parameters?.height || 0;
+                    const panelDepth = virtualPanel?.parameters?.depth || 0;
+                    const arrowRotated = virtualPanel?.parameters?.arrowRotated || false;
+
                     return (
-                      <div key={vf.id} className="flex gap-0.5 items-center p-0.5 rounded hover:bg-green-50 ring-1 ring-green-200 bg-green-50/50">
+                      <div key={vf.id} className="flex gap-0.5 items-center p-0.5 rounded hover:bg-gray-50">
                         <input
                           type="radio"
                           name="panel-selection"
@@ -842,28 +867,28 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         />
                         <input
                           type="text"
-                          value="—"
+                          value={vf.hasPanel ? (arrowRotated ? Math.round(panelHeight) : Math.round(panelWidth)) : '—'}
                           readOnly
                           tabIndex={-1}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-stone-400 border-orange-200"
+                          className={`w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center ${vf.hasPanel ? 'bg-orange-50 text-gray-800 border-orange-300 font-semibold' : 'bg-orange-50 text-stone-400 border-orange-200'}`}
                           title="Arrow Direction Dimension"
                           onClick={(e) => e.stopPropagation()}
                         />
                         <input
                           type="text"
-                          value="—"
+                          value={vf.hasPanel ? (arrowRotated ? Math.round(panelWidth) : Math.round(panelHeight)) : '—'}
                           readOnly
                           tabIndex={-1}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-stone-400 border-blue-200"
+                          className={`w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center ${vf.hasPanel ? 'bg-blue-50 text-gray-800 border-blue-300 font-semibold' : 'bg-blue-50 text-stone-400 border-blue-200'}`}
                           title="Perpendicular Dimension"
                           onClick={(e) => e.stopPropagation()}
                         />
                         <input
                           type="text"
-                          value="—"
+                          value={vf.hasPanel ? Math.round(panelDepth) : '—'}
                           readOnly
                           tabIndex={-1}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-stone-400 border-green-200"
+                          className={`w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center ${vf.hasPanel ? 'bg-green-50 text-gray-800 border-green-300 font-semibold' : 'bg-green-50 text-stone-400 border-green-200'}`}
                           title="Panel Thickness"
                           onClick={(e) => e.stopPropagation()}
                         />
@@ -890,6 +915,31 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
                           title={`Toggle panel for virtual face V${vfIdx + 1}`}
                         />
+                        <button
+                          disabled={isDisabled || !vf.hasPanel}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (virtualPanel) {
+                              const current = virtualPanel.parameters?.arrowRotated || false;
+                              updateShape(virtualPanel.id, {
+                                parameters: {
+                                  ...virtualPanel.parameters,
+                                  arrowRotated: !current
+                                }
+                              });
+                            }
+                          }}
+                          className={`p-0.5 rounded transition-colors ${
+                            isDisabled || !vf.hasPanel
+                              ? 'text-stone-300 cursor-not-allowed'
+                              : arrowRotated
+                              ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                              : 'text-slate-500 hover:bg-stone-100'
+                          }`}
+                          title="Rotate arrow direction"
+                        >
+                          <RotateCw size={13} />
+                        </button>
                         <button
                           disabled={isDisabled}
                           onClick={(e) => {
