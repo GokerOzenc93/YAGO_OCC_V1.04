@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2 } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode, virtualFaces, updateVirtualFace, deleteVirtualFace, pendingPanelCreation } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode, showVirtualFaces, setShowVirtualFaces, virtualFaces, updateVirtualFace, deleteVirtualFace, pendingPanelCreation } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -426,6 +426,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             title={raycastMode ? 'Raycast Modu Aktif (kapat)' : 'Raycast Modunu Aç'}
           >
             <Plus size={14} />
+          </button>
+          <button
+            onClick={() => setShowVirtualFaces(!showVirtualFaces)}
+            className={`p-0.5 rounded transition-colors ${
+              showVirtualFaces
+                ? 'text-green-600 bg-green-100 ring-1 ring-green-400'
+                : 'text-slate-400 hover:bg-stone-200'
+            }`}
+            title={showVirtualFaces ? 'Sanal Yüzeyleri Gizle' : 'Sanal Yüzeyleri Göster'}
+          >
+            {showVirtualFaces ? <Eye size={14} /> : <EyeOff size={14} />}
           </button>
           <button
             onClick={() => setPanelSelectMode(!panelSelectMode)}

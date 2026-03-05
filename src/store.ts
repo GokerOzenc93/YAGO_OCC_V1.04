@@ -313,6 +313,10 @@ interface AppState {
   raycastResults: Array<{ origin: [number, number, number]; direction: [number, number, number]; hitPoint: [number, number, number] }>;
   setRaycastResults: (results: Array<{ origin: [number, number, number]; direction: [number, number, number]; hitPoint: [number, number, number] }>) => void;
 
+  // Virtual Faces görünürlüğü
+  showVirtualFaces: boolean;
+  setShowVirtualFaces: (show: boolean) => void;
+
   // Virtual Faces (Raycast ile oluşturulan sanal yüzeyler)
   virtualFaces: VirtualFace[];
   addVirtualFace: (face: VirtualFace) => void;
@@ -472,6 +476,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setRaycastMode: (enabled) => set({ raycastMode: enabled, raycastResults: enabled ? get().raycastResults : [] }),
   raycastResults: [],
   setRaycastResults: (results) => set({ raycastResults: results }),
+
+  // Virtual Faces görünürlüğü
+  showVirtualFaces: true,
+  setShowVirtualFaces: (show) => set({ showVirtualFaces: show }),
 
   // Virtual Faces
   virtualFaces: [],
