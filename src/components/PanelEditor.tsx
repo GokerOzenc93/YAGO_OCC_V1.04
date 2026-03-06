@@ -677,7 +677,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             value={faceRoles[i] || ''}
                             disabled={isDisabled}
                             onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
                               const newFaceRoles = { ...faceRoles, [i]: newRole };
                               if (newRole === null) {
@@ -700,9 +700,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 });
                                 if (selectedProfile !== 'none') {
                                   setResolving(true);
-                                  resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
-                                    setResolving(false)
-                                  );
+                                  try {
+                                    await rebuildAllPanels(selectedShape.id);
+                                    await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                  } finally {
+                                    setResolving(false);
+                                  }
                                 }
                               }
                             }}
@@ -857,7 +860,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           value={vf.role || ''}
                           disabled={isDisabled}
                           onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
                             updateVirtualFace(vf.id, { role: newRole });
                             const virtualPanel = shapes.find(s =>
@@ -871,9 +874,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                               });
                               if (selectedProfile !== 'none') {
                                 setResolving(true);
-                                resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
-                                  setResolving(false)
-                                );
+                                try {
+                                  await rebuildAllPanels(selectedShape.id);
+                                  await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                } finally {
+                                  setResolving(false);
+                                }
                               }
                             }
                           }}
