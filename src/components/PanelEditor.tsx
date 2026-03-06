@@ -577,14 +577,27 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   const size = new THREE.Vector3();
                   bbox.getSize(size);
 
-                  const sortedDims = [
-                    { axis: 'x', value: size.x },
-                    { axis: 'y', value: size.y },
-                    { axis: 'z', value: size.z }
+                  const axesBySize = [
+                    { index: 0, value: size.x },
+                    { index: 1, value: size.y },
+                    { index: 2, value: size.z }
                   ].sort((a, b) => a.value - b.value);
 
-                  const width = sortedDims[1].value;
-                  const height = sortedDims[2].value;
+                  const planeAxes = axesBySize.slice(1).map(a => a.index).sort((a, b) => a - b);
+                  const role = vf.role?.toLowerCase();
+                  let defaultAxis = planeAxes[0];
+                  let altAxis = planeAxes[1];
+                  if (role === 'left' || role === 'right') {
+                    if (planeAxes.includes(1)) { defaultAxis = 1; altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1]; }
+                  } else if (role === 'top' || role === 'bottom') {
+                    if (planeAxes.includes(0)) { defaultAxis = 0; altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1]; }
+                  }
+                  const targetAxis = defaultAxis;
+                  const secondaryAxis = altAxis;
+
+                  const sizeByIndex = [size.x, size.y, size.z];
+                  const width = sizeByIndex[targetAxis];
+                  const height = sizeByIndex[secondaryAxis];
 
                   const newPanel: any = {
                     id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,

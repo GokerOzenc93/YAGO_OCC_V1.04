@@ -718,6 +718,27 @@ async function rebuildVirtualFacePanels(
       if (!replicadPanel) continue;
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
+
+      const geoSize = new THREE.Vector3();
+      new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position') as THREE.BufferAttribute).getSize(geoSize);
+      const axesBySize = [
+        { index: 0, value: geoSize.x },
+        { index: 1, value: geoSize.y },
+        { index: 2, value: geoSize.z }
+      ].sort((a, b) => a.value - b.value);
+      const planeAxes = axesBySize.slice(1).map(a => a.index).sort((a, b) => a - b);
+      const roleStr = vf.role?.toLowerCase();
+      let defaultAxis = planeAxes[0];
+      let altAxis = planeAxes[1];
+      if (roleStr === 'left' || roleStr === 'right') {
+        if (planeAxes.includes(1)) { defaultAxis = 1; altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1]; }
+      } else if (roleStr === 'top' || roleStr === 'bottom') {
+        if (planeAxes.includes(0)) { defaultAxis = 0; altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1]; }
+      }
+      const sizeArr = [geoSize.x, geoSize.y, geoSize.z];
+      const newWidth = sizeArr[defaultAxis];
+      const newHeight = sizeArr[altAxis];
+
       updates.push({
         id: panel.id,
         geometry,
@@ -725,6 +746,8 @@ async function rebuildVirtualFacePanels(
         parameters: {
           ...panel.parameters,
           faceRole: vf.role,
+          width: newWidth,
+          height: newHeight,
           originalReplicadShape: null,
           jointTrimmed: false,
         }
