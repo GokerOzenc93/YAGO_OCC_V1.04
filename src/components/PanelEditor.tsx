@@ -4,7 +4,7 @@ import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDa
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 import { extractFacesFromGeometry, groupCoplanarFaces, FaceData, CoplanarFaceGroup } from './FaceEditor';
-import { resolveAllPanelJoints, restoreAllPanels, rebuildAllPanels, rebuildAndRecalculatePipeline } from './PanelJointService';
+import { resolveAllPanelJoints, restoreAllPanels, rebuildAndRecalculatePipeline } from './PanelJointService';
 import * as THREE from 'three';
 
 interface PanelEditorProps {
@@ -708,13 +708,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 updateShape(panelShape.id, {
                                   parameters: {
                                     ...panelShape.parameters,
-                                    faceRole: newRole
+                                    faceRole: newRole,
+                                    originalReplicadShape: null,
+                                    jointTrimmed: false,
                                   }
                                 });
                                 if (selectedProfile !== 'none') {
                                   setResolving(true);
                                   try {
-                                    await rebuildAllPanels(selectedShape.id);
                                     await resolveAllPanelJoints(selectedShape.id, selectedProfile);
                                   } finally {
                                     setResolving(false);
@@ -883,12 +884,16 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             );
                             if (virtualPanel) {
                               updateShape(virtualPanel.id, {
-                                parameters: { ...virtualPanel.parameters, faceRole: newRole }
+                                parameters: {
+                                  ...virtualPanel.parameters,
+                                  faceRole: newRole,
+                                  originalReplicadShape: null,
+                                  jointTrimmed: false,
+                                }
                               });
                               if (selectedProfile !== 'none') {
                                 setResolving(true);
                                 try {
-                                  await rebuildAllPanels(selectedShape.id);
                                   await resolveAllPanelJoints(selectedShape.id, selectedProfile);
                                 } finally {
                                   setResolving(false);
@@ -951,6 +956,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           onChange={async () => {
                             if (vf.hasPanel) {
                               removeVirtualPanel(vf.id, vfIdx);
+                              if (selectedProfile !== 'none') {
+                                setResolving(true);
+                                try {
+                                  await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                } finally {
+                                  setResolving(false);
+                                }
+                              }
                             } else {
                               await createVirtualPanel(vf.id, vfIdx);
                               if (selectedProfile !== 'none') {
