@@ -49,45 +49,6 @@ function getDominantRole(
   }
 }
 
-function getPanelWorldBox(panel: any): THREE.Box3 | null {
-  const ob = panel.parameters?.originalBox;
-  if (ob) {
-    const box = new THREE.Box3(
-      new THREE.Vector3(ob.minX, ob.minY, ob.minZ),
-      new THREE.Vector3(ob.maxX, ob.maxY, ob.maxZ)
-    );
-    return box;
-  }
-  if (!panel.geometry) return null;
-  const posAttr = panel.geometry.getAttribute('position');
-  if (!posAttr) return null;
-  const box = new THREE.Box3().setFromBufferAttribute(posAttr);
-  const pos = new THREE.Vector3(...(panel.position as [number, number, number]));
-  box.translate(pos);
-  return box;
-}
-
-function computeWorldBox(geometry: any, position: [number, number, number]): { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number } | null {
-  if (!geometry) return null;
-  const posAttr = geometry.getAttribute('position');
-  if (!posAttr) return null;
-  const box = new THREE.Box3().setFromBufferAttribute(posAttr);
-  const pos = new THREE.Vector3(...position);
-  box.translate(pos);
-  return { minX: box.min.x, minY: box.min.y, minZ: box.min.z, maxX: box.max.x, maxY: box.max.y, maxZ: box.max.z };
-}
-
-function panelsTouching(pA: any, pB: any, tolerance = 0.1): boolean {
-  if (!pA.parameters?.originalBox || !pB.parameters?.originalBox) return true;
-
-  const boxA = getPanelWorldBox(pA);
-  const boxB = getPanelWorldBox(pB);
-  if (!boxA || !boxB) return true;
-
-  const expandedA = boxA.clone().expandByScalar(tolerance);
-  return expandedA.intersectsBox(boxB);
-}
-
 async function toGeometry(replicadShape: any) {
   const { convertReplicadToThreeGeometry } = await import('./ReplicadService');
   return convertReplicadToThreeGeometry(replicadShape);
@@ -403,7 +364,6 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         if (!replicadPanel) continue;
 
         const geometry = convertReplicadToThreeGeometry(replicadPanel);
-        const vfOriginalBox = computeWorldBox(geometry, parentShape.position as [number, number, number]);
 
         updates.push({
           id: panel.id,
@@ -414,7 +374,6 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
             faceRole: vf.role,
             originalReplicadShape: null,
             jointTrimmed: false,
-            originalBox: vfOriginalBox,
           }
         });
       } catch (error) {
@@ -451,7 +410,6 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
       if (!replicadPanel) continue;
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
-      const faceOriginalBox = computeWorldBox(geometry, parentShape.position as [number, number, number]);
 
       updates.push({
         id: panel.id,
@@ -461,7 +419,6 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
           ...panel.parameters,
           originalReplicadShape: null,
           jointTrimmed: false,
-          originalBox: faceOriginalBox,
         }
       });
     } catch (error) {
@@ -498,14 +455,10 @@ export async function resolveAllPanelJoints(
   config?: PanelJointConfig,
   skipVirtualFaceUpdate?: boolean
 ): Promise<void> {
+  const state = useAppStore.getState();
   const fullSettings = await loadFullProfileSettings(profileId);
   const jointConfig = config || fullSettings.jointConfig;
 
-  if (!skipVirtualFaceUpdate) {
-    await recalculateAndRebuildVirtualFaces(parentShapeId);
-  }
-
-  const state = useAppStore.getState();
   const panels = state.shapes.filter(
     (s) =>
       s.type === 'panel' &&
@@ -522,23 +475,10 @@ export async function resolveAllPanelJoints(
     return;
   }
 
-  console.log(`Resolving panel joints for ${panels.length} panels (face + virtual)...`);
-
-  saveOriginalShapes(panels, parentShapeId);
-  saveOriginalBoxes(panels, parentShapeId);
-
-  const freshState = useAppStore.getState();
-  const freshPanels = freshState.shapes.filter(
-    (s) =>
-      s.type === 'panel' &&
-      s.parameters?.parentShapeId === parentShapeId &&
-      s.parameters?.faceRole &&
-      s.parameters.faceRole !== 'Door' &&
-      (s.parameters?.originalReplicadShape || s.replicadShape)
-  );
+  console.log(`🔗 Resolving panel joints for ${panels.length} panels...`);
 
   const originalShapes = new Map<string, any>();
-  for (const panel of freshPanels) {
+  for (const panel of panels) {
     originalShapes.set(
       panel.id,
       panel.parameters?.originalReplicadShape || panel.replicadShape
@@ -547,17 +487,15 @@ export async function resolveAllPanelJoints(
 
   const cutsMap = new Map<string, string[]>();
 
-  for (let i = 0; i < freshPanels.length; i++) {
-    for (let j = i + 1; j < freshPanels.length; j++) {
-      const pA = freshPanels[i];
-      const pB = freshPanels[j];
+  for (let i = 0; i < panels.length; i++) {
+    for (let j = i + 1; j < panels.length; j++) {
+      const pA = panels[i];
+      const pB = panels[j];
       const roleA = pA.parameters?.faceRole as FaceRole;
       const roleB = pB.parameters?.faceRole as FaceRole;
 
       const dominant = getDominantRole(roleA, roleB, jointConfig);
       if (!dominant) continue;
-
-      if (!panelsTouching(pA, pB)) continue;
 
       const isADominant = dominant === roleA;
       const subordinateId = isADominant ? pB.id : pA.id;
@@ -566,15 +504,19 @@ export async function resolveAllPanelJoints(
       const existing = cutsMap.get(subordinateId) || [];
       existing.push(dominantId);
       cutsMap.set(subordinateId, existing);
+
+      console.log(
+        `  Joint: ${roleA}-${roleB} → ${dominant} dominant, ${isADominant ? roleB : roleA} trimmed`
+      );
     }
   }
 
   const shapeUpdates = new Map<
     string,
-    { geometry: any; replicadShape: any; jointTrimmed: boolean; width?: number; height?: number }
+    { geometry: any; replicadShape: any; jointTrimmed: boolean }
   >();
 
-  for (const panel of freshPanels) {
+  for (const panel of panels) {
     const original = originalShapes.get(panel.id);
     if (!original) continue;
 
@@ -594,38 +536,22 @@ export async function resolveAllPanelJoints(
 
       try {
         const geo = await toGeometry(currentShape);
-        const updateEntry: { geometry: any; replicadShape: any; jointTrimmed: boolean; width?: number; height?: number } = {
+        shapeUpdates.set(panel.id, {
           geometry: geo,
           replicadShape: currentShape,
           jointTrimmed: true,
-        };
-
-        if (panel.parameters?.virtualFaceId) {
-          const dims = computeVfPanelDimensions(geo, panel.parameters?.faceRole);
-          updateEntry.width = dims.width;
-          updateEntry.height = dims.height;
-        }
-
-        shapeUpdates.set(panel.id, updateEntry);
+        });
       } catch (err) {
         console.error(`Failed to convert trimmed panel:`, err);
       }
     } else if (panel.parameters?.jointTrimmed) {
       try {
         const geo = await toGeometry(original);
-        const updateEntry: { geometry: any; replicadShape: any; jointTrimmed: boolean; width?: number; height?: number } = {
+        shapeUpdates.set(panel.id, {
           geometry: geo,
           replicadShape: original,
           jointTrimmed: false,
-        };
-
-        if (panel.parameters?.virtualFaceId) {
-          const dims = computeVfPanelDimensions(geo, panel.parameters?.faceRole);
-          updateEntry.width = dims.width;
-          updateEntry.height = dims.height;
-        }
-
-        shapeUpdates.set(panel.id, updateEntry);
+        });
       } catch (err) {
         console.error(`Failed to restore panel:`, err);
       }
@@ -633,49 +559,18 @@ export async function resolveAllPanelJoints(
   }
 
   if (shapeUpdates.size > 0) {
-    useAppStore.setState((st) => ({
-      shapes: st.shapes.map((s) => {
-        const update = shapeUpdates.get(s.id);
-        if (update) {
-          const params: any = {
-            ...s.parameters,
-            originalReplicadShape:
-              originalShapes.get(s.id) ||
-              s.parameters?.originalReplicadShape ||
-              s.replicadShape,
-            jointTrimmed: update.jointTrimmed,
-          };
-          if (update.width !== undefined) params.width = update.width;
-          if (update.height !== undefined) params.height = update.height;
-          return {
-            ...s,
-            geometry: update.geometry,
-            replicadShape: update.replicadShape,
-            parameters: params,
-          };
-        }
-        if (
-          s.type === 'panel' &&
-          s.parameters?.parentShapeId === parentShapeId &&
-          !s.parameters?.originalReplicadShape &&
-          s.replicadShape
-        ) {
-          return {
-            ...s,
-            parameters: {
-              ...s.parameters,
-              originalReplicadShape: s.replicadShape,
-            },
-          };
-        }
-        return s;
-      }),
-    }));
-    console.log(`Panel joints resolved: ${shapeUpdates.size} panels updated`);
+    batchApplyUpdates(shapeUpdates, originalShapes, parentShapeId);
+    console.log(`✅ Panel joints resolved: ${shapeUpdates.size} panels updated`);
+  } else {
+    saveOriginalShapes(panels, parentShapeId);
   }
 
   applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
   await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
+
+  if (!skipVirtualFaceUpdate) {
+    await recalculateAndRebuildVirtualFaces(parentShapeId);
+  }
 }
 
 export async function restoreAllPanels(parentShapeId: string): Promise<void> {
@@ -710,6 +605,48 @@ async function restoreSinglePanels(panels: any[]) {
   }
 }
 
+function batchApplyUpdates(
+  updates: Map<string, { geometry: any; replicadShape: any; jointTrimmed: boolean }>,
+  originalShapes: Map<string, any>,
+  parentShapeId: string
+) {
+  useAppStore.setState((state) => ({
+    shapes: state.shapes.map((s) => {
+      const update = updates.get(s.id);
+      if (update) {
+        return {
+          ...s,
+          geometry: update.geometry,
+          replicadShape: update.replicadShape,
+          parameters: {
+            ...s.parameters,
+            originalReplicadShape:
+              originalShapes.get(s.id) ||
+              s.parameters?.originalReplicadShape ||
+              s.replicadShape,
+            jointTrimmed: update.jointTrimmed,
+          },
+        };
+      }
+      if (
+        s.type === 'panel' &&
+        s.parameters?.parentShapeId === parentShapeId &&
+        !s.parameters?.originalReplicadShape &&
+        s.replicadShape
+      ) {
+        return {
+          ...s,
+          parameters: {
+            ...s.parameters,
+            originalReplicadShape: s.replicadShape,
+          },
+        };
+      }
+      return s;
+    }),
+  }));
+}
+
 async function recalculateAndRebuildVirtualFaces(parentShapeId: string): Promise<void> {
   const shapeFaces = useAppStore.getState().virtualFaces.filter(vf => vf.shapeId === parentShapeId);
   if (shapeFaces.length === 0) return;
@@ -741,10 +678,10 @@ export async function rebuildAndRecalculatePipeline(
   await rebuildAllPanels(parentShapeId);
 
   if (profileId && profileId !== 'none') {
-    await resolveAllPanelJoints(parentShapeId, profileId);
-  } else {
-    await recalculateAndRebuildVirtualFaces(parentShapeId);
+    await resolveAllPanelJoints(parentShapeId, profileId, undefined, true);
   }
+
+  await recalculateAndRebuildVirtualFaces(parentShapeId);
 }
 
 async function rebuildVirtualFacePanels(
@@ -781,10 +718,26 @@ async function rebuildVirtualFacePanels(
       if (!replicadPanel) continue;
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
-      const dims = computeVfPanelDimensions(geometry, vf.role);
-      const parentShape = useAppStore.getState().shapes.find(s => s.id === parentShapeId);
-      const parentPos = parentShape ? parentShape.position as [number, number, number] : [0, 0, 0] as [number, number, number];
-      const originalBox = computeWorldBox(geometry, parentPos);
+
+      const geoSize = new THREE.Vector3();
+      new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position') as THREE.BufferAttribute).getSize(geoSize);
+      const axesBySize = [
+        { index: 0, value: geoSize.x },
+        { index: 1, value: geoSize.y },
+        { index: 2, value: geoSize.z }
+      ].sort((a, b) => a.value - b.value);
+      const planeAxes = axesBySize.slice(1).map(a => a.index).sort((a, b) => a - b);
+      const roleStr = vf.role?.toLowerCase();
+      let defaultAxis = planeAxes[0];
+      let altAxis = planeAxes[1];
+      if (roleStr === 'left' || roleStr === 'right') {
+        if (planeAxes.includes(1)) { defaultAxis = 1; altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1]; }
+      } else if (roleStr === 'top' || roleStr === 'bottom') {
+        if (planeAxes.includes(0)) { defaultAxis = 0; altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1]; }
+      }
+      const sizeArr = [geoSize.x, geoSize.y, geoSize.z];
+      const newWidth = sizeArr[defaultAxis];
+      const newHeight = sizeArr[altAxis];
 
       updates.push({
         id: panel.id,
@@ -793,11 +746,10 @@ async function rebuildVirtualFacePanels(
         parameters: {
           ...panel.parameters,
           faceRole: vf.role,
-          width: dims.width,
-          height: dims.height,
+          width: newWidth,
+          height: newHeight,
           originalReplicadShape: null,
           jointTrimmed: false,
-          originalBox,
         }
       });
     } catch (err) {
@@ -825,57 +777,6 @@ async function rebuildVirtualFacePanels(
       })
     }));
   }
-}
-
-function computeVfPanelDimensions(geo: any, faceRole: string | null | undefined): { width: number; height: number } {
-  const geoSize = new THREE.Vector3();
-  new THREE.Box3().setFromBufferAttribute(geo.getAttribute('position') as THREE.BufferAttribute).getSize(geoSize);
-  const axesBySize = [
-    { index: 0, value: geoSize.x },
-    { index: 1, value: geoSize.y },
-    { index: 2, value: geoSize.z }
-  ].sort((a, b) => a.value - b.value);
-  const planeAxes = axesBySize.slice(1).map(a => a.index).sort((a, b) => a - b);
-  const roleStr = faceRole?.toLowerCase();
-  let defaultAxis = planeAxes[0];
-  let altAxis = planeAxes[1];
-  if (roleStr === 'left' || roleStr === 'right') {
-    if (planeAxes.includes(1)) { defaultAxis = 1; altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1]; }
-  } else if (roleStr === 'top' || roleStr === 'bottom') {
-    if (planeAxes.includes(0)) { defaultAxis = 0; altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1]; }
-  }
-  const sizeArr = [geoSize.x, geoSize.y, geoSize.z];
-  return { width: sizeArr[defaultAxis], height: sizeArr[altAxis] };
-}
-
-function saveOriginalBoxes(panels: any[], parentShapeId: string) {
-  const needsSave = panels.some((p) => !p.parameters?.originalBox);
-  if (!needsSave) return;
-
-  useAppStore.setState((state) => ({
-    shapes: state.shapes.map((s) => {
-      if (
-        s.type === 'panel' &&
-        s.parameters?.parentShapeId === parentShapeId &&
-        !s.parameters?.originalBox &&
-        s.geometry
-      ) {
-        if (s.parameters?.jointTrimmed && s.parameters?.originalReplicadShape) {
-          return s;
-        }
-        const box = computeWorldBox(s.geometry, s.position as [number, number, number]);
-        if (!box) return s;
-        return {
-          ...s,
-          parameters: {
-            ...s.parameters,
-            originalBox: box,
-          },
-        };
-      }
-      return s;
-    }),
-  }));
 }
 
 function saveOriginalShapes(panels: any[], parentShapeId: string) {

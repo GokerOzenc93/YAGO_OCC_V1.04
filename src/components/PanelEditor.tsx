@@ -4,7 +4,7 @@ import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDa
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 import { extractFacesFromGeometry, groupCoplanarFaces, FaceData, CoplanarFaceGroup } from './FaceEditor';
-import { resolveAllPanelJoints, restoreAllPanels, rebuildAndRecalculatePipeline } from './PanelJointService';
+import { resolveAllPanelJoints, restoreAllPanels, rebuildAllPanels, rebuildAndRecalculatePipeline } from './PanelJointService';
 import * as THREE from 'three';
 
 interface PanelEditorProps {
@@ -253,10 +253,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         );
         if (!replicadPanel) return;
         const geometry = convertReplicadToThreeGeometry(replicadPanel);
-        const pendingGeoBox = new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
-        const pendingPos = new THREE.Vector3(...currentShape.position);
-        pendingGeoBox.translate(pendingPos);
-        const pendingOriginalBox = { minX: pendingGeoBox.min.x, minY: pendingGeoBox.min.y, minZ: pendingGeoBox.min.z, maxX: pendingGeoBox.max.x, maxY: pendingGeoBox.max.y, maxZ: pendingGeoBox.max.z };
         const newPanel: any = {
           id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           type: 'panel',
@@ -274,7 +270,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
             faceIndex: -(vfIdx + 1),
             faceRole: vf.role,
             virtualFaceId: vf.id,
-            originalBox: pendingOriginalBox,
           }
         };
         addShape(newPanel);
@@ -336,11 +331,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
       const faceRole = selectedShape.faceRoles?.[faceIndex];
 
-      const geoBox = new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
-      const panelPos = new THREE.Vector3(...selectedShape.position);
-      geoBox.translate(panelPos);
-      const originalBox = { minX: geoBox.min.x, minY: geoBox.min.y, minZ: geoBox.min.z, maxX: geoBox.max.x, maxY: geoBox.max.y, maxZ: geoBox.max.z };
-
       const newPanel: any = {
         id: `panel-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
         type: 'panel',
@@ -357,7 +347,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           parentShapeId: selectedShape.id,
           faceIndex: faceIndex,
           faceRole: faceRole,
-          originalBox,
         }
       };
 
@@ -610,11 +599,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   const width = sizeByIndex[targetAxis];
                   const height = sizeByIndex[secondaryAxis];
 
-                  const vfGeoBox = bbox.clone();
-                  const vfPanelPos = new THREE.Vector3(...selectedShape.position);
-                  vfGeoBox.translate(vfPanelPos);
-                  const vfOriginalBox = { minX: vfGeoBox.min.x, minY: vfGeoBox.min.y, minZ: vfGeoBox.min.z, maxX: vfGeoBox.max.x, maxY: vfGeoBox.max.y, maxZ: vfGeoBox.max.z };
-
                   const newPanel: any = {
                     id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
                     type: 'panel',
@@ -632,8 +616,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                       faceIndex: -(vfIndex + 1),
                       faceRole: vf.role,
                       virtualFaceId: vf.id,
-                      arrowRotated: false,
-                      originalBox: vfOriginalBox,
+                      arrowRotated: false
                     }
                   };
                   addShape(newPanel);
@@ -725,14 +708,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 updateShape(panelShape.id, {
                                   parameters: {
                                     ...panelShape.parameters,
-                                    faceRole: newRole,
-                                    originalReplicadShape: null,
-                                    jointTrimmed: false,
+                                    faceRole: newRole
                                   }
                                 });
                                 if (selectedProfile !== 'none') {
                                   setResolving(true);
                                   try {
+                                    await rebuildAllPanels(selectedShape.id);
                                     await resolveAllPanelJoints(selectedShape.id, selectedProfile);
                                   } finally {
                                     setResolving(false);
@@ -901,16 +883,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             );
                             if (virtualPanel) {
                               updateShape(virtualPanel.id, {
-                                parameters: {
-                                  ...virtualPanel.parameters,
-                                  faceRole: newRole,
-                                  originalReplicadShape: null,
-                                  jointTrimmed: false,
-                                }
+                                parameters: { ...virtualPanel.parameters, faceRole: newRole }
                               });
                               if (selectedProfile !== 'none') {
                                 setResolving(true);
                                 try {
+                                  await rebuildAllPanels(selectedShape.id);
                                   await resolveAllPanelJoints(selectedShape.id, selectedProfile);
                                 } finally {
                                   setResolving(false);
@@ -973,14 +951,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           onChange={async () => {
                             if (vf.hasPanel) {
                               removeVirtualPanel(vf.id, vfIdx);
-                              if (selectedProfile !== 'none') {
-                                setResolving(true);
-                                try {
-                                  await resolveAllPanelJoints(selectedShape.id, selectedProfile);
-                                } finally {
-                                  setResolving(false);
-                                }
-                              }
                             } else {
                               await createVirtualPanel(vf.id, vfIdx);
                               if (selectedProfile !== 'none') {
