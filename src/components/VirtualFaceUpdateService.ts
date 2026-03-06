@@ -50,71 +50,6 @@ function collectBoundaryEdgesWorld(
   return boundary;
 }
 
-function collectVirtualFaceObstacleEdgesWorld(
-  virtualFaces: VirtualFace[],
-  excludeId: string | null,
-  shapeLocalToWorld: THREE.Matrix4,
-  facePlaneNormal: THREE.Vector3,
-  facePlaneOrigin: THREE.Vector3,
-  planeTolerance: number = 20
-): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
-  const edges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-
-  for (const vf of virtualFaces) {
-    if (vf.id === excludeId) continue;
-    if (vf.vertices.length < 3) continue;
-
-    const worldVerts = vf.vertices.map(vtx =>
-      new THREE.Vector3(vtx[0], vtx[1], vtx[2]).applyMatrix4(shapeLocalToWorld)
-    );
-
-    for (let i = 0; i < worldVerts.length; i++) {
-      const va = worldVerts[i];
-      const vb = worldVerts[(i + 1) % worldVerts.length];
-
-      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOrigin)));
-      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOrigin)));
-
-      if (distA < planeTolerance && distB < planeTolerance) {
-        edges.push({ v1: va, v2: vb });
-      }
-    }
-  }
-  return edges;
-}
-
-function collectPanelObstacleEdgesWorld(
-  childPanels: any[],
-  facePlaneNormal: THREE.Vector3,
-  facePlaneOriginWorld: THREE.Vector3,
-  planeTolerance: number = 20
-): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
-  const obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-
-  for (const panel of childPanels) {
-    if (!panel.geometry) continue;
-
-    const panelMatrix = getShapeMatrix(panel);
-    const edgesGeo = new THREE.EdgesGeometry(panel.geometry);
-    const edgePos = edgesGeo.getAttribute('position');
-    const count = edgePos.count;
-
-    for (let i = 0; i < count; i += 2) {
-      const va = new THREE.Vector3(edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)).applyMatrix4(panelMatrix);
-      const vb = new THREE.Vector3(edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)).applyMatrix4(panelMatrix);
-
-      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOriginWorld)));
-      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOriginWorld)));
-
-      if (distA < planeTolerance && distB < planeTolerance) {
-        obstacleEdges.push({ v1: va, v2: vb });
-      }
-    }
-    edgesGeo.dispose();
-  }
-  return obstacleEdges;
-}
-
 function collectSubtractionObstacleEdgesWorld(
   subtractions: any[],
   localToWorld: THREE.Matrix4,
@@ -231,8 +166,6 @@ function reraycastVirtualFace(
   faceGroups: CoplanarFaceGroup[],
   localToWorld: THREE.Matrix4,
   worldToLocal: THREE.Matrix4,
-  childPanels: any[],
-  shapeFaces: VirtualFace[]
 ): VirtualFace | null {
   if (!vf.raycastRecipe) return null;
 
@@ -270,19 +203,10 @@ function reraycastVirtualFace(
   const boundaryEdges = collectBoundaryEdgesWorld(faces, matchedGroup.faceIndices, localToWorld);
   const subtractions = shape.subtractionGeometries || [];
 
-  const panelsExcludingSelf = childPanels.filter(
-    p => p.parameters?.virtualFaceId !== vf.id
-  );
-  const panelObstacleEdges = collectPanelObstacleEdgesWorld(
-    panelsExcludingSelf, worldNormal, planeOrigin, 20
-  );
   const subObstacleEdges = collectSubtractionObstacleEdgesWorld(
     subtractions, localToWorld, worldNormal, planeOrigin, 20
   );
-  const vfObstacleEdges = collectVirtualFaceObstacleEdgesWorld(
-    shapeFaces, vf.id, localToWorld, worldNormal, planeOrigin, 20
-  );
-  const obstacleEdges = [...panelObstacleEdges, ...subObstacleEdges, ...vfObstacleEdges];
+  const obstacleEdges = [...subObstacleEdges];
 
   const maxDist = 5000;
   const directions = [u, u.clone().negate(), v, v.clone().negate()];
@@ -356,16 +280,12 @@ export function recalculateVirtualFacesForShape(
   const localToWorld = getShapeMatrix(shape);
   const worldToLocal = localToWorld.clone().invert();
 
-  const childPanels = (allShapes || []).filter(
-    s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id
-  );
-
   const updatedMap = new Map<string, VirtualFace>();
 
   for (const vf of shapeFaces) {
     if (vf.raycastRecipe) {
       const reraycast = reraycastVirtualFace(
-        vf, shape, faces, faceGroups, localToWorld, worldToLocal, childPanels, shapeFaces
+        vf, shape, faces, faceGroups, localToWorld, worldToLocal,
       );
       updatedMap.set(vf.id, reraycast || vf);
     } else {

@@ -591,7 +591,6 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           <FaceRaycastOverlay
             key={`raycast-${shape.id}-${shape.geometry?.uuid || ''}`}
             shape={shape}
-            allShapes={shapes}
           />
         )}
         {!isPanel && (
