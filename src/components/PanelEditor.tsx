@@ -821,7 +821,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
 
                     const handleVirtualRowClick = () => {
                       if (!vf.hasPanel) return;
-                      setSelectedPanelRow(null, `vf-${vf.id}`);
+                      setSelectedPanelRow(`vf-${vf.id}`);
                     };
 
                     return (
