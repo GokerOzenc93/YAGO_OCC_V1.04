@@ -54,6 +54,75 @@ async function toGeometry(replicadShape: any) {
   return convertReplicadToThreeGeometry(replicadShape);
 }
 
+function getReplicadBoundingBox(shape: any): { min: [number, number, number]; max: [number, number, number] } {
+  const geo = shape.mesh({ tolerance: 1, angularTolerance: 45 });
+  let minX = Infinity, minY = Infinity, minZ = Infinity;
+  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
+  for (let i = 0; i < geo.vertices.length; i += 3) {
+    const x = geo.vertices[i], y = geo.vertices[i + 1], z = geo.vertices[i + 2];
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
+  }
+  return { min: [minX, minY, minZ], max: [maxX, maxY, maxZ] };
+}
+
+async function createExtensionSolid(
+  dominantOriginal: any,
+  _subordinateRole: FaceRole,
+  subordinateOriginal: any
+): Promise<any | null> {
+  const { createReplicadBox } = await import('./ReplicadService');
+
+  const domBB = getReplicadBoundingBox(dominantOriginal);
+  const subBB = getReplicadBoundingBox(subordinateOriginal);
+
+  const domSize = [
+    domBB.max[0] - domBB.min[0],
+    domBB.max[1] - domBB.min[1],
+    domBB.max[2] - domBB.min[2]
+  ];
+  const subSize = [
+    subBB.max[0] - subBB.min[0],
+    subBB.max[1] - subBB.min[1],
+    subBB.max[2] - subBB.min[2]
+  ];
+
+  const subThickness = Math.min(subSize[0], subSize[1], subSize[2]);
+  const subThicknessAxis = subSize[0] <= subSize[1] && subSize[0] <= subSize[2] ? 0
+    : subSize[1] <= subSize[0] && subSize[1] <= subSize[2] ? 1 : 2;
+
+  const domThicknessAxis = domSize[0] <= domSize[1] && domSize[0] <= domSize[2] ? 0
+    : domSize[1] <= domSize[0] && domSize[1] <= domSize[2] ? 1 : 2;
+
+  if (subThicknessAxis === domThicknessAxis) return null;
+
+  const extAxis = subThicknessAxis;
+
+  const subCenter = (subBB.min[extAxis] + subBB.max[extAxis]) / 2;
+  const domCenter = (domBB.min[extAxis] + domBB.max[extAxis]) / 2;
+  const extendPositive = subCenter > domCenter;
+
+  const extDims = [...domSize];
+  extDims[extAxis] = subThickness;
+
+  if (extDims[0] < 0.1 || extDims[1] < 0.1 || extDims[2] < 0.1) return null;
+
+  const origin = [domBB.min[0], domBB.min[1], domBB.min[2]];
+  if (extendPositive) {
+    origin[extAxis] = domBB.max[extAxis];
+  } else {
+    origin[extAxis] = domBB.min[extAxis] - subThickness;
+  }
+
+  const box = await createReplicadBox({
+    width: extDims[0],
+    height: extDims[1],
+    depth: extDims[2]
+  });
+  return box.translate(origin[0], origin[1], origin[2]);
+}
+
 export async function loadJointConfig(profileId: string): Promise<PanelJointConfig> {
   try {
     const settings = await globalSettingsService.getProfileSettings(profileId, 'panel_joint');
@@ -486,6 +555,7 @@ export async function resolveAllPanelJoints(
   }
 
   const cutsMap = new Map<string, string[]>();
+  const extensionsMap = new Map<string, Array<{ subordinateId: string; subordinateRole: FaceRole }>>();
 
   for (let i = 0; i < panels.length; i++) {
     for (let j = i + 1; j < panels.length; j++) {
@@ -500,15 +570,49 @@ export async function resolveAllPanelJoints(
       const isADominant = dominant === roleA;
       const subordinateId = isADominant ? pB.id : pA.id;
       const dominantId = isADominant ? pA.id : pB.id;
+      const subordinateRole = isADominant ? roleB : roleA;
 
       const existing = cutsMap.get(subordinateId) || [];
       existing.push(dominantId);
       cutsMap.set(subordinateId, existing);
 
+      const extEntries = extensionsMap.get(dominantId) || [];
+      extEntries.push({ subordinateId, subordinateRole });
+      extensionsMap.set(dominantId, extEntries);
+
       console.log(
         `  Joint: ${roleA}-${roleB} → ${dominant} dominant, ${isADominant ? roleB : roleA} trimmed`
       );
     }
+  }
+
+  const extendedShapes = new Map<string, any>();
+  for (const panel of panels) {
+    if (!extensionsMap.has(panel.id)) continue;
+    const original = originalShapes.get(panel.id);
+    if (!original) continue;
+
+    let extendedShape = original;
+    const entries = extensionsMap.get(panel.id)!;
+
+    for (const entry of entries) {
+      const subPanel = panels.find(p => p.id === entry.subordinateId);
+      if (!subPanel) continue;
+      const subOriginal = originalShapes.get(entry.subordinateId);
+      if (!subOriginal) continue;
+
+      try {
+        const extensionSolid = await createExtensionSolid(
+          original, entry.subordinateRole, subOriginal
+        );
+        if (extensionSolid) {
+          extendedShape = extendedShape.fuse(extensionSolid);
+        }
+      } catch (err) {
+        console.error(`Extension fuse failed for panel ${panel.id} toward ${entry.subordinateRole}:`, err);
+      }
+    }
+    extendedShapes.set(panel.id, extendedShape);
   }
 
   const shapeUpdates = new Map<
@@ -520,17 +624,22 @@ export async function resolveAllPanelJoints(
     const original = originalShapes.get(panel.id);
     if (!original) continue;
 
-    if (cutsMap.has(panel.id)) {
-      let currentShape = original;
-      const dominantIds = cutsMap.get(panel.id)!;
+    const isExtended = extendedShapes.has(panel.id);
+    const isCut = cutsMap.has(panel.id);
 
-      for (const dominantId of dominantIds) {
-        const cuttingShape = originalShapes.get(dominantId);
-        if (!cuttingShape) continue;
-        try {
-          currentShape = currentShape.cut(cuttingShape);
-        } catch (err) {
-          console.error(`Joint cut failed for panel ${panel.id}:`, err);
+    if (isCut || isExtended) {
+      let currentShape = isExtended ? extendedShapes.get(panel.id)! : original;
+
+      if (isCut) {
+        const dominantIds = cutsMap.get(panel.id)!;
+        for (const dominantId of dominantIds) {
+          const cuttingShape = extendedShapes.get(dominantId) || originalShapes.get(dominantId);
+          if (!cuttingShape) continue;
+          try {
+            currentShape = currentShape.cut(cuttingShape);
+          } catch (err) {
+            console.error(`Joint cut failed for panel ${panel.id}:`, err);
+          }
         }
       }
 
@@ -542,7 +651,7 @@ export async function resolveAllPanelJoints(
           jointTrimmed: true,
         });
       } catch (err) {
-        console.error(`Failed to convert trimmed panel:`, err);
+        console.error(`Failed to convert trimmed/extended panel:`, err);
       }
     } else if (panel.parameters?.jointTrimmed) {
       try {
