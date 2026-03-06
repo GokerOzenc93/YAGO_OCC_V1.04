@@ -102,9 +102,8 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   };
 
   const baseColor = getRoleColor(faceRole);
-  const shouldHighlightRed = isPanelRowSelected && panelSelectMode;
-  const materialColor = shouldHighlightRed ? '#ef4444' : baseColor;
-  const edgeColor = shouldHighlightRed ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
+  const materialColor = isPanelRowSelected ? '#ef4444' : baseColor;
+  const edgeColor = isPanelRowSelected ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
 
   return (
     <group
