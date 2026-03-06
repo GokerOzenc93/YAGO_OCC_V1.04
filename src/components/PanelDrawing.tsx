@@ -51,15 +51,20 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   const parentShapeId = shape.parameters?.parentShapeId;
   const faceIndex = shape.parameters?.faceIndex;
   const extraRowId = shape.parameters?.extraRowId;
+  const virtualFaceId = shape.parameters?.virtualFaceId;
   const isParentSelected = parentShapeId === selectedShapeId;
 
   const isPanelRowSelected = isParentSelected &&
-    faceIndex !== undefined &&
     (
-      (typeof faceIndex === 'string' && faceIndex === selectedPanelRow) ||
-      (typeof faceIndex === 'number' && faceIndex === selectedPanelRow &&
-        ((extraRowId && extraRowId === selectedPanelRowExtraId) ||
-         (!extraRowId && !selectedPanelRowExtraId)))
+      (virtualFaceId && selectedPanelRow === `vf-${virtualFaceId}`) ||
+      (faceIndex !== undefined &&
+        (
+          (typeof faceIndex === 'string' && faceIndex === selectedPanelRow) ||
+          (typeof faceIndex === 'number' && faceIndex === selectedPanelRow &&
+            ((extraRowId && extraRowId === selectedPanelRowExtraId) ||
+             (!extraRowId && !selectedPanelRowExtraId)))
+        )
+      )
     );
 
   const edgeGeometry = useMemo(() => {
