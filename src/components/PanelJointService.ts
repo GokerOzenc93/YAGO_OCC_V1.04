@@ -49,6 +49,45 @@ function getDominantRole(
   }
 }
 
+function getPanelWorldBox(panel: any): THREE.Box3 | null {
+  const ob = panel.parameters?.originalBox;
+  if (ob) {
+    const box = new THREE.Box3(
+      new THREE.Vector3(ob.minX, ob.minY, ob.minZ),
+      new THREE.Vector3(ob.maxX, ob.maxY, ob.maxZ)
+    );
+    return box;
+  }
+  if (!panel.geometry) return null;
+  const posAttr = panel.geometry.getAttribute('position');
+  if (!posAttr) return null;
+  const box = new THREE.Box3().setFromBufferAttribute(posAttr);
+  const pos = new THREE.Vector3(...(panel.position as [number, number, number]));
+  box.translate(pos);
+  return box;
+}
+
+function computeWorldBox(geometry: any, position: [number, number, number]): { minX: number; minY: number; minZ: number; maxX: number; maxY: number; maxZ: number } | null {
+  if (!geometry) return null;
+  const posAttr = geometry.getAttribute('position');
+  if (!posAttr) return null;
+  const box = new THREE.Box3().setFromBufferAttribute(posAttr);
+  const pos = new THREE.Vector3(...position);
+  box.translate(pos);
+  return { minX: box.min.x, minY: box.min.y, minZ: box.min.z, maxX: box.max.x, maxY: box.max.y, maxZ: box.max.z };
+}
+
+function panelsTouching(pA: any, pB: any, tolerance = 0.1): boolean {
+  if (!pA.parameters?.originalBox || !pB.parameters?.originalBox) return true;
+
+  const boxA = getPanelWorldBox(pA);
+  const boxB = getPanelWorldBox(pB);
+  if (!boxA || !boxB) return true;
+
+  const expandedA = boxA.clone().expandByScalar(tolerance);
+  return expandedA.intersectsBox(boxB);
+}
+
 async function toGeometry(replicadShape: any) {
   const { convertReplicadToThreeGeometry } = await import('./ReplicadService');
   return convertReplicadToThreeGeometry(replicadShape);
@@ -364,6 +403,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         if (!replicadPanel) continue;
 
         const geometry = convertReplicadToThreeGeometry(replicadPanel);
+        const vfOriginalBox = computeWorldBox(geometry, parentShape.position as [number, number, number]);
 
         updates.push({
           id: panel.id,
@@ -374,6 +414,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
             faceRole: vf.role,
             originalReplicadShape: null,
             jointTrimmed: false,
+            originalBox: vfOriginalBox,
           }
         });
       } catch (error) {
@@ -410,6 +451,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
       if (!replicadPanel) continue;
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
+      const faceOriginalBox = computeWorldBox(geometry, parentShape.position as [number, number, number]);
 
       updates.push({
         id: panel.id,
@@ -419,6 +461,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
           ...panel.parameters,
           originalReplicadShape: null,
           jointTrimmed: false,
+          originalBox: faceOriginalBox,
         }
       });
     } catch (error) {
@@ -482,6 +525,7 @@ export async function resolveAllPanelJoints(
   console.log(`Resolving panel joints for ${panels.length} panels (face + virtual)...`);
 
   saveOriginalShapes(panels, parentShapeId);
+  saveOriginalBoxes(panels, parentShapeId);
 
   const freshState = useAppStore.getState();
   const freshPanels = freshState.shapes.filter(
@@ -512,6 +556,8 @@ export async function resolveAllPanelJoints(
 
       const dominant = getDominantRole(roleA, roleB, jointConfig);
       if (!dominant) continue;
+
+      if (!panelsTouching(pA, pB)) continue;
 
       const isADominant = dominant === roleA;
       const subordinateId = isADominant ? pB.id : pA.id;
@@ -736,6 +782,9 @@ async function rebuildVirtualFacePanels(
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
       const dims = computeVfPanelDimensions(geometry, vf.role);
+      const parentShape = useAppStore.getState().shapes.find(s => s.id === parentShapeId);
+      const parentPos = parentShape ? parentShape.position as [number, number, number] : [0, 0, 0] as [number, number, number];
+      const originalBox = computeWorldBox(geometry, parentPos);
 
       updates.push({
         id: panel.id,
@@ -748,6 +797,7 @@ async function rebuildVirtualFacePanels(
           height: dims.height,
           originalReplicadShape: null,
           jointTrimmed: false,
+          originalBox,
         }
       });
     } catch (err) {
@@ -796,6 +846,36 @@ function computeVfPanelDimensions(geo: any, faceRole: string | null | undefined)
   }
   const sizeArr = [geoSize.x, geoSize.y, geoSize.z];
   return { width: sizeArr[defaultAxis], height: sizeArr[altAxis] };
+}
+
+function saveOriginalBoxes(panels: any[], parentShapeId: string) {
+  const needsSave = panels.some((p) => !p.parameters?.originalBox);
+  if (!needsSave) return;
+
+  useAppStore.setState((state) => ({
+    shapes: state.shapes.map((s) => {
+      if (
+        s.type === 'panel' &&
+        s.parameters?.parentShapeId === parentShapeId &&
+        !s.parameters?.originalBox &&
+        s.geometry
+      ) {
+        if (s.parameters?.jointTrimmed && s.parameters?.originalReplicadShape) {
+          return s;
+        }
+        const box = computeWorldBox(s.geometry, s.position as [number, number, number]);
+        if (!box) return s;
+        return {
+          ...s,
+          parameters: {
+            ...s.parameters,
+            originalBox: box,
+          },
+        };
+      }
+      return s;
+    }),
+  }));
 }
 
 function saveOriginalShapes(panels: any[], parentShapeId: string) {
