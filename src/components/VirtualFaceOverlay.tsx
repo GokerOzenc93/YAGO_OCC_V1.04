@@ -104,7 +104,7 @@ function buildSurfaceMeshes(vf: VirtualFace): { geo: THREE.BufferGeometry; edgeG
 }
 
 export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape }) => {
-  const { virtualFaces, showVirtualFaces, panelSurfaceSelectMode, waitingForSurfaceSelection, triggerPanelCreationForFace } = useAppStore();
+  const { virtualFaces, showVirtualFaces, panelSurfaceSelectMode, waitingForSurfaceSelection, triggerPanelCreationForFace, setSelectedPanelRow, panelSelectMode } = useAppStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const shapeFaces = useMemo(
@@ -143,6 +143,9 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
                       constraintPanelId: surface.vf.id,
                     }
                   );
+                  setSelectedPanelRow(surface.vf.id);
+                } else if (panelSelectMode) {
+                  setSelectedPanelRow(surface.vf.id);
                 }
               }}
               onPointerOver={(e) => { e.stopPropagation(); setHoveredId(surface.id); }}
