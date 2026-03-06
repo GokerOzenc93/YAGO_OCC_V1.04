@@ -371,6 +371,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
           replicadShape: replicadPanel,
           parameters: {
             ...panel.parameters,
+            faceRole: vf.role,
             originalReplicadShape: null,
             jointTrimmed: false,
           }
@@ -723,6 +724,7 @@ async function rebuildVirtualFacePanels(
         replicadShape: replicadPanel,
         parameters: {
           ...panel.parameters,
+          faceRole: vf.role,
           originalReplicadShape: null,
           jointTrimmed: false,
         }

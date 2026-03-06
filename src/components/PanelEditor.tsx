@@ -860,6 +860,22 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           onChange={(e) => {
                             const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
                             updateVirtualFace(vf.id, { role: newRole });
+                            const virtualPanel = shapes.find(s =>
+                              s.type === 'panel' &&
+                              s.parameters?.parentShapeId === selectedShape.id &&
+                              s.parameters?.virtualFaceId === vf.id
+                            );
+                            if (virtualPanel) {
+                              updateShape(virtualPanel.id, {
+                                parameters: { ...virtualPanel.parameters, faceRole: newRole }
+                              });
+                              if (selectedProfile !== 'none') {
+                                setResolving(true);
+                                resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
+                                  setResolving(false)
+                                );
+                              }
+                            }
                           }}
                           style={{ width: '35mm' }}
                           className={`px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-green-300'}`}
