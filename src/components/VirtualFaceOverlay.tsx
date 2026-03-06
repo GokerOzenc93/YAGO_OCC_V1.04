@@ -143,9 +143,9 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
                       constraintPanelId: surface.vf.id,
                     }
                   );
-                  setSelectedPanelRow(`vf-${surface.vf.id}`);
+                  setSelectedPanelRow(surface.vf.id);
                 } else if (panelSelectMode) {
-                  setSelectedPanelRow(`vf-${surface.vf.id}`);
+                  setSelectedPanelRow(surface.vf.id);
                 }
               }}
               onPointerOver={(e) => { e.stopPropagation(); setHoveredId(surface.id); }}
