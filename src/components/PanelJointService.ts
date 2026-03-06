@@ -570,6 +570,7 @@ export async function resolveAllPanelJoints(
 
   if (!skipVirtualFaceUpdate) {
     await recalculateAndRebuildVirtualFaces(parentShapeId);
+    await applyJointsToVirtualFacePanels(parentShapeId, jointConfig);
   }
 }
 
@@ -682,6 +683,11 @@ export async function rebuildAndRecalculatePipeline(
   }
 
   await recalculateAndRebuildVirtualFaces(parentShapeId);
+
+  if (profileId && profileId !== 'none') {
+    const fullSettings = await loadFullProfileSettings(profileId);
+    await applyJointsToVirtualFacePanels(parentShapeId, fullSettings.jointConfig);
+  }
 }
 
 async function rebuildVirtualFacePanels(
@@ -775,6 +781,154 @@ async function rebuildVirtualFacePanels(
         }
         return s;
       })
+    }));
+  }
+}
+
+async function applyJointsToVirtualFacePanels(
+  parentShapeId: string,
+  jointConfig: PanelJointConfig
+): Promise<void> {
+  const state = useAppStore.getState();
+
+  const allPanels = state.shapes.filter(
+    (s) =>
+      s.type === 'panel' &&
+      s.parameters?.parentShapeId === parentShapeId &&
+      s.parameters?.faceRole &&
+      s.parameters.faceRole !== 'Door' &&
+      (s.parameters?.originalReplicadShape || s.replicadShape)
+  );
+
+  const vfPanels = allPanels.filter(s => s.parameters?.virtualFaceId);
+  if (vfPanels.length === 0) return;
+
+  saveOriginalShapes(vfPanels, parentShapeId);
+
+  const freshState = useAppStore.getState();
+  const freshPanels = freshState.shapes.filter(
+    (s) =>
+      s.type === 'panel' &&
+      s.parameters?.parentShapeId === parentShapeId &&
+      s.parameters?.faceRole &&
+      s.parameters.faceRole !== 'Door' &&
+      (s.parameters?.originalReplicadShape || s.replicadShape)
+  );
+
+  const originalShapes = new Map<string, any>();
+  for (const panel of freshPanels) {
+    originalShapes.set(
+      panel.id,
+      panel.parameters?.originalReplicadShape || panel.replicadShape
+    );
+  }
+
+  const cutsMap = new Map<string, string[]>();
+  for (let i = 0; i < freshPanels.length; i++) {
+    for (let j = i + 1; j < freshPanels.length; j++) {
+      const pA = freshPanels[i];
+      const pB = freshPanels[j];
+      if (!pA.parameters?.virtualFaceId && !pB.parameters?.virtualFaceId) continue;
+
+      const roleA = pA.parameters?.faceRole as FaceRole;
+      const roleB = pB.parameters?.faceRole as FaceRole;
+      const dominant = getDominantRole(roleA, roleB, jointConfig);
+      if (!dominant) continue;
+
+      const isADominant = dominant === roleA;
+      const subordinateId = isADominant ? pB.id : pA.id;
+      const dominantId = isADominant ? pA.id : pB.id;
+
+      if (!freshPanels.find(p => p.id === subordinateId)?.parameters?.virtualFaceId) continue;
+
+      const existing = cutsMap.get(subordinateId) || [];
+      existing.push(dominantId);
+      cutsMap.set(subordinateId, existing);
+    }
+  }
+
+  if (cutsMap.size === 0) return;
+
+  const shapeUpdates = new Map<
+    string,
+    { geometry: any; replicadShape: any; jointTrimmed: boolean; width?: number; height?: number }
+  >();
+
+  for (const panel of vfPanels) {
+    const original = originalShapes.get(panel.id);
+    if (!original) continue;
+
+    if (cutsMap.has(panel.id)) {
+      let currentShape = original;
+      const dominantIds = cutsMap.get(panel.id)!;
+
+      for (const dominantId of dominantIds) {
+        const cuttingShape = originalShapes.get(dominantId);
+        if (!cuttingShape) continue;
+        try {
+          currentShape = currentShape.cut(cuttingShape);
+        } catch (err) {
+          console.error(`VF joint cut failed for panel ${panel.id}:`, err);
+        }
+      }
+
+      try {
+        const geo = await toGeometry(currentShape);
+
+        const geoSize = new THREE.Vector3();
+        new THREE.Box3().setFromBufferAttribute(geo.getAttribute('position') as THREE.BufferAttribute).getSize(geoSize);
+        const axesBySize = [
+          { index: 0, value: geoSize.x },
+          { index: 1, value: geoSize.y },
+          { index: 2, value: geoSize.z }
+        ].sort((a, b) => a.value - b.value);
+        const planeAxes = axesBySize.slice(1).map(a => a.index).sort((a, b) => a - b);
+        const roleStr = panel.parameters?.faceRole?.toLowerCase();
+        let defaultAxis = planeAxes[0];
+        let altAxis = planeAxes[1];
+        if (roleStr === 'left' || roleStr === 'right') {
+          if (planeAxes.includes(1)) { defaultAxis = 1; altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1]; }
+        } else if (roleStr === 'top' || roleStr === 'bottom') {
+          if (planeAxes.includes(0)) { defaultAxis = 0; altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1]; }
+        }
+        const sizeArr = [geoSize.x, geoSize.y, geoSize.z];
+
+        shapeUpdates.set(panel.id, {
+          geometry: geo,
+          replicadShape: currentShape,
+          jointTrimmed: true,
+          width: sizeArr[defaultAxis],
+          height: sizeArr[altAxis],
+        });
+      } catch (err) {
+        console.error(`Failed to convert trimmed VF panel:`, err);
+      }
+    }
+  }
+
+  if (shapeUpdates.size > 0) {
+    useAppStore.setState((st) => ({
+      shapes: st.shapes.map((s) => {
+        const update = shapeUpdates.get(s.id);
+        if (update) {
+          return {
+            ...s,
+            geometry: update.geometry,
+            replicadShape: update.replicadShape,
+            parameters: {
+              ...s.parameters,
+              originalReplicadShape:
+                originalShapes.get(s.id) ||
+                s.parameters?.originalReplicadShape ||
+                s.replicadShape,
+              jointTrimmed: update.jointTrimmed,
+              width: update.width,
+              height: update.height,
+            },
+          };
+        }
+        return s;
+      }),
     }));
   }
 }
