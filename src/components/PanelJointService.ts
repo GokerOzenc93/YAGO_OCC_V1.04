@@ -55,72 +55,78 @@ async function toGeometry(replicadShape: any) {
 }
 
 function getReplicadBoundingBox(shape: any): { min: [number, number, number]; max: [number, number, number] } {
-  const geo = shape.mesh({ tolerance: 1, angularTolerance: 45 });
-  let minX = Infinity, minY = Infinity, minZ = Infinity;
-  let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity;
-  for (let i = 0; i < geo.vertices.length; i += 3) {
-    const x = geo.vertices[i], y = geo.vertices[i + 1], z = geo.vertices[i + 2];
-    if (x < minX) minX = x; if (x > maxX) maxX = x;
-    if (y < minY) minY = y; if (y > maxY) maxY = y;
-    if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
-  }
-  return { min: [minX, minY, minZ], max: [maxX, maxY, maxZ] };
+  const bb = shape.boundingBox;
+  const [[xMin, yMin, zMin], [xMax, yMax, zMax]] = bb.bounds;
+  return {
+    min: [xMin, yMin, zMin],
+    max: [xMax, yMax, zMax]
+  };
 }
 
-async function createExtensionSolid(
+async function createExtendedPanel(
   dominantOriginal: any,
-  _subordinateRole: FaceRole,
-  subordinateOriginal: any
+  subordinateOriginals: Array<{ shape: any; role: FaceRole }>
 ): Promise<any | null> {
   const { createReplicadBox } = await import('./ReplicadService');
 
   const domBB = getReplicadBoundingBox(dominantOriginal);
-  const subBB = getReplicadBoundingBox(subordinateOriginal);
-
+  const newMin = [...domBB.min] as [number, number, number];
+  const newMax = [...domBB.max] as [number, number, number];
   const domSize = [
     domBB.max[0] - domBB.min[0],
     domBB.max[1] - domBB.min[1],
     domBB.max[2] - domBB.min[2]
   ];
-  const subSize = [
-    subBB.max[0] - subBB.min[0],
-    subBB.max[1] - subBB.min[1],
-    subBB.max[2] - subBB.min[2]
-  ];
-
-  const subThickness = Math.min(subSize[0], subSize[1], subSize[2]);
-  const subThicknessAxis = subSize[0] <= subSize[1] && subSize[0] <= subSize[2] ? 0
-    : subSize[1] <= subSize[0] && subSize[1] <= subSize[2] ? 1 : 2;
-
   const domThicknessAxis = domSize[0] <= domSize[1] && domSize[0] <= domSize[2] ? 0
     : domSize[1] <= domSize[0] && domSize[1] <= domSize[2] ? 1 : 2;
 
-  if (subThicknessAxis === domThicknessAxis) return null;
+  let hasExtension = false;
+  const tolerance = 0.5;
 
-  const extAxis = subThicknessAxis;
+  for (const sub of subordinateOriginals) {
+    const subBB = getReplicadBoundingBox(sub.shape);
+    const subSize = [
+      subBB.max[0] - subBB.min[0],
+      subBB.max[1] - subBB.min[1],
+      subBB.max[2] - subBB.min[2]
+    ];
+    const subThickness = Math.min(subSize[0], subSize[1], subSize[2]);
+    const subThicknessAxis = subSize[0] <= subSize[1] && subSize[0] <= subSize[2] ? 0
+      : subSize[1] <= subSize[0] && subSize[1] <= subSize[2] ? 1 : 2;
 
-  const subCenter = (subBB.min[extAxis] + subBB.max[extAxis]) / 2;
-  const domCenter = (domBB.min[extAxis] + domBB.max[extAxis]) / 2;
-  const extendPositive = subCenter > domCenter;
+    if (subThicknessAxis === domThicknessAxis) continue;
 
-  const extDims = [...domSize];
-  extDims[extAxis] = subThickness;
+    const extAxis = subThicknessAxis;
+    const subCenter = (subBB.min[extAxis] + subBB.max[extAxis]) / 2;
+    const domCenter = (domBB.min[extAxis] + domBB.max[extAxis]) / 2;
 
-  if (extDims[0] < 0.1 || extDims[1] < 0.1 || extDims[2] < 0.1) return null;
-
-  const origin = [domBB.min[0], domBB.min[1], domBB.min[2]];
-  if (extendPositive) {
-    origin[extAxis] = domBB.max[extAxis];
-  } else {
-    origin[extAxis] = domBB.min[extAxis] - subThickness;
+    if (subCenter > domCenter) {
+      const targetMax = subBB.max[extAxis];
+      if (domBB.max[extAxis] < targetMax - tolerance) {
+        const needed = targetMax - domBB.max[extAxis];
+        newMax[extAxis] = Math.max(newMax[extAxis], domBB.max[extAxis] + needed);
+        hasExtension = true;
+      }
+    } else {
+      const targetMin = subBB.min[extAxis];
+      if (domBB.min[extAxis] > targetMin + tolerance) {
+        const needed = domBB.min[extAxis] - targetMin;
+        newMin[extAxis] = Math.min(newMin[extAxis], domBB.min[extAxis] - needed);
+        hasExtension = true;
+      }
+    }
   }
 
-  const box = await createReplicadBox({
-    width: extDims[0],
-    height: extDims[1],
-    depth: extDims[2]
-  });
-  return box.translate(origin[0], origin[1], origin[2]);
+  if (!hasExtension) return null;
+
+  const w = newMax[0] - newMin[0];
+  const h = newMax[1] - newMin[1];
+  const d = newMax[2] - newMin[2];
+
+  if (w < 0.1 || h < 0.1 || d < 0.1) return null;
+
+  const box = await createReplicadBox({ width: w, height: h, depth: d });
+  return box.translate(newMin[0], newMin[1], newMin[2]);
 }
 
 export async function loadJointConfig(profileId: string): Promise<PanelJointConfig> {
@@ -592,27 +598,26 @@ export async function resolveAllPanelJoints(
     const original = originalShapes.get(panel.id);
     if (!original) continue;
 
-    let extendedShape = original;
     const entries = extensionsMap.get(panel.id)!;
-
+    const subData: Array<{ shape: any; role: FaceRole }> = [];
     for (const entry of entries) {
-      const subPanel = panels.find(p => p.id === entry.subordinateId);
-      if (!subPanel) continue;
       const subOriginal = originalShapes.get(entry.subordinateId);
-      if (!subOriginal) continue;
-
-      try {
-        const extensionSolid = await createExtensionSolid(
-          original, entry.subordinateRole, subOriginal
-        );
-        if (extensionSolid) {
-          extendedShape = extendedShape.fuse(extensionSolid);
-        }
-      } catch (err) {
-        console.error(`Extension fuse failed for panel ${panel.id} toward ${entry.subordinateRole}:`, err);
+      if (subOriginal) {
+        subData.push({ shape: subOriginal, role: entry.subordinateRole });
       }
     }
-    extendedShapes.set(panel.id, extendedShape);
+
+    if (subData.length === 0) continue;
+
+    try {
+      const extended = await createExtendedPanel(original, subData);
+      if (extended) {
+        console.log(`  Extended ${panel.parameters?.faceRole} toward ${subData.map(s => s.role).join(', ')}`);
+        extendedShapes.set(panel.id, extended);
+      }
+    } catch (err) {
+      console.error(`Extension failed for panel ${panel.id}:`, err);
+    }
   }
 
   const shapeUpdates = new Map<
@@ -633,7 +638,7 @@ export async function resolveAllPanelJoints(
       if (isCut) {
         const dominantIds = cutsMap.get(panel.id)!;
         for (const dominantId of dominantIds) {
-          const cuttingShape = extendedShapes.get(dominantId) || originalShapes.get(dominantId);
+          const cuttingShape = originalShapes.get(dominantId);
           if (!cuttingShape) continue;
           try {
             currentShape = currentShape.cut(cuttingShape);
