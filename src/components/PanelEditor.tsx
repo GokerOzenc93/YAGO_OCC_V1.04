@@ -577,14 +577,27 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   const size = new THREE.Vector3();
                   bbox.getSize(size);
 
-                  const sortedDims = [
-                    { axis: 'x', value: size.x },
-                    { axis: 'y', value: size.y },
-                    { axis: 'z', value: size.z }
+                  const axesBySize = [
+                    { index: 0, value: size.x },
+                    { index: 1, value: size.y },
+                    { index: 2, value: size.z }
                   ].sort((a, b) => a.value - b.value);
 
-                  const width = sortedDims[1].value;
-                  const height = sortedDims[2].value;
+                  const planeAxes = axesBySize.slice(1).map(a => a.index).sort((a, b) => a - b);
+                  const role = vf.role?.toLowerCase();
+                  let defaultAxis = planeAxes[0];
+                  let altAxis = planeAxes[1];
+                  if (role === 'left' || role === 'right') {
+                    if (planeAxes.includes(1)) { defaultAxis = 1; altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1]; }
+                  } else if (role === 'top' || role === 'bottom') {
+                    if (planeAxes.includes(0)) { defaultAxis = 0; altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1]; }
+                  }
+                  const targetAxis = defaultAxis;
+                  const secondaryAxis = altAxis;
+
+                  const sizeByIndex = [size.x, size.y, size.z];
+                  const width = sizeByIndex[targetAxis];
+                  const height = sizeByIndex[secondaryAxis];
 
                   const newPanel: any = {
                     id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
@@ -677,7 +690,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             value={faceRoles[i] || ''}
                             disabled={isDisabled}
                             onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
                               const newFaceRoles = { ...faceRoles, [i]: newRole };
                               if (newRole === null) {
@@ -700,9 +713,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 });
                                 if (selectedProfile !== 'none') {
                                   setResolving(true);
-                                  resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
-                                    setResolving(false)
-                                  );
+                                  try {
+                                    await rebuildAllPanels(selectedShape.id);
+                                    await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                  } finally {
+                                    setResolving(false);
+                                  }
                                 }
                               }
                             }}
@@ -857,9 +873,28 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           value={vf.role || ''}
                           disabled={isDisabled}
                           onClick={(e) => e.stopPropagation()}
-                          onChange={(e) => {
+                          onChange={async (e) => {
                             const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
                             updateVirtualFace(vf.id, { role: newRole });
+                            const virtualPanel = shapes.find(s =>
+                              s.type === 'panel' &&
+                              s.parameters?.parentShapeId === selectedShape.id &&
+                              s.parameters?.virtualFaceId === vf.id
+                            );
+                            if (virtualPanel) {
+                              updateShape(virtualPanel.id, {
+                                parameters: { ...virtualPanel.parameters, faceRole: newRole }
+                              });
+                              if (selectedProfile !== 'none') {
+                                setResolving(true);
+                                try {
+                                  await rebuildAllPanels(selectedShape.id);
+                                  await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                } finally {
+                                  setResolving(false);
+                                }
+                              }
+                            }
                           }}
                           style={{ width: '35mm' }}
                           className={`px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-green-300'}`}
