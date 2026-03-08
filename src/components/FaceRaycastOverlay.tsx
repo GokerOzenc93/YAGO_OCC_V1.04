@@ -1070,9 +1070,14 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       e.stopPropagation();
       e.nativeEvent?.preventDefault?.();
       if (pending) {
-        addVirtualFace(pending.virtualFace);
+        const vf = pending.virtualFace;
+        if (selectedCornerNormUVRef.current && vf.raycastRecipe) {
+          vf.raycastRecipe.normalizedClickUV = [...selectedCornerNormUVRef.current];
+        }
+        addVirtualFace(vf);
         setPending(null);
         setSelectedCornerIndex(null);
+        selectedCornerNormUVRef.current = null;
         pendingGroupIndexRef.current = null;
       }
       return;
@@ -1141,8 +1146,15 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     e.stopPropagation();
     e.nativeEvent?.preventDefault?.();
     if (pending) {
-      addVirtualFace(pending.virtualFace);
+      const vf = pending.virtualFace;
+      if (selectedCornerNormUVRef.current && vf.raycastRecipe) {
+        vf.raycastRecipe.normalizedClickUV = [...selectedCornerNormUVRef.current];
+      }
+      addVirtualFace(vf);
       setPending(null);
+      setSelectedCornerIndex(null);
+      selectedCornerNormUVRef.current = null;
+      pendingGroupIndexRef.current = null;
     }
   };
 
