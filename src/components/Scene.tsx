@@ -11,7 +11,6 @@ import { VertexEditor } from './VertexEditor';
 import { applyFilletToShape } from './Fillet';
 import { ShapeWithTransform } from './ShapeWithTransform';
 import { getReplicadVertices } from './VertexEditorService';
-import { PanelDrawing } from './PanelDrawing';
 import { ErrorBoundary } from './ErrorBoundary';
 
 const CameraController: React.FC<{ controlsRef: React.RefObject<any>, cameraType: CameraType }> = ({ controlsRef, cameraType }) => {
@@ -105,10 +104,7 @@ const Scene: React.FC = () => {
     selectedFilletFaces,
     clearFilletFaces,
     selectedFilletFaceData,
-    updateShape,
-    panelSelectMode,
-    panelSurfaceSelectMode,
-    setSelectedPanelRow
+    updateShape
   } = useAppStore(useShallow(state => ({
     shapes: state.shapes,
     cameraType: state.cameraType,
@@ -133,10 +129,7 @@ const Scene: React.FC = () => {
     selectedFilletFaces: state.selectedFilletFaces,
     clearFilletFaces: state.clearFilletFaces,
     selectedFilletFaceData: state.selectedFilletFaceData,
-    updateShape: state.updateShape,
-    panelSelectMode: state.panelSelectMode,
-    panelSurfaceSelectMode: state.panelSurfaceSelectMode,
-    setSelectedPanelRow: state.setSelectedPanelRow
+    updateShape: state.updateShape
   })));
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; shapeId: string; shapeType: string } | null>(null);
   const [saveDialog, setSaveDialog] = useState<{ isOpen: boolean; shapeId: string | null }>({ isOpen: false, shapeId: null });
@@ -600,16 +593,6 @@ const Scene: React.FC = () => {
 
       {shapes.map((shape) => {
         const isSelected = selectedShapeId === shape.id;
-
-        if (shape.type === 'panel') {
-          return (
-            <PanelDrawing
-              key={shape.id}
-              shape={shape}
-              isSelected={isSelected}
-            />
-          );
-        }
 
         return (
           <React.Fragment key={shape.id}>

@@ -474,10 +474,7 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     filletMode,
     selectedFilletFaces,
     addFilletFace,
-    addFilletFaceData,
-    panelSurfaceSelectMode,
-    waitingForSurfaceSelection,
-    triggerPanelCreationForFace
+    addFilletFaceData
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
@@ -537,12 +534,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
-
-    if (panelSurfaceSelectMode && waitingForSurfaceSelection && hoveredGroupIndex !== null) {
-      console.log('🎯 Surface clicked for panel creation, faceIndex:', hoveredGroupIndex);
-      triggerPanelCreationForFace(hoveredGroupIndex);
-      return;
-    }
 
     if (e.button === 2 && hoveredGroupIndex !== null) {
       handleFaceSelection(hoveredGroupIndex);

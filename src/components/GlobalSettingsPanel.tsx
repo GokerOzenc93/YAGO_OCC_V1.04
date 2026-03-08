@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { X, GripVertical, Plus, Trash2 } from 'lucide-react';
-import { PanelJointSettings } from './settings/PanelJointSettings';
-import { BackPanelSettings } from './settings/BackPanelSettings';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 
 interface GlobalSettingsPanelProps {
@@ -18,10 +16,7 @@ interface Profile extends GlobalSettingsProfile {
   isEditing?: boolean;
 }
 
-const allSettingOptions: SettingOption[] = [
-  { id: 'panel_joint', label: 'Panel Joint Types' },
-  { id: 'back_panel', label: 'Back Panel Settings' }
-];
+const allSettingOptions: SettingOption[] = [];
 
 export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProps) {
   const [position, setPosition] = useState({ x: 500, y: 100 });
@@ -316,24 +311,9 @@ export function GlobalSettingsPanel({ isOpen, onClose }: GlobalSettingsPanelProp
         </div>
 
         <div className="flex-1 bg-white p-4 overflow-auto">
-          {selectedOption === 'panel_joint' && selectedProfile ? (
-            <PanelJointSettings
-              profileId={selectedProfile}
-              profiles={profiles}
-              isDefaultProfile={isDefaultProfile()}
-              onSettingsSaved={handleSettingsSaved}
-            />
-          ) : selectedOption === 'back_panel' && selectedProfile ? (
-            <BackPanelSettings
-              profileId={selectedProfile}
-              isDefaultProfile={isDefaultProfile()}
-              onSettingsSaved={handleSettingsSaved}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-              {isDefaultProfile() ? 'Select a setting' : 'No settings available'}
-            </div>
-          )}
+          <div className="flex items-center justify-center h-full text-stone-400 text-sm">
+            {isDefaultProfile() ? 'Select a setting' : 'No settings available'}
+          </div>
         </div>
       </div>
     </div>

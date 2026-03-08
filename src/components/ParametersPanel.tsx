@@ -149,8 +149,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     backPanelRightExtend,
     setBackPanelRightExtend,
     showBackPanelRightExtend,
-    setShowBackPanelRightExtend,
-    recalculateVirtualFacesForShape
+    setShowBackPanelRightExtend
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -258,30 +257,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       setFilletRadii([]);
     }
   }, [selectedShape, selectedShapeId, shapes]);
-
-  useEffect(() => {
-    const handleBottomPanelSelection = async () => {
-      if (
-        selectedShape &&
-        selectedShape.type === 'panel' &&
-        selectedShape.parameters?.faceRole === 'Bottom' &&
-        selectedShape.parameters?.parentShapeId
-      ) {
-        const { globalSettingsService } = await import('./GlobalSettingsDatabase');
-        const { resolveAllPanelJoints } = await import('./PanelJointService');
-
-        const defaultProfile = await globalSettingsService.getDefaultProfile();
-        if (defaultProfile) {
-          await resolveAllPanelJoints(
-            selectedShape.parameters.parentShapeId,
-            defaultProfile.id
-          );
-        }
-      }
-    };
-
-    handleBottomPanelSelection();
-  }, [selectedShapeId]);
 
   useEffect(() => {
     if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
@@ -580,7 +555,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       updateShape
     });
 
-    if (selectedShapeId) recalculateVirtualFacesForShape(selectedShapeId);
     console.log('✅ Apply Changes completed');
   };
 
@@ -601,7 +575,6 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       updateShape,
       shapeOverride
     });
-    if (selectedShapeId) recalculateVirtualFacesForShape(selectedShapeId);
   };
 
   const handleDeleteFillet = async (filletIndex: number) => {
