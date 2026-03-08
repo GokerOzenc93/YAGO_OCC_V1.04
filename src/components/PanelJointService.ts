@@ -776,11 +776,12 @@ export async function rebuildAndRecalculatePipeline(
   profileId: string | null
 ): Promise<void> {
   await rebuildAllPanels(parentShapeId);
-  await recalculateAndRebuildVirtualFaces(parentShapeId);
 
   if (profileId && profileId !== 'none') {
     await resolveAllPanelJoints(parentShapeId, profileId, undefined, true);
   }
+
+  await recalculateAndRebuildVirtualFaces(parentShapeId);
 }
 
 async function rebuildVirtualFacePanels(
@@ -816,6 +817,14 @@ async function rebuildVirtualFacePanels(
         panelThickness
       );
       if (!replicadPanel) continue;
+
+      if (parentSubtractions.length > 0) {
+        try {
+          replicadPanel = await applyParentSubtractors(replicadPanel, parentSubtractions);
+        } catch (subErr) {
+          console.error(`Failed to apply subtractors to virtual face panel ${panel.id}:`, subErr);
+        }
+      }
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
