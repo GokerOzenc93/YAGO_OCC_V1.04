@@ -836,26 +836,49 @@ const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position 
 ));
 OriginDot.displayName = 'OriginDot';
 
-const CornerDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => {
+const CornerDot: React.FC<{
+  position: THREE.Vector3;
+  selected: boolean;
+  onClick: (e: any) => void;
+}> = React.memo(({ position, selected, onClick }) => {
   const [hovered, setHovered] = React.useState(false);
+
+  const crossGeoSimple = useMemo(() => {
+    const size = 13;
+    const verts = [
+      -size, -size, 0,  size,  size, 0,
+       size, -size, 0, -size,  size, 0,
+    ];
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
+    return geo;
+  }, []);
+
   return (
-    <mesh
-      position={[position.x, position.y, position.z]}
-      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
-      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); }}
-    >
-      <sphereGeometry args={[8, 32, 32]} />
-      <meshStandardMaterial
-        color={hovered ? 0x1d4ed8 : 0x3b82f6}
-        depthTest={false}
-        transparent
-        opacity={hovered ? 1.0 : 0.85}
-        roughness={0.15}
-        metalness={0.15}
-        emissive={hovered ? 0x3b82f6 : 0x1e3a5f}
-        emissiveIntensity={hovered ? 0.5 : 0.2}
-      />
-    </mesh>
+    <group position={[position.x, position.y, position.z]}>
+      <mesh
+        onClick={(e) => { e.stopPropagation(); onClick(e); }}
+        onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
+        onPointerOut={(e) => { e.stopPropagation(); setHovered(false); }}
+      >
+        <sphereGeometry args={[8, 32, 32]} />
+        <meshStandardMaterial
+          color={selected ? 0xef4444 : (hovered ? 0x1d4ed8 : 0x3b82f6)}
+          depthTest={false}
+          transparent
+          opacity={selected ? 0.7 : (hovered ? 1.0 : 0.85)}
+          roughness={0.15}
+          metalness={0.15}
+          emissive={selected ? 0xdc2626 : (hovered ? 0x3b82f6 : 0x1e3a5f)}
+          emissiveIntensity={selected ? 0.4 : (hovered ? 0.5 : 0.2)}
+        />
+      </mesh>
+      {selected && (
+        <lineSegments geometry={crossGeoSimple}>
+          <lineBasicMaterial color={0xdc2626} depthTest={false} transparent opacity={1.0} linewidth={3} />
+        </lineSegments>
+      )}
+    </group>
   );
 });
 CornerDot.displayName = 'CornerDot';
@@ -866,6 +889,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingPreview | null>(null);
+  const [selectedCornerIndex, setSelectedCornerIndex] = useState<number | null>(null);
+  const pendingGroupIndexRef = React.useRef<number | null>(null);
 
   const shapeVirtualFaces = useMemo(
     () => virtualFaces.filter(vf => vf.shapeId === shape.id),
@@ -951,6 +976,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       if (pending) {
         addVirtualFace(pending.virtualFace);
         setPending(null);
+        setSelectedCornerIndex(null);
+        pendingGroupIndexRef.current = null;
       }
       return;
     }
@@ -977,7 +1004,45 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       shapeVirtualFaces
     );
 
+    pendingGroupIndexRef.current = hoveredGroupIndex;
+    setSelectedCornerIndex(null);
     setPending(preview);
+  };
+
+  const handleCornerClick = (cornerIndex: number) => {
+    if (!pending) return;
+
+    if (selectedCornerIndex === cornerIndex) {
+      setSelectedCornerIndex(null);
+      return;
+    }
+
+    setSelectedCornerIndex(cornerIndex);
+
+    const groupIndex = pendingGroupIndexRef.current;
+    if (groupIndex === null || !faceGroups[groupIndex]) return;
+
+    const cornerLocal = pending.cornersLocal[cornerIndex];
+    const cornerWorld = cornerLocal.clone().applyMatrix4(localToWorld);
+    const group = faceGroups[groupIndex];
+
+    const preview = buildPreview(
+      cornerWorld,
+      group,
+      faces,
+      localToWorld,
+      worldToLocal,
+      childPanels,
+      shape.id,
+      shape.subtractionGeometries || [],
+      shape.geometry,
+      shapeVirtualFaces
+    );
+
+    if (preview) {
+      setPending(preview);
+      setSelectedCornerIndex(null);
+    }
   };
 
   const handleContextMenu = (e: any) => {
@@ -1041,7 +1106,12 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
             <lineBasicMaterial color={0x16a34a} linewidth={2} depthTest={false} transparent opacity={0.9} />
           </lineSegments>
           {pending.cornersLocal.map((corner, i) => (
-            <CornerDot key={`corner-${i}`} position={corner} />
+            <CornerDot
+              key={`corner-${i}`}
+              position={corner}
+              selected={selectedCornerIndex === i}
+              onClick={() => handleCornerClick(i)}
+            />
           ))}
         </>
       )}
