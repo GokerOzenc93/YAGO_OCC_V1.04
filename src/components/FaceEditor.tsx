@@ -407,28 +407,24 @@ export function findFaceByDescriptor(
       }
 
       let relevantCenterDiff = 0;
-      let normalAxisDiff = 0;
       if (targetAxisDir === 'x+' || targetAxisDir === 'x-') {
         relevantCenterDiff = Math.sqrt(
           Math.pow(faceDescriptor.normalizedCenter[1] - descriptor.normalizedCenter[1], 2) +
           Math.pow(faceDescriptor.normalizedCenter[2] - descriptor.normalizedCenter[2], 2)
         );
-        normalAxisDiff = Math.abs(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0]);
       } else if (targetAxisDir === 'y+' || targetAxisDir === 'y-') {
         relevantCenterDiff = Math.sqrt(
           Math.pow(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0], 2) +
           Math.pow(faceDescriptor.normalizedCenter[2] - descriptor.normalizedCenter[2], 2)
         );
-        normalAxisDiff = Math.abs(faceDescriptor.normalizedCenter[1] - descriptor.normalizedCenter[1]);
       } else if (targetAxisDir === 'z+' || targetAxisDir === 'z-') {
         relevantCenterDiff = Math.sqrt(
           Math.pow(faceDescriptor.normalizedCenter[0] - descriptor.normalizedCenter[0], 2) +
           Math.pow(faceDescriptor.normalizedCenter[1] - descriptor.normalizedCenter[1], 2)
         );
-        normalAxisDiff = Math.abs(faceDescriptor.normalizedCenter[2] - descriptor.normalizedCenter[2]);
       }
 
-      const score = relevantCenterDiff * 10 + normalAxisDiff * 5;
+      const score = relevantCenterDiff * 10;
 
       if (score < bestScore) {
         bestScore = score;
