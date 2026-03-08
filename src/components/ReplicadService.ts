@@ -1,6 +1,7 @@
 import { setOC } from 'replicad';
 import initOpenCascade from 'opencascade.js';
 import * as THREE from 'three';
+
 let ocInstance: any = null;
 let isInitializing = false;
 
@@ -260,3 +261,134 @@ export const performBooleanIntersection = async (
   }
 };
 
+export const createPanelFromFace = async (
+  replicadShape: any,
+  faceNormal: [number, number, number],
+  faceCenter: [number, number, number],
+  panelThickness: number,
+  constraintGeometry?: any
+): Promise<any> => {
+  await initReplicad();
+
+  console.log('🎨 Creating panel from face...', {
+    faceNormal,
+    faceCenter,
+    panelThickness,
+    hasConstraint: !!constraintGeometry
+  });
+
+  try {
+    const faces = replicadShape.faces;
+    console.log(`📋 Found ${faces.length} faces in shape`);
+
+    interface FaceCandidate {
+      face: any;
+      dot: number;
+      center: [number, number, number] | null;
+    }
+
+    const candidates: FaceCandidate[] = [];
+
+    for (let i = 0; i < faces.length; i++) {
+      const face = faces[i];
+
+      try {
+        const normalVec = face.normalAt(0.5, 0.5);
+        const normal = [normalVec.x, normalVec.y, normalVec.z];
+        const dot =
+          normal[0] * faceNormal[0] +
+          normal[1] * faceNormal[1] +
+          normal[2] * faceNormal[2];
+
+        if (dot > 0.7) {
+          let center: [number, number, number] | null = null;
+          try {
+            const faceMesh = face.mesh({ tolerance: 0.5, angularTolerance: 30 });
+            if (faceMesh.vertices && faceMesh.vertices.length >= 3) {
+              let sx = 0, sy = 0, sz = 0;
+              const nv = faceMesh.vertices.length / 3;
+              for (let j = 0; j < faceMesh.vertices.length; j += 3) {
+                sx += faceMesh.vertices[j];
+                sy += faceMesh.vertices[j + 1];
+                sz += faceMesh.vertices[j + 2];
+              }
+              center = [sx / nv, sy / nv, sz / nv];
+            }
+          } catch (meshErr) {
+            console.warn(`Could not mesh face ${i} for center:`, meshErr);
+          }
+          candidates.push({ face, dot, center });
+          console.log(`Face ${i} candidate: dot=${dot.toFixed(4)}, center=`, center);
+        }
+      } catch (err) {
+        console.warn(`⚠️ Could not get normal for face ${i}:`, err);
+      }
+    }
+
+    let matchingFace = null;
+
+    if (candidates.length === 0) {
+      console.warn('⚠️ No matching face found');
+      return null;
+    } else if (candidates.length === 1) {
+      matchingFace = candidates[0].face;
+    } else {
+      let bestDist = Infinity;
+      for (const candidate of candidates) {
+        if (candidate.center) {
+          const dist = Math.sqrt(
+            (candidate.center[0] - faceCenter[0]) ** 2 +
+            (candidate.center[1] - faceCenter[1]) ** 2 +
+            (candidate.center[2] - faceCenter[2]) ** 2
+          );
+          if (dist < bestDist) {
+            bestDist = dist;
+            matchingFace = candidate.face;
+          }
+        }
+      }
+      if (!matchingFace) {
+        matchingFace = candidates[0].face;
+      }
+    }
+
+    console.log('✅ Found matching face from', candidates.length, 'candidates');
+
+    const normalVec = matchingFace.normalAt(0.5, 0.5);
+    const extrusionDirection = [
+      -normalVec.x,
+      -normalVec.y,
+      -normalVec.z
+    ];
+
+    const oc = await initReplicad();
+    const vec = new oc.gp_Vec_4(
+      extrusionDirection[0] * panelThickness,
+      extrusionDirection[1] * panelThickness,
+      extrusionDirection[2] * panelThickness
+    );
+
+    const prismBuilder = new oc.BRepPrimAPI_MakePrism_1(matchingFace.wrapped, vec, false, true);
+    prismBuilder.Build(new oc.Message_ProgressRange_1());
+    const solid = prismBuilder.Shape();
+
+    const { cast } = await import('replicad');
+    let panel = cast(solid);
+
+    if (constraintGeometry) {
+      console.log('🔀 Applying constraint intersection...');
+      try {
+        panel = await performBooleanIntersection(panel, constraintGeometry);
+        console.log('✅ Constraint intersection applied successfully');
+      } catch (error) {
+        console.error('❌ Failed to apply constraint intersection:', error);
+      }
+    }
+
+    console.log('✅ Panel created from face successfully');
+    return panel;
+  } catch (error) {
+    console.error('❌ Failed to create panel from face:', error);
+    throw error;
+  }
+};

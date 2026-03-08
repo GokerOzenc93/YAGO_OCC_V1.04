@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Tool, useAppStore, ModificationType, CameraType, SnapType, ViewMode, OrthoMode } from '../store';
 import { MousePointer2, Move, RotateCcw, Maximize, FileDown, Upload, Save, FilePlus, Undo2, Redo2, Grid2x2 as Grid, Layers, Box, Cylinder, Settings, HelpCircle, Search, Copy, Scissors, ClipboardPaste, Square, Circle, FlipHorizontal, Copy as Copy1, Eraser, Eye, Monitor, Package, CreditCard as Edit, BarChart3, Cog, FileText, PanelLeft, GitBranch, CreditCard as Edit3, Camera, CameraOff, Target, Navigation, Crosshair, RotateCw, Zap, InspectionPanel as Intersection, MapPin, Frame as Wireframe, Cuboid as Cube, Ruler, FolderOpen, ArrowDownUp, Divide, DivideCircle, Scan } from 'lucide-react';
 import { ParametersPanel } from './ParametersPanel';
+import { PanelEditor } from './PanelEditor';
 import { GlobalSettingsPanel } from './GlobalSettingsPanel';
 
 interface ToolbarProps {
@@ -34,13 +35,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     showParametersPanel,
     setShowParametersPanel,
     showGlobalSettingsPanel,
-    setShowGlobalSettingsPanel
+    setShowGlobalSettingsPanel,
+    panelSelectMode,
+    panelSurfaceSelectMode,
+    setPanelSurfaceSelectMode
   } = useAppStore();
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [showModifyMenu, setShowModifyMenu] = useState(false);
   const [showPolylineMenu, setShowPolylineMenu] = useState(false);
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const [polylineMenuPosition, setPolylineMenuPosition] = useState({ x: 0, y: 0 });
+  const [showPanelEditor, setShowPanelEditor] = useState(false);
 
   const hasIntersectingShapes = React.useMemo(() => {
     if (!selectedShapeId) return false;
@@ -201,8 +206,20 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
     }
   }, [showPolylineMenu, showSnapMenu]);
 
+  React.useEffect(() => {
+    if (panelSelectMode && activeTool !== Tool.SELECT) {
+      setActiveTool(Tool.SELECT);
+    }
+  }, [panelSelectMode, activeTool, setActiveTool]);
+
+
   const selectedShape = shapes.find(s => s.id === selectedShapeId);
   const isBoxSelected = selectedShape?.type === 'box';
+
+  const handlePanelSurfaceSelectToggle = () => {
+    setPanelSurfaceSelectMode(!panelSurfaceSelectMode);
+    console.log(`Panel surface select mode ${!panelSurfaceSelectMode ? 'enabled' : 'disabled'}`);
+  };
 
   const transformTools = [
     { id: Tool.SELECT, icon: <MousePointer2 size={11} />, label: 'Select', shortcut: 'V' },
@@ -758,6 +775,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
               </button>
             );
           })}
+          <button
+            onClick={handlePanelSurfaceSelectToggle}
+            className={`p-1.5 rounded transition-all ${
+              panelSurfaceSelectMode
+                ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'
+            }`}
+            title="Panel Surface Selection"
+          >
+            <Scan size={11} />
+          </button>
         </div>
 
         <div className="w-px h-7 bg-stone-300"></div>
@@ -914,6 +942,13 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
           >
             <DivideCircle size={11} />
           </button>
+          <button
+            onClick={() => setShowPanelEditor(!showPanelEditor)}
+            className="p-1.5 rounded transition-all hover:bg-stone-50 text-stone-600 hover:text-slate-800"
+            title="Panel Editor"
+          >
+            <PanelLeft size={11} />
+          </button>
         </div>
       </div>
 
@@ -948,6 +983,11 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
       <ParametersPanel
         isOpen={showParametersPanel}
         onClose={() => setShowParametersPanel(false)}
+      />
+
+      <PanelEditor
+        isOpen={showPanelEditor}
+        onClose={() => setShowPanelEditor(false)}
       />
 
       <GlobalSettingsPanel

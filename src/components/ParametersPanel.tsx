@@ -259,6 +259,30 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
   }, [selectedShape, selectedShapeId, shapes]);
 
   useEffect(() => {
+    const handleBottomPanelSelection = async () => {
+      if (
+        selectedShape &&
+        selectedShape.type === 'panel' &&
+        selectedShape.parameters?.faceRole === 'Bottom' &&
+        selectedShape.parameters?.parentShapeId
+      ) {
+        const { globalSettingsService } = await import('./GlobalSettingsDatabase');
+        const { resolveAllPanelJoints } = await import('./PanelJointService');
+
+        const defaultProfile = await globalSettingsService.getDefaultProfile();
+        if (defaultProfile) {
+          await resolveAllPanelJoints(
+            selectedShape.parameters.parentShapeId,
+            defaultProfile.id
+          );
+        }
+      }
+    };
+
+    handleBottomPanelSelection();
+  }, [selectedShapeId]);
+
+  useEffect(() => {
     if (selectedShape && selectedSubtractionIndex !== null && selectedShape.subtractionGeometries) {
       const subtraction = selectedShape.subtractionGeometries[selectedSubtractionIndex];
       if (subtraction && subtraction !== null) {
