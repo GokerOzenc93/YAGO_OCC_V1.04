@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
-import type { Shape } from '../store';
 
 export interface FaceData {
   faceIndex: number;
@@ -475,7 +474,10 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     filletMode,
     selectedFilletFaces,
     addFilletFace,
-    addFilletFaceData
+    addFilletFaceData,
+    panelSurfaceSelectMode,
+    waitingForSurfaceSelection,
+    triggerPanelCreationForFace
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
@@ -535,6 +537,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
+
+    if (panelSurfaceSelectMode && waitingForSurfaceSelection && hoveredGroupIndex !== null) {
+      console.log('🎯 Surface clicked for panel creation, faceIndex:', hoveredGroupIndex);
+      triggerPanelCreationForFace(hoveredGroupIndex);
+      return;
+    }
 
     if (e.button === 2 && hoveredGroupIndex !== null) {
       handleFaceSelection(hoveredGroupIndex);

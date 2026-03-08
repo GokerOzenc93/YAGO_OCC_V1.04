@@ -20,15 +20,23 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
     selectSecondaryShape,
     selectedShapeId,
     selectedPanelRow,
+    selectedPanelRowExtraId,
     setSelectedPanelRow,
-    panelSelectMode
+    panelSelectMode,
+    panelSurfaceSelectMode,
+    waitingForSurfaceSelection,
+    triggerPanelCreationForFace
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
     selectedShapeId: state.selectedShapeId,
     selectedPanelRow: state.selectedPanelRow,
+    selectedPanelRowExtraId: state.selectedPanelRowExtraId,
     setSelectedPanelRow: state.setSelectedPanelRow,
-    panelSelectMode: state.panelSelectMode
+    panelSelectMode: state.panelSelectMode,
+    panelSurfaceSelectMode: state.panelSurfaceSelectMode,
+    waitingForSurfaceSelection: state.waitingForSurfaceSelection,
+    triggerPanelCreationForFace: state.triggerPanelCreationForFace
   })));
 
   const [faceGroups, setFaceGroups] = useState<any[]>([]);
@@ -42,8 +50,13 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
 
   const parentShapeId = shape.parameters?.parentShapeId;
   const faceIndex = shape.parameters?.faceIndex;
+  const extraRowId = shape.parameters?.extraRowId;
   const isParentSelected = parentShapeId === selectedShapeId;
-  const isPanelRowSelected = isParentSelected && faceIndex !== undefined && faceIndex === selectedPanelRow;
+  const isPanelRowSelected = isParentSelected &&
+    faceIndex !== undefined &&
+    faceIndex === selectedPanelRow &&
+    ((extraRowId && extraRowId === selectedPanelRowExtraId) ||
+     (!extraRowId && !selectedPanelRowExtraId));
 
   const edgeGeometry = useMemo(() => {
     if (!shape.geometry) return null;
@@ -63,14 +76,24 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
 
   const getRoleColor = (role: string | undefined): string => {
     if (!role) return panelColor;
+
     switch (role) {
-      case 'left': case 'right': return '#ef4444';
-      case 'top': case 'bottom': return '#3b82f6';
-      case 'back': return '#22c55e';
-      case 'front': return '#f59e0b';
-      case 'shelf': return '#a855f7';
-      case 'divider': return '#14b8a6';
-      default: return panelColor;
+      case 'left':
+      case 'right':
+        return '#ef4444';
+      case 'top':
+      case 'bottom':
+        return '#3b82f6';
+      case 'back':
+        return '#22c55e';
+      case 'front':
+        return '#f59e0b';
+      case 'shelf':
+        return '#a855f7';
+      case 'divider':
+        return '#14b8a6';
+      default:
+        return panelColor;
     }
   };
 
@@ -79,13 +102,68 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   const edgeColor = isPanelRowSelected ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
 
   return (
-    <group name={`shape-${shape.id}`} position={shape.position} rotation={shape.rotation} scale={shape.scale}>
-      <mesh ref={meshRef} geometry={shape.geometry} castShadow receiveShadow
+    <group
+      name={`shape-${shape.id}`}
+      position={shape.position}
+      rotation={shape.rotation}
+      scale={shape.scale}
+    >
+      <mesh
+        ref={meshRef}
+        geometry={shape.geometry}
+        castShadow
+        receiveShadow
         onClick={(e) => {
           e.stopPropagation();
-          if (panelSelectMode && parentShapeId) {
-            if (selectedShapeId !== parentShapeId) selectShape(parentShapeId);
-            setSelectedPanelRow(faceIndex ?? null);
+
+          if (panelSurfaceSelectMode && waitingForSurfaceSelection && e.faceIndex !== undefined) {
+            const clickedFaceIndex = e.faceIndex;
+            const groupIndex = faceGroups.findIndex(group =>
+              group.faceIndices.includes(clickedFaceIndex)
+            );
+
+            if (groupIndex !== -1) {
+              const faceGroup = faceGroups[groupIndex];
+              const surfaceConstraint = {
+                center: [faceGroup.center.x, faceGroup.center.y, faceGroup.center.z] as [number, number, number],
+                normal: [faceGroup.normal.x, faceGroup.normal.y, faceGroup.normal.z] as [number, number, number],
+                constraintPanelId: shape.id
+              };
+
+              console.log('🎯 Panel surface clicked for new panel creation:', {
+                panelId: shape.id,
+                clickedFaceIndex,
+                groupIndex,
+                parentShapeId,
+                surfaceConstraint
+              });
+
+              if (selectedShapeId !== parentShapeId) {
+                selectShape(parentShapeId);
+              }
+
+              triggerPanelCreationForFace(groupIndex, shape.id, surfaceConstraint);
+              return;
+            }
+          }
+
+          if (panelSurfaceSelectMode && parentShapeId) {
+            if (selectedShapeId !== parentShapeId) {
+              selectShape(parentShapeId);
+            }
+            setSelectedPanelRow(faceIndex ?? null, extraRowId || null);
+            selectSecondaryShape(null);
+            console.log('Panel surface selected:', {
+              parentShapeId,
+              faceIndex,
+              extraRowId: extraRowId || 'none',
+              panelId: shape.id
+            });
+          } else if (panelSelectMode && parentShapeId) {
+            if (selectedShapeId !== parentShapeId) {
+              selectShape(parentShapeId);
+            }
+            setSelectedPanelRow(faceIndex ?? null, extraRowId || null);
             selectSecondaryShape(null);
           } else {
             selectShape(shape.id);
