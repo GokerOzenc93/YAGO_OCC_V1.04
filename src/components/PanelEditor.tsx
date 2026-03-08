@@ -453,7 +453,46 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     const faceGroup = faceGroups[confirmedFace.groupIndex];
     if (!faceGroup) return;
 
-    await createPanelForFace(faceGroup, faces, confirmedFace.groupIndex, customRowId, undefined);
+    const existingPanelsOnFace = shapes.filter(s =>
+      s.type === 'panel' &&
+      s.parameters?.parentShapeId === selectedShape.id &&
+      s.parameters?.faceIndex === confirmedFace.groupIndex &&
+      s.parameters?.extraRowId !== customRowId
+    );
+
+    let constraint: { center: [number, number, number]; normal: [number, number, number]; constraintPanelId: string } | undefined;
+
+    if (existingPanelsOnFace.length > 0) {
+      const constraintPanel = existingPanelsOnFace[0];
+      if (constraintPanel.geometry) {
+        const panelFaces = extractFacesFromGeometry(constraintPanel.geometry);
+        const panelFaceGroups = groupCoplanarFaces(panelFaces);
+
+        const faceNormal = new THREE.Vector3(
+          confirmedFace.normal[0], confirmedFace.normal[1], confirmedFace.normal[2]
+        ).normalize();
+
+        let bestGroup = panelFaceGroups[0];
+        let bestDot = -Infinity;
+        for (const pg of panelFaceGroups) {
+          const dot = pg.normal.dot(faceNormal);
+          if (dot > bestDot) {
+            bestDot = dot;
+            bestGroup = pg;
+          }
+        }
+
+        if (bestGroup) {
+          constraint = {
+            center: [bestGroup.center.x, bestGroup.center.y, bestGroup.center.z],
+            normal: [bestGroup.normal.x, bestGroup.normal.y, bestGroup.normal.z],
+            constraintPanelId: constraintPanel.id
+          };
+        }
+      }
+    }
+
+    await createPanelForFace(faceGroup, faces, confirmedFace.groupIndex, customRowId, constraint);
     setCustomFaceRows(prev => prev.map(r =>
       r.id === customRowId ? { ...r, faceIndex: confirmedFace.groupIndex, hasSurface: true } : r
     ));
