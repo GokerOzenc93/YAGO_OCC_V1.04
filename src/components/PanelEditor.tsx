@@ -245,16 +245,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     (async () => {
       try {
         const panelThickness = 18;
-        const { createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
-        let replicadPanel = await createPanelFromVirtualFace(
+        const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+        const replicadPanel = await createPanelFromVirtualFace(
           vf.vertices,
           vf.normal,
           panelThickness
         );
         if (!replicadPanel) return;
-        if (currentShape.subtractionGeometries?.length) {
-          replicadPanel = await applyParentSubtractors(replicadPanel, currentShape.subtractionGeometries);
-        }
         const geometry = convertReplicadToThreeGeometry(replicadPanel);
         const newPanel: any = {
           id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
@@ -567,16 +564,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                 if (!vf) return;
                 try {
                   const panelThickness = 18;
-                  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
-                  let replicadPanel = await createPanelFromVirtualFace(
+                  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+                  const replicadPanel = await createPanelFromVirtualFace(
                     vf.vertices,
                     vf.normal,
                     panelThickness
                   );
                   if (!replicadPanel) return;
-                  if (selectedShape.subtractionGeometries?.length) {
-                    replicadPanel = await applyParentSubtractors(replicadPanel, selectedShape.subtractionGeometries);
-                  }
                   const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
                   const bbox = new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
