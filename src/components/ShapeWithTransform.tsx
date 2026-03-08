@@ -374,7 +374,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
   const isPanel = shape.type === 'panel';
-  const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
+  const hasPanels = (shape.facePanels && Object.keys(shape.facePanels).length > 0) ||
+    shapes.some(s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id);
   const hasFillets = shape.fillets && shape.fillets.length > 0;
 
   const isParentSelected = isPanel && shape.parameters?.parentShapeId === selectedShapeId;
@@ -591,6 +592,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
           <FaceRaycastOverlay
             key={`raycast-${shape.id}-${shape.geometry?.uuid || ''}`}
             shape={shape}
+            allShapes={shapes}
           />
         )}
         {!isPanel && (

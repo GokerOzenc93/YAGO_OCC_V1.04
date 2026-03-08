@@ -18,6 +18,7 @@ interface RayLine {
 
 interface FaceRaycastOverlayProps {
   shape: any;
+  allShapes?: any[];
 }
 
 export function getFacePlaneAxes(normal: THREE.Vector3): { u: THREE.Vector3; v: THREE.Vector3 } {
@@ -102,6 +103,38 @@ function raySegmentIntersect2D(
   const s = ((ax - ox) * dy - (ay - oy) * dx) / denom;
   if (t > 1e-4 && s >= -1e-4 && s <= 1.0 + 1e-4) return t;
   return null;
+}
+
+function collectPanelObstacleEdgesWorld(
+  panelShapes: any[],
+  facePlaneNormal: THREE.Vector3,
+  facePlaneOrigin: THREE.Vector3,
+  planeTolerance: number = 15
+): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
+  const obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
+
+  for (const panel of panelShapes) {
+    if (!panel.geometry) continue;
+
+    const panelMatrix = getShapeMatrix(panel);
+    const edgesGeo = new THREE.EdgesGeometry(panel.geometry);
+    const edgePos = edgesGeo.getAttribute('position');
+    const count = edgePos.count;
+
+    for (let i = 0; i < count; i += 2) {
+      const va = new THREE.Vector3(edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)).applyMatrix4(panelMatrix);
+      const vb = new THREE.Vector3(edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)).applyMatrix4(panelMatrix);
+
+      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOrigin)));
+      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOrigin)));
+
+      if (distA < planeTolerance && distB < planeTolerance) {
+        obstacleEdges.push({ v1: va, v2: vb });
+      }
+    }
+    edgesGeo.dispose();
+  }
+  return obstacleEdges;
 }
 
 export function getSubtractionWorldMatrix(
@@ -544,15 +577,50 @@ interface PendingPreview {
   virtualFace: VirtualFace;
 }
 
+function collectVirtualFaceObstacleEdgesWorld(
+  virtualFaces: VirtualFace[],
+  excludeId: string | null,
+  shapeLocalToWorld: THREE.Matrix4,
+  facePlaneNormal: THREE.Vector3,
+  facePlaneOrigin: THREE.Vector3,
+  planeTolerance: number = 20
+): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
+  const edges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
+
+  for (const vf of virtualFaces) {
+    if (vf.id === excludeId) continue;
+    if (vf.vertices.length < 3) continue;
+
+    const worldVerts = vf.vertices.map(vtx =>
+      new THREE.Vector3(vtx[0], vtx[1], vtx[2]).applyMatrix4(shapeLocalToWorld)
+    );
+
+    for (let i = 0; i < worldVerts.length; i++) {
+      const va = worldVerts[i];
+      const vb = worldVerts[(i + 1) % worldVerts.length];
+
+      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOrigin)));
+      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOrigin)));
+
+      if (distA < planeTolerance && distB < planeTolerance) {
+        edges.push({ v1: va, v2: vb });
+      }
+    }
+  }
+  return edges;
+}
+
 function buildPreview(
   clickWorld: THREE.Vector3,
   group: CoplanarFaceGroup,
   faces: FaceData[],
   localToWorld: THREE.Matrix4,
   worldToLocal: THREE.Matrix4,
+  childPanels: any[],
   shapeId: string,
   subtractions: any[] = [],
   geometry?: THREE.BufferGeometry,
+  shapeVirtualFaces: VirtualFace[] = []
 ): PendingPreview | null {
   const localNormal = group.normal.clone().normalize();
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(localToWorld);
@@ -562,8 +630,10 @@ function buildPreview(
   const planeOrigin = clickWorld.clone();
 
   const boundaryEdges = collectBoundaryEdgesWorld(faces, group.faceIndices, localToWorld);
+  const panelEdges = collectPanelObstacleEdgesWorld(childPanels, worldNormal, planeOrigin, 20);
   const subEdges = collectSubtractionObstacleEdgesWorld(subtractions, localToWorld, worldNormal, planeOrigin, 20);
-  const obstacleEdges = [...subEdges];
+  const vfEdges = collectVirtualFaceObstacleEdgesWorld(shapeVirtualFaces, null, localToWorld, worldNormal, planeOrigin, 20);
+  const obstacleEdges = [...panelEdges, ...subEdges, ...vfEdges];
 
   const maxDist = 5000;
   const offset = worldNormal.clone().multiplyScalar(0.5);
@@ -719,12 +789,17 @@ const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position 
 ));
 OriginDot.displayName = 'OriginDot';
 
-export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape }) => {
-  const { raycastMode, addVirtualFace } = useAppStore();
+export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, allShapes = [] }) => {
+  const { raycastMode, addVirtualFace, virtualFaces } = useAppStore();
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingPreview | null>(null);
+
+  const shapeVirtualFaces = useMemo(
+    () => virtualFaces.filter(vf => vf.shapeId === shape.id),
+    [virtualFaces, shape.id]
+  );
 
   const geometryUuid = shape.geometry?.uuid || '';
 
@@ -751,10 +826,35 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
     }
   }, [raycastMode]);
 
+  const childPanels = useMemo(() => {
+    return allShapes.filter(s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id);
+  }, [allShapes, shape.id]);
+
+  const hoveredGroupHasPanel = useMemo(() => {
+    if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return false;
+
+    const hasFacePanelChild = childPanels.some(
+      p => p.parameters?.faceIndex === hoveredGroupIndex
+    );
+    if (hasFacePanelChild) return true;
+
+    const groupNormal = faceGroups[hoveredGroupIndex].normal.clone().normalize();
+    const groupCenter = faceGroups[hoveredGroupIndex].center;
+
+    return shapeVirtualFaces.some(vf => {
+      if (!vf.hasPanel) return false;
+      const vfNormal = new THREE.Vector3(vf.normal[0], vf.normal[1], vf.normal[2]).normalize();
+      if (Math.abs(groupNormal.dot(vfNormal)) < 0.9) return false;
+      const vfCenter = new THREE.Vector3(vf.center[0], vf.center[1], vf.center[2]);
+      return vfCenter.distanceTo(groupCenter) < 50;
+    });
+  }, [hoveredGroupIndex, faceGroups, shapeVirtualFaces, childPanels]);
+
   const hoverHighlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
+    if (hoveredGroupHasPanel) return null;
     return createFaceHighlightGeometry(faces, faceGroups[hoveredGroupIndex].faceIndices);
-  }, [hoveredGroupIndex, faceGroups, faces]);
+  }, [hoveredGroupIndex, faceGroups, faces, hoveredGroupHasPanel]);
 
   const handlePointerMove = (e: any) => {
     if (!raycastMode || faces.length === 0) return;
@@ -788,6 +888,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
     e.stopPropagation();
 
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return;
+    if (hoveredGroupHasPanel) return;
 
     const clickWorld: THREE.Vector3 = e.point.clone();
     const group = faceGroups[hoveredGroupIndex];
@@ -798,9 +899,11 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape })
       faces,
       localToWorld,
       worldToLocal,
+      childPanels,
       shape.id,
       shape.subtractionGeometries || [],
       shape.geometry,
+      shapeVirtualFaces
     );
 
     setPending(preview);

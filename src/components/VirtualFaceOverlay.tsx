@@ -108,7 +108,7 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const shapeFaces = useMemo(
-    () => virtualFaces.filter(f => f.shapeId === shape.id),
+    () => virtualFaces.filter(f => f.shapeId === shape.id && !f.hasPanel),
     [virtualFaces, shape.id]
   );
 

@@ -411,7 +411,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
-  const { createPanelFromFace, createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+  const { createPanelFromFace, createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
 
   const faces = extractFacesFromGeometry(parentShape.geometry);
   const faceGroups = groupCoplanarFaces(faces);
@@ -419,6 +419,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
   const currentVirtualFaces = useAppStore.getState().virtualFaces;
+  const parentSubtractions = parentShape.subtractionGeometries || [];
 
   for (const panel of childPanels) {
     const faceIndex = panel.parameters?.faceIndex;
@@ -431,7 +432,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
       const panelThickness = panel.parameters?.depth || 18;
       try {
-        const replicadPanel = await createPanelFromVirtualFace(
+        let replicadPanel = await createPanelFromVirtualFace(
           vf.vertices,
           vf.normal,
           panelThickness
@@ -683,7 +684,20 @@ export async function resolveAllPanelJoints(
   await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
 
   if (!skipVirtualFaceUpdate) {
-    await recalculateAndRebuildVirtualFaces(parentShapeId);
+    const shapeFaces = useAppStore.getState().virtualFaces.filter(vf => vf.shapeId === parentShapeId);
+    if (shapeFaces.length > 0) {
+      const { recalculateVirtualFacesForShape } = await import('./VirtualFaceUpdateService');
+      const currentState = useAppStore.getState();
+      const currentShape = currentState.shapes.find(s => s.id === parentShapeId);
+      if (currentShape) {
+        const updatedFaces = recalculateVirtualFacesForShape(
+          currentShape,
+          currentState.virtualFaces,
+          currentState.shapes
+        );
+        useAppStore.setState({ virtualFaces: updatedFaces });
+      }
+    }
   }
 }
 
@@ -790,12 +804,11 @@ export async function rebuildAndRecalculatePipeline(
   profileId: string | null
 ): Promise<void> {
   await rebuildAllPanels(parentShapeId);
+  await recalculateAndRebuildVirtualFaces(parentShapeId);
 
   if (profileId && profileId !== 'none') {
     await resolveAllPanelJoints(parentShapeId, profileId, undefined, true);
   }
-
-  await recalculateAndRebuildVirtualFaces(parentShapeId);
 }
 
 async function rebuildVirtualFacePanels(
@@ -813,8 +826,9 @@ async function rebuildVirtualFacePanels(
   );
   if (virtualPanels.length === 0) return;
 
-  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
 
+  const parentSubtractions = parentShape.subtractionGeometries || [];
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
   for (const panel of virtualPanels) {
@@ -824,7 +838,7 @@ async function rebuildVirtualFacePanels(
 
     const panelThickness = panel.parameters?.depth || 18;
     try {
-      const replicadPanel = await createPanelFromVirtualFace(
+      let replicadPanel = await createPanelFromVirtualFace(
         vf.vertices,
         vf.normal,
         panelThickness
