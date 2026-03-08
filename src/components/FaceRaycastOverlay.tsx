@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
-import type { VirtualFace } from '../store';
+import type { VirtualFace, EdgeAnchor } from '../store';
 import {
   extractFacesFromGeometry,
   groupCoplanarFaces,
@@ -538,6 +538,67 @@ export function ensureCCW(poly: Point2D[]): Point2D[] {
   return area < 0 ? [...poly].reverse() : poly;
 }
 
+interface RayHitResult {
+  hitPoint: THREE.Vector3;
+  hitEdge: { v1: THREE.Vector3; v2: THREE.Vector3 } | null;
+  edgeT: number;
+  isBoundaryEdge: boolean;
+}
+
+function castRayOnFaceWorldDetailed(
+  originWorld: THREE.Vector3,
+  dirWorld: THREE.Vector3,
+  boundaryEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
+  obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
+  u: THREE.Vector3,
+  v: THREE.Vector3,
+  planeOrigin: THREE.Vector3,
+  maxDist: number
+): RayHitResult {
+  const o2d = projectTo2D(originWorld, planeOrigin, u, v);
+  const dir2d = { x: dirWorld.dot(u), y: dirWorld.dot(v) };
+  let tMin = maxDist;
+  let hitEdge: { v1: THREE.Vector3; v2: THREE.Vector3 } | null = null;
+  let hitEdgeT = 0;
+  let isBoundary = false;
+
+  for (const edge of boundaryEdges) {
+    const a2d = projectTo2D(edge.v1, planeOrigin, u, v);
+    const b2d = projectTo2D(edge.v2, planeOrigin, u, v);
+    const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
+    if (t !== null && t < tMin) {
+      tMin = t;
+      hitEdge = edge;
+      isBoundary = true;
+      const hitX = o2d.x + dir2d.x * t;
+      const hitY = o2d.y + dir2d.y * t;
+      const ex = b2d.x - a2d.x;
+      const ey = b2d.y - a2d.y;
+      const eLen = Math.sqrt(ex * ex + ey * ey);
+      hitEdgeT = eLen > 1e-8 ? ((hitX - a2d.x) * ex + (hitY - a2d.y) * ey) / (eLen * eLen) : 0;
+    }
+  }
+
+  for (const edge of obstacleEdges) {
+    const a2d = projectTo2D(edge.v1, planeOrigin, u, v);
+    const b2d = projectTo2D(edge.v2, planeOrigin, u, v);
+    const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
+    if (t !== null && t < tMin) {
+      tMin = t;
+      hitEdge = edge;
+      isBoundary = false;
+      hitEdgeT = 0;
+    }
+  }
+
+  return {
+    hitPoint: originWorld.clone().addScaledVector(dirWorld, tMin),
+    hitEdge,
+    edgeT: Math.max(0, Math.min(1, hitEdgeT)),
+    isBoundaryEdge: isBoundary,
+  };
+}
+
 function castRayOnFaceWorld(
   originWorld: THREE.Vector3,
   dirWorld: THREE.Vector3,
@@ -548,25 +609,9 @@ function castRayOnFaceWorld(
   planeOrigin: THREE.Vector3,
   maxDist: number
 ): THREE.Vector3 {
-  const o2d = projectTo2D(originWorld, planeOrigin, u, v);
-  const dir2d = { x: dirWorld.dot(u), y: dirWorld.dot(v) };
-  let tMin = maxDist;
-
-  for (const edge of boundaryEdges) {
-    const a2d = projectTo2D(edge.v1, planeOrigin, u, v);
-    const b2d = projectTo2D(edge.v2, planeOrigin, u, v);
-    const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
-    if (t !== null && t < tMin) tMin = t;
-  }
-
-  for (const edge of obstacleEdges) {
-    const a2d = projectTo2D(edge.v1, planeOrigin, u, v);
-    const b2d = projectTo2D(edge.v2, planeOrigin, u, v);
-    const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
-    if (t !== null && t < tMin) tMin = t;
-  }
-
-  return originWorld.clone().addScaledVector(dirWorld, tMin);
+  return castRayOnFaceWorldDetailed(
+    originWorld, dirWorld, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist
+  ).hitPoint;
 }
 
 interface PendingPreview {
@@ -638,21 +683,35 @@ function buildPreview(
   const maxDist = 5000;
   const offset = worldNormal.clone().multiplyScalar(0.5);
   const startWorld = clickWorld.clone().add(offset);
+  const dirLabels: Array<'u+' | 'u-' | 'v+' | 'v-'> = ['u+', 'u-', 'v+', 'v-'];
   const directions = [u, u.clone().negate(), v, v.clone().negate()];
 
   const lines: RayLine[] = [];
   const hitPointsWorld: THREE.Vector3[] = [];
+  const edgeAnchors: EdgeAnchor[] = [];
 
   const parentPos = new THREE.Vector3();
   localToWorld.decompose(parentPos, new THREE.Quaternion(), new THREE.Vector3());
 
-  for (const dir of directions) {
-    const hitWorld = castRayOnFaceWorld(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
+  for (let di = 0; di < directions.length; di++) {
+    const dir = directions[di];
+    const result = castRayOnFaceWorldDetailed(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
     lines.push({
       start: startWorld.clone().sub(parentPos),
-      end: hitWorld.clone().sub(parentPos),
+      end: result.hitPoint.clone().sub(parentPos),
     });
-    hitPointsWorld.push(hitWorld);
+    hitPointsWorld.push(result.hitPoint);
+
+    if (result.hitEdge && result.isBoundaryEdge) {
+      const v1Local = result.hitEdge.v1.clone().applyMatrix4(worldToLocal);
+      const v2Local = result.hitEdge.v2.clone().applyMatrix4(worldToLocal);
+      edgeAnchors.push({
+        edgeV1Local: [v1Local.x, v1Local.y, v1Local.z],
+        edgeV2Local: [v2Local.x, v2Local.y, v2Local.z],
+        t: result.edgeT,
+        direction: dirLabels[di],
+      });
+    }
   }
 
   if (hitPointsWorld.length < 4) return null;
@@ -775,6 +834,7 @@ function buildPreview(
       faceGroupNormal: [localNormal.x, localNormal.y, localNormal.z],
       faceGroupDescriptor,
       normalizedClickUV,
+      edgeAnchors: edgeAnchors.length === 4 ? edgeAnchors : undefined,
     } : undefined,
   };
 
