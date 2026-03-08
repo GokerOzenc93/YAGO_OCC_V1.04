@@ -1,6 +1,7 @@
 import { setOC } from 'replicad';
 import initOpenCascade from 'opencascade.js';
 import * as THREE from 'three';
+import type { SubtractedGeometry } from '../store';
 
 let ocInstance: any = null;
 let isInitializing = false;
@@ -391,4 +392,91 @@ export const createPanelFromFace = async (
     console.error('❌ Failed to create panel from face:', error);
     throw error;
   }
+};
+
+export const createPanelFromVirtualFace = async (
+  vertices: [number, number, number][],
+  normal: [number, number, number],
+  panelThickness: number
+): Promise<any> => {
+  await initReplicad();
+
+  const { draw, Plane } = await import('replicad');
+
+  const n = new THREE.Vector3(...normal).normalize();
+
+  let up: THREE.Vector3;
+  if (Math.abs(n.y) > Math.abs(n.x) && Math.abs(n.y) > Math.abs(n.z)) {
+    up = new THREE.Vector3(1, 0, 0);
+  } else {
+    up = new THREE.Vector3(0, 1, 0);
+  }
+  const uAxis = new THREE.Vector3().crossVectors(n, up).normalize();
+  const vAxis = new THREE.Vector3().crossVectors(uAxis, n).normalize();
+
+  const v3s = vertices.map(v => new THREE.Vector3(v[0], v[1], v[2]));
+  const center = new THREE.Vector3();
+  v3s.forEach(v => center.add(v));
+  center.divideScalar(v3s.length);
+
+  const projected: [number, number][] = v3s.map(v => {
+    const d = new THREE.Vector3().subVectors(v, center);
+    return [d.dot(uAxis), d.dot(vAxis)] as [number, number];
+  });
+
+  let sketch = draw().movePointerTo(projected[0]);
+  for (let i = 1; i < projected.length; i++) {
+    sketch = sketch.lineTo(projected[i]);
+  }
+  const closed = sketch.close();
+
+  const plane = new Plane(
+    [center.x, center.y, center.z],
+    [uAxis.x, uAxis.y, uAxis.z],
+    [n.x, n.y, n.z]
+  );
+
+  const sketched = closed.sketchOnPlane(plane);
+  const panel = sketched.extrude(-panelThickness);
+
+  return panel;
+};
+
+export const applyParentSubtractors = async (
+  panelShape: any,
+  subtractionGeometries: SubtractedGeometry[]
+): Promise<any> => {
+  if (!subtractionGeometries || subtractionGeometries.length === 0) return panelShape;
+
+  await initReplicad();
+
+  let result = panelShape;
+
+  for (const sub of subtractionGeometries) {
+    if (!sub.parameters) continue;
+
+    const w = parseFloat(sub.parameters.width);
+    const h = parseFloat(sub.parameters.height);
+    const d = parseFloat(sub.parameters.depth);
+    if (isNaN(w) || isNaN(h) || isNaN(d) || w <= 0 || h <= 0 || d <= 0) continue;
+
+    try {
+      const margin = 0.5;
+      const cuttingBox = await createReplicadBox({ width: w + margin, height: h + margin, depth: d + margin });
+      result = await performBooleanCut(
+        result,
+        cuttingBox,
+        undefined,
+        sub.relativeOffset,
+        undefined,
+        sub.relativeRotation,
+        undefined,
+        sub.scale
+      );
+    } catch (err) {
+      console.error('Failed to apply subtractor to panel:', err);
+    }
+  }
+
+  return result;
 };

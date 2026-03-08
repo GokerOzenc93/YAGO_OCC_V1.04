@@ -8,6 +8,8 @@ import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
+import { FaceRaycastOverlay } from './FaceRaycastOverlay';
+import { VirtualFaceOverlay } from './VirtualFaceOverlay';
 
 interface ShapeWithTransformProps {
   shape: any;
@@ -48,8 +50,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setVertexDirection,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    customFacePaintMode,
-    customFacePaintRowId
+    raycastMode,
+    shapes
   } = useAppStore(useShallow(state => ({
     selectShape: state.selectShape,
     selectSecondaryShape: state.selectSecondaryShape,
@@ -76,8 +78,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     setVertexDirection: state.setVertexDirection,
     panelSurfaceSelectMode: state.panelSurfaceSelectMode,
     waitingForSurfaceSelection: state.waitingForSurfaceSelection,
-    customFacePaintMode: state.customFacePaintMode,
-    customFacePaintRowId: state.customFacePaintRowId
+    raycastMode: state.raycastMode,
+    shapes: state.shapes
   })));
 
   const { scene } = useThree();
@@ -372,7 +374,8 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
   const isReferenceBox = shape.isReferenceBox;
   const shouldShowAsReference = isReferenceBox || isSecondarySelected;
   const isPanel = shape.type === 'panel';
-  const hasPanels = shape.facePanels && Object.keys(shape.facePanels).length > 0;
+  const hasPanels = (shape.facePanels && Object.keys(shape.facePanels).length > 0) ||
+    shapes.some(s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id);
   const hasFillets = shape.fillets && shape.fillets.length > 0;
 
   const isParentSelected = isPanel && shape.parameters?.parentShapeId === selectedShapeId;
@@ -380,7 +383,11 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
     isParentSelected &&
     shape.parameters?.faceIndex !== undefined &&
     shape.parameters.faceIndex === selectedPanelRow;
-  const panelColor = isPanelRowSelected ? '#ef4444' : (shape.color || '#ffffff');
+  const isVirtualPanelRowSelected = isPanel &&
+    isParentSelected &&
+    shape.parameters?.virtualFaceId &&
+    `vf-${shape.parameters.virtualFaceId}` === selectedPanelRow;
+  const panelColor = (isPanelRowSelected || isVirtualPanelRowSelected) ? '#ef4444' : (shape.color || '#ffffff');
   if (shape.isolated === false) {
     return null;
   }
@@ -567,7 +574,7 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
         {hasFillets && filletMode && (
           <FilletEdgeLines shape={shape} isSelected={isSelected} />
         )}
-        {isSelected && (faceEditMode || (panelSurfaceSelectMode && waitingForSurfaceSelection) || customFacePaintMode) && (
+        {isSelected && (faceEditMode || (panelSurfaceSelectMode && waitingForSurfaceSelection)) && (
           <FaceEditor
             key={`face-editor-${shape.id}-${shape.geometry?.uuid || ''}-${(shape.fillets || []).length}`}
             shape={shape}
@@ -580,6 +587,16 @@ export const ShapeWithTransform: React.FC<ShapeWithTransformProps> = React.memo(
             shape={shape}
             isActive={true}
           />
+        )}
+        {isSelected && raycastMode && !isPanel && (
+          <FaceRaycastOverlay
+            key={`raycast-${shape.id}-${shape.geometry?.uuid || ''}`}
+            shape={shape}
+            allShapes={shapes}
+          />
+        )}
+        {!isPanel && (
+          <VirtualFaceOverlay shape={shape} />
         )}
       </group>
 

@@ -149,7 +149,8 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
     backPanelRightExtend,
     setBackPanelRightExtend,
     showBackPanelRightExtend,
-    setShowBackPanelRightExtend
+    setShowBackPanelRightExtend,
+    recalculateVirtualFacesForShape
   } = useAppStore();
 
   const [position, setPosition] = useState({ x: 100, y: 100 });
@@ -579,6 +580,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       updateShape
     });
 
+    if (selectedShapeId) recalculateVirtualFacesForShape(selectedShapeId);
     console.log('✅ Apply Changes completed');
   };
 
@@ -599,6 +601,7 @@ export function ParametersPanel({ isOpen, onClose }: ParametersPanelProps) {
       updateShape,
       shapeOverride
     });
+    if (selectedShapeId) recalculateVirtualFacesForShape(selectedShapeId);
   };
 
   const handleDeleteFillet = async (filletIndex: number) => {

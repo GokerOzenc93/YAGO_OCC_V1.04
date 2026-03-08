@@ -465,153 +465,6 @@ interface FaceEditorProps {
   isActive: boolean;
 }
 
-function getSubGroupForPoint(
-  hitPoint: THREE.Vector3,
-  groupIndex: number,
-  faceGroups: CoplanarFaceGroup[],
-  allFaces: FaceData[],
-  parentShapeId: string,
-  shapes: any[]
-): { faceIndices: number[]; center: THREE.Vector3; normal: THREE.Vector3 } | null {
-  const group = faceGroups[groupIndex];
-  if (!group) return null;
-
-  const panelsOnFace = shapes.filter(
-    (s: any) =>
-      s.type === 'panel' &&
-      s.parameters?.parentShapeId === parentShapeId &&
-      s.parameters?.faceIndex === groupIndex &&
-      s.geometry
-  );
-
-  if (panelsOnFace.length === 0) return null;
-
-  const faceNormal = group.normal.clone().normalize();
-
-  const splittingPlanes: { point: THREE.Vector3; planeNormal: THREE.Vector3 }[] = [];
-
-  for (const panel of panelsOnFace) {
-    const panelGeo = panel.geometry as THREE.BufferGeometry;
-    const panelPos = panelGeo.getAttribute('position');
-    if (!panelPos) continue;
-
-    const panelBB = new THREE.Box3().setFromBufferAttribute(panelPos);
-    const panelCenter = new THREE.Vector3();
-    panelBB.getCenter(panelCenter);
-    const panelSize = new THREE.Vector3();
-    panelBB.getSize(panelSize);
-
-    const absNx = Math.abs(faceNormal.x);
-    const absNy = Math.abs(faceNormal.y);
-    const absNz = Math.abs(faceNormal.z);
-
-    let splitAxis: 'x' | 'y' | 'z';
-    let secondaryAxis: 'x' | 'y' | 'z';
-
-    if (absNx >= absNy && absNx >= absNz) {
-      splitAxis = panelSize.y > panelSize.z ? 'z' : 'y';
-      secondaryAxis = splitAxis === 'y' ? 'z' : 'y';
-    } else if (absNy >= absNx && absNy >= absNz) {
-      splitAxis = panelSize.x > panelSize.z ? 'z' : 'x';
-      secondaryAxis = splitAxis === 'x' ? 'z' : 'x';
-    } else {
-      splitAxis = panelSize.x > panelSize.y ? 'y' : 'x';
-      secondaryAxis = splitAxis === 'x' ? 'y' : 'x';
-    }
-
-    const panelMin = panelBB.min;
-    const panelMax = panelBB.max;
-
-    const groupBB = new THREE.Box3();
-    for (const fi of group.faceIndices) {
-      const face = allFaces[fi];
-      if (face) {
-        for (const v of face.vertices) {
-          groupBB.expandByPoint(v);
-        }
-      }
-    }
-
-    const tolerance = 0.5;
-    const groupMin = groupBB.min;
-    const groupMax = groupBB.max;
-
-    const getComp = (v: THREE.Vector3, axis: string) =>
-      axis === 'x' ? v.x : axis === 'y' ? v.y : v.z;
-
-    const pMin = getComp(panelMin, splitAxis);
-    const pMax = getComp(panelMax, splitAxis);
-    const gMin = getComp(groupMin, splitAxis);
-    const gMax = getComp(groupMax, splitAxis);
-
-    const edges: number[] = [];
-    if (pMin > gMin + tolerance) edges.push(pMin);
-    if (pMax < gMax - tolerance) edges.push(pMax);
-
-    for (const edgeVal of edges) {
-      const planeNormal = new THREE.Vector3();
-      if (splitAxis === 'x') planeNormal.x = 1;
-      else if (splitAxis === 'y') planeNormal.y = 1;
-      else planeNormal.z = 1;
-
-      const planePoint = panelCenter.clone();
-      if (splitAxis === 'x') planePoint.x = edgeVal;
-      else if (splitAxis === 'y') planePoint.y = edgeVal;
-      else planePoint.z = edgeVal;
-
-      splittingPlanes.push({ point: planePoint, planeNormal });
-    }
-
-    const sMin = getComp(panelMin, secondaryAxis);
-    const sMax = getComp(panelMax, secondaryAxis);
-    const sgMin = getComp(groupMin, secondaryAxis);
-    const sgMax = getComp(groupMax, secondaryAxis);
-
-    const secondaryEdges: number[] = [];
-    if (sMin > sgMin + tolerance) secondaryEdges.push(sMin);
-    if (sMax < sgMax - tolerance) secondaryEdges.push(sMax);
-
-    for (const edgeVal of secondaryEdges) {
-      const planeNormal = new THREE.Vector3();
-      if (secondaryAxis === 'x') planeNormal.x = 1;
-      else if (secondaryAxis === 'y') planeNormal.y = 1;
-      else planeNormal.z = 1;
-
-      const planePoint = panelCenter.clone();
-      if (secondaryAxis === 'x') planePoint.x = edgeVal;
-      else if (secondaryAxis === 'y') planePoint.y = edgeVal;
-      else planePoint.z = edgeVal;
-
-      splittingPlanes.push({ point: planePoint, planeNormal });
-    }
-  }
-
-  if (splittingPlanes.length === 0) return null;
-
-  let filteredIndices = [...group.faceIndices];
-
-  for (const plane of splittingPlanes) {
-    const hitSide = hitPoint.clone().sub(plane.point).dot(plane.planeNormal);
-
-    filteredIndices = filteredIndices.filter(fi => {
-      const face = allFaces[fi];
-      if (!face) return false;
-      const faceSide = face.center.clone().sub(plane.point).dot(plane.planeNormal);
-      return (hitSide >= 0 && faceSide >= -0.01) || (hitSide < 0 && faceSide < 0.01);
-    });
-  }
-
-  if (filteredIndices.length === 0) return null;
-
-  const subCenter = new THREE.Vector3();
-  for (const fi of filteredIndices) {
-    subCenter.add(allFaces[fi].center);
-  }
-  subCenter.divideScalar(filteredIndices.length);
-
-  return { faceIndices: filteredIndices, center: subCenter, normal: group.normal.clone() };
-}
-
 export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   const {
     hoveredFaceIndex,
@@ -624,22 +477,12 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     addFilletFaceData,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    triggerPanelCreationForFace,
-    customFacePaintMode,
-    customFacePaintRowId,
-    pendingCustomFace,
-    setPendingCustomFace,
-    setConfirmedCustomFace,
-    setCustomFacePaintMode,
-    setCustomFacePaintRowId,
-    confirmedCustomFaces,
-    shapes
+    triggerPanelCreationForFace
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
-  const [hoveredSubGroup, setHoveredSubGroup] = useState<{ faceIndices: number[]; center: THREE.Vector3; normal: THREE.Vector3 } | null>(null);
 
   const geometryUuid = shape.geometry?.uuid || '';
 
@@ -652,8 +495,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     const groups = groupCoplanarFaces(extractedFaces);
     setFaceGroups(groups);
   }, [shape.geometry, shape.id, geometryUuid]);
-
-  const isPanelAwareMode = customFacePaintMode || panelSurfaceSelectMode;
 
   const handleFaceSelection = (groupIndex: number) => {
     if (filletMode && selectedFilletFaces.length < 2) {
@@ -684,21 +525,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
       if (groupIndex !== -1) {
         setHoveredGroupIndex(groupIndex);
         setHoveredFaceIndex(faceIndex);
-
-        if (isPanelAwareMode && e.point) {
-          const hitPoint = e.point.clone();
-          if (shape.position) {
-            hitPoint.x -= shape.position[0] || 0;
-            hitPoint.y -= shape.position[1] || 0;
-            hitPoint.z -= shape.position[2] || 0;
-          }
-          const sub = getSubGroupForPoint(
-            hitPoint, groupIndex, faceGroups, faces, shape.id, shapes
-          );
-          setHoveredSubGroup(sub);
-        } else {
-          setHoveredSubGroup(null);
-        }
       }
     }
   };
@@ -707,45 +533,13 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     e.stopPropagation();
     setHoveredGroupIndex(null);
     setHoveredFaceIndex(null);
-    setHoveredSubGroup(null);
   };
 
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
 
-    if (customFacePaintMode && customFacePaintRowId && hoveredGroupIndex !== null) {
-      const group = faceGroups[hoveredGroupIndex];
-      if (!group) return;
-
-      const activeSubGroup = hoveredSubGroup || group;
-      const subCenter: [number, number, number] = [activeSubGroup.center.x, activeSubGroup.center.y, activeSubGroup.center.z];
-      const subNormal: [number, number, number] = [activeSubGroup.normal.x, activeSubGroup.normal.y, activeSubGroup.normal.z];
-
-      if (e.button === 2) {
-        if (pendingCustomFace && pendingCustomFace.groupIndex === hoveredGroupIndex) {
-          setConfirmedCustomFace(customFacePaintRowId, {
-            groupIndex: hoveredGroupIndex,
-            normal: subNormal,
-            center: subCenter,
-            subFaceIndices: activeSubGroup.faceIndices
-          });
-          setPendingCustomFace(null);
-          setCustomFacePaintMode(false);
-          setCustomFacePaintRowId(null);
-        }
-      } else {
-        setPendingCustomFace({
-          groupIndex: hoveredGroupIndex,
-          normal: subNormal,
-          center: subCenter,
-          confirmed: false,
-          subFaceIndices: activeSubGroup.faceIndices
-        });
-      }
-      return;
-    }
-
     if (panelSurfaceSelectMode && waitingForSurfaceSelection && hoveredGroupIndex !== null) {
+      console.log('🎯 Surface clicked for panel creation, faceIndex:', hoveredGroupIndex);
       triggerPanelCreationForFace(hoveredGroupIndex);
       return;
     }
@@ -768,36 +562,14 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   const highlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
 
-    if (hoveredSubGroup) {
-      return createFaceHighlightGeometry(faces, hoveredSubGroup.faceIndices);
-    }
-
     const group = faceGroups[hoveredGroupIndex];
     return createFaceHighlightGeometry(faces, group.faceIndices);
-  }, [hoveredGroupIndex, faceGroups, faces, hoveredSubGroup]);
+  }, [hoveredGroupIndex, faceGroups, faces]);
 
   const boundaryEdgesGeometry = useMemo(() => {
     if (faces.length === 0 || faceGroups.length === 0) return null;
     return createGroupBoundaryEdges(faces, faceGroups);
   }, [faces, faceGroups]);
-
-  const pendingCustomFaceGeometry = useMemo(() => {
-    if (!customFacePaintMode || pendingCustomFace === null) return null;
-    const group = faceGroups[pendingCustomFace.groupIndex];
-    if (!group) return null;
-    const indices = pendingCustomFace.subFaceIndices || group.faceIndices;
-    return createFaceHighlightGeometry(faces, indices);
-  }, [customFacePaintMode, pendingCustomFace, faceGroups, faces]);
-
-  const confirmedCustomFaceGeometries = useMemo(() => {
-    if (!customFacePaintRowId && Object.keys(confirmedCustomFaces).length === 0) return [];
-    return Object.entries(confirmedCustomFaces).map(([rowId, faceData]) => {
-      const group = faceGroups[faceData.groupIndex];
-      if (!group) return null;
-      const indices = (faceData as any).subFaceIndices || group.faceIndices;
-      return { rowId, geom: createFaceHighlightGeometry(faces, indices) };
-    }).filter(Boolean);
-  }, [confirmedCustomFaces, faceGroups, faces, customFacePaintRowId]);
 
   if (!isActive) return null;
 
@@ -837,39 +609,6 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
             color={0xff0000}
             transparent
             opacity={0.5}
-            side={THREE.DoubleSide}
-            polygonOffset
-            polygonOffsetFactor={-1}
-            polygonOffsetUnits={-1}
-          />
-        </mesh>
-      )}
-
-      {confirmedCustomFaceGeometries.map((item: any) => (
-        <mesh
-          key={`confirmed-custom-${item.rowId}`}
-          geometry={item.geom}
-        >
-          <meshBasicMaterial
-            color={0x16a34a}
-            transparent
-            opacity={0.55}
-            side={THREE.DoubleSide}
-            polygonOffset
-            polygonOffsetFactor={-2}
-            polygonOffsetUnits={-2}
-          />
-        </mesh>
-      ))}
-
-      {pendingCustomFaceGeometry && (
-        <mesh
-          geometry={pendingCustomFaceGeometry}
-        >
-          <meshBasicMaterial
-            color={0x2563eb}
-            transparent
-            opacity={0.55}
             side={THREE.DoubleSide}
             polygonOffset
             polygonOffsetFactor={-1}

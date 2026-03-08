@@ -63,6 +63,26 @@ export interface SubtractedGeometry {
 
 export type FaceRole = 'Left' | 'Right' | 'Top' | 'Bottom' | 'Back' | 'Door' | null;
 
+export interface VirtualFaceRaycastRecipe {
+  clickLocalPoint: [number, number, number];
+  faceGroupNormal: [number, number, number];
+  faceGroupDescriptor: FaceDescriptor;
+  /** Click point as normalized UV on the face plane (0=min, 1=max of face bbox) */
+  normalizedClickUV?: [number, number];
+}
+
+export interface VirtualFace {
+  id: string;
+  shapeId: string;
+  normal: [number, number, number];
+  center: [number, number, number];
+  vertices: [number, number, number][];
+  role: FaceRole;
+  description: string;
+  hasPanel: boolean;
+  raycastRecipe?: VirtualFaceRaycastRecipe;
+}
+
 /**
  * Shape:
  * Sahnedeki her bir 3D nesnenin ana veri yapısı.
@@ -232,15 +252,15 @@ interface AppState {
   setShowRoleNumbers: (show: boolean) => void;
 
   // Selected Panel Row (Panel Editor)
-  selectedPanelRow: number | null;
+  selectedPanelRow: number | string | null;
   selectedPanelRowExtraId: string | null;
-  setSelectedPanelRow: (index: number | null, extraId?: string | null) => void;
+  setSelectedPanelRow: (index: number | string | null, extraId?: string | null) => void;
   panelSelectMode: boolean;
   setPanelSelectMode: (enabled: boolean) => void;
   panelSurfaceSelectMode: boolean;
   setPanelSurfaceSelectMode: (enabled: boolean) => void;
-  waitingForSurfaceSelection: { extraRowId: string; sourceFaceIndex: number; customRowId?: string } | null;
-  setWaitingForSurfaceSelection: (waiting: { extraRowId: string; sourceFaceIndex: number; customRowId?: string } | null) => void;
+  waitingForSurfaceSelection: { extraRowId: string; sourceFaceIndex: number } | null;
+  setWaitingForSurfaceSelection: (waiting: { extraRowId: string; sourceFaceIndex: number } | null) => void;
   pendingPanelCreation: {
     faceIndex: number;
     timestamp: number;
@@ -289,38 +309,23 @@ interface AppState {
   setRoleEditMode: (enabled: boolean) => void;
   updateFaceRole: (shapeId: string, faceIndex: number, role: FaceRole) => void;
 
-  // Custom Face Paint Modu (Add Surface - sol tık önizleme, sağ tık onay)
-  customFacePaintMode: boolean;
-  setCustomFacePaintMode: (enabled: boolean) => void;
-  customFacePaintRowId: string | null;
-  setCustomFacePaintRowId: (rowId: string | null) => void;
-  pendingCustomFace: {
-    groupIndex: number;
-    normal: [number, number, number];
-    center: [number, number, number];
-    confirmed: boolean;
-    subFaceIndices?: number[];
-  } | null;
-  setPendingCustomFace: (face: {
-    groupIndex: number;
-    normal: [number, number, number];
-    center: [number, number, number];
-    confirmed: boolean;
-    subFaceIndices?: number[];
-  } | null) => void;
-  confirmedCustomFaces: Record<string, {
-    groupIndex: number;
-    normal: [number, number, number];
-    center: [number, number, number];
-    subFaceIndices?: number[];
-  }>;
-  setConfirmedCustomFace: (rowId: string, face: {
-    groupIndex: number;
-    normal: [number, number, number];
-    center: [number, number, number];
-    subFaceIndices?: number[];
-  }) => void;
-  clearConfirmedCustomFace: (rowId: string) => void;
+  // Raycast Modu (Panel Editor + düğmesi)
+  raycastMode: boolean;
+  setRaycastMode: (enabled: boolean) => void;
+  raycastResults: Array<{ origin: [number, number, number]; direction: [number, number, number]; hitPoint: [number, number, number] }>;
+  setRaycastResults: (results: Array<{ origin: [number, number, number]; direction: [number, number, number]; hitPoint: [number, number, number] }>) => void;
+
+  // Virtual Faces görünürlüğü
+  showVirtualFaces: boolean;
+  setShowVirtualFaces: (show: boolean) => void;
+
+  // Virtual Faces (Raycast ile oluşturulan sanal yüzeyler)
+  virtualFaces: VirtualFace[];
+  addVirtualFace: (face: VirtualFace) => void;
+  updateVirtualFace: (id: string, updates: Partial<VirtualFace>) => void;
+  deleteVirtualFace: (id: string) => void;
+  getVirtualFacesForShape: (shapeId: string) => VirtualFace[];
+  recalculateVirtualFacesForShape: (shapeId: string) => void;
 
   // Baza Ayarları
   bazaHeight: number;
@@ -467,6 +472,43 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Role Edit Modu
   roleEditMode: false,
   setRoleEditMode: (enabled) => set({ roleEditMode: enabled }),
+
+  // Raycast Modu
+  raycastMode: false,
+  setRaycastMode: (enabled) => set({ raycastMode: enabled, raycastResults: enabled ? get().raycastResults : [] }),
+  raycastResults: [],
+  setRaycastResults: (results) => set({ raycastResults: results }),
+
+  // Virtual Faces görünürlüğü
+  showVirtualFaces: true,
+  setShowVirtualFaces: (show) => set({ showVirtualFaces: show }),
+
+  // Virtual Faces
+  virtualFaces: [],
+  addVirtualFace: (face) => set((state) => ({ virtualFaces: [...state.virtualFaces, face] })),
+  updateVirtualFace: (id, updates) => set((state) => ({
+    virtualFaces: state.virtualFaces.map(f => f.id === id ? { ...f, ...updates } : f)
+  })),
+  deleteVirtualFace: (id) => set((state) => ({ virtualFaces: state.virtualFaces.filter(f => f.id !== id) })),
+  getVirtualFacesForShape: (shapeId) => get().virtualFaces.filter(f => f.shapeId === shapeId),
+  recalculateVirtualFacesForShape: (shapeId) => {
+    const state = get();
+    const shape = state.shapes.find(s => s.id === shapeId);
+    if (!shape) return;
+
+    const shapeFaces = state.virtualFaces.filter(vf => vf.shapeId === shapeId);
+    if (shapeFaces.length === 0) return;
+
+    import('./components/VirtualFaceUpdateService').then(({ recalculateVirtualFacesForShape }) => {
+      const currentState = get();
+      const currentShape = currentState.shapes.find(s => s.id === shapeId);
+      if (!currentShape) return;
+
+      const updatedFaces = recalculateVirtualFacesForShape(currentShape, currentState.virtualFaces, currentState.shapes);
+      set({ virtualFaces: updatedFaces });
+    });
+  },
+
   updateFaceRole: (shapeId, faceIndex, role) => set((state) => ({
     shapes: state.shapes.map((shape) => {
       if (shape.id !== shapeId) return shape;
@@ -480,23 +522,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
     })
   })),
-
-  // Custom Face Paint Modu
-  customFacePaintMode: false,
-  setCustomFacePaintMode: (enabled) => set({ customFacePaintMode: enabled }),
-  customFacePaintRowId: null,
-  setCustomFacePaintRowId: (rowId) => set({ customFacePaintRowId: rowId }),
-  pendingCustomFace: null,
-  setPendingCustomFace: (face) => set({ pendingCustomFace: face }),
-  confirmedCustomFaces: {},
-  setConfirmedCustomFace: (rowId, face) => set((state) => ({
-    confirmedCustomFaces: { ...state.confirmedCustomFaces, [rowId]: face }
-  })),
-  clearConfirmedCustomFace: (rowId) => set((state) => {
-    const next = { ...state.confirmedCustomFaces };
-    delete next[rowId];
-    return { confirmedCustomFaces: next };
-  }),
 
   // Baza Ayarları
   bazaHeight: 100,
@@ -1095,7 +1120,10 @@ export const useAppStore = create<AppState>((set, get) => ({
             }));
 
             console.log('✅ Boolean cut applied, subtracted geometry captured, shape2 removed');
-            return; // İlk başarılı işlemde çık (Tek seferde tek işlem)
+            import('./components/PanelJointService').then(({ rebuildAndRecalculatePipeline }) => {
+              rebuildAndRecalculatePipeline(shape1.id, null);
+            });
+            return;
 
           } catch (error) {
             console.error('❌ Failed to perform boolean operation:', error);
@@ -1225,6 +1253,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       }));
 
       console.log('✅ Subtraction deleted, shape updated, position preserved:', preservedPosition);
+      import('./components/PanelJointService').then(({ rebuildAndRecalculatePipeline }) => {
+        rebuildAndRecalculatePipeline(shapeId, null);
+      });
     } catch (error) {
       console.error('❌ Failed to delete subtraction:', error);
     }

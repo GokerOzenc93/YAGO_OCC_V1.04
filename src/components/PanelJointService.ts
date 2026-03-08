@@ -54,6 +54,81 @@ async function toGeometry(replicadShape: any) {
   return convertReplicadToThreeGeometry(replicadShape);
 }
 
+function getReplicadBoundingBox(shape: any): { min: [number, number, number]; max: [number, number, number] } {
+  const bb = shape.boundingBox;
+  const [[xMin, yMin, zMin], [xMax, yMax, zMax]] = bb.bounds;
+  return {
+    min: [xMin, yMin, zMin],
+    max: [xMax, yMax, zMax]
+  };
+}
+
+async function createExtendedPanel(
+  dominantOriginal: any,
+  subordinateOriginals: Array<{ shape: any; role: FaceRole }>
+): Promise<any | null> {
+  const { createReplicadBox } = await import('./ReplicadService');
+
+  const domBB = getReplicadBoundingBox(dominantOriginal);
+  const newMin = [...domBB.min] as [number, number, number];
+  const newMax = [...domBB.max] as [number, number, number];
+  const domSize = [
+    domBB.max[0] - domBB.min[0],
+    domBB.max[1] - domBB.min[1],
+    domBB.max[2] - domBB.min[2]
+  ];
+  const domThicknessAxis = domSize[0] <= domSize[1] && domSize[0] <= domSize[2] ? 0
+    : domSize[1] <= domSize[0] && domSize[1] <= domSize[2] ? 1 : 2;
+
+  let hasExtension = false;
+  const tolerance = 0.5;
+
+  for (const sub of subordinateOriginals) {
+    const subBB = getReplicadBoundingBox(sub.shape);
+    const subSize = [
+      subBB.max[0] - subBB.min[0],
+      subBB.max[1] - subBB.min[1],
+      subBB.max[2] - subBB.min[2]
+    ];
+    const subThickness = Math.min(subSize[0], subSize[1], subSize[2]);
+    const subThicknessAxis = subSize[0] <= subSize[1] && subSize[0] <= subSize[2] ? 0
+      : subSize[1] <= subSize[0] && subSize[1] <= subSize[2] ? 1 : 2;
+
+    if (subThicknessAxis === domThicknessAxis) continue;
+
+    const extAxis = subThicknessAxis;
+    const subCenter = (subBB.min[extAxis] + subBB.max[extAxis]) / 2;
+    const domCenter = (domBB.min[extAxis] + domBB.max[extAxis]) / 2;
+
+    if (subCenter > domCenter) {
+      const targetMax = subBB.max[extAxis];
+      if (domBB.max[extAxis] < targetMax - tolerance) {
+        const needed = targetMax - domBB.max[extAxis];
+        newMax[extAxis] = Math.max(newMax[extAxis], domBB.max[extAxis] + needed);
+        hasExtension = true;
+      }
+    } else {
+      const targetMin = subBB.min[extAxis];
+      if (domBB.min[extAxis] > targetMin + tolerance) {
+        const needed = domBB.min[extAxis] - targetMin;
+        newMin[extAxis] = Math.min(newMin[extAxis], domBB.min[extAxis] - needed);
+        hasExtension = true;
+      }
+    }
+  }
+
+  if (!hasExtension) return null;
+
+  const w = newMax[0] - newMin[0];
+  const h = newMax[1] - newMin[1];
+  const d = newMax[2] - newMin[2];
+
+  if (w < 0.1 || h < 0.1 || d < 0.1) return null;
+
+  const box = await createReplicadBox({ width: w, height: h, depth: d });
+  return box.translate(newMin[0], newMin[1], newMin[2]);
+}
+
 export async function loadJointConfig(profileId: string): Promise<PanelJointConfig> {
   try {
     const settings = await globalSettingsService.getProfileSettings(profileId, 'panel_joint');
@@ -326,14 +401,15 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
   if (!parentShape || !parentShape.replicadShape || !parentShape.geometry) return;
 
-  const childPanels = state.shapes.filter(
+  const facePanels = state.shapes.filter(
     s => s.type === 'panel' &&
     s.parameters?.parentShapeId === parentShapeId &&
-    !s.parameters?.isBaza
+    !s.parameters?.isBaza &&
+    !s.parameters?.virtualFaceId
   );
-  if (childPanels.length === 0) return;
+  if (facePanels.length === 0) return;
 
-  console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
+  console.log(`Rebuilding ${facePanels.length} face-based panels for parent ${parentShapeId}...`);
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
   const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
@@ -343,9 +419,11 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
-  for (const panel of childPanels) {
+  for (const panel of facePanels) {
     const faceIndex = panel.parameters?.faceIndex;
-    if (faceIndex === undefined || faceIndex >= faceGroups.length) continue;
+    if (faceIndex === undefined) continue;
+
+    if (faceIndex < 0 || faceIndex >= faceGroups.length) continue;
 
     const faceGroup = faceGroups[faceIndex];
 
@@ -408,14 +486,15 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         return s;
       })
     }));
-    console.log(`Rebuilt ${updates.length} panels successfully`);
+    console.log(`Rebuilt ${updates.length} face-based panels successfully`);
   }
 }
 
 export async function resolveAllPanelJoints(
   parentShapeId: string,
   profileId: string,
-  config?: PanelJointConfig
+  config?: PanelJointConfig,
+  skipVirtualFaceUpdate?: boolean
 ): Promise<void> {
   const state = useAppStore.getState();
   const fullSettings = await loadFullProfileSettings(profileId);
@@ -448,6 +527,7 @@ export async function resolveAllPanelJoints(
   }
 
   const cutsMap = new Map<string, string[]>();
+  const extensionsMap = new Map<string, Array<{ subordinateId: string; subordinateRole: FaceRole }>>();
 
   for (let i = 0; i < panels.length; i++) {
     for (let j = i + 1; j < panels.length; j++) {
@@ -462,14 +542,47 @@ export async function resolveAllPanelJoints(
       const isADominant = dominant === roleA;
       const subordinateId = isADominant ? pB.id : pA.id;
       const dominantId = isADominant ? pA.id : pB.id;
+      const subordinateRole = isADominant ? roleB : roleA;
 
       const existing = cutsMap.get(subordinateId) || [];
       existing.push(dominantId);
       cutsMap.set(subordinateId, existing);
 
+      const extEntries = extensionsMap.get(dominantId) || [];
+      extEntries.push({ subordinateId, subordinateRole });
+      extensionsMap.set(dominantId, extEntries);
+
       console.log(
         `  Joint: ${roleA}-${roleB} → ${dominant} dominant, ${isADominant ? roleB : roleA} trimmed`
       );
+    }
+  }
+
+  const extendedShapes = new Map<string, any>();
+  for (const panel of panels) {
+    if (!extensionsMap.has(panel.id)) continue;
+    const original = originalShapes.get(panel.id);
+    if (!original) continue;
+
+    const entries = extensionsMap.get(panel.id)!;
+    const subData: Array<{ shape: any; role: FaceRole }> = [];
+    for (const entry of entries) {
+      const subOriginal = originalShapes.get(entry.subordinateId);
+      if (subOriginal) {
+        subData.push({ shape: subOriginal, role: entry.subordinateRole });
+      }
+    }
+
+    if (subData.length === 0) continue;
+
+    try {
+      const extended = await createExtendedPanel(original, subData);
+      if (extended) {
+        console.log(`  Extended ${panel.parameters?.faceRole} toward ${subData.map(s => s.role).join(', ')}`);
+        extendedShapes.set(panel.id, extended);
+      }
+    } catch (err) {
+      console.error(`Extension failed for panel ${panel.id}:`, err);
     }
   }
 
@@ -482,17 +595,22 @@ export async function resolveAllPanelJoints(
     const original = originalShapes.get(panel.id);
     if (!original) continue;
 
-    if (cutsMap.has(panel.id)) {
-      let currentShape = original;
-      const dominantIds = cutsMap.get(panel.id)!;
+    const isExtended = extendedShapes.has(panel.id);
+    const isCut = cutsMap.has(panel.id);
 
-      for (const dominantId of dominantIds) {
-        const cuttingShape = originalShapes.get(dominantId);
-        if (!cuttingShape) continue;
-        try {
-          currentShape = currentShape.cut(cuttingShape);
-        } catch (err) {
-          console.error(`Joint cut failed for panel ${panel.id}:`, err);
+    if (isCut || isExtended) {
+      let currentShape = isExtended ? extendedShapes.get(panel.id)! : original;
+
+      if (isCut) {
+        const dominantIds = cutsMap.get(panel.id)!;
+        for (const dominantId of dominantIds) {
+          const cuttingShape = originalShapes.get(dominantId);
+          if (!cuttingShape) continue;
+          try {
+            currentShape = currentShape.cut(cuttingShape);
+          } catch (err) {
+            console.error(`Joint cut failed for panel ${panel.id}:`, err);
+          }
         }
       }
 
@@ -504,7 +622,7 @@ export async function resolveAllPanelJoints(
           jointTrimmed: true,
         });
       } catch (err) {
-        console.error(`Failed to convert trimmed panel:`, err);
+        console.error(`Failed to convert trimmed/extended panel:`, err);
       }
     } else if (panel.parameters?.jointTrimmed) {
       try {
@@ -529,6 +647,30 @@ export async function resolveAllPanelJoints(
 
   applyBazaOffset(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight);
   await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
+
+  if (!skipVirtualFaceUpdate) {
+    const shapeFaces = useAppStore.getState().virtualFaces.filter(vf => vf.shapeId === parentShapeId);
+    if (shapeFaces.length > 0) {
+      const { recalculateVirtualFacesForShape } = await import('./VirtualFaceUpdateService');
+      const currentState = useAppStore.getState();
+      const currentShape = currentState.shapes.find(s => s.id === parentShapeId);
+      if (currentShape) {
+        const updatedFaces = recalculateVirtualFacesForShape(
+          currentShape,
+          currentState.virtualFaces,
+          currentState.shapes
+        );
+        useAppStore.setState({ virtualFaces: updatedFaces });
+
+        const hasVirtualPanels = updatedFaces.some(
+          vf => vf.shapeId === parentShapeId && vf.hasPanel
+        );
+        if (hasVirtualPanels) {
+          await rebuildVirtualFacePanels(parentShapeId, updatedFaces);
+        }
+      }
+    }
+  }
 }
 
 export async function restoreAllPanels(parentShapeId: string): Promise<void> {
@@ -603,6 +745,147 @@ function batchApplyUpdates(
       return s;
     }),
   }));
+}
+
+async function recalculateAndRebuildVirtualFaces(parentShapeId: string): Promise<void> {
+  const shapeFaces = useAppStore.getState().virtualFaces.filter(vf => vf.shapeId === parentShapeId);
+  if (shapeFaces.length === 0) return;
+
+  const { recalculateVirtualFacesForShape } = await import('./VirtualFaceUpdateService');
+  const currentState = useAppStore.getState();
+  const currentShape = currentState.shapes.find(s => s.id === parentShapeId);
+  if (!currentShape) return;
+
+  const updatedFaces = recalculateVirtualFacesForShape(
+    currentShape,
+    currentState.virtualFaces,
+    currentState.shapes
+  );
+  useAppStore.setState({ virtualFaces: updatedFaces });
+
+  const hasVirtualPanels = updatedFaces.some(
+    vf => vf.shapeId === parentShapeId && vf.hasPanel
+  );
+  if (hasVirtualPanels) {
+    await rebuildVirtualFacePanels(parentShapeId, updatedFaces);
+  }
+}
+
+export async function rebuildAndRecalculatePipeline(
+  parentShapeId: string,
+  profileId: string | null
+): Promise<void> {
+  await rebuildAllPanels(parentShapeId);
+
+  if (profileId && profileId !== 'none') {
+    await resolveAllPanelJoints(parentShapeId, profileId, undefined, true);
+  }
+
+  await recalculateAndRebuildVirtualFaces(parentShapeId);
+}
+
+async function rebuildVirtualFacePanels(
+  parentShapeId: string,
+  updatedVirtualFaces: import('../store').VirtualFace[]
+): Promise<void> {
+  const state = useAppStore.getState();
+  const parentShape = state.shapes.find(s => s.id === parentShapeId);
+  if (!parentShape) return;
+
+  const virtualPanels = state.shapes.filter(
+    s => s.type === 'panel' &&
+    s.parameters?.parentShapeId === parentShapeId &&
+    s.parameters?.virtualFaceId
+  );
+  if (virtualPanels.length === 0) return;
+
+  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
+
+  const parentSubtractions = parentShape.subtractionGeometries || [];
+  const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
+
+  for (const panel of virtualPanels) {
+    const vfId = panel.parameters.virtualFaceId;
+    const vf = updatedVirtualFaces.find(f => f.id === vfId);
+    if (!vf || vf.vertices.length < 3) continue;
+
+    const panelThickness = panel.parameters?.depth || 18;
+    try {
+      let replicadPanel = await createPanelFromVirtualFace(
+        vf.vertices,
+        vf.normal,
+        panelThickness
+      );
+      if (!replicadPanel) continue;
+
+      if (parentSubtractions.length > 0) {
+        try {
+          replicadPanel = await applyParentSubtractors(replicadPanel, parentSubtractions);
+        } catch (subErr) {
+          console.error(`Failed to apply subtractors to virtual face panel ${panel.id}:`, subErr);
+        }
+      }
+
+      const geometry = convertReplicadToThreeGeometry(replicadPanel);
+
+      const geoSize = new THREE.Vector3();
+      new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position') as THREE.BufferAttribute).getSize(geoSize);
+      const axesBySize = [
+        { index: 0, value: geoSize.x },
+        { index: 1, value: geoSize.y },
+        { index: 2, value: geoSize.z }
+      ].sort((a, b) => a.value - b.value);
+      const planeAxes = axesBySize.slice(1).map(a => a.index).sort((a, b) => a - b);
+      const roleStr = vf.role?.toLowerCase();
+      let defaultAxis = planeAxes[0];
+      let altAxis = planeAxes[1];
+      if (roleStr === 'left' || roleStr === 'right') {
+        if (planeAxes.includes(1)) { defaultAxis = 1; altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1]; }
+      } else if (roleStr === 'top' || roleStr === 'bottom') {
+        if (planeAxes.includes(0)) { defaultAxis = 0; altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1]; }
+      }
+      const sizeArr = [geoSize.x, geoSize.y, geoSize.z];
+      const newWidth = sizeArr[defaultAxis];
+      const newHeight = sizeArr[altAxis];
+
+      updates.push({
+        id: panel.id,
+        geometry,
+        replicadShape: replicadPanel,
+        parameters: {
+          ...panel.parameters,
+          faceRole: vf.role,
+          width: newWidth,
+          height: newHeight,
+          originalReplicadShape: null,
+          jointTrimmed: false,
+        }
+      });
+    } catch (err) {
+      console.error(`Failed to rebuild virtual face panel ${panel.id}:`, err);
+    }
+  }
+
+  if (updates.length > 0) {
+    useAppStore.setState((st) => ({
+      shapes: st.shapes.map(s => {
+        const update = updates.find(u => u.id === s.id);
+        if (update) {
+          const parent = st.shapes.find(p => p.id === parentShapeId);
+          return {
+            ...s,
+            geometry: update.geometry,
+            replicadShape: update.replicadShape,
+            position: parent ? [...parent.position] as [number, number, number] : s.position,
+            rotation: parent ? parent.rotation : s.rotation,
+            scale: parent ? [...parent.scale] as [number, number, number] : s.scale,
+            parameters: update.parameters,
+          };
+        }
+        return s;
+      })
+    }));
+  }
 }
 
 function saveOriginalShapes(panels: any[], parentShapeId: string) {

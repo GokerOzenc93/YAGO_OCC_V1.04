@@ -51,12 +51,21 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   const parentShapeId = shape.parameters?.parentShapeId;
   const faceIndex = shape.parameters?.faceIndex;
   const extraRowId = shape.parameters?.extraRowId;
+  const virtualFaceId = shape.parameters?.virtualFaceId;
   const isParentSelected = parentShapeId === selectedShapeId;
+
   const isPanelRowSelected = isParentSelected &&
-    faceIndex !== undefined &&
-    faceIndex === selectedPanelRow &&
-    ((extraRowId && extraRowId === selectedPanelRowExtraId) ||
-     (!extraRowId && !selectedPanelRowExtraId));
+    (
+      (virtualFaceId && selectedPanelRow === `vf-${virtualFaceId}`) ||
+      (faceIndex !== undefined &&
+        (
+          (typeof faceIndex === 'string' && faceIndex === selectedPanelRow) ||
+          (typeof faceIndex === 'number' && faceIndex === selectedPanelRow &&
+            ((extraRowId && extraRowId === selectedPanelRowExtraId) ||
+             (!extraRowId && !selectedPanelRowExtraId)))
+        )
+      )
+    );
 
   const edgeGeometry = useMemo(() => {
     if (!shape.geometry) return null;
@@ -98,8 +107,9 @@ export const PanelDrawing: React.FC<PanelDrawingProps> = React.memo(({
   };
 
   const baseColor = getRoleColor(faceRole);
-  const materialColor = isPanelRowSelected ? '#ef4444' : baseColor;
-  const edgeColor = isPanelRowSelected ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
+  const shouldHighlightRed = isPanelRowSelected && panelSelectMode;
+  const materialColor = shouldHighlightRed ? '#ef4444' : baseColor;
+  const edgeColor = shouldHighlightRed ? '#b91c1c' : isSelected ? '#1e40af' : '#000000';
 
   return (
     <group

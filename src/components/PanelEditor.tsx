@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Trash2, Scan, Plus } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
 import { extractFacesFromGeometry, groupCoplanarFaces, FaceData, CoplanarFaceGroup } from './FaceEditor';
-import { resolveAllPanelJoints, restoreAllPanels, rebuildAllPanels } from './PanelJointService';
+import { resolveAllPanelJoints, restoreAllPanels, rebuildAllPanels, rebuildAndRecalculatePipeline } from './PanelJointService';
 import * as THREE from 'three';
 
 interface PanelEditorProps {
@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, panelSurfaceSelectMode, setPanelSurfaceSelectMode, waitingForSurfaceSelection, setWaitingForSurfaceSelection, pendingPanelCreation, customFacePaintMode, setCustomFacePaintMode, customFacePaintRowId, setCustomFacePaintRowId, confirmedCustomFaces, setConfirmedCustomFace, clearConfirmedCustomFace } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectedPanelRow, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, raycastMode, setRaycastMode, showVirtualFaces, setShowVirtualFaces, virtualFaces, updateVirtualFace, deleteVirtualFace, pendingPanelCreation } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -24,71 +24,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const prevProfileRef = useRef<string>('none');
   const prevGeometryRef = useRef<string>('');
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const [customFaceRows, setCustomFaceRows] = useState<Array<{ id: string; faceIndex?: number; hasSurface?: boolean }>>([]);
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
 
   useEffect(() => {
     setSelectedPanelRow(null);
   }, [selectedShapeId, setSelectedPanelRow]);
-
-  useEffect(() => {
-    const handlePendingPanelCreation = async () => {
-      if (!pendingPanelCreation || !waitingForSurfaceSelection || !selectedShape || selectedProfile === 'none') {
-        return;
-      }
-
-      const { faceIndex, sourceGeometryShapeId, surfaceConstraint } = pendingPanelCreation;
-      const { extraRowId, customRowId } = waitingForSurfaceSelection;
-
-      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId, 'customRowId:', customRowId, 'sourceGeometryShapeId:', sourceGeometryShapeId, 'surfaceConstraint:', surfaceConstraint);
-
-      let sourceShape = selectedShape;
-      if (sourceGeometryShapeId) {
-        const foundShape = shapes.find(s => s.id === sourceGeometryShapeId);
-        if (foundShape) {
-          sourceShape = foundShape;
-          console.log('📐 Using panel geometry as source:', sourceGeometryShapeId);
-        }
-      }
-
-      const geometry = sourceShape.geometry;
-      if (!geometry) return;
-
-      const faces = extractFacesFromGeometry(geometry);
-      const faceGroups = groupCoplanarFaces(faces);
-      if (faceIndex >= faceGroups.length) return;
-
-      const rowId = customRowId || extraRowId;
-      await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, rowId, surfaceConstraint);
-
-      if (customRowId) {
-        setCustomFaceRows(prev => prev.map(row =>
-          row.id === customRowId ? { ...row, faceIndex, hasSurface: true } : row
-        ));
-      } else {
-        const currentExtraRows = selectedShape.extraPanelRows || [];
-        const updatedExtraRows = currentExtraRows.map((row: any) =>
-          row.id === extraRowId ? { ...row, needsSurfaceSelection: false } : row
-        );
-        updateShape(selectedShape.id, { extraPanelRows: updatedExtraRows });
-      }
-
-      setPanelSurfaceSelectMode(false);
-      setWaitingForSurfaceSelection(null);
-
-      if (selectedProfile !== 'none') {
-        setResolving(true);
-        try {
-          await resolveAllPanelJoints(selectedShape.id, selectedProfile);
-        } finally {
-          setResolving(false);
-        }
-      }
-    };
-
-    handlePendingPanelCreation();
-  }, [pendingPanelCreation?.timestamp]);
 
   const getArrowTargetAxis = (geometry: THREE.BufferGeometry, faceRole?: string, arrowRotated?: boolean): number => {
     if (!geometry) return 0;
@@ -239,7 +180,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   }, [selectedProfile, selectedShapeId]);
 
   useEffect(() => {
-    if (!selectedShape || !selectedShapeId || selectedProfile === 'none') return;
+    if (!selectedShape || !selectedShapeId) return;
 
     const geometryKey = [
       selectedShape.parameters?.width,
@@ -252,11 +193,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     ].join('|');
 
     if (prevGeometryRef.current && prevGeometryRef.current !== geometryKey) {
-      console.log('Geometry changed, rebuilding and updating panels...');
       setResolving(true);
-      rebuildAllPanels(selectedShapeId)
-        .then(() => resolveAllPanelJoints(selectedShapeId, selectedProfile))
-        .finally(() => setResolving(false));
+      rebuildAndRecalculatePipeline(
+        selectedShapeId,
+        selectedProfileRef.current !== 'none' ? selectedProfileRef.current : null
+      ).finally(() => setResolving(false));
     }
 
     prevGeometryRef.current = geometryKey;
@@ -284,16 +225,75 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     }
   };
 
+  const selectedProfileRef = useRef<string>('none');
+  selectedProfileRef.current = selectedProfile;
+
+  useEffect(() => {
+    if (!pendingPanelCreation || !isOpen) return;
+    const constraint = pendingPanelCreation.surfaceConstraint;
+    if (!constraint?.constraintPanelId) return;
+
+    const vf = virtualFaces.find(f => f.id === constraint.constraintPanelId);
+    if (!vf || vf.hasPanel) return;
+
+    const currentShape = useAppStore.getState().shapes.find(s => s.id === vf.shapeId);
+    if (!currentShape) return;
+
+    const vfIdx = virtualFaces.filter(f => f.shapeId === vf.shapeId).findIndex(f => f.id === vf.id);
+    if (vfIdx === -1) return;
+
+    (async () => {
+      try {
+        const panelThickness = 18;
+        const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+        const replicadPanel = await createPanelFromVirtualFace(
+          vf.vertices,
+          vf.normal,
+          panelThickness
+        );
+        if (!replicadPanel) return;
+        const geometry = convertReplicadToThreeGeometry(replicadPanel);
+        const newPanel: any = {
+          id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          type: 'panel',
+          geometry,
+          replicadShape: replicadPanel,
+          position: [...currentShape.position] as [number, number, number],
+          rotation: currentShape.rotation,
+          scale: [...currentShape.scale] as [number, number, number],
+          color: '#ffffff',
+          parameters: {
+            width: 0,
+            height: 0,
+            depth: panelThickness,
+            parentShapeId: currentShape.id,
+            faceIndex: -(vfIdx + 1),
+            faceRole: vf.role,
+            virtualFaceId: vf.id,
+          }
+        };
+        addShape(newPanel);
+        updateVirtualFace(vf.id, { hasPanel: true });
+
+        const currentProfile = selectedProfileRef.current;
+        if (currentProfile !== 'none') {
+          setResolving(true);
+          try {
+            await resolveAllPanelJoints(currentShape.id, currentProfile);
+          } finally {
+            setResolving(false);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to create panel for virtual face via click:', err);
+      }
+    })();
+  }, [pendingPanelCreation]);
+
   const createPanelForFace = async (
     faceGroup: CoplanarFaceGroup,
     faces: FaceData[],
-    faceIndex: number,
-    extraRowId?: string,
-    constraint?: {
-      center: [number, number, number];
-      normal: [number, number, number];
-      constraintPanelId: string;
-    }
+    faceIndex: number
   ) => {
     if (!selectedShape || !selectedShape.replicadShape) {
       return;
@@ -313,37 +313,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const localCenter = new THREE.Vector3();
       localBox.getCenter(localCenter);
 
-      let adjustedCenter = localCenter.clone();
-      let constraintGeometry = null;
-
-      if (constraint) {
-        const constraintCenter = new THREE.Vector3(...constraint.center);
-        const constraintNormal = new THREE.Vector3(...constraint.normal).normalize();
-
-        const distanceToConstraint = constraintCenter.clone().sub(localCenter).dot(constraintNormal);
-
-        const midPoint = localCenter.clone().add(
-          constraintNormal.clone().multiplyScalar(distanceToConstraint / 2)
-        );
-
-        adjustedCenter = midPoint;
-
-        const constraintPanel = shapes.find(s => s.id === constraint.constraintPanelId);
-        if (constraintPanel?.replicadShape) {
-          constraintGeometry = constraintPanel.replicadShape;
-          console.log('📐 Using constraint panel geometry:', constraint.constraintPanelId);
-        }
-
-        console.log('📐 Constraining panel:', {
-          originalCenter: [localCenter.x, localCenter.y, localCenter.z],
-          constraintCenter: constraint.center,
-          constraintNormal: constraint.normal,
-          distanceToConstraint,
-          adjustedCenter: [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
-          hasConstraintGeometry: !!constraintGeometry
-        });
-      }
-
       const panelThickness = 18;
 
       const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
@@ -351,9 +320,9 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       let replicadPanel = await createPanelFromFace(
         selectedShape.replicadShape,
         [localNormal.x, localNormal.y, localNormal.z],
-        [adjustedCenter.x, adjustedCenter.y, adjustedCenter.z],
+        [localCenter.x, localCenter.y, localCenter.z],
         panelThickness,
-        constraintGeometry
+        null
       );
 
       if (!replicadPanel) return;
@@ -378,7 +347,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           parentShapeId: selectedShape.id,
           faceIndex: faceIndex,
           faceRole: faceRole,
-          ...(extraRowId ? { extraRowId } : {})
         }
       };
 
@@ -386,257 +354,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     } catch (error) {
       console.error('Failed to create panel:', error);
     }
-  };
-
-
-  const handleStartSurfaceSelection = (extraRowId: string, sourceFaceIndex: number) => {
-    setPanelSurfaceSelectMode(true);
-    setWaitingForSurfaceSelection({ extraRowId, sourceFaceIndex });
-    console.log('🎯 Started surface selection for extra row:', extraRowId);
-  };
-
-  const handleAddCustomRow = () => {
-    const customRowId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-    setCustomFaceRows([...customFaceRows, { id: customRowId }]);
-  };
-
-  const handleRemoveCustomRow = (customRowId: string) => {
-    if (selectedShape) {
-      const panelToRemove = shapes.find(s =>
-        s.type === 'panel' &&
-        s.parameters?.parentShapeId === selectedShape.id &&
-        s.parameters?.extraRowId === customRowId
-      );
-      if (panelToRemove) {
-        const { deleteShape } = useAppStore.getState();
-        deleteShape(panelToRemove.id);
-      }
-    }
-    setCustomFaceRows(customFaceRows.filter(r => r.id !== customRowId));
-  };
-
-  const handleCustomRowAddSurface = (customRowId: string) => {
-    if (customFacePaintMode && customFacePaintRowId === customRowId) {
-      setCustomFacePaintMode(false);
-      setCustomFacePaintRowId(null);
-      return;
-    }
-    setCustomFacePaintMode(true);
-    setCustomFacePaintRowId(customRowId);
-  };
-
-  const handleCustomRowTogglePanel = async (customRowId: string, enabled: boolean) => {
-    if (!selectedShape) return;
-    const confirmedFace = confirmedCustomFaces[customRowId];
-
-    if (!enabled) {
-      const panelToRemove = shapes.find(s =>
-        s.type === 'panel' &&
-        s.parameters?.parentShapeId === selectedShape.id &&
-        s.parameters?.extraRowId === customRowId
-      );
-      if (panelToRemove) {
-        const { deleteShape } = useAppStore.getState();
-        deleteShape(panelToRemove.id);
-      }
-      setCustomFaceRows(prev => prev.map(r => r.id === customRowId ? { ...r, hasSurface: false } : r));
-      return;
-    }
-
-    if (!confirmedFace) return;
-
-    const geometry = selectedShape.geometry;
-    if (!geometry) return;
-
-    const allFaces = extractFacesFromGeometry(geometry);
-    const faceGroups = groupCoplanarFaces(allFaces);
-    const faceGroup = faceGroups[confirmedFace.groupIndex];
-    if (!faceGroup) return;
-
-    let effectiveFaceGroup = faceGroup;
-    if (confirmedFace.subFaceIndices && confirmedFace.subFaceIndices.length > 0) {
-      const subCenter = new THREE.Vector3();
-      const subNormal = new THREE.Vector3();
-      let subArea = 0;
-      for (const fi of confirmedFace.subFaceIndices) {
-        const face = allFaces[fi];
-        if (face) {
-          subCenter.add(face.center);
-          subNormal.add(face.normal);
-          subArea += face.area;
-        }
-      }
-      subCenter.divideScalar(confirmedFace.subFaceIndices.length);
-      subNormal.divideScalar(confirmedFace.subFaceIndices.length).normalize();
-      effectiveFaceGroup = {
-        faceIndices: confirmedFace.subFaceIndices,
-        center: subCenter,
-        normal: subNormal,
-        totalArea: subArea
-      };
-    }
-
-    const existingPanelsOnFace = shapes.filter(s =>
-      s.type === 'panel' &&
-      s.parameters?.parentShapeId === selectedShape.id &&
-      s.parameters?.faceIndex === confirmedFace.groupIndex &&
-      s.parameters?.extraRowId !== customRowId
-    );
-
-    let constraint: { center: [number, number, number]; normal: [number, number, number]; constraintPanelId: string } | undefined;
-
-    if (existingPanelsOnFace.length > 0) {
-      const constraintPanel = existingPanelsOnFace[0];
-      if (constraintPanel.geometry) {
-        const panelFaces = extractFacesFromGeometry(constraintPanel.geometry);
-        const panelFaceGroups = groupCoplanarFaces(panelFaces);
-
-        const faceNormal = new THREE.Vector3(
-          confirmedFace.normal[0], confirmedFace.normal[1], confirmedFace.normal[2]
-        ).normalize();
-
-        let bestGroup = panelFaceGroups[0];
-        let bestDot = -Infinity;
-        for (const pg of panelFaceGroups) {
-          const dot = pg.normal.dot(faceNormal);
-          if (dot > bestDot) {
-            bestDot = dot;
-            bestGroup = pg;
-          }
-        }
-
-        if (bestGroup) {
-          constraint = {
-            center: [bestGroup.center.x, bestGroup.center.y, bestGroup.center.z],
-            normal: [bestGroup.normal.x, bestGroup.normal.y, bestGroup.normal.z],
-            constraintPanelId: constraintPanel.id
-          };
-        }
-      }
-    }
-
-    await createPanelForFace(effectiveFaceGroup, allFaces, confirmedFace.groupIndex, customRowId, constraint);
-    setCustomFaceRows(prev => prev.map(r =>
-      r.id === customRowId ? { ...r, faceIndex: confirmedFace.groupIndex, hasSurface: true } : r
-    ));
-  };
-
-  const getCustomRowPanel = (customRowId: string) => {
-    if (!selectedShape) return null;
-    return shapes.find(
-      s => s.type === 'panel' &&
-      s.parameters?.parentShapeId === selectedShape.id &&
-      s.parameters?.extraRowId === customRowId
-    ) || null;
-  };
-
-  const getCustomPanelDimensions = (customRowId: string): { primary: number; secondary: number; thickness: number } | null => {
-    const panel = getCustomRowPanel(customRowId);
-    if (!panel?.geometry) return null;
-    const box = new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position'));
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const dims = {
-      w: Math.round(size.x * 10) / 10,
-      h: Math.round(size.y * 10) / 10,
-      d: Math.round(size.z * 10) / 10
-    };
-
-    const targetAxis = getArrowTargetAxis(panel.geometry, panel.parameters?.faceRole, panel.parameters?.arrowRotated);
-    const posAttr = panel.geometry.getAttribute('position');
-    const bbox = new THREE.Box3().setFromBufferAttribute(posAttr as THREE.BufferAttribute);
-    const sizeVec = new THREE.Vector3();
-    bbox.getSize(sizeVec);
-    const axes = [
-      { index: 0, value: sizeVec.x },
-      { index: 1, value: sizeVec.y },
-      { index: 2, value: sizeVec.z }
-    ];
-    axes.sort((a, b) => a.value - b.value);
-    const thicknessAxis = axes[0].index;
-    const planeAxes = axes.slice(1).map(a => a.index);
-    const secondaryAxis = planeAxes.find(a => a !== targetAxis) ?? planeAxes[0];
-
-    const primary = targetAxis === 0 ? dims.w : targetAxis === 1 ? dims.h : dims.d;
-    const secondary = secondaryAxis === 0 ? dims.w : secondaryAxis === 1 ? dims.h : dims.d;
-    const thickness = thicknessAxis === 0 ? dims.w : thicknessAxis === 1 ? dims.h : dims.d;
-
-    return { primary, secondary, thickness };
-  };
-
-  const handleRemoveExtraRow = async (extraRowId: string) => {
-    if (!selectedShape) return;
-
-    const panelToRemove = shapes.find(s =>
-      s.type === 'panel' &&
-      s.parameters?.parentShapeId === selectedShape.id &&
-      s.parameters?.extraRowId === extraRowId
-    );
-    if (panelToRemove) {
-      const { deleteShape } = useAppStore.getState();
-      deleteShape(panelToRemove.id);
-    }
-
-    const currentExtraRows = selectedShape.extraPanelRows || [];
-    const newExtraRows = currentExtraRows.filter((r: any) => r.id !== extraRowId);
-    updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
-
-    if (selectedProfile !== 'none') {
-      setResolving(true);
-      try {
-        await resolveAllPanelJoints(selectedShape.id, selectedProfile);
-      } finally {
-        setResolving(false);
-      }
-    }
-  };
-
-  const getExtraPanelDimensions = (extraRowId: string): { primary: number; secondary: number; thickness: number; w: number; h: number; d: number } | null => {
-    if (!selectedShape) return null;
-    const panel = shapes.find(
-      s => s.type === 'panel' &&
-      s.parameters?.parentShapeId === selectedShape.id &&
-      s.parameters?.extraRowId === extraRowId
-    );
-    if (!panel || !panel.geometry) return null;
-    const box = new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position'));
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    const dimensions = {
-      w: Math.round(size.x * 10) / 10,
-      h: Math.round(size.y * 10) / 10,
-      d: Math.round(size.z * 10) / 10
-    };
-
-    const targetAxis = getArrowTargetAxis(
-      panel.geometry,
-      panel.parameters?.faceRole,
-      panel.parameters?.arrowRotated
-    );
-
-    const posAttr = panel.geometry.getAttribute('position');
-    const bbox = new THREE.Box3().setFromBufferAttribute(posAttr as THREE.BufferAttribute);
-    const sizeVec = new THREE.Vector3();
-    bbox.getSize(sizeVec);
-
-    const axes = [
-      { index: 0, value: sizeVec.x },
-      { index: 1, value: sizeVec.y },
-      { index: 2, value: sizeVec.z }
-    ];
-    axes.sort((a, b) => a.value - b.value);
-
-    const thicknessAxis = axes[0].index;
-    const planeAxes = axes.slice(1).map(a => a.index);
-    const secondaryAxis = planeAxes.find(a => a !== targetAxis) ?? planeAxes[0];
-
-    let primary = targetAxis === 0 ? dimensions.w : targetAxis === 1 ? dimensions.h : dimensions.d;
-    let secondary = secondaryAxis === 0 ? dimensions.w : secondaryAxis === 1 ? dimensions.h : dimensions.d;
-    let thickness = thicknessAxis === 0 ? dimensions.w : thicknessAxis === 1 ? dimensions.h : dimensions.d;
-
-    return { primary, secondary, thickness, ...dimensions };
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -686,7 +403,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: '560px',
+        width: '565px',
       }}
     >
       <div
@@ -700,9 +417,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
         </div>
         <div className="flex items-center gap-1">
           <button
-            onClick={handleAddCustomRow}
-            className="p-0.5 hover:bg-stone-200 rounded transition-colors text-green-600"
-            title="Add custom row"
+            onClick={() => setRaycastMode(!raycastMode)}
+            className={`p-0.5 rounded transition-colors ${
+              raycastMode
+                ? 'text-amber-600 bg-amber-100 ring-1 ring-amber-400'
+                : 'text-slate-600 hover:bg-stone-200'
+            }`}
+            title={raycastMode ? 'Raycast Modu Aktif (kapat)' : 'Raycast Modunu Aç'}
           >
             <Plus size={14} />
           </button>
@@ -751,6 +472,17 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                     ))}
                   </select>
                 )}
+              </div>
+              <div className="flex items-center gap-1">
+                <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
+                  Raycast Face
+                </label>
+                <input
+                  type="checkbox"
+                  checked={showVirtualFaces}
+                  onChange={(e) => setShowVirtualFaces(e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
               </div>
               <div className="flex items-center gap-1">
                 <label className="text-xs font-semibold text-slate-800 whitespace-nowrap">
@@ -825,14 +557,92 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                 setSelectedPanelRow(faceIndex, null);
               };
 
-              const handleExtraRowClick = (faceIndex: number, extraRowId: string) => {
-                setSelectedPanelRow(faceIndex, extraRowId);
+              const shapeVirtualFaces = virtualFaces.filter(vf => vf.shapeId === selectedShape.id);
+
+              const createVirtualPanel = async (vfId: string, vfIndex: number) => {
+                const vf = shapeVirtualFaces[vfIndex];
+                if (!vf) return;
+                try {
+                  const panelThickness = 18;
+                  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+                  const replicadPanel = await createPanelFromVirtualFace(
+                    vf.vertices,
+                    vf.normal,
+                    panelThickness
+                  );
+                  if (!replicadPanel) return;
+                  const geometry = convertReplicadToThreeGeometry(replicadPanel);
+
+                  const bbox = new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
+                  const size = new THREE.Vector3();
+                  bbox.getSize(size);
+
+                  const axesBySize = [
+                    { index: 0, value: size.x },
+                    { index: 1, value: size.y },
+                    { index: 2, value: size.z }
+                  ].sort((a, b) => a.value - b.value);
+
+                  const planeAxes = axesBySize.slice(1).map(a => a.index).sort((a, b) => a - b);
+                  const role = vf.role?.toLowerCase();
+                  let defaultAxis = planeAxes[0];
+                  let altAxis = planeAxes[1];
+                  if (role === 'left' || role === 'right') {
+                    if (planeAxes.includes(1)) { defaultAxis = 1; altAxis = planeAxes.find(a => a !== 1) ?? planeAxes[1]; }
+                  } else if (role === 'top' || role === 'bottom') {
+                    if (planeAxes.includes(0)) { defaultAxis = 0; altAxis = planeAxes.find(a => a !== 0) ?? planeAxes[1]; }
+                  }
+                  const targetAxis = defaultAxis;
+                  const secondaryAxis = altAxis;
+
+                  const sizeByIndex = [size.x, size.y, size.z];
+                  const width = sizeByIndex[targetAxis];
+                  const height = sizeByIndex[secondaryAxis];
+
+                  const newPanel: any = {
+                    id: `panel-vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+                    type: 'panel',
+                    geometry,
+                    replicadShape: replicadPanel,
+                    position: [...selectedShape.position] as [number, number, number],
+                    rotation: selectedShape.rotation,
+                    scale: [...selectedShape.scale] as [number, number, number],
+                    color: '#ffffff',
+                    parameters: {
+                      width,
+                      height,
+                      depth: panelThickness,
+                      parentShapeId: selectedShape.id,
+                      faceIndex: -(vfIndex + 1),
+                      faceRole: vf.role,
+                      virtualFaceId: vf.id,
+                      arrowRotated: false
+                    }
+                  };
+                  addShape(newPanel);
+                  updateVirtualFace(vf.id, { hasPanel: true });
+                } catch (err) {
+                  console.error('Failed to create panel for virtual face:', err);
+                }
+              };
+
+              const removeVirtualPanel = (vfId: string, vfIndex: number) => {
+                const panelToRemove = shapes.find(s =>
+                  s.type === 'panel' &&
+                  s.parameters?.parentShapeId === selectedShape.id &&
+                  s.parameters?.virtualFaceId === vfId
+                );
+                if (panelToRemove) {
+                  const { deleteShape } = useAppStore.getState();
+                  deleteShape(panelToRemove.id);
+                }
+                updateVirtualFace(vfId, { hasPanel: false });
               };
 
               return (
                 <div className={`space-y-0.5 pt-2 border-t border-stone-300 ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}>
                   <div className={`text-xs font-semibold mb-1 flex items-center gap-2 ${isDisabled ? 'text-stone-400' : 'text-orange-700'}`}>
-                    <span>Face Roles ({faceGroups.length} faces)</span>
+                    <span>Face Roles ({faceGroups.length + shapeVirtualFaces.length} faces)</span>
                     {resolving && (
                       <span className="text-[10px] font-normal text-orange-500 animate-pulse">
                         resolving joints...
@@ -841,8 +651,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   </div>
                   {faceGroups.map((_group, i) => {
                     const dimensions = getPanelDimensions(i);
-                    const isRowSelected = selectedPanelRow === i && !selectedPanelRowExtraId;
-                    const extraRowsForFace = (selectedShape.extraPanelRows || []).filter((r: any) => r.sourceFaceIndex === i);
+                    const isRowSelected = selectedPanelRow === i;
                     return (
                       <React.Fragment key={`face-${i}`}>
                         <div
@@ -881,7 +690,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             value={faceRoles[i] || ''}
                             disabled={isDisabled}
                             onClick={(e) => e.stopPropagation()}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                               const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
                               const newFaceRoles = { ...faceRoles, [i]: newRole };
                               if (newRole === null) {
@@ -904,9 +713,12 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                                 });
                                 if (selectedProfile !== 'none') {
                                   setResolving(true);
-                                  resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
-                                    setResolving(false)
-                                  );
+                                  try {
+                                    await rebuildAllPanels(selectedShape.id);
+                                    await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                  } finally {
+                                    setResolving(false);
+                                  }
                                 }
                               }
                             }}
@@ -1007,198 +819,85 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             <RotateCw size={13} />
                           </button>
                         </div>
-                        {extraRowsForFace.map((extraRow: any) => {
-                          const extraDims = getExtraPanelDimensions(extraRow.id);
-                          const extraPanel = shapes.find(s =>
-                            s.type === 'panel' &&
-                            s.parameters?.parentShapeId === selectedShape.id &&
-                            s.parameters?.extraRowId === extraRow.id
-                          );
-                          const isExtraRowSelected = selectedPanelRow === i && selectedPanelRowExtraId === extraRow.id;
-                          const needsSurfaceSelection = extraRow.needsSurfaceSelection && !extraPanel;
-                          const isWaitingForThis = waitingForSurfaceSelection?.extraRowId === extraRow.id;
-                          return (
-                            <div
-                              key={extraRow.id}
-                              className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ml-4 border-l-2 ${needsSurfaceSelection ? 'border-blue-500' : 'border-orange-300'} cursor-pointer ${isExtraRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : isWaitingForThis ? 'bg-blue-50 ring-1 ring-blue-400' : 'hover:bg-gray-50'}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!needsSurfaceSelection) {
-                                  handleExtraRowClick(i, extraRow.id);
-                                }
-                              }}
-                            >
-                              {needsSurfaceSelection ? (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleStartSurfaceSelection(extraRow.id, extraRow.sourceFaceIndex);
-                                  }}
-                                  className={`p-0.5 rounded transition-colors ${
-                                    isWaitingForThis
-                                      ? 'bg-blue-600 text-white'
-                                      : 'bg-blue-500 text-white hover:bg-blue-600'
-                                  }`}
-                                  title="Select surface for panel"
-                                >
-                                  <Scan size={13} />
-                                </button>
-                              ) : (
-                                <input
-                                  type="radio"
-                                  name="panel-selection"
-                                  checked={isExtraRowSelected}
-                                  onChange={(e) => {
-                                    e.stopPropagation();
-                                    handleExtraRowClick(i, extraRow.id);
-                                  }}
-                                  className="w-4 h-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              )}
-                              <input
-                                type="text"
-                                value={i + 1}
-                                readOnly
-                                tabIndex={-1}
-                                className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-orange-700 border-orange-300"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <select
-                                value={extraPanel?.parameters?.faceRole || faceRoles[i] || ''}
-                                onClick={(e) => e.stopPropagation()}
-                                onChange={(e) => {
-                                  if (!extraPanel) return;
-                                  const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
-                                  updateShape(extraPanel.id, {
-                                    parameters: {
-                                      ...extraPanel.parameters,
-                                      faceRole: newRole
-                                    }
-                                  });
-                                  if (selectedProfile !== 'none') {
-                                    setResolving(true);
-                                    resolveAllPanelJoints(selectedShape.id, selectedProfile).finally(() =>
-                                      setResolving(false)
-                                    );
-                                  }
-                                }}
-                                style={{ width: '35mm' }}
-                                className="px-1 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
-                              >
-                                <option value="">none</option>
-                                {roleOptions.map(role => (
-                                  <option key={role} value={role}>{role}</option>
-                                ))}
-                              </select>
-                              <input
-                                type="text"
-                                value=""
-                                placeholder="description"
-                                readOnly
-                                tabIndex={-1}
-                                style={{ width: '40mm' }}
-                                className="px-2 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <input
-                                type="text"
-                                value={extraDims?.primary || 'NaN'}
-                                readOnly
-                                tabIndex={-1}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-gray-800 border-orange-300 font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={extraDims?.secondary || 'NaN'}
-                                readOnly
-                                tabIndex={-1}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-gray-800 border-blue-300 font-semibold"
-                              />
-                              <input
-                                type="text"
-                                value={extraDims?.thickness || 'NaN'}
-                                readOnly
-                                tabIndex={-1}
-                                onClick={(e) => e.stopPropagation()}
-                                className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
-                              />
-                              <div className="w-4" />
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (!extraPanel) return;
-                                  const current = extraPanel.parameters?.arrowRotated || false;
-                                  updateShape(extraPanel.id, {
-                                    parameters: {
-                                      ...extraPanel.parameters,
-                                      arrowRotated: !current
-                                    }
-                                  });
-                                }}
-                                className={`p-0.5 rounded transition-colors ${
-                                  extraPanel?.parameters?.arrowRotated
-                                    ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                                    : 'text-slate-500 hover:bg-stone-100'
-                                }`}
-                                title="Rotate arrow direction"
-                              >
-                                <RotateCw size={13} />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleRemoveExtraRow(extraRow.id);
-                                }}
-                                className="p-0.5 rounded transition-colors text-red-500 hover:bg-red-50"
-                                title="Remove this extra panel row"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          );
-                        })}
                       </React.Fragment>
                     );
                   })}
-                  {customFaceRows.map((customRow) => {
-                    const customPanel = getCustomRowPanel(customRow.id);
-                    const customDims = getCustomPanelDimensions(customRow.id);
-                    const isPaintModeForThis = customFacePaintMode && customFacePaintRowId === customRow.id;
-                    const confirmedFace = confirmedCustomFaces[customRow.id];
-                    const hasSurface = !!confirmedFace;
+
+                  {shapeVirtualFaces.map((vf, vfIdx) => {
+                    const virtualPanel = shapes.find(s =>
+                      s.type === 'panel' &&
+                      s.parameters?.parentShapeId === selectedShape.id &&
+                      s.parameters?.virtualFaceId === vf.id
+                    );
+                    const panelWidth = virtualPanel?.parameters?.width || 0;
+                    const panelHeight = virtualPanel?.parameters?.height || 0;
+                    const panelDepth = virtualPanel?.parameters?.depth || 0;
+                    const arrowRotated = virtualPanel?.parameters?.arrowRotated || false;
+                    const isRowSelected = selectedPanelRow === `vf-${vf.id}`;
+
+                    const handleVirtualRowClick = () => {
+                      if (!vf.hasPanel) return;
+                      setSelectedPanelRow(`vf-${vf.id}`);
+                    };
+
                     return (
                       <div
-                        key={customRow.id}
-                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ${isPaintModeForThis ? 'bg-blue-50 ring-1 ring-blue-400' : hasSurface ? 'bg-green-50 ring-1 ring-green-300' : 'bg-stone-50 ring-1 ring-stone-300'}`}
+                        key={vf.id}
+                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors ${isRowSelected ? 'bg-orange-50 ring-1 ring-orange-400' : 'hover:bg-gray-50'} ${vf.hasPanel ? 'cursor-pointer' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (vf.hasPanel) handleVirtualRowClick();
+                        }}
                       >
                         <input
                           type="radio"
                           name="panel-selection"
-                          disabled={!customPanel}
-                          className={`w-4 h-4 ${customPanel ? 'text-orange-600 focus:ring-orange-500 cursor-pointer' : 'text-stone-300 cursor-not-allowed'}`}
+                          checked={isRowSelected}
+                          disabled={isDisabled || !vf.hasPanel}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            handleVirtualRowClick();
+                          }}
+                          className={`w-4 h-4 ${isDisabled || !vf.hasPanel ? 'text-stone-300 cursor-not-allowed' : 'text-orange-600 focus:ring-orange-500 cursor-pointer'}`}
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <input
                           type="text"
-                          value={confirmedFace ? confirmedFace.groupIndex + 1 : ''}
-                          placeholder="C"
+                          value={`V${vfIdx + 1}`}
                           readOnly
                           tabIndex={-1}
-                          className={`w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-white text-gray-800 ${hasSurface ? 'border-green-400' : 'border-gray-300'}`}
+                          className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-100 text-green-800 border-green-300"
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <select
-                          value={customPanel?.parameters?.faceRole || ''}
-                          onChange={(e) => {
-                            if (!customPanel) return;
+                          value={vf.role || ''}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={async (e) => {
                             const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
-                            updateShape(customPanel.id, {
-                              parameters: { ...customPanel.parameters, faceRole: newRole }
-                            });
+                            updateVirtualFace(vf.id, { role: newRole });
+                            const virtualPanel = shapes.find(s =>
+                              s.type === 'panel' &&
+                              s.parameters?.parentShapeId === selectedShape.id &&
+                              s.parameters?.virtualFaceId === vf.id
+                            );
+                            if (virtualPanel) {
+                              updateShape(virtualPanel.id, {
+                                parameters: { ...virtualPanel.parameters, faceRole: newRole }
+                              });
+                              if (selectedProfile !== 'none') {
+                                setResolving(true);
+                                try {
+                                  await rebuildAllPanels(selectedShape.id);
+                                  await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                } finally {
+                                  setResolving(false);
+                                }
+                              }
+                            }
                           }}
-                          className="px-1 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
                           style={{ width: '35mm' }}
+                          className={`px-1 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200' : 'bg-white text-gray-800 border-green-300'}`}
                         >
                           <option value="">none</option>
                           {roleOptions.map(role => (
@@ -1207,69 +906,102 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         </select>
                         <input
                           type="text"
+                          value={vf.description || ''}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            updateVirtualFace(vf.id, { description: e.target.value });
+                          }}
                           placeholder="description"
-                          className="px-2 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
                           style={{ width: '40mm' }}
+                          className={`px-2 py-0.5 text-xs border rounded ${isDisabled ? 'bg-stone-100 text-stone-400 border-stone-200 placeholder:text-stone-300' : 'bg-white text-gray-800 border-green-300'}`}
                         />
                         <input
                           type="text"
-                          value={customDims?.primary || ''}
+                          value={vf.hasPanel ? (arrowRotated ? Math.round(panelHeight) : Math.round(panelWidth)) : '—'}
                           readOnly
                           tabIndex={-1}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-gray-800 border-orange-300 font-semibold"
+                          className={`w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center ${vf.hasPanel ? 'bg-orange-50 text-gray-800 border-orange-300 font-semibold' : 'bg-orange-50 text-stone-400 border-orange-200'}`}
+                          title="Arrow Direction Dimension"
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <input
                           type="text"
-                          value={customDims?.secondary || ''}
+                          value={vf.hasPanel ? (arrowRotated ? Math.round(panelWidth) : Math.round(panelHeight)) : '—'}
                           readOnly
                           tabIndex={-1}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-gray-800 border-blue-300 font-semibold"
+                          className={`w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center ${vf.hasPanel ? 'bg-blue-50 text-gray-800 border-blue-300 font-semibold' : 'bg-blue-50 text-stone-400 border-blue-200'}`}
+                          title="Perpendicular Dimension"
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <input
                           type="text"
-                          value={customDims?.thickness || ''}
+                          value={vf.hasPanel ? Math.round(panelDepth) : '—'}
                           readOnly
                           tabIndex={-1}
-                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
+                          className={`w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center ${vf.hasPanel ? 'bg-green-50 text-gray-800 border-green-300 font-semibold' : 'bg-green-50 text-stone-400 border-green-200'}`}
+                          title="Panel Thickness"
+                          onClick={(e) => e.stopPropagation()}
                         />
                         <input
                           type="checkbox"
-                          checked={!!customPanel}
-                          disabled={!hasSurface}
-                          onChange={(e) => handleCustomRowTogglePanel(customRow.id, e.target.checked)}
-                          className={`w-4 h-4 border-gray-300 rounded ${hasSurface ? 'cursor-pointer text-orange-600' : 'text-stone-300 cursor-not-allowed'}`}
-                          title={hasSurface ? 'Toggle panel' : 'Select a surface first'}
+                          checked={vf.hasPanel}
+                          disabled={isDisabled}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={async () => {
+                            if (vf.hasPanel) {
+                              removeVirtualPanel(vf.id, vfIdx);
+                            } else {
+                              await createVirtualPanel(vf.id, vfIdx);
+                              if (selectedProfile !== 'none') {
+                                setResolving(true);
+                                try {
+                                  await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+                                } finally {
+                                  setResolving(false);
+                                }
+                              }
+                            }
+                          }}
+                          className={`w-4 h-4 border-gray-300 rounded ${isDisabled ? 'text-stone-300 cursor-not-allowed' : 'text-green-600 focus:ring-green-500 cursor-pointer'}`}
+                          title={`Toggle panel for virtual face V${vfIdx + 1}`}
                         />
                         <button
-                          disabled
-                          className="p-0.5 rounded transition-colors text-stone-300 cursor-not-allowed"
+                          disabled={isDisabled || !vf.hasPanel}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (virtualPanel) {
+                              const current = virtualPanel.parameters?.arrowRotated || false;
+                              updateShape(virtualPanel.id, {
+                                parameters: {
+                                  ...virtualPanel.parameters,
+                                  arrowRotated: !current
+                                }
+                              });
+                            }
+                          }}
+                          className={`p-0.5 rounded transition-colors ${
+                            isDisabled || !vf.hasPanel
+                              ? 'text-stone-300 cursor-not-allowed'
+                              : arrowRotated
+                              ? 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                              : 'text-slate-500 hover:bg-stone-100'
+                          }`}
                           title="Rotate arrow direction"
                         >
                           <RotateCw size={13} />
                         </button>
                         <button
+                          disabled={isDisabled}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCustomRowAddSurface(customRow.id);
+                            if (vf.hasPanel) removeVirtualPanel(vf.id, vfIdx);
+                            deleteVirtualFace(vf.id);
                           }}
-                          className={`p-0.5 rounded transition-colors ${
-                            isPaintModeForThis
-                              ? 'bg-blue-600 text-white'
-                              : 'text-blue-600 hover:bg-blue-50'
-                          }`}
-                          title="Add surface"
+                          className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                          title="Delete virtual face"
                         >
-                          <Scan size={13} />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveCustomRow(customRow.id);
-                          }}
-                          className="p-0.5 rounded transition-colors text-red-500 hover:bg-red-50"
-                          title="Remove custom row"
-                        >
-                          <Trash2 size={13} />
+                          <Trash2 size={13} className="text-red-400" />
                         </button>
                       </div>
                     );
