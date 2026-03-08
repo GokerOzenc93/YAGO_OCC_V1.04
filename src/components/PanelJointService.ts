@@ -438,6 +438,9 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
           panelThickness
         );
         if (!replicadPanel) continue;
+        if (parentSubtractions.length > 0) {
+          replicadPanel = await applyParentSubtractors(replicadPanel, parentSubtractions);
+        }
 
         const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
@@ -844,6 +847,9 @@ async function rebuildVirtualFacePanels(
         panelThickness
       );
       if (!replicadPanel) continue;
+      if (parentSubtractions.length > 0) {
+        replicadPanel = await applyParentSubtractors(replicadPanel, parentSubtractions);
+      }
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
