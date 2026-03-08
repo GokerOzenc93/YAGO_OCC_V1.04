@@ -576,6 +576,9 @@ interface PendingPreview {
   edgeGeo: THREE.BufferGeometry;
   virtualFace: VirtualFace;
   cornersLocal: THREE.Vector3[];
+  faceGroupIndex: number;
+  faceAxes: { u: THREE.Vector3; v: THREE.Vector3; normal: THREE.Vector3 };
+  faceUVBounds: { uMin: number; uMax: number; vMin: number; vMax: number };
 }
 
 function collectVirtualFaceObstacleEdgesWorld(
@@ -621,7 +624,8 @@ function buildPreview(
   shapeId: string,
   subtractions: any[] = [],
   geometry?: THREE.BufferGeometry,
-  shapeVirtualFaces: VirtualFace[] = []
+  shapeVirtualFaces: VirtualFace[] = [],
+  groupIndex: number = -1
 ): PendingPreview | null {
   const localNormal = group.normal.clone().normalize();
   const normalMatrix = new THREE.Matrix3().getNormalMatrix(localToWorld);
@@ -734,6 +738,7 @@ function buildPreview(
   }
 
   let normalizedClickUV: [number, number] | undefined;
+  let faceUVBounds = { uMin: 0, uMax: 1, vMin: 0, vMax: 1 };
   {
     const faceWorldVerts: THREE.Vector3[] = [];
     group.faceIndices.forEach(fi => {
@@ -750,6 +755,7 @@ function buildPreview(
       const vMax = Math.max(...faceVertsV);
       const uSpan = uMax - uMin;
       const vSpan = vMax - vMin;
+      faceUVBounds = { uMin, uMax, vMin, vMax };
       if (uSpan > 0 && vSpan > 0) {
         const clickU = clickWorld.dot(u);
         const clickV = clickWorld.dot(v);
@@ -786,6 +792,9 @@ function buildPreview(
     edgeGeo,
     virtualFace,
     cornersLocal,
+    faceGroupIndex: groupIndex,
+    faceAxes: { u, v, normal: worldNormal },
+    faceUVBounds,
   };
 }
 
@@ -891,6 +900,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
   const [pending, setPending] = useState<PendingPreview | null>(null);
   const [selectedCornerIndex, setSelectedCornerIndex] = useState<number | null>(null);
   const pendingGroupIndexRef = React.useRef<number | null>(null);
+  const selectedCornerLocalRef = React.useRef<THREE.Vector3 | null>(null);
+  const selectedCornerNormUVRef = React.useRef<[number, number] | null>(null);
 
   const shapeVirtualFaces = useMemo(
     () => virtualFaces.filter(vf => vf.shapeId === shape.id),
@@ -910,9 +921,82 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
   useEffect(() => {
     if (!shape.geometry) return;
     const extractedFaces = extractFacesFromGeometry(shape.geometry);
+    const newFaceGroups = groupCoplanarFaces(extractedFaces);
     setFaces(extractedFaces);
-    setFaceGroups(groupCoplanarFaces(extractedFaces));
-    setPending(null);
+    setFaceGroups(newFaceGroups);
+
+    const groupIndex = pendingGroupIndexRef.current;
+    const normUV = selectedCornerNormUVRef.current;
+
+    if (groupIndex !== null && normUV && newFaceGroups[groupIndex]) {
+      const currentLocalToWorld = getShapeMatrix(shape);
+      const currentWorldToLocal = currentLocalToWorld.clone().invert();
+      const currentChildPanels = allShapes.filter(
+        s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id
+      );
+      const currentVirtualFaces = virtualFaces.filter(vf => vf.shapeId === shape.id);
+
+      const grp = newFaceGroups[groupIndex];
+      const localNormal = grp.normal.clone().normalize();
+      const normalMatrix = new THREE.Matrix3().getNormalMatrix(currentLocalToWorld);
+      const worldNormal = localNormal.clone().applyMatrix3(normalMatrix).normalize();
+      const { u, v } = getFacePlaneAxes(worldNormal);
+
+      const faceWorldVerts: THREE.Vector3[] = [];
+      grp.faceIndices.forEach(fi => {
+        const face = extractedFaces[fi];
+        if (!face) return;
+        face.vertices.forEach(vt => faceWorldVerts.push(vt.clone().applyMatrix4(currentLocalToWorld)));
+      });
+
+      if (faceWorldVerts.length > 0) {
+        const faceVertsU = faceWorldVerts.map(vw => vw.dot(u));
+        const faceVertsV = faceWorldVerts.map(vw => vw.dot(v));
+        const uMin = Math.min(...faceVertsU);
+        const uMax = Math.max(...faceVertsU);
+        const vMin = Math.min(...faceVertsV);
+        const vMax = Math.max(...faceVertsV);
+        const uSpan = uMax - uMin;
+        const vSpan = vMax - vMin;
+
+        if (uSpan > 0 && vSpan > 0) {
+          const targetU = uMin + normUV[0] * uSpan;
+          const targetV = vMin + normUV[1] * vSpan;
+
+          const faceCenter = new THREE.Vector3();
+          faceWorldVerts.forEach(p => faceCenter.add(p));
+          faceCenter.divideScalar(faceWorldVerts.length);
+
+          const centerU = faceCenter.dot(u);
+          const centerV = faceCenter.dot(v);
+
+          const clickWorld = faceCenter.clone()
+            .addScaledVector(u, targetU - centerU)
+            .addScaledVector(v, targetV - centerV);
+
+          const preview = buildPreview(
+            clickWorld,
+            grp,
+            extractedFaces,
+            currentLocalToWorld,
+            currentWorldToLocal,
+            currentChildPanels,
+            shape.id,
+            shape.subtractionGeometries || [],
+            shape.geometry,
+            currentVirtualFaces,
+            groupIndex
+          );
+          setPending(preview);
+        } else {
+          setPending(null);
+        }
+      } else {
+        setPending(null);
+      }
+    } else {
+      setPending(null);
+    }
   }, [shape.geometry, shape.id, geometryUuid]);
 
   useEffect(() => {
@@ -1001,10 +1085,12 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       shape.id,
       shape.subtractionGeometries || [],
       shape.geometry,
-      shapeVirtualFaces
+      shapeVirtualFaces,
+      hoveredGroupIndex
     );
 
     pendingGroupIndexRef.current = hoveredGroupIndex;
+    selectedCornerLocalRef.current = null;
     setSelectedCornerIndex(null);
     setPending(preview);
   };
@@ -1014,35 +1100,29 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
     if (selectedCornerIndex === cornerIndex) {
       setSelectedCornerIndex(null);
+      selectedCornerLocalRef.current = null;
+      selectedCornerNormUVRef.current = null;
       return;
     }
 
-    setSelectedCornerIndex(cornerIndex);
-
-    const groupIndex = pendingGroupIndexRef.current;
-    if (groupIndex === null || !faceGroups[groupIndex]) return;
-
     const cornerLocal = pending.cornersLocal[cornerIndex];
+    selectedCornerLocalRef.current = cornerLocal.clone();
+
     const cornerWorld = cornerLocal.clone().applyMatrix4(localToWorld);
-    const group = faceGroups[groupIndex];
-
-    const preview = buildPreview(
-      cornerWorld,
-      group,
-      faces,
-      localToWorld,
-      worldToLocal,
-      childPanels,
-      shape.id,
-      shape.subtractionGeometries || [],
-      shape.geometry,
-      shapeVirtualFaces
-    );
-
-    if (preview) {
-      setPending(preview);
-      setSelectedCornerIndex(null);
+    const { u, v } = pending.faceAxes;
+    const { uMin, uMax, vMin, vMax } = pending.faceUVBounds;
+    const uSpan = uMax - uMin;
+    const vSpan = vMax - vMin;
+    if (uSpan > 0 && vSpan > 0) {
+      const cu = cornerWorld.dot(u);
+      const cv = cornerWorld.dot(v);
+      selectedCornerNormUVRef.current = [
+        Math.max(0, Math.min(1, (cu - uMin) / uSpan)),
+        Math.max(0, Math.min(1, (cv - vMin) / vSpan)),
+      ];
     }
+
+    setSelectedCornerIndex(cornerIndex);
   };
 
   const handleContextMenu = (e: any) => {
