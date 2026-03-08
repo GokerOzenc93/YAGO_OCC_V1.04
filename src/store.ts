@@ -63,19 +63,12 @@ export interface SubtractedGeometry {
 
 export type FaceRole = 'Left' | 'Right' | 'Top' | 'Bottom' | 'Back' | 'Door' | null;
 
-export type EdgeAnchorDirection = 'uPos' | 'uNeg' | 'vPos' | 'vNeg';
-
-export interface EdgeAnchor {
-  selectedEdges: [EdgeAnchorDirection, EdgeAnchorDirection];
-  distances: [number, number];
-}
-
 export interface VirtualFaceRaycastRecipe {
   clickLocalPoint: [number, number, number];
   faceGroupNormal: [number, number, number];
   faceGroupDescriptor: FaceDescriptor;
+  /** Click point as normalized UV on the face plane (0=min, 1=max of face bbox) */
   normalizedClickUV?: [number, number];
-  edgeAnchor?: EdgeAnchor;
 }
 
 export interface VirtualFace {

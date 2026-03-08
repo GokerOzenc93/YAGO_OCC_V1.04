@@ -569,25 +569,12 @@ function castRayOnFaceWorld(
   return originWorld.clone().addScaledVector(dirWorld, tMin);
 }
 
-export type EdgeDirection = 'uPos' | 'uNeg' | 'vPos' | 'vNeg';
-
-export interface RayHitInfo {
-  direction: EdgeDirection;
-  distance: number;
-  line: RayLine;
-}
-
 interface PendingPreview {
   rayLines: RayLine[];
-  rayHits: RayHitInfo[];
   originLocal: THREE.Vector3;
   geo: THREE.BufferGeometry;
   edgeGeo: THREE.BufferGeometry;
   virtualFace: VirtualFace;
-  startWorld: THREE.Vector3;
-  u: THREE.Vector3;
-  v: THREE.Vector3;
-  worldNormal: THREE.Vector3;
 }
 
 function collectVirtualFaceObstacleEdgesWorld(
@@ -655,26 +642,17 @@ function buildPreview(
 
   const lines: RayLine[] = [];
   const hitPointsWorld: THREE.Vector3[] = [];
-  const rayHits: RayHitInfo[] = [];
-  const dirLabels: EdgeDirection[] = ['uPos', 'uNeg', 'vPos', 'vNeg'];
 
   const parentPos = new THREE.Vector3();
   localToWorld.decompose(parentPos, new THREE.Quaternion(), new THREE.Vector3());
 
-  for (let di = 0; di < directions.length; di++) {
-    const dir = directions[di];
+  for (const dir of directions) {
     const hitWorld = castRayOnFaceWorld(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
-    const line: RayLine = {
+    lines.push({
       start: startWorld.clone().sub(parentPos),
       end: hitWorld.clone().sub(parentPos),
-    };
-    lines.push(line);
-    hitPointsWorld.push(hitWorld);
-    rayHits.push({
-      direction: dirLabels[di],
-      distance: hitWorld.distanceTo(startWorld),
-      line,
     });
+    hitPointsWorld.push(hitWorld);
   }
 
   if (hitPointsWorld.length < 4) return null;
@@ -802,70 +780,32 @@ function buildPreview(
 
   return {
     rayLines: lines,
-    rayHits,
     originLocal: clickWorld.clone().sub(parentPos),
     geo,
     edgeGeo,
     virtualFace,
-    startWorld: startWorld.clone(),
-    u: u.clone(),
-    v: v.clone(),
-    worldNormal: worldNormal.clone(),
   };
 }
 
-const RayLine3D: React.FC<{
-  start: THREE.Vector3;
-  end: THREE.Vector3;
-  color?: number;
-  hoverColor?: number;
-  onClick?: (e: any) => void;
-  onHoverChange?: (hovered: boolean) => void;
-  interactive?: boolean;
-}> = React.memo(
-  ({ start, end, color = 0xf97316, hoverColor, onClick, onHoverChange, interactive = false }) => {
+const RayLine3D: React.FC<{ start: THREE.Vector3; end: THREE.Vector3 }> = React.memo(
+  ({ start, end }) => {
     const geometry = useMemo(() => {
       return new THREE.BufferGeometry().setFromPoints([start, end]);
     }, [start.x, start.y, start.z, end.x, end.y, end.z]);
 
-    const tubeGeo = useMemo(() => {
-      const path = new THREE.LineCurve3(start, end);
-      return new THREE.TubeGeometry(path, 1, 2.5, 6, false);
-    }, [start.x, start.y, start.z, end.x, end.y, end.z]);
-
     return (
-      <group>
-        <lineSegments geometry={geometry}>
-          <lineBasicMaterial color={color} linewidth={2} depthTest={false} transparent opacity={0.9} />
-        </lineSegments>
-        {interactive && (
-          <mesh
-            geometry={tubeGeo}
-            visible={false}
-            onClick={(e: any) => {
-              e.stopPropagation();
-              onClick?.(e);
-            }}
-            onPointerOver={(e: any) => {
-              e.stopPropagation();
-              onHoverChange?.(true);
-            }}
-            onPointerOut={(e: any) => {
-              e.stopPropagation();
-              onHoverChange?.(false);
-            }}
-          />
-        )}
-      </group>
+      <lineSegments geometry={geometry}>
+        <lineBasicMaterial color={0xf97316} linewidth={2} depthTest={false} transparent opacity={0.9} />
+      </lineSegments>
     );
   }
 );
 RayLine3D.displayName = 'RayLine3D';
 
-const HitDot: React.FC<{ position: THREE.Vector3; color?: number }> = React.memo(({ position, color = 0xef4444 }) => (
+const HitDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => (
   <mesh position={[position.x, position.y, position.z]}>
     <sphereGeometry args={[2.5, 8, 8]} />
-    <meshBasicMaterial color={color} depthTest={false} transparent opacity={0.9} />
+    <meshBasicMaterial color={0xef4444} depthTest={false} transparent opacity={0.9} />
   </mesh>
 ));
 HitDot.displayName = 'HitDot';
@@ -878,20 +818,12 @@ const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position 
 ));
 OriginDot.displayName = 'OriginDot';
 
-function isValidEdgePair(edges: EdgeDirection[]): boolean {
-  if (edges.length !== 2) return false;
-  const axes = edges.map(e => (e === 'uPos' || e === 'uNeg') ? 'u' : 'v');
-  return axes[0] !== axes[1];
-}
-
 export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, allShapes = [] }) => {
   const { raycastMode, addVirtualFace, virtualFaces } = useAppStore();
   const [faces, setFaces] = useState<FaceData[]>([]);
   const [faceGroups, setFaceGroups] = useState<CoplanarFaceGroup[]>([]);
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingPreview | null>(null);
-  const [selectedEdges, setSelectedEdges] = useState<EdgeDirection[]>([]);
-  const [hoveredEdge, setHoveredEdge] = useState<EdgeDirection | null>(null);
 
   const shapeVirtualFaces = useMemo(
     () => virtualFaces.filter(vf => vf.shapeId === shape.id),
@@ -914,16 +846,12 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     setFaces(extractedFaces);
     setFaceGroups(groupCoplanarFaces(extractedFaces));
     setPending(null);
-    setSelectedEdges([]);
-    setHoveredEdge(null);
   }, [shape.geometry, shape.id, geometryUuid]);
 
   useEffect(() => {
     if (!raycastMode) {
       setHoveredGroupIndex(null);
       setPending(null);
-      setSelectedEdges([]);
-      setHoveredEdge(null);
     }
   }, [raycastMode]);
 
@@ -959,7 +887,6 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const handlePointerMove = (e: any) => {
     if (!raycastMode || faces.length === 0) return;
-    if (pending) return;
     e.stopPropagation();
     const fi = e.faceIndex;
     if (fi !== undefined) {
@@ -970,53 +897,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const handlePointerOut = (e: any) => {
     e.stopPropagation();
-    if (!pending) setHoveredGroupIndex(null);
-  };
-
-  const handleEdgeSelect = (direction: EdgeDirection) => {
-    if (!pending) return;
-
-    setSelectedEdges(prev => {
-      if (prev.includes(direction)) {
-        return prev.filter(d => d !== direction);
-      }
-
-      const axis = (direction === 'uPos' || direction === 'uNeg') ? 'u' : 'v';
-
-      const filtered = prev.filter(d => {
-        const dAxis = (d === 'uPos' || d === 'uNeg') ? 'u' : 'v';
-        return dAxis !== axis;
-      });
-
-      return [...filtered, direction];
-    });
-  };
-
-  const confirmWithEdgeAnchor = () => {
-    if (!pending || !isValidEdgePair(selectedEdges)) return;
-
-    const edge1 = selectedEdges[0];
-    const edge2 = selectedEdges[1];
-    const hit1 = pending.rayHits.find(h => h.direction === edge1);
-    const hit2 = pending.rayHits.find(h => h.direction === edge2);
-    if (!hit1 || !hit2) return;
-
-    const edgeAnchor = {
-      selectedEdges: [edge1, edge2] as [EdgeDirection, EdgeDirection],
-      distances: [hit1.distance, hit2.distance] as [number, number],
-    };
-
-    const updatedVF = {
-      ...pending.virtualFace,
-      raycastRecipe: pending.virtualFace.raycastRecipe
-        ? { ...pending.virtualFace.raycastRecipe, edgeAnchor }
-        : undefined,
-    };
-
-    addVirtualFace(updatedVF);
-    setPending(null);
-    setSelectedEdges([]);
-    setHoveredEdge(null);
+    setHoveredGroupIndex(null);
   };
 
   const handlePointerDown = (e: any) => {
@@ -1025,14 +906,14 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     if (e.button === 2) {
       e.stopPropagation();
       e.nativeEvent?.preventDefault?.();
-      if (pending && isValidEdgePair(selectedEdges)) {
-        confirmWithEdgeAnchor();
+      if (pending) {
+        addVirtualFace(pending.virtualFace);
+        setPending(null);
       }
       return;
     }
 
     if (e.button !== 0) return;
-    if (pending) return;
     e.stopPropagation();
 
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return;
@@ -1055,15 +936,14 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     );
 
     setPending(preview);
-    setSelectedEdges([]);
-    setHoveredEdge(null);
   };
 
   const handleContextMenu = (e: any) => {
     e.stopPropagation();
     e.nativeEvent?.preventDefault?.();
-    if (pending && isValidEdgePair(selectedEdges)) {
-      confirmWithEdgeAnchor();
+    if (pending) {
+      addVirtualFace(pending.virtualFace);
+      setPending(null);
     }
   };
 
@@ -1097,26 +977,12 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       {pending && (
         <>
           <OriginDot position={pending.originLocal} />
-          {pending.rayHits.map((hit) => {
-            const isSelected = selectedEdges.includes(hit.direction);
-            const isHovered = hoveredEdge === hit.direction;
-            const lineColor = isSelected ? 0x3b82f6 : isHovered ? 0x60a5fa : 0xf97316;
-            const dotColor = isSelected ? 0x3b82f6 : isHovered ? 0x60a5fa : 0xef4444;
-
-            return (
-              <React.Fragment key={hit.direction}>
-                <RayLine3D
-                  start={hit.line.start}
-                  end={hit.line.end}
-                  color={lineColor}
-                  interactive
-                  onClick={() => handleEdgeSelect(hit.direction)}
-                  onHoverChange={(hovered) => setHoveredEdge(hovered ? hit.direction : null)}
-                />
-                <HitDot position={hit.line.end} color={dotColor} />
-              </React.Fragment>
-            );
-          })}
+          {pending.rayLines.map((line, i) => (
+            <React.Fragment key={i}>
+              <RayLine3D start={line.start} end={line.end} />
+              <HitDot position={line.end} />
+            </React.Fragment>
+          ))}
           <mesh geometry={pending.geo}>
             <meshBasicMaterial
               color={0x22c55e}
