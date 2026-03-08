@@ -69,6 +69,8 @@ export interface VirtualFaceRaycastRecipe {
   faceGroupDescriptor: FaceDescriptor;
   /** Click point as normalized UV on the face plane (0=min, 1=max of face bbox) */
   normalizedClickUV?: [number, number];
+  /** Normalized hit ratios [uPos, uNeg, vPos, vNeg] as fraction of face extent in each direction */
+  normalizedHitRatios?: [number, number, number, number];
 }
 
 export interface VirtualFace {

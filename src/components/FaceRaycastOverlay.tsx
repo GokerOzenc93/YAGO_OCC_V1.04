@@ -733,6 +733,7 @@ function buildPreview(
   }
 
   let normalizedClickUV: [number, number] | undefined;
+  let normalizedHitRatios: [number, number, number, number] | undefined;
   {
     const faceWorldVerts: THREE.Vector3[] = [];
     group.faceIndices.forEach(fi => {
@@ -756,6 +757,18 @@ function buildPreview(
           Math.max(0, Math.min(1, (clickU - uMin) / uSpan)),
           Math.max(0, Math.min(1, (clickV - vMin) / vSpan)),
         ];
+
+        const maxUPos = uMax - clickU;
+        const maxUNeg = clickU - uMin;
+        const maxVPos = vMax - clickV;
+        const maxVNeg = clickV - vMin;
+
+        normalizedHitRatios = [
+          maxUPos > 0 ? Math.min(1, uPosT / maxUPos) : 1,
+          maxUNeg > 0 ? Math.min(1, uNegT / maxUNeg) : 1,
+          maxVPos > 0 ? Math.min(1, vPosT / maxVPos) : 1,
+          maxVNeg > 0 ? Math.min(1, vNegT / maxVNeg) : 1,
+        ];
       }
     }
   }
@@ -775,6 +788,7 @@ function buildPreview(
       faceGroupNormal: [localNormal.x, localNormal.y, localNormal.z],
       faceGroupDescriptor,
       normalizedClickUV,
+      normalizedHitRatios,
     } : undefined,
   };
 
