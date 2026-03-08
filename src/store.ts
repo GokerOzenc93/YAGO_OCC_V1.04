@@ -239,8 +239,8 @@ interface AppState {
   setPanelSelectMode: (enabled: boolean) => void;
   panelSurfaceSelectMode: boolean;
   setPanelSurfaceSelectMode: (enabled: boolean) => void;
-  waitingForSurfaceSelection: { extraRowId: string; sourceFaceIndex: number } | null;
-  setWaitingForSurfaceSelection: (waiting: { extraRowId: string; sourceFaceIndex: number } | null) => void;
+  waitingForSurfaceSelection: { extraRowId: string; sourceFaceIndex: number; customRowId?: string } | null;
+  setWaitingForSurfaceSelection: (waiting: { extraRowId: string; sourceFaceIndex: number; customRowId?: string } | null) => void;
   pendingPanelCreation: {
     faceIndex: number;
     timestamp: number;

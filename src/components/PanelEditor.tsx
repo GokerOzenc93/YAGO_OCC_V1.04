@@ -24,7 +24,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const prevProfileRef = useRef<string>('none');
   const prevGeometryRef = useRef<string>('');
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
-  const [customFaceRows, setCustomFaceRows] = useState<Array<{ id: string }>>([]);
+  const [customFaceRows, setCustomFaceRows] = useState<Array<{ id: string; faceIndex?: number; hasSurface?: boolean }>>([]);
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
 
@@ -39,9 +39,9 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       }
 
       const { faceIndex, sourceGeometryShapeId, surfaceConstraint } = pendingPanelCreation;
-      const { extraRowId } = waitingForSurfaceSelection;
+      const { extraRowId, customRowId } = waitingForSurfaceSelection;
 
-      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId, 'sourceGeometryShapeId:', sourceGeometryShapeId, 'surfaceConstraint:', surfaceConstraint);
+      console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId, 'customRowId:', customRowId, 'sourceGeometryShapeId:', sourceGeometryShapeId, 'surfaceConstraint:', surfaceConstraint);
 
       let sourceShape = selectedShape;
       if (sourceGeometryShapeId) {
@@ -59,13 +59,20 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const faceGroups = groupCoplanarFaces(faces);
       if (faceIndex >= faceGroups.length) return;
 
-      await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, extraRowId, surfaceConstraint);
+      const rowId = customRowId || extraRowId;
+      await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, rowId, surfaceConstraint);
 
-      const currentExtraRows = selectedShape.extraPanelRows || [];
-      const updatedExtraRows = currentExtraRows.map((row: any) =>
-        row.id === extraRowId ? { ...row, needsSurfaceSelection: false } : row
-      );
-      updateShape(selectedShape.id, { extraPanelRows: updatedExtraRows });
+      if (customRowId) {
+        setCustomFaceRows(prev => prev.map(row =>
+          row.id === customRowId ? { ...row, faceIndex, hasSurface: true } : row
+        ));
+      } else {
+        const currentExtraRows = selectedShape.extraPanelRows || [];
+        const updatedExtraRows = currentExtraRows.map((row: any) =>
+          row.id === extraRowId ? { ...row, needsSurfaceSelection: false } : row
+        );
+        updateShape(selectedShape.id, { extraPanelRows: updatedExtraRows });
+      }
 
       setPanelSurfaceSelectMode(false);
       setWaitingForSurfaceSelection(null);
@@ -394,7 +401,67 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   };
 
   const handleRemoveCustomRow = (customRowId: string) => {
+    if (selectedShape) {
+      const panelToRemove = shapes.find(s =>
+        s.type === 'panel' &&
+        s.parameters?.parentShapeId === selectedShape.id &&
+        s.parameters?.extraRowId === customRowId
+      );
+      if (panelToRemove) {
+        const { deleteShape } = useAppStore.getState();
+        deleteShape(panelToRemove.id);
+      }
+    }
     setCustomFaceRows(customFaceRows.filter(r => r.id !== customRowId));
+  };
+
+  const handleCustomRowAddSurface = (customRowId: string) => {
+    setPanelSurfaceSelectMode(true);
+    setWaitingForSurfaceSelection({ extraRowId: customRowId, sourceFaceIndex: -1, customRowId });
+  };
+
+  const getCustomRowPanel = (customRowId: string) => {
+    if (!selectedShape) return null;
+    return shapes.find(
+      s => s.type === 'panel' &&
+      s.parameters?.parentShapeId === selectedShape.id &&
+      s.parameters?.extraRowId === customRowId
+    ) || null;
+  };
+
+  const getCustomPanelDimensions = (customRowId: string): { primary: number; secondary: number; thickness: number } | null => {
+    const panel = getCustomRowPanel(customRowId);
+    if (!panel?.geometry) return null;
+    const box = new THREE.Box3().setFromBufferAttribute(panel.geometry.getAttribute('position'));
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const dims = {
+      w: Math.round(size.x * 10) / 10,
+      h: Math.round(size.y * 10) / 10,
+      d: Math.round(size.z * 10) / 10
+    };
+
+    const targetAxis = getArrowTargetAxis(panel.geometry, panel.parameters?.faceRole, panel.parameters?.arrowRotated);
+    const posAttr = panel.geometry.getAttribute('position');
+    const bbox = new THREE.Box3().setFromBufferAttribute(posAttr as THREE.BufferAttribute);
+    const sizeVec = new THREE.Vector3();
+    bbox.getSize(sizeVec);
+    const axes = [
+      { index: 0, value: sizeVec.x },
+      { index: 1, value: sizeVec.y },
+      { index: 2, value: sizeVec.z }
+    ];
+    axes.sort((a, b) => a.value - b.value);
+    const thicknessAxis = axes[0].index;
+    const planeAxes = axes.slice(1).map(a => a.index);
+    const secondaryAxis = planeAxes.find(a => a !== targetAxis) ?? planeAxes[0];
+
+    const primary = targetAxis === 0 ? dims.w : targetAxis === 1 ? dims.h : dims.d;
+    const secondary = secondaryAxis === 0 ? dims.w : secondaryAxis === 1 ? dims.h : dims.d;
+    const thickness = thicknessAxis === 0 ? dims.w : thicknessAxis === 1 ? dims.h : dims.d;
+
+    return { primary, secondary, thickness };
   };
 
   const handleRemoveExtraRow = async (extraRowId: string) => {
@@ -996,32 +1063,42 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                     );
                   })}
                   {customFaceRows.map((customRow) => {
+                    const customPanel = getCustomRowPanel(customRow.id);
+                    const customDims = getCustomPanelDimensions(customRow.id);
+                    const isWaitingForThisCustom = waitingForSurfaceSelection?.customRowId === customRow.id;
                     return (
                       <div
                         key={customRow.id}
-                        className="flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 bg-purple-50 ring-1 ring-purple-200"
+                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ${isWaitingForThisCustom ? 'bg-blue-50 ring-1 ring-blue-400' : 'bg-stone-50 ring-1 ring-stone-300'}`}
                       >
                         <input
                           type="radio"
                           name="panel-selection"
-                          disabled
-                          className="w-4 h-4 text-stone-300 cursor-not-allowed"
+                          disabled={!customPanel}
+                          className={`w-4 h-4 ${customPanel ? 'text-orange-600 focus:ring-orange-500 cursor-pointer' : 'text-stone-300 cursor-not-allowed'}`}
                         />
                         <input
                           type="text"
-                          value=""
+                          value={customRow.faceIndex != null ? customRow.faceIndex + 1 : ''}
                           placeholder="C"
                           readOnly
                           tabIndex={-1}
                           className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-white text-gray-800 border-gray-300"
                         />
                         <select
-                          defaultValue=""
+                          value={customPanel?.parameters?.faceRole || ''}
+                          onChange={(e) => {
+                            if (!customPanel) return;
+                            const newRole = e.target.value === '' ? null : e.target.value as FaceRole;
+                            updateShape(customPanel.id, {
+                              parameters: { ...customPanel.parameters, faceRole: newRole }
+                            });
+                          }}
                           className="px-1 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
                           style={{ width: '35mm' }}
                         >
                           <option value="">none</option>
-                          {['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'].map(role => (
+                          {roleOptions.map(role => (
                             <option key={role} value={role}>{role}</option>
                           ))}
                         </select>
@@ -1033,21 +1110,21 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         />
                         <input
                           type="text"
-                          value=""
+                          value={customDims?.primary || ''}
                           readOnly
                           tabIndex={-1}
                           className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-gray-800 border-orange-300 font-semibold"
                         />
                         <input
                           type="text"
-                          value=""
+                          value={customDims?.secondary || ''}
                           readOnly
                           tabIndex={-1}
                           className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-gray-800 border-blue-300 font-semibold"
                         />
                         <input
                           type="text"
-                          value=""
+                          value={customDims?.thickness || ''}
                           readOnly
                           tabIndex={-1}
                           className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
@@ -1068,9 +1145,14 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            handleCustomRowAddSurface(customRow.id);
                           }}
-                          className="p-0.5 rounded transition-colors text-slate-500 hover:bg-stone-100"
-                          title="Show surfaces"
+                          className={`p-0.5 rounded transition-colors ${
+                            isWaitingForThisCustom
+                              ? 'bg-blue-600 text-white'
+                              : 'text-blue-600 hover:bg-blue-50'
+                          }`}
+                          title="Add surface"
                         >
                           <Scan size={13} />
                         </button>
