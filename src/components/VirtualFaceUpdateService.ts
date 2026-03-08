@@ -224,6 +224,86 @@ function findMatchingFaceGroup(
   return bestGroup;
 }
 
+function computeEdgeAnchoredClickPoint(
+  edgeAnchor: import('../store').EdgeAnchor,
+  groupVerticesWorld: THREE.Vector3[],
+  u: THREE.Vector3,
+  v: THREE.Vector3,
+  worldNormal: THREE.Vector3,
+  faces: FaceData[],
+  matchedGroup: CoplanarFaceGroup,
+  localToWorld: THREE.Matrix4,
+  subtractions: any[],
+  childPanels: any[],
+  shapeFaces: VirtualFace[],
+  vfId: string
+): THREE.Vector3 | null {
+  const groupCenter = new THREE.Vector3();
+  groupVerticesWorld.forEach(vw => groupCenter.add(vw));
+  groupCenter.divideScalar(groupVerticesWorld.length);
+
+  const probeStart = groupCenter.clone().addScaledVector(worldNormal, 0.5);
+  const probePlaneOrigin = probeStart.clone();
+
+  const boundaryEdges = collectBoundaryEdgesWorld(faces, matchedGroup.faceIndices, localToWorld);
+  const panelsExcludingSelf = childPanels.filter(
+    (p: any) => p.parameters?.virtualFaceId !== vfId
+  );
+  const panelObstacleEdges = collectPanelObstacleEdgesWorld(
+    panelsExcludingSelf, worldNormal, probePlaneOrigin, 20
+  );
+  const subObstacleEdges = collectSubtractionObstacleEdgesWorld(
+    subtractions, localToWorld, worldNormal, probePlaneOrigin, 20
+  );
+  const vfObstacleEdges = collectVirtualFaceObstacleEdgesWorld(
+    shapeFaces, vfId, localToWorld, worldNormal, probePlaneOrigin, 20
+  );
+  const obstacleEdges = [...panelObstacleEdges, ...subObstacleEdges, ...vfObstacleEdges];
+
+  const maxDist = 5000;
+  const dirMap: Record<string, THREE.Vector3> = {
+    uPos: u.clone(),
+    uNeg: u.clone().negate(),
+    vPos: v.clone(),
+    vNeg: v.clone().negate(),
+  };
+
+  const edgeBoundaryDists: Record<string, number> = {};
+  for (const key of ['uPos', 'uNeg', 'vPos', 'vNeg']) {
+    const hit = castRayOnFaceWorld(probeStart, dirMap[key], boundaryEdges, obstacleEdges, u, v, probePlaneOrigin, maxDist);
+    edgeBoundaryDists[key] = hit.distanceTo(probeStart);
+  }
+
+  const [edge1Dir, edge2Dir] = edgeAnchor.selectedEdges;
+  const [dist1, dist2] = edgeAnchor.distances;
+
+  const totalU1 = edgeBoundaryDists[edge1Dir] || 0;
+  const totalU2 = edgeBoundaryDists[edge2Dir] || 0;
+
+  let offsetU = 0;
+  let offsetV = 0;
+
+  const applyAnchor = (dir: string, anchorDist: number, totalFromCenter: number) => {
+    if (dir === 'uPos') {
+      offsetU = totalFromCenter - anchorDist;
+    } else if (dir === 'uNeg') {
+      offsetU = -(totalFromCenter - anchorDist);
+    } else if (dir === 'vPos') {
+      offsetV = totalFromCenter - anchorDist;
+    } else if (dir === 'vNeg') {
+      offsetV = -(totalFromCenter - anchorDist);
+    }
+  };
+
+  applyAnchor(edge1Dir, dist1, totalU1);
+  applyAnchor(edge2Dir, dist2, totalU2);
+
+  return groupCenter.clone()
+    .addScaledVector(u, offsetU)
+    .addScaledVector(v, offsetV)
+    .addScaledVector(worldNormal, 0);
+}
+
 function reraycastVirtualFace(
   vf: VirtualFace,
   shape: Shape,
@@ -256,41 +336,61 @@ function reraycastVirtualFace(
 
   let clampedClickWorld: THREE.Vector3;
 
-  const normalizedUV = vf.raycastRecipe.normalizedClickUV;
-  if (normalizedUV) {
-    const faceVertsU = groupVerticesWorld.map(vw => vw.dot(u));
-    const faceVertsV = groupVerticesWorld.map(vw => vw.dot(v));
-    const uMin = Math.min(...faceVertsU);
-    const uMax = Math.max(...faceVertsU);
-    const vMin = Math.min(...faceVertsV);
-    const vMax = Math.max(...faceVertsV);
+  const edgeAnchor = vf.raycastRecipe.edgeAnchor;
+  const subtractions = shape.subtractionGeometries || [];
 
-    const worldU = uMin + normalizedUV[0] * (uMax - uMin);
-    const worldV = vMin + normalizedUV[1] * (vMax - vMin);
-
-    const groupCenter = new THREE.Vector3();
-    groupVerticesWorld.forEach(vw => groupCenter.add(vw));
-    groupCenter.divideScalar(groupVerticesWorld.length);
-
-    clampedClickWorld = groupCenter.clone()
-      .addScaledVector(u, worldU - groupCenter.dot(u))
-      .addScaledVector(v, worldV - groupCenter.dot(v));
-  } else {
-    const clickLocal = new THREE.Vector3(
-      vf.raycastRecipe.clickLocalPoint[0],
-      vf.raycastRecipe.clickLocalPoint[1],
-      vf.raycastRecipe.clickLocalPoint[2]
+  if (edgeAnchor) {
+    const anchored = computeEdgeAnchoredClickPoint(
+      edgeAnchor,
+      groupVerticesWorld,
+      u, v,
+      worldNormal,
+      faces,
+      matchedGroup,
+      localToWorld,
+      subtractions,
+      childPanels,
+      shapeFaces,
+      vf.id
     );
-    const clickWorld = clickLocal.clone().applyMatrix4(localToWorld);
-    const groupBboxWorld = new THREE.Box3().setFromPoints(groupVerticesWorld);
-    clampedClickWorld = clickWorld.clone().clamp(groupBboxWorld.min, groupBboxWorld.max);
+    if (!anchored) return null;
+    clampedClickWorld = anchored;
+  } else {
+    const normalizedUV = vf.raycastRecipe.normalizedClickUV;
+    if (normalizedUV) {
+      const faceVertsU = groupVerticesWorld.map(vw => vw.dot(u));
+      const faceVertsV = groupVerticesWorld.map(vw => vw.dot(v));
+      const uMin = Math.min(...faceVertsU);
+      const uMax = Math.max(...faceVertsU);
+      const vMin = Math.min(...faceVertsV);
+      const vMax = Math.max(...faceVertsV);
+
+      const worldU = uMin + normalizedUV[0] * (uMax - uMin);
+      const worldV = vMin + normalizedUV[1] * (vMax - vMin);
+
+      const groupCenter = new THREE.Vector3();
+      groupVerticesWorld.forEach(vw => groupCenter.add(vw));
+      groupCenter.divideScalar(groupVerticesWorld.length);
+
+      clampedClickWorld = groupCenter.clone()
+        .addScaledVector(u, worldU - groupCenter.dot(u))
+        .addScaledVector(v, worldV - groupCenter.dot(v));
+    } else {
+      const clickLocal = new THREE.Vector3(
+        vf.raycastRecipe.clickLocalPoint[0],
+        vf.raycastRecipe.clickLocalPoint[1],
+        vf.raycastRecipe.clickLocalPoint[2]
+      );
+      const clickWorld = clickLocal.clone().applyMatrix4(localToWorld);
+      const groupBboxWorld = new THREE.Box3().setFromPoints(groupVerticesWorld);
+      clampedClickWorld = clickWorld.clone().clamp(groupBboxWorld.min, groupBboxWorld.max);
+    }
   }
 
   const startWorld = clampedClickWorld.clone().addScaledVector(worldNormal, 0.5);
   const planeOrigin = startWorld.clone();
 
   const boundaryEdges = collectBoundaryEdgesWorld(faces, matchedGroup.faceIndices, localToWorld);
-  const subtractions = shape.subtractionGeometries || [];
 
   const panelsExcludingSelf = childPanels.filter(
     p => p.parameters?.virtualFaceId !== vf.id
