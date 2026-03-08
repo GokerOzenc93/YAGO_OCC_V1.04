@@ -830,10 +830,21 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     return allShapes.filter(s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id);
   }, [allShapes, shape.id]);
 
+  const hoveredGroupHasPanel = useMemo(() => {
+    if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return false;
+    const groupNormal = faceGroups[hoveredGroupIndex].normal.clone().normalize();
+    return shapeVirtualFaces.some(vf => {
+      if (!vf.hasPanel) return false;
+      const vfNormal = new THREE.Vector3(vf.normal[0], vf.normal[1], vf.normal[2]).normalize();
+      return Math.abs(groupNormal.dot(vfNormal)) > 0.95;
+    });
+  }, [hoveredGroupIndex, faceGroups, shapeVirtualFaces]);
+
   const hoverHighlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
+    if (hoveredGroupHasPanel) return null;
     return createFaceHighlightGeometry(faces, faceGroups[hoveredGroupIndex].faceIndices);
-  }, [hoveredGroupIndex, faceGroups, faces]);
+  }, [hoveredGroupIndex, faceGroups, faces, hoveredGroupHasPanel]);
 
   const handlePointerMove = (e: any) => {
     if (!raycastMode || faces.length === 0) return;
