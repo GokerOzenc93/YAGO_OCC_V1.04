@@ -802,12 +802,28 @@ const RayLine3D: React.FC<{ start: THREE.Vector3; end: THREE.Vector3 }> = React.
 );
 RayLine3D.displayName = 'RayLine3D';
 
-const HitDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => (
-  <mesh position={[position.x, position.y, position.z]}>
-    <sphereGeometry args={[2.5, 8, 8]} />
-    <meshBasicMaterial color={0xef4444} depthTest={false} transparent opacity={0.9} />
-  </mesh>
-));
+const HitDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <mesh
+      position={[position.x, position.y, position.z]}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); }}
+    >
+      <sphereGeometry args={[8, 32, 32]} />
+      <meshStandardMaterial
+        color={hovered ? 0x3b82f6 : 0xef4444}
+        depthTest={false}
+        transparent
+        opacity={hovered ? 1.0 : 0.9}
+        roughness={0.2}
+        metalness={0.1}
+        emissive={hovered ? 0x1d4ed8 : 0x000000}
+        emissiveIntensity={hovered ? 0.3 : 0}
+      />
+    </mesh>
+  );
+});
 HitDot.displayName = 'HitDot';
 
 const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => (
