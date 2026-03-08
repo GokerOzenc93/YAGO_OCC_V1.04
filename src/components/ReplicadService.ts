@@ -461,7 +461,8 @@ export const applyParentSubtractors = async (
     if (isNaN(w) || isNaN(h) || isNaN(d) || w <= 0 || h <= 0 || d <= 0) continue;
 
     try {
-      const cuttingBox = await createReplicadBox({ width: w, height: h, depth: d });
+      const margin = 0.5;
+      const cuttingBox = await createReplicadBox({ width: w + margin, height: h + margin, depth: d + margin });
       result = await performBooleanCut(
         result,
         cuttingBox,
