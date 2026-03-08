@@ -732,6 +732,34 @@ function buildPreview(
     }
   }
 
+  let normalizedClickUV: [number, number] | undefined;
+  {
+    const faceWorldVerts: THREE.Vector3[] = [];
+    group.faceIndices.forEach(fi => {
+      const face = faces[fi];
+      if (!face) return;
+      face.vertices.forEach(v3 => faceWorldVerts.push(v3.clone().applyMatrix4(localToWorld)));
+    });
+    if (faceWorldVerts.length > 0) {
+      const faceVertsU = faceWorldVerts.map(vw => vw.dot(u));
+      const faceVertsV = faceWorldVerts.map(vw => vw.dot(v));
+      const uMin = Math.min(...faceVertsU);
+      const uMax = Math.max(...faceVertsU);
+      const vMin = Math.min(...faceVertsV);
+      const vMax = Math.max(...faceVertsV);
+      const uSpan = uMax - uMin;
+      const vSpan = vMax - vMin;
+      if (uSpan > 0 && vSpan > 0) {
+        const clickU = clickWorld.dot(u);
+        const clickV = clickWorld.dot(v);
+        normalizedClickUV = [
+          Math.max(0, Math.min(1, (clickU - uMin) / uSpan)),
+          Math.max(0, Math.min(1, (clickV - vMin) / vSpan)),
+        ];
+      }
+    }
+  }
+
   const newId = `vf-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
   const virtualFace: VirtualFace = {
     id: newId,
@@ -746,6 +774,7 @@ function buildPreview(
       clickLocalPoint: [clickLocal.x, clickLocal.y, clickLocal.z],
       faceGroupNormal: [localNormal.x, localNormal.y, localNormal.z],
       faceGroupDescriptor,
+      normalizedClickUV,
     } : undefined,
   };
 

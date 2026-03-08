@@ -67,6 +67,8 @@ export interface VirtualFaceRaycastRecipe {
   clickLocalPoint: [number, number, number];
   faceGroupNormal: [number, number, number];
   faceGroupDescriptor: FaceDescriptor;
+  /** Click point as normalized UV on the face plane (0=min, 1=max of face bbox) */
+  normalizedClickUV?: [number, number];
 }
 
 export interface VirtualFace {

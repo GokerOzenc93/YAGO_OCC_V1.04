@@ -245,13 +245,6 @@ function reraycastVirtualFace(
 
   const { u, v } = getFacePlaneAxes(worldNormal);
 
-  const clickLocal = new THREE.Vector3(
-    vf.raycastRecipe.clickLocalPoint[0],
-    vf.raycastRecipe.clickLocalPoint[1],
-    vf.raycastRecipe.clickLocalPoint[2]
-  );
-  const clickWorld = clickLocal.clone().applyMatrix4(localToWorld);
-
   const groupVerticesWorld: THREE.Vector3[] = [];
   matchedGroup.faceIndices.forEach(fi => {
     const face = faces[fi];
@@ -261,8 +254,37 @@ function reraycastVirtualFace(
 
   if (groupVerticesWorld.length === 0) return null;
 
-  const groupBboxWorld = new THREE.Box3().setFromPoints(groupVerticesWorld);
-  const clampedClickWorld = clickWorld.clone().clamp(groupBboxWorld.min, groupBboxWorld.max);
+  let clampedClickWorld: THREE.Vector3;
+
+  const normalizedUV = vf.raycastRecipe.normalizedClickUV;
+  if (normalizedUV) {
+    const faceVertsU = groupVerticesWorld.map(vw => vw.dot(u));
+    const faceVertsV = groupVerticesWorld.map(vw => vw.dot(v));
+    const uMin = Math.min(...faceVertsU);
+    const uMax = Math.max(...faceVertsU);
+    const vMin = Math.min(...faceVertsV);
+    const vMax = Math.max(...faceVertsV);
+
+    const worldU = uMin + normalizedUV[0] * (uMax - uMin);
+    const worldV = vMin + normalizedUV[1] * (vMax - vMin);
+
+    const groupCenter = new THREE.Vector3();
+    groupVerticesWorld.forEach(vw => groupCenter.add(vw));
+    groupCenter.divideScalar(groupVerticesWorld.length);
+
+    clampedClickWorld = groupCenter.clone()
+      .addScaledVector(u, worldU - groupCenter.dot(u))
+      .addScaledVector(v, worldV - groupCenter.dot(v));
+  } else {
+    const clickLocal = new THREE.Vector3(
+      vf.raycastRecipe.clickLocalPoint[0],
+      vf.raycastRecipe.clickLocalPoint[1],
+      vf.raycastRecipe.clickLocalPoint[2]
+    );
+    const clickWorld = clickLocal.clone().applyMatrix4(localToWorld);
+    const groupBboxWorld = new THREE.Box3().setFromPoints(groupVerticesWorld);
+    clampedClickWorld = clickWorld.clone().clamp(groupBboxWorld.min, groupBboxWorld.max);
+  }
 
   const startWorld = clampedClickWorld.clone().addScaledVector(worldNormal, 0.5);
   const planeOrigin = startWorld.clone();
