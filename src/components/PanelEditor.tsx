@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Trash2, Scan } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Trash2, Scan, Plus } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -24,6 +24,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   const prevProfileRef = useRef<string>('none');
   const prevGeometryRef = useRef<string>('');
   const rowRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const [customFaceRows, setCustomFaceRows] = useState<Array<{ id: string }>>([]);
 
   const selectedShape = shapes.find((s) => s.id === selectedShapeId);
 
@@ -387,6 +388,15 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     console.log('🎯 Started surface selection for extra row:', extraRowId);
   };
 
+  const handleAddCustomRow = () => {
+    const customRowId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    setCustomFaceRows([...customFaceRows, { id: customRowId }]);
+  };
+
+  const handleRemoveCustomRow = (customRowId: string) => {
+    setCustomFaceRows(customFaceRows.filter(r => r.id !== customRowId));
+  };
+
   const handleRemoveExtraRow = async (extraRowId: string) => {
     if (!selectedShape) return;
 
@@ -521,6 +531,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
           <span className="text-sm font-semibold text-slate-800">Panel Editor</span>
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={handleAddCustomRow}
+            className="p-0.5 hover:bg-stone-200 rounded transition-colors text-green-600"
+            title="Add custom row"
+          >
+            <Plus size={14} />
+          </button>
           <button
             onClick={() => setPanelSelectMode(!panelSelectMode)}
             className={`p-0.5 hover:bg-stone-200 rounded transition-colors ${
@@ -976,6 +993,83 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           );
                         })}
                       </React.Fragment>
+                    );
+                  })}
+                  {customFaceRows.map((customRow) => {
+                    return (
+                      <div
+                        key={customRow.id}
+                        className="flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 bg-purple-50 ring-1 ring-purple-200"
+                      >
+                        <input
+                          type="radio"
+                          name="panel-selection"
+                          disabled
+                          className="w-4 h-4 text-stone-300 cursor-not-allowed"
+                        />
+                        <input
+                          type="text"
+                          value=""
+                          placeholder="C"
+                          readOnly
+                          tabIndex={-1}
+                          className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-white text-gray-800 border-gray-300"
+                        />
+                        <select
+                          defaultValue=""
+                          className="px-1 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
+                          style={{ width: '35mm' }}
+                        >
+                          <option value="">none</option>
+                          {['Left', 'Right', 'Top', 'Bottom', 'Back', 'Door'].map(role => (
+                            <option key={role} value={role}>{role}</option>
+                          ))}
+                        </select>
+                        <input
+                          type="text"
+                          placeholder="description"
+                          className="px-2 py-0.5 text-xs border rounded bg-white text-gray-800 border-gray-300"
+                          style={{ width: '40mm' }}
+                        />
+                        <input
+                          type="text"
+                          value=""
+                          readOnly
+                          tabIndex={-1}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-orange-50 text-gray-800 border-orange-300 font-semibold"
+                        />
+                        <input
+                          type="text"
+                          value=""
+                          readOnly
+                          tabIndex={-1}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-blue-50 text-gray-800 border-blue-300 font-semibold"
+                        />
+                        <input
+                          type="text"
+                          value=""
+                          readOnly
+                          tabIndex={-1}
+                          className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
+                        />
+                        <div className="w-4" />
+                        <button
+                          className="p-0.5 rounded transition-colors text-slate-500 hover:bg-stone-100"
+                          title="Rotate arrow direction"
+                        >
+                          <RotateCw size={13} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveCustomRow(customRow.id);
+                          }}
+                          className="p-0.5 rounded transition-colors text-red-500 hover:bg-red-50"
+                          title="Remove custom row"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
