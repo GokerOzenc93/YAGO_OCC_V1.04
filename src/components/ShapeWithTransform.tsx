@@ -8,8 +8,7 @@ import { SubtractionMesh } from './SubtractionMesh';
 import { FilletEdgeLines } from './Fillet';
 import { FaceEditor } from './FaceEditor';
 import { RoleLabels } from './RoleLabels';
-import { FaceRaycastOverlay } from './FaceRaycastOverlay';
-import { VirtualFaceOverlay } from './VirtualFaceOverlay';
+import { FaceRaycastOverlay, VirtualFaceOverlay } from './FaceRaycastOverlay';
 
 interface ShapeWithTransformProps {
   shape: any;

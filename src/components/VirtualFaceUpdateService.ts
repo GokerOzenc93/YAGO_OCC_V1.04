@@ -9,6 +9,11 @@ import {
   subtractPolygon,
   ensureCCW,
   isPointInsidePolygon,
+  collectBoundaryEdgesWorld,
+  collectPanelObstacleEdgesWorld,
+  collectSubtractionObstacleEdgesWorld,
+  collectVirtualFaceObstacleEdgesWorld,
+  castRayOnFaceWorld,
   type Point2D,
 } from './FaceRaycastOverlay';
 import {
@@ -18,175 +23,6 @@ import {
   type FaceData,
   type CoplanarFaceGroup,
 } from './FaceEditor';
-
-function collectBoundaryEdgesWorld(
-  faces: FaceData[],
-  faceIndices: number[],
-  localToWorld: THREE.Matrix4
-): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
-  const edgeMap = new Map<string, { v1: THREE.Vector3; v2: THREE.Vector3; count: number }>();
-
-  faceIndices.forEach(fi => {
-    const face = faces[fi];
-    if (!face) return;
-    const verts = face.vertices;
-    for (let i = 0; i < 3; i++) {
-      const va = verts[i].clone().applyMatrix4(localToWorld);
-      const vb = verts[(i + 1) % 3].clone().applyMatrix4(localToWorld);
-      const ka = `${va.x.toFixed(2)},${va.y.toFixed(2)},${va.z.toFixed(2)}`;
-      const kb = `${vb.x.toFixed(2)},${vb.y.toFixed(2)},${vb.z.toFixed(2)}`;
-      const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
-      if (!edgeMap.has(key)) {
-        edgeMap.set(key, { v1: va, v2: vb, count: 0 });
-      }
-      edgeMap.get(key)!.count++;
-    }
-  });
-
-  const boundary: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-  edgeMap.forEach(e => {
-    if (e.count === 1) boundary.push({ v1: e.v1, v2: e.v2 });
-  });
-  return boundary;
-}
-
-function collectVirtualFaceObstacleEdgesWorld(
-  virtualFaces: VirtualFace[],
-  excludeId: string | null,
-  shapeLocalToWorld: THREE.Matrix4,
-  facePlaneNormal: THREE.Vector3,
-  facePlaneOrigin: THREE.Vector3,
-  planeTolerance: number = 20
-): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
-  const edges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-
-  for (const vf of virtualFaces) {
-    if (vf.id === excludeId) continue;
-    if (vf.vertices.length < 3) continue;
-
-    const worldVerts = vf.vertices.map(vtx =>
-      new THREE.Vector3(vtx[0], vtx[1], vtx[2]).applyMatrix4(shapeLocalToWorld)
-    );
-
-    for (let i = 0; i < worldVerts.length; i++) {
-      const va = worldVerts[i];
-      const vb = worldVerts[(i + 1) % worldVerts.length];
-
-      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOrigin)));
-      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOrigin)));
-
-      if (distA < planeTolerance && distB < planeTolerance) {
-        edges.push({ v1: va, v2: vb });
-      }
-    }
-  }
-  return edges;
-}
-
-function collectPanelObstacleEdgesWorld(
-  childPanels: any[],
-  facePlaneNormal: THREE.Vector3,
-  facePlaneOriginWorld: THREE.Vector3,
-  planeTolerance: number = 20
-): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
-  const obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-
-  for (const panel of childPanels) {
-    if (!panel.geometry) continue;
-
-    const panelMatrix = getShapeMatrix(panel);
-    const edgesGeo = new THREE.EdgesGeometry(panel.geometry);
-    const edgePos = edgesGeo.getAttribute('position');
-    const count = edgePos.count;
-
-    for (let i = 0; i < count; i += 2) {
-      const va = new THREE.Vector3(edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)).applyMatrix4(panelMatrix);
-      const vb = new THREE.Vector3(edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)).applyMatrix4(panelMatrix);
-
-      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOriginWorld)));
-      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOriginWorld)));
-
-      if (distA < planeTolerance && distB < planeTolerance) {
-        obstacleEdges.push({ v1: va, v2: vb });
-      }
-    }
-    edgesGeo.dispose();
-  }
-  return obstacleEdges;
-}
-
-function collectSubtractionObstacleEdgesWorld(
-  subtractions: any[],
-  localToWorld: THREE.Matrix4,
-  facePlaneNormal: THREE.Vector3,
-  facePlaneOriginWorld: THREE.Vector3,
-  planeTolerance: number = 20
-): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
-  const edges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-
-  for (const sub of subtractions) {
-    if (!sub || !sub.geometry) continue;
-    const subWorldMatrix = getSubtractionWorldMatrix(localToWorld, sub);
-
-    const edgesGeo = new THREE.EdgesGeometry(sub.geometry);
-    const edgePos = edgesGeo.getAttribute('position');
-    const count = edgePos.count;
-
-    for (let i = 0; i < count; i += 2) {
-      const va = new THREE.Vector3(edgePos.getX(i), edgePos.getY(i), edgePos.getZ(i)).applyMatrix4(subWorldMatrix);
-      const vb = new THREE.Vector3(edgePos.getX(i + 1), edgePos.getY(i + 1), edgePos.getZ(i + 1)).applyMatrix4(subWorldMatrix);
-
-      const distA = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(va, facePlaneOriginWorld)));
-      const distB = Math.abs(facePlaneNormal.dot(new THREE.Vector3().subVectors(vb, facePlaneOriginWorld)));
-
-      if (distA < planeTolerance && distB < planeTolerance) {
-        edges.push({ v1: va, v2: vb });
-      }
-    }
-    edgesGeo.dispose();
-  }
-  return edges;
-}
-
-function raySegmentIntersect2D(
-  ox: number, oy: number,
-  dx: number, dy: number,
-  ax: number, ay: number,
-  bx: number, by: number
-): number | null {
-  const ex = bx - ax;
-  const ey = by - ay;
-  const denom = dx * ey - dy * ex;
-  if (Math.abs(denom) < 1e-10) return null;
-  const t = ((ax - ox) * ey - (ay - oy) * ex) / denom;
-  const s = ((ax - ox) * dy - (ay - oy) * dx) / denom;
-  if (t > 1e-4 && s >= -1e-4 && s <= 1.0 + 1e-4) return t;
-  return null;
-}
-
-function castRayOnFaceWorld(
-  originWorld: THREE.Vector3,
-  dirWorld: THREE.Vector3,
-  boundaryEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
-  obstacleEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
-  u: THREE.Vector3,
-  v: THREE.Vector3,
-  planeOrigin: THREE.Vector3,
-  maxDist: number
-): THREE.Vector3 {
-  const o2d = projectTo2D(originWorld, planeOrigin, u, v);
-  const dir2d = { x: dirWorld.dot(u), y: dirWorld.dot(v) };
-  let tMin = maxDist;
-
-  for (const edge of [...boundaryEdges, ...obstacleEdges]) {
-    const a2d = projectTo2D(edge.v1, planeOrigin, u, v);
-    const b2d = projectTo2D(edge.v2, planeOrigin, u, v);
-    const t = raySegmentIntersect2D(o2d.x, o2d.y, dir2d.x, dir2d.y, a2d.x, a2d.y, b2d.x, b2d.y);
-    if (t !== null && t < tMin) tMin = t;
-  }
-
-  return originWorld.clone().addScaledVector(dirWorld, tMin);
-}
 
 function findMatchingFaceGroup(
   vf: VirtualFace,

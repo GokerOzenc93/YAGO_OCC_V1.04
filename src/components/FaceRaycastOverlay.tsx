@@ -48,7 +48,7 @@ export function getShapeMatrix(shape: any): THREE.Matrix4 {
   return new THREE.Matrix4().compose(pos, quat, scale);
 }
 
-function collectBoundaryEdgesWorld(
+export function collectBoundaryEdgesWorld(
   faces: FaceData[],
   faceIndices: number[],
   localToWorld: THREE.Matrix4
@@ -105,7 +105,7 @@ function raySegmentIntersect2D(
   return null;
 }
 
-function collectPanelObstacleEdgesWorld(
+export function collectPanelObstacleEdgesWorld(
   panelShapes: any[],
   facePlaneNormal: THREE.Vector3,
   facePlaneOrigin: THREE.Vector3,
@@ -174,7 +174,7 @@ export function getSubtractionWorldMatrix(
   return new THREE.Matrix4().multiplyMatrices(parentLocalToWorld, groupMatrix).multiply(meshMatrix);
 }
 
-function collectSubtractionObstacleEdgesWorld(
+export function collectSubtractionObstacleEdgesWorld(
   subtractions: any[],
   parentLocalToWorld: THREE.Matrix4,
   facePlaneNormal: THREE.Vector3,
@@ -599,7 +599,7 @@ function castRayOnFaceWorldDetailed(
   };
 }
 
-function castRayOnFaceWorld(
+export function castRayOnFaceWorld(
   originWorld: THREE.Vector3,
   dirWorld: THREE.Vector3,
   boundaryEdges: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
@@ -622,7 +622,7 @@ interface PendingPreview {
   virtualFace: VirtualFace;
 }
 
-function collectVirtualFaceObstacleEdgesWorld(
+export function collectVirtualFaceObstacleEdgesWorld(
   virtualFaces: VirtualFace[],
   excludeId: string | null,
   shapeLocalToWorld: THREE.Matrix4,
@@ -877,6 +877,124 @@ const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position 
   </mesh>
 ));
 OriginDot.displayName = 'OriginDot';
+
+function buildSurfaceMeshes(vf: VirtualFace): { geo: THREE.BufferGeometry; edgeGeo: THREE.BufferGeometry } | null {
+  if (vf.vertices.length < 3) return null;
+
+  const corners = vf.vertices.map(v => new THREE.Vector3(v[0], v[1], v[2]));
+  const normal = new THREE.Vector3(vf.normal[0], vf.normal[1], vf.normal[2]).normalize();
+
+  const { u: uAxis, v: vAxis } = getFacePlaneAxes(normal);
+  const origin = corners[0];
+
+  const projected2D = corners.map(c => {
+    const d = new THREE.Vector3().subVectors(c, origin);
+    return { x: d.dot(uAxis), y: d.dot(vAxis) };
+  });
+
+  let area = 0;
+  for (let i = 0; i < projected2D.length; i++) {
+    const j = (i + 1) % projected2D.length;
+    area += projected2D[i].x * projected2D[j].y - projected2D[j].x * projected2D[i].y;
+  }
+  if (area < 0) projected2D.reverse(), corners.reverse();
+
+  const triIndices = earClipTriangulate(projected2D);
+
+  const positions = new Float32Array(triIndices.length * 3);
+  for (let i = 0; i < triIndices.length; i++) {
+    const c = corners[triIndices[i]];
+    positions[i * 3] = c.x;
+    positions[i * 3 + 1] = c.y;
+    positions[i * 3 + 2] = c.z;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.computeVertexNormals();
+
+  const edgeVerts: number[] = [];
+  for (let i = 0; i < corners.length; i++) {
+    const a = corners[i];
+    const b = corners[(i + 1) % corners.length];
+    edgeVerts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+  }
+  const edgeGeo = new THREE.BufferGeometry();
+  edgeGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(edgeVerts), 3));
+
+  return { geo, edgeGeo };
+}
+
+interface VirtualFaceOverlayProps {
+  shape: any;
+}
+
+export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape }) => {
+  const { virtualFaces, showVirtualFaces, panelSurfaceSelectMode, waitingForSurfaceSelection, triggerPanelCreationForFace, setSelectedPanelRow, panelSelectMode } = useAppStore();
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  const shapeFaces = useMemo(
+    () => virtualFaces.filter(f => f.shapeId === shape.id && !f.hasPanel),
+    [virtualFaces, shape.id]
+  );
+
+  const meshes = useMemo(() => {
+    return shapeFaces.map(vf => {
+      const result = buildSurfaceMeshes(vf);
+      return result ? { id: vf.id, vf, ...result } : null;
+    }).filter(Boolean) as Array<{ id: string; vf: VirtualFace; geo: THREE.BufferGeometry; edgeGeo: THREE.BufferGeometry }>;
+  }, [shapeFaces]);
+
+  if (!showVirtualFaces || meshes.length === 0) return null;
+
+  return (
+    <>
+      {meshes.map((surface, idx) => {
+        const isHovered = hoveredId === surface.id;
+
+        return (
+          <React.Fragment key={surface.id}>
+            <mesh
+              geometry={surface.geo}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (panelSurfaceSelectMode) {
+                  triggerPanelCreationForFace(
+                    -(idx + 1),
+                    shape.id,
+                    {
+                      center: surface.vf.center,
+                      normal: surface.vf.normal,
+                      constraintPanelId: surface.vf.id,
+                    }
+                  );
+                  setSelectedPanelRow(`vf-${surface.vf.id}`);
+                } else if (panelSelectMode) {
+                  setSelectedPanelRow(`vf-${surface.vf.id}`);
+                }
+              }}
+              onPointerOver={(e) => { e.stopPropagation(); setHoveredId(surface.id); }}
+              onPointerOut={(e) => { e.stopPropagation(); setHoveredId(null); }}
+            >
+              <meshBasicMaterial
+                color={isHovered && panelSurfaceSelectMode ? 0x00cc44 : 0x22c55e}
+                transparent
+                opacity={isHovered ? 0.65 : 0.38}
+                side={THREE.DoubleSide}
+                polygonOffset
+                polygonOffsetFactor={-2}
+                polygonOffsetUnits={-2}
+                depthTest={false}
+              />
+            </mesh>
+            <lineSegments geometry={surface.edgeGeo}>
+              <lineBasicMaterial color={0x16a34a} linewidth={2} depthTest={false} transparent opacity={0.9} />
+            </lineSegments>
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+};
 
 export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, allShapes = [] }) => {
   const { raycastMode, addVirtualFace, virtualFaces } = useAppStore();

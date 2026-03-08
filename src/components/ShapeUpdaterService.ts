@@ -150,6 +150,57 @@ export async function applyFillets(replicadShape: any, fillets: FilletInfo[], sh
   return currentShape;
 }
 
+function copyPosition(shape: any): [number, number, number] {
+  return [shape.position[0], shape.position[1], shape.position[2]];
+}
+
+async function applyAllSubtractions(
+  baseReplicadShape: any,
+  subtractions: any[],
+  createReplicadBox: any,
+  performBooleanCut: any
+) {
+  let result = baseReplicadShape;
+  for (const subtraction of subtractions) {
+    if (!subtraction) continue;
+    const subSize = getOriginalSize(subtraction.geometry);
+    const subBox = await createReplicadBox({ width: subSize.x, height: subSize.y, depth: subSize.z });
+    result = await performBooleanCut(
+      result, subBox, undefined,
+      subtraction.relativeOffset, undefined,
+      subtraction.relativeRotation || [0, 0, 0], undefined,
+      subtraction.scale || [1, 1, 1] as [number, number, number]
+    );
+  }
+  return result;
+}
+
+async function finalizeWithFillets(
+  replicadShape: any,
+  fillets: FilletInfo[],
+  shapeSize: { width: number; height: number; depth: number },
+  convertReplicadToThreeGeometry: any,
+  getReplicadVertices: any
+): Promise<{ shape: any; geometry: THREE.BufferGeometry; vertices: THREE.Vector3[]; fillets: FilletInfo[] }> {
+  if (fillets.length === 0) {
+    return {
+      shape: replicadShape,
+      geometry: convertReplicadToThreeGeometry(replicadShape),
+      vertices: await getReplicadVertices(replicadShape),
+      fillets: []
+    };
+  }
+  const preFilletGeometry = convertReplicadToThreeGeometry(replicadShape);
+  const updatedFillets = await updateFilletCentersForNewGeometry(fillets, preFilletGeometry, shapeSize);
+  const filletedShape = await applyFillets(replicadShape, updatedFillets, shapeSize);
+  return {
+    shape: filletedShape,
+    geometry: convertReplicadToThreeGeometry(filletedShape),
+    vertices: await getReplicadVertices(filletedShape),
+    fillets: updatedFillets
+  };
+}
+
 interface ApplyShapeChangesParams {
   selectedShape: any;
   width: number;
@@ -331,35 +382,19 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
     };
 
     if (hasSubtractionChanges) {
-      console.log('🔄 Recalculating subtraction with updated dimensions...');
-      console.log('📍 Current shape position (will be preserved):', selectedShape.position);
-
-      const subReplicadShape = await createReplicadBox({
-        width: subWidth,
-        height: subHeight,
-        depth: subDepth
-      });
-      const subReplicadGeometry = convertReplicadToThreeGeometry(subReplicadShape);
+      const subReplicadGeometry = convertReplicadToThreeGeometry(
+        await createReplicadBox({ width: subWidth, height: subHeight, depth: subDepth })
+      );
 
       const updatedSubtraction = {
         ...selectedShape.subtractionGeometries![selectedSubtractionIndex],
         geometry: subReplicadGeometry,
         relativeOffset: [subPosX, subPosY, subPosZ] as [number, number, number],
-        relativeRotation: [
-          subRotX * (Math.PI / 180),
-          subRotY * (Math.PI / 180),
-          subRotZ * (Math.PI / 180)
-        ] as [number, number, number],
+        relativeRotation: [subRotX * (Math.PI / 180), subRotY * (Math.PI / 180), subRotZ * (Math.PI / 180)] as [number, number, number],
         parameters: subParams ? {
-          width: subParams.width.expression,
-          height: subParams.height.expression,
-          depth: subParams.depth.expression,
-          posX: subParams.posX.expression,
-          posY: subParams.posY.expression,
-          posZ: subParams.posZ.expression,
-          rotX: subParams.rotX.expression,
-          rotY: subParams.rotY.expression,
-          rotZ: subParams.rotZ.expression
+          width: subParams.width.expression, height: subParams.height.expression, depth: subParams.depth.expression,
+          posX: subParams.posX.expression, posY: subParams.posY.expression, posZ: subParams.posZ.expression,
+          rotX: subParams.rotX.expression, rotY: subParams.rotY.expression, rotZ: subParams.rotZ.expression
         } : undefined
       };
 
@@ -367,269 +402,88 @@ export async function applyShapeChanges(params: ApplyShapeChangesParams) {
         idx === selectedSubtractionIndex ? updatedSubtraction : sub
       );
 
-      let baseShape = await createReplicadBox({
-        width,
-        height,
-        depth
+      const baseShape = await createReplicadBox({ width, height, depth });
+      const resultShape = await applyAllSubtractions(baseShape, allSubtractions, createReplicadBox, performBooleanCut);
+      const preservedPosition = copyPosition(selectedShape);
+      const shapeSize = { width, height, depth };
+      const final = await finalizeWithFillets(resultShape, selectedShape.fillets || [], shapeSize, convertReplicadToThreeGeometry, getReplicadVertices);
+
+      updateShape(selectedShape.id, {
+        geometry: final.geometry,
+        replicadShape: final.shape,
+        subtractionGeometries: allSubtractions,
+        fillets: final.fillets,
+        position: preservedPosition,
+        rotation: baseUpdate.rotation,
+        scale: baseUpdate.scale,
+        vertexModifications: baseUpdate.vertexModifications,
+        parameters: { ...baseUpdate.parameters, scaledBaseVertices: final.vertices.map(v => [v.x, v.y, v.z]) }
       });
+    } else if (dimensionsChanged) {
+      let newReplicadShape = await createReplicadBox({ width, height, depth });
 
-      let resultShape = baseShape;
-
-      for (let i = 0; i < allSubtractions.length; i++) {
-        const subtraction = allSubtractions[i];
-        if (!subtraction) continue;
-
-        const subSize = getOriginalSize(subtraction.geometry);
-
-        const subBox = await createReplicadBox({
-          width: subSize.x,
-          height: subSize.y,
-          depth: subSize.z
-        });
-
-        console.log(`🔍 Applying subtraction #${i} with relativeOffset:`, subtraction.relativeOffset);
-
-        resultShape = await performBooleanCut(
-          resultShape,
-          subBox,
-          undefined,
-          subtraction.relativeOffset,
-          undefined,
-          subtraction.relativeRotation || [0, 0, 0],
-          undefined,
-          subtraction.scale || [1, 1, 1] as [number, number, number]
-        );
+      if (selectedShape.subtractionGeometries?.length > 0) {
+        newReplicadShape = await applyAllSubtractions(newReplicadShape, selectedShape.subtractionGeometries, createReplicadBox, performBooleanCut);
       }
-
-      const newGeometry = convertReplicadToThreeGeometry(resultShape);
-      const newBaseVertices = await getReplicadVertices(resultShape);
-
-      console.log('📍 Subtraction change - preserving current shape position (not modifying position)');
-      console.log('📍 Current shape position will be kept:', selectedShape.position);
 
       let updatedFillets = selectedShape.fillets || [];
-
-      const preservedPosition: [number, number, number] = [
-        selectedShape.position[0],
-        selectedShape.position[1],
-        selectedShape.position[2]
-      ];
-      console.log('📍 Preserving position (new array):', preservedPosition);
-
-      if (updatedFillets.length > 0) {
-        console.log('🔄 Updating fillet centers after subtraction change...');
-
-        updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, { width, height, depth });
-
-        console.log('🔵 Reapplying fillets with updated centers...');
-        resultShape = await applyFillets(resultShape, updatedFillets, { width, height, depth });
-        const finalGeometry = convertReplicadToThreeGeometry(resultShape);
-        const finalBaseVertices = await getReplicadVertices(resultShape);
-
-        console.log('🎯 SUBTRACTION CHANGE + FILLET - Explicitly preserving position:', preservedPosition);
-
-        updateShape(selectedShape.id, {
-          geometry: finalGeometry,
-          replicadShape: resultShape,
-          subtractionGeometries: allSubtractions,
-          fillets: updatedFillets,
-          position: preservedPosition,
-          rotation: baseUpdate.rotation,
-          scale: baseUpdate.scale,
-          vertexModifications: baseUpdate.vertexModifications,
-          parameters: {
-            ...baseUpdate.parameters,
-            scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
-          }
-        });
-      } else {
-        console.log('🎯 SUBTRACTION CHANGE - Explicitly preserving position:', preservedPosition);
-
-        updateShape(selectedShape.id, {
-          geometry: newGeometry,
-          replicadShape: resultShape,
-          subtractionGeometries: allSubtractions,
-          fillets: [],
-          position: preservedPosition,
-          rotation: baseUpdate.rotation,
-          scale: baseUpdate.scale,
-          vertexModifications: baseUpdate.vertexModifications,
-          parameters: {
-            ...baseUpdate.parameters,
-            scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-          }
-        });
-
-        console.log('✅ Shape geometry updated, position explicitly preserved');
+      if (filletRadii && filletRadii.length > 0) {
+        updatedFillets = updatedFillets.map((fillet: FilletInfo, idx: number) => ({
+          ...fillet,
+          radius: filletRadii[idx] !== undefined ? filletRadii[idx] : fillet.radius
+        }));
       }
+
+      const preservedPosition = copyPosition(selectedShape);
+      const shapeSize = { width, height, depth };
+      const final = await finalizeWithFillets(newReplicadShape, updatedFillets, shapeSize, convertReplicadToThreeGeometry, getReplicadVertices);
+
+      updateShape(selectedShape.id, {
+        geometry: final.geometry,
+        replicadShape: final.shape,
+        fillets: final.fillets,
+        position: preservedPosition,
+        rotation: baseUpdate.rotation,
+        scale: baseUpdate.scale,
+        vertexModifications: baseUpdate.vertexModifications,
+        parameters: { ...baseUpdate.parameters, scaledBaseVertices: final.vertices.map(v => [v.x, v.y, v.z]) }
+      });
     } else {
-      if (dimensionsChanged) {
-        console.log('🔄 Dimensions changed, recreating replicad shape with new dimensions...');
+      const filletsChanged = filletRadii && filletRadii.length > 0 &&
+        filletRadii.some((r, idx) => (selectedShape.fillets?.[idx]?.radius || 0) !== r);
 
-        let newReplicadShape = await createReplicadBox({
-          width,
-          height,
-          depth
-        });
+      if (filletsChanged && selectedShape.replicadShape) {
+        let updatedFillets = (selectedShape.fillets || []).map((fillet: FilletInfo, idx: number) => ({
+          ...fillet,
+          radius: filletRadii![idx] !== undefined ? filletRadii![idx] : fillet.radius
+        }));
 
-        if (selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0) {
-          console.log('🔄 Reapplying all subtractions after dimension change...');
-
-          for (let i = 0; i < selectedShape.subtractionGeometries.length; i++) {
-            const subtraction = selectedShape.subtractionGeometries[i];
-            if (!subtraction) continue;
-
-            const subSize = getOriginalSize(subtraction.geometry);
-
-            const subBox = await createReplicadBox({
-              width: subSize.x,
-              height: subSize.y,
-              depth: subSize.z
-            });
-
-            newReplicadShape = await performBooleanCut(
-              newReplicadShape,
-              subBox,
-              undefined,
-              subtraction.relativeOffset,
-              undefined,
-              subtraction.relativeRotation || [0, 0, 0],
-              undefined,
-              subtraction.scale || [1, 1, 1] as [number, number, number]
-            );
-          }
+        let newReplicadShape = await createReplicadBox({ width, height, depth });
+        if (selectedShape.subtractionGeometries?.length > 0) {
+          newReplicadShape = await applyAllSubtractions(newReplicadShape, selectedShape.subtractionGeometries, createReplicadBox, performBooleanCut);
         }
 
-        let finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
-        let finalBaseVertices = await getReplicadVertices(newReplicadShape);
-        let updatedFillets = selectedShape.fillets || [];
-
-        if (filletRadii && filletRadii.length > 0) {
-          console.log('🔄 Updating fillet radii from parameters...');
-          updatedFillets = updatedFillets.map((fillet: FilletInfo, idx: number) => ({
-            ...fillet,
-            radius: filletRadii[idx] !== undefined ? filletRadii[idx] : fillet.radius
-          }));
-        }
-
-        const preservedPositionForDimChange: [number, number, number] = [
-          selectedShape.position[0],
-          selectedShape.position[1],
-          selectedShape.position[2]
-        ];
-
-        if (updatedFillets.length > 0) {
-          console.log('🔄 Updating fillet centers after dimension change...');
-
-          updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
-
-          console.log('🔵 Reapplying fillets with updated centers and radii...');
-          newReplicadShape = await applyFillets(newReplicadShape, updatedFillets, { width, height, depth });
-          finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
-          finalBaseVertices = await getReplicadVertices(newReplicadShape);
-
-          console.log('🎯 DIMENSION CHANGE + FILLET - Explicitly preserving position:', preservedPositionForDimChange);
-        }
+        const preservedPosition = copyPosition(selectedShape);
+        const shapeSize = { width, height, depth };
+        const final = await finalizeWithFillets(newReplicadShape, updatedFillets, shapeSize, convertReplicadToThreeGeometry, getReplicadVertices);
 
         updateShape(selectedShape.id, {
-          geometry: finalGeometry,
-          replicadShape: newReplicadShape,
-          fillets: updatedFillets,
-          position: preservedPositionForDimChange,
+          geometry: final.geometry,
+          replicadShape: final.shape,
+          fillets: final.fillets,
+          position: preservedPosition,
           rotation: baseUpdate.rotation,
           scale: baseUpdate.scale,
           vertexModifications: baseUpdate.vertexModifications,
-          parameters: {
-            ...baseUpdate.parameters,
-            scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
-          }
+          parameters: { ...baseUpdate.parameters, scaledBaseVertices: final.vertices.map(v => [v.x, v.y, v.z]) }
         });
-
-        console.log('✓ Replicad shape recreated with dimensions, position preserved:', { width, height, depth, position: preservedPositionForDimChange });
       } else {
-        const filletsChanged = filletRadii && filletRadii.length > 0 &&
-          filletRadii.some((r, idx) => (selectedShape.fillets?.[idx]?.radius || 0) !== r);
-
-        if (filletsChanged && selectedShape.replicadShape) {
-          console.log('🔄 Fillet radii changed without dimension change, reapplying fillets...');
-
-          let updatedFillets = selectedShape.fillets || [];
-          updatedFillets = updatedFillets.map((fillet: FilletInfo, idx: number) => ({
-            ...fillet,
-            radius: filletRadii[idx] !== undefined ? filletRadii[idx] : fillet.radius
-          }));
-
-          let newReplicadShape = selectedShape.replicadShape;
-
-          if (selectedShape.subtractionGeometries && selectedShape.subtractionGeometries.length > 0) {
-            newReplicadShape = await createReplicadBox({ width, height, depth });
-
-            for (let i = 0; i < selectedShape.subtractionGeometries.length; i++) {
-              const subtraction = selectedShape.subtractionGeometries[i];
-              if (!subtraction) continue;
-
-              const subSize = getOriginalSize(subtraction.geometry);
-              const subBox = await createReplicadBox({
-                width: subSize.x,
-                height: subSize.y,
-                depth: subSize.z
-              });
-
-              newReplicadShape = await performBooleanCut(
-                newReplicadShape,
-                subBox,
-                undefined,
-                subtraction.relativeOffset,
-                undefined,
-                subtraction.relativeRotation || [0, 0, 0],
-                undefined,
-                subtraction.scale || [1, 1, 1] as [number, number, number]
-              );
-            }
-          } else {
-            newReplicadShape = await createReplicadBox({ width, height, depth });
-          }
-
-          let finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
-          let finalBaseVertices = await getReplicadVertices(newReplicadShape);
-
-          updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, finalGeometry, { width, height, depth });
-
-          console.log('🔵 Reapplying fillets with new radii...');
-          newReplicadShape = await applyFillets(newReplicadShape, updatedFillets, { width, height, depth });
-          finalGeometry = convertReplicadToThreeGeometry(newReplicadShape);
-          finalBaseVertices = await getReplicadVertices(newReplicadShape);
-
-          const preservedPositionForFillet: [number, number, number] = [
-            selectedShape.position[0],
-            selectedShape.position[1],
-            selectedShape.position[2]
-          ];
-          console.log('🎯 FILLET RADIUS CHANGE - Explicitly preserving position:', preservedPositionForFillet);
-
-          updateShape(selectedShape.id, {
-            geometry: finalGeometry,
-            replicadShape: newReplicadShape,
-            fillets: updatedFillets,
-            position: preservedPositionForFillet,
-            rotation: baseUpdate.rotation,
-            scale: baseUpdate.scale,
-            vertexModifications: baseUpdate.vertexModifications,
-            parameters: {
-              ...baseUpdate.parameters,
-              scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
-            }
-          });
-
-          console.log('✅ Fillets reapplied with new radii, position preserved');
-        } else {
-          updateShape(selectedShape.id, {
-            rotation: baseUpdate.rotation,
-            scale: baseUpdate.scale,
-            vertexModifications: baseUpdate.vertexModifications,
-            parameters: baseUpdate.parameters
-          });
-        }
+        updateShape(selectedShape.id, {
+          rotation: baseUpdate.rotation,
+          scale: baseUpdate.scale,
+          vertexModifications: baseUpdate.vertexModifications,
+          parameters: baseUpdate.parameters
+        });
       }
     }
 
@@ -725,92 +579,26 @@ export async function applySubtractionChanges(params: ApplySubtractionChangesPar
     idx === selectedSubtractionIndex ? updatedSubtraction : sub
   );
 
-  console.log(`🔄 Applying ${allSubtractions.length} subtraction(s)...`);
-
-  const baseShape = await createReplicadBox({
+  const shapeSize = {
     width: currentShape.parameters.width || 1,
     height: currentShape.parameters.height || 1,
     depth: currentShape.parameters.depth || 1
+  };
+
+  const baseShape = await createReplicadBox(shapeSize);
+  const resultShape = await applyAllSubtractions(baseShape, allSubtractions, createReplicadBox, performBooleanCut);
+  const preservedPosition = copyPosition(currentShape);
+  const final = await finalizeWithFillets(resultShape, currentShape.fillets || [], shapeSize, convertReplicadToThreeGeometry, getReplicadVertices);
+
+  updateShape(currentShape.id, {
+    geometry: final.geometry,
+    replicadShape: final.shape,
+    subtractionGeometries: allSubtractions,
+    fillets: final.fillets,
+    position: preservedPosition,
+    parameters: {
+      ...currentShape.parameters,
+      scaledBaseVertices: final.vertices.map(v => [v.x, v.y, v.z])
+    }
   });
-
-  let resultShape = baseShape;
-
-  for (let i = 0; i < allSubtractions.length; i++) {
-    const subtraction = allSubtractions[i];
-    const subSize = getOriginalSize(subtraction.geometry);
-
-    const subBox = await createReplicadBox({
-      width: subSize.x,
-      height: subSize.y,
-      depth: subSize.z
-    });
-
-    resultShape = await performBooleanCut(
-      resultShape,
-      subBox,
-      undefined,
-      subtraction.relativeOffset,
-      undefined,
-      subtraction.relativeRotation || [0, 0, 0],
-      undefined,
-      subtraction.scale || [1, 1, 1] as [number, number, number]
-    );
-  }
-
-  const newGeometry = convertReplicadToThreeGeometry(resultShape);
-  const newBaseVertices = await getReplicadVertices(resultShape);
-
-  const preservedPosition: [number, number, number] = [
-    currentShape.position[0],
-    currentShape.position[1],
-    currentShape.position[2]
-  ];
-  console.log('📍 Preserving position in applySubtractionChanges (new array):', preservedPosition);
-
-  let updatedFillets = currentShape.fillets || [];
-  if (updatedFillets.length > 0) {
-    console.log('🔄 Updating fillet centers after subtraction change...');
-
-    const shapeSize = {
-      width: currentShape.parameters.width || 1,
-      height: currentShape.parameters.height || 1,
-      depth: currentShape.parameters.depth || 1
-    };
-    updatedFillets = await updateFilletCentersForNewGeometry(updatedFillets, newGeometry, shapeSize);
-
-    console.log('🔵 Reapplying fillets with updated centers...');
-    resultShape = await applyFillets(resultShape, updatedFillets, shapeSize);
-    const finalGeometry = convertReplicadToThreeGeometry(resultShape);
-    const finalBaseVertices = await getReplicadVertices(resultShape);
-
-    console.log('🎯 SUBTRACTION CHANGE - Explicitly preserving position:', preservedPosition);
-    console.log('✅ Subtraction complete with fillets');
-
-    updateShape(currentShape.id, {
-      geometry: finalGeometry,
-      replicadShape: resultShape,
-      subtractionGeometries: allSubtractions,
-      fillets: updatedFillets,
-      position: preservedPosition,
-      parameters: {
-        ...currentShape.parameters,
-        scaledBaseVertices: finalBaseVertices.map(v => [v.x, v.y, v.z])
-      }
-    });
-  } else {
-    console.log('🎯 SUBTRACTION CHANGE - Explicitly preserving position:', preservedPosition);
-    console.log('✅ Subtraction complete');
-
-    updateShape(currentShape.id, {
-      geometry: newGeometry,
-      replicadShape: resultShape,
-      subtractionGeometries: allSubtractions,
-      fillets: [],
-      position: preservedPosition,
-      parameters: {
-        ...currentShape.parameters,
-        scaledBaseVertices: newBaseVertices.map(v => [v.x, v.y, v.z])
-      }
-    });
-  }
 }
