@@ -687,7 +687,20 @@ export async function resolveAllPanelJoints(
   await generateFrontBazaPanels(parentShapeId, fullSettings.selectedBodyType, fullSettings.bazaHeight, fullSettings.frontBaseDistance);
 
   if (!skipVirtualFaceUpdate) {
-    await recalculateAndRebuildVirtualFaces(parentShapeId);
+    const shapeFaces = useAppStore.getState().virtualFaces.filter(vf => vf.shapeId === parentShapeId);
+    if (shapeFaces.length > 0) {
+      const { recalculateVirtualFacesForShape } = await import('./VirtualFaceUpdateService');
+      const currentState = useAppStore.getState();
+      const currentShape = currentState.shapes.find(s => s.id === parentShapeId);
+      if (currentShape) {
+        const updatedFaces = recalculateVirtualFacesForShape(
+          currentShape,
+          currentState.virtualFaces,
+          currentState.shapes
+        );
+        useAppStore.setState({ virtualFaces: updatedFaces });
+      }
+    }
   }
 }
 
@@ -794,12 +807,11 @@ export async function rebuildAndRecalculatePipeline(
   profileId: string | null
 ): Promise<void> {
   await rebuildAllPanels(parentShapeId);
+  await recalculateAndRebuildVirtualFaces(parentShapeId);
 
   if (profileId && profileId !== 'none') {
     await resolveAllPanelJoints(parentShapeId, profileId, undefined, true);
   }
-
-  await recalculateAndRebuildVirtualFaces(parentShapeId);
 }
 
 async function rebuildVirtualFacePanels(
