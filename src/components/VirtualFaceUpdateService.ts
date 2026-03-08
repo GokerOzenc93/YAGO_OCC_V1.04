@@ -289,68 +289,38 @@ function reraycastVirtualFace(
   const startWorld = clampedClickWorld.clone().addScaledVector(worldNormal, 0.5);
   const planeOrigin = startWorld.clone();
 
-  const faceVertsU = groupVerticesWorld.map(vw => vw.dot(u));
-  const faceVertsV = groupVerticesWorld.map(vw => vw.dot(v));
-  const uMin = Math.min(...faceVertsU);
-  const uMax = Math.max(...faceVertsU);
-  const vMin = Math.min(...faceVertsV);
-  const vMax = Math.max(...faceVertsV);
-  const clickU = clampedClickWorld.dot(u);
-  const clickV = clampedClickWorld.dot(v);
+  const boundaryEdges = collectBoundaryEdgesWorld(faces, matchedGroup.faceIndices, localToWorld);
+  const subtractions = shape.subtractionGeometries || [];
 
-  const storedRatios = vf.raycastRecipe.normalizedHitRatios;
+  const panelsExcludingSelf = childPanels.filter(
+    p => p.parameters?.virtualFaceId !== vf.id
+  );
+  const panelObstacleEdges = collectPanelObstacleEdgesWorld(
+    panelsExcludingSelf, worldNormal, planeOrigin, 20
+  );
+  const subObstacleEdges = collectSubtractionObstacleEdgesWorld(
+    subtractions, localToWorld, worldNormal, planeOrigin, 20
+  );
+  const vfObstacleEdges = collectVirtualFaceObstacleEdgesWorld(
+    shapeFaces, vf.id, localToWorld, worldNormal, planeOrigin, 20
+  );
+  const obstacleEdges = [...panelObstacleEdges, ...subObstacleEdges, ...vfObstacleEdges];
 
-  let uPosT: number;
-  let uNegT: number;
-  let vPosT: number;
-  let vNegT: number;
+  const maxDist = 5000;
+  const directions = [u, u.clone().negate(), v, v.clone().negate()];
 
-  if (storedRatios) {
-    const maxUPos = uMax - clickU;
-    const maxUNeg = clickU - uMin;
-    const maxVPos = vMax - clickV;
-    const maxVNeg = clickV - vMin;
-
-    uPosT = storedRatios[0] * maxUPos;
-    uNegT = storedRatios[1] * maxUNeg;
-    vPosT = storedRatios[2] * maxVPos;
-    vNegT = storedRatios[3] * maxVNeg;
-  } else {
-    const boundaryEdges = collectBoundaryEdgesWorld(faces, matchedGroup.faceIndices, localToWorld);
-    const subtractions = shape.subtractionGeometries || [];
-
-    const panelsExcludingSelf = childPanels.filter(
-      p => p.parameters?.virtualFaceId !== vf.id
-    );
-    const panelObstacleEdges = collectPanelObstacleEdgesWorld(
-      panelsExcludingSelf, worldNormal, planeOrigin, 20
-    );
-    const subObstacleEdges = collectSubtractionObstacleEdgesWorld(
-      subtractions, localToWorld, worldNormal, planeOrigin, 20
-    );
-    const vfObstacleEdges = collectVirtualFaceObstacleEdgesWorld(
-      shapeFaces, vf.id, localToWorld, worldNormal, planeOrigin, 20
-    );
-    const obstacleEdges = [...panelObstacleEdges, ...subObstacleEdges, ...vfObstacleEdges];
-
-    const maxDist = 5000;
-    const directions = [u, u.clone().negate(), v, v.clone().negate()];
-
-    const hitPointsWorld: THREE.Vector3[] = [];
-    for (const dir of directions) {
-      const hit = castRayOnFaceWorld(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
-      hitPointsWorld.push(hit);
-    }
-
-    if (hitPointsWorld.length < 4) return null;
-
-    uPosT = hitPointsWorld[0].distanceTo(startWorld);
-    uNegT = hitPointsWorld[1].distanceTo(startWorld);
-    vPosT = hitPointsWorld[2].distanceTo(startWorld);
-    vNegT = hitPointsWorld[3].distanceTo(startWorld);
+  const hitPointsWorld: THREE.Vector3[] = [];
+  for (const dir of directions) {
+    const hit = castRayOnFaceWorld(startWorld, dir, boundaryEdges, obstacleEdges, u, v, planeOrigin, maxDist);
+    hitPointsWorld.push(hit);
   }
 
-  const subtractions = shape.subtractionGeometries || [];
+  if (hitPointsWorld.length < 4) return null;
+
+  const uPosT = hitPointsWorld[0].distanceTo(startWorld);
+  const uNegT = hitPointsWorld[1].distanceTo(startWorld);
+  const vPosT = hitPointsWorld[2].distanceTo(startWorld);
+  const vNegT = hitPointsWorld[3].distanceTo(startWorld);
 
   let rect2D: Point2D[] = ensureCCW([
     { x: uPosT, y: vPosT },
