@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan, Box } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -41,6 +41,44 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       const { extraRowId } = waitingForSurfaceSelection;
 
       console.log('🎨 Creating panel for face:', faceIndex, 'extraRowId:', extraRowId, 'sourceGeometryShapeId:', sourceGeometryShapeId, 'surfaceConstraint:', surfaceConstraint);
+
+      if (extraRowId === '__surface_panel__') {
+        const geometry = selectedShape.geometry;
+        if (!geometry) return;
+
+        const faces = extractFacesFromGeometry(geometry);
+        const faceGroups = groupCoplanarFaces(faces);
+        if (faceIndex >= faceGroups.length) return;
+
+        const existingPanel = shapes.find(s =>
+          s.type === 'panel' &&
+          s.parameters?.parentShapeId === selectedShape.id &&
+          s.parameters?.faceIndex === faceIndex &&
+          !s.parameters?.extraRowId
+        );
+        if (existingPanel) {
+          const { deleteShape } = useAppStore.getState();
+          deleteShape(existingPanel.id);
+        }
+
+        await createPanelForFace(faceGroups[faceIndex], faces, faceIndex, undefined, surfaceConstraint);
+
+        const newFacePanels = { ...(selectedShape.facePanels || {}), [faceIndex]: true };
+        updateShape(selectedShape.id, { facePanels: newFacePanels });
+
+        setPanelSurfaceSelectMode(false);
+        setWaitingForSurfaceSelection(null);
+
+        if (selectedProfile !== 'none') {
+          setResolving(true);
+          try {
+            await resolveAllPanelJoints(selectedShape.id, selectedProfile);
+          } finally {
+            setResolving(false);
+          }
+        }
+        return;
+      }
 
       let sourceShape = selectedShape;
       if (sourceGeometryShapeId) {
@@ -388,12 +426,22 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex, needsSurfaceSelection: true }];
 
     updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
+
+    setPanelSurfaceSelectMode(true);
+    setWaitingForSurfaceSelection({ extraRowId, sourceFaceIndex });
+    console.log('🎯 Auto-started surface selection for extra row:', extraRowId);
   };
 
   const handleStartSurfaceSelection = (extraRowId: string, sourceFaceIndex: number) => {
     setPanelSurfaceSelectMode(true);
     setWaitingForSurfaceSelection({ extraRowId, sourceFaceIndex });
     console.log('🎯 Started surface selection for extra row:', extraRowId);
+  };
+
+  const handleStartFaceSurfaceSelection = (faceIndex: number) => {
+    setPanelSurfaceSelectMode(true);
+    setWaitingForSurfaceSelection({ extraRowId: '__surface_panel__', sourceFaceIndex: faceIndex });
+    console.log('🎯 Started surface panel selection for face:', faceIndex);
   };
 
   const handleRemoveExtraRow = async (extraRowId: string) => {
@@ -792,6 +840,33 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             title={`Toggle panel for face ${i + 1}`}
                           />
                           <button
+                            disabled={isDisabled}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const isSurfacePanelActive = panelSurfaceSelectMode &&
+                                waitingForSurfaceSelection?.extraRowId === '__surface_panel__' &&
+                                waitingForSurfaceSelection?.sourceFaceIndex === i;
+                              if (isSurfacePanelActive) {
+                                setPanelSurfaceSelectMode(false);
+                                setWaitingForSurfaceSelection(null);
+                              } else {
+                                handleStartFaceSurfaceSelection(i);
+                              }
+                            }}
+                            className={`p-0.5 rounded transition-colors ${
+                              isDisabled
+                                ? 'text-stone-300 cursor-not-allowed'
+                                : panelSurfaceSelectMode &&
+                                  waitingForSurfaceSelection?.extraRowId === '__surface_panel__' &&
+                                  waitingForSurfaceSelection?.sourceFaceIndex === i
+                                  ? 'text-white bg-red-500 hover:bg-red-600 ring-1 ring-red-400'
+                                  : 'text-slate-500 hover:bg-stone-100'
+                            }`}
+                            title="Surface panel: click face to place panel with boundary detection"
+                          >
+                            <Box size={13} />
+                          </button>
+                          <button
                             disabled={isDisabled || !facePanels[i]}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -834,12 +909,19 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             disabled={isDisabled || !facePanels[i]}
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleAddExtraRow(i);
+                              if (panelSurfaceSelectMode && waitingForSurfaceSelection?.sourceFaceIndex === i) {
+                                setPanelSurfaceSelectMode(false);
+                                setWaitingForSurfaceSelection(null);
+                              } else {
+                                handleAddExtraRow(i);
+                              }
                             }}
                             className={`p-0.5 rounded transition-colors ${
                               isDisabled || !facePanels[i]
                                 ? 'text-stone-300 cursor-not-allowed'
-                                : 'text-green-600 hover:bg-green-50'
+                                : panelSurfaceSelectMode && waitingForSurfaceSelection?.sourceFaceIndex === i
+                                  ? 'text-white bg-red-500 hover:bg-red-600 ring-1 ring-red-400'
+                                  : 'text-green-600 hover:bg-green-50'
                             }`}
                             title={`Add duplicate row for face ${i + 1}`}
                           >

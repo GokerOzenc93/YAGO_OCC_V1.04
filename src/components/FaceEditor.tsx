@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { useAppStore } from '../store';
+import type { Shape } from '../store';
 
 export interface FaceData {
   faceIndex: number;
@@ -477,7 +478,8 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     addFilletFaceData,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    triggerPanelCreationForFace
+    triggerPanelCreationForFace,
+    shapes
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
@@ -535,12 +537,76 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     setHoveredFaceIndex(null);
   };
 
+  const findConstraintPanelForClickPoint = (
+    clickPoint: THREE.Vector3,
+    sourceFaceIndex: number
+  ): { center: [number, number, number]; normal: [number, number, number]; constraintPanelId: string } | undefined => {
+    const panelsOnSameFace = shapes.filter((s: Shape) =>
+      s.type === 'panel' &&
+      s.parameters?.parentShapeId === shape.id &&
+      s.parameters?.faceIndex === sourceFaceIndex &&
+      !s.parameters?.extraRowId &&
+      s.geometry
+    );
+
+    if (panelsOnSameFace.length === 0) return undefined;
+
+    const clickedGroup = faceGroups[sourceFaceIndex];
+    if (!clickedGroup) return undefined;
+
+    const faceNormal = clickedGroup.normal.clone().normalize();
+
+    let bestPanel: Shape | null = null;
+    let bestDist = Infinity;
+
+    for (const panel of panelsOnSameFace) {
+      if (!panel.geometry) continue;
+      const panelBox = new THREE.Box3().setFromBufferAttribute(
+        panel.geometry.getAttribute('position')
+      );
+      const panelCenter = new THREE.Vector3();
+      panelBox.getCenter(panelCenter);
+
+      const toPanel = panelCenter.clone().sub(clickPoint);
+      const projOnNormal = Math.abs(toPanel.dot(faceNormal));
+
+      if (projOnNormal < bestDist) {
+        bestDist = projOnNormal;
+        bestPanel = panel;
+      }
+    }
+
+    if (!bestPanel || !bestPanel.geometry) return undefined;
+
+    const panelBox = new THREE.Box3().setFromBufferAttribute(
+      bestPanel.geometry.getAttribute('position')
+    );
+    const panelCenter = new THREE.Vector3();
+    panelBox.getCenter(panelCenter);
+
+    return {
+      center: [panelCenter.x, panelCenter.y, panelCenter.z],
+      normal: [faceNormal.x, faceNormal.y, faceNormal.z],
+      constraintPanelId: bestPanel.id
+    };
+  };
+
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
 
     if (panelSurfaceSelectMode && waitingForSurfaceSelection && hoveredGroupIndex !== null) {
       console.log('🎯 Surface clicked for panel creation, faceIndex:', hoveredGroupIndex);
-      triggerPanelCreationForFace(hoveredGroupIndex);
+
+      const clickPoint: THREE.Vector3 = e.point ? new THREE.Vector3(e.point.x, e.point.y, e.point.z) : faceGroups[hoveredGroupIndex]?.center ?? new THREE.Vector3();
+
+      const surfaceConstraint = findConstraintPanelForClickPoint(clickPoint, hoveredGroupIndex);
+
+      if (surfaceConstraint) {
+        console.log('📐 Found constraining panel on face, using as boundary:', surfaceConstraint.constraintPanelId);
+        triggerPanelCreationForFace(hoveredGroupIndex, undefined, surfaceConstraint);
+      } else {
+        triggerPanelCreationForFace(hoveredGroupIndex);
+      }
       return;
     }
 
