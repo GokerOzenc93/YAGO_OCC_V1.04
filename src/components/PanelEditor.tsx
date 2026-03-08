@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, GripVertical, MousePointer, Layers, RotateCw, Plus, Trash2, Scan } from 'lucide-react';
+import { X, GripVertical, MousePointer, Layers, RotateCw, Trash2, Scan } from 'lucide-react';
 import { globalSettingsService, GlobalSettingsProfile } from './GlobalSettingsDatabase';
 import { useAppStore } from '../store';
 import type { FaceRole } from '../store';
@@ -380,15 +380,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     }
   };
 
-  const handleAddExtraRow = async (sourceFaceIndex: number) => {
-    if (!selectedShape) return;
-
-    const extraRowId = `extra-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-    const currentExtraRows = selectedShape.extraPanelRows || [];
-    const newExtraRows = [...currentExtraRows, { id: extraRowId, sourceFaceIndex, needsSurfaceSelection: true }];
-
-    updateShape(selectedShape.id, { extraPanelRows: newExtraRows });
-  };
 
   const handleStartSurfaceSelection = (extraRowId: string, sourceFaceIndex: number) => {
     setPanelSurfaceSelectMode(true);
@@ -829,21 +820,6 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             title="Rotate arrow direction"
                           >
                             <RotateCw size={13} />
-                          </button>
-                          <button
-                            disabled={isDisabled || !facePanels[i]}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAddExtraRow(i);
-                            }}
-                            className={`p-0.5 rounded transition-colors ${
-                              isDisabled || !facePanels[i]
-                                ? 'text-stone-300 cursor-not-allowed'
-                                : 'text-green-600 hover:bg-green-50'
-                            }`}
-                            title={`Add duplicate row for face ${i + 1}`}
-                          >
-                            <Plus size={13} />
                           </button>
                         </div>
                         {extraRowsForFace.map((extraRow: any) => {
