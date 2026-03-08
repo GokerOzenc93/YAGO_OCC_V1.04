@@ -448,10 +448,33 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
     const geometry = selectedShape.geometry;
     if (!geometry) return;
 
-    const faces = extractFacesFromGeometry(geometry);
-    const faceGroups = groupCoplanarFaces(faces);
+    const allFaces = extractFacesFromGeometry(geometry);
+    const faceGroups = groupCoplanarFaces(allFaces);
     const faceGroup = faceGroups[confirmedFace.groupIndex];
     if (!faceGroup) return;
+
+    let effectiveFaceGroup = faceGroup;
+    if (confirmedFace.subFaceIndices && confirmedFace.subFaceIndices.length > 0) {
+      const subCenter = new THREE.Vector3();
+      const subNormal = new THREE.Vector3();
+      let subArea = 0;
+      for (const fi of confirmedFace.subFaceIndices) {
+        const face = allFaces[fi];
+        if (face) {
+          subCenter.add(face.center);
+          subNormal.add(face.normal);
+          subArea += face.area;
+        }
+      }
+      subCenter.divideScalar(confirmedFace.subFaceIndices.length);
+      subNormal.divideScalar(confirmedFace.subFaceIndices.length).normalize();
+      effectiveFaceGroup = {
+        faceIndices: confirmedFace.subFaceIndices,
+        center: subCenter,
+        normal: subNormal,
+        totalArea: subArea
+      };
+    }
 
     const existingPanelsOnFace = shapes.filter(s =>
       s.type === 'panel' &&
@@ -492,7 +515,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
       }
     }
 
-    await createPanelForFace(faceGroup, faces, confirmedFace.groupIndex, customRowId, constraint);
+    await createPanelForFace(effectiveFaceGroup, allFaces, confirmedFace.groupIndex, customRowId, constraint);
     setCustomFaceRows(prev => prev.map(r =>
       r.id === customRowId ? { ...r, faceIndex: confirmedFace.groupIndex, hasSurface: true } : r
     ));

@@ -299,22 +299,26 @@ interface AppState {
     normal: [number, number, number];
     center: [number, number, number];
     confirmed: boolean;
+    subFaceIndices?: number[];
   } | null;
   setPendingCustomFace: (face: {
     groupIndex: number;
     normal: [number, number, number];
     center: [number, number, number];
     confirmed: boolean;
+    subFaceIndices?: number[];
   } | null) => void;
   confirmedCustomFaces: Record<string, {
     groupIndex: number;
     normal: [number, number, number];
     center: [number, number, number];
+    subFaceIndices?: number[];
   }>;
   setConfirmedCustomFace: (rowId: string, face: {
     groupIndex: number;
     normal: [number, number, number];
     center: [number, number, number];
+    subFaceIndices?: number[];
   }) => void;
   clearConfirmedCustomFace: (rowId: string) => void;
 
