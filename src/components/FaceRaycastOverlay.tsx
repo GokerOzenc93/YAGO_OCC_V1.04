@@ -832,13 +832,23 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const hoveredGroupHasPanel = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return false;
+
+    const hasFacePanelChild = childPanels.some(
+      p => p.parameters?.faceIndex === hoveredGroupIndex
+    );
+    if (hasFacePanelChild) return true;
+
     const groupNormal = faceGroups[hoveredGroupIndex].normal.clone().normalize();
+    const groupCenter = faceGroups[hoveredGroupIndex].center;
+
     return shapeVirtualFaces.some(vf => {
       if (!vf.hasPanel) return false;
       const vfNormal = new THREE.Vector3(vf.normal[0], vf.normal[1], vf.normal[2]).normalize();
-      return Math.abs(groupNormal.dot(vfNormal)) > 0.95;
+      if (Math.abs(groupNormal.dot(vfNormal)) < 0.9) return false;
+      const vfCenter = new THREE.Vector3(vf.center[0], vf.center[1], vf.center[2]);
+      return vfCenter.distanceTo(groupCenter) < 50;
     });
-  }, [hoveredGroupIndex, faceGroups, shapeVirtualFaces]);
+  }, [hoveredGroupIndex, faceGroups, shapeVirtualFaces, childPanels]);
 
   const hoverHighlightGeometry = useMemo(() => {
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return null;
@@ -878,6 +888,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     e.stopPropagation();
 
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return;
+    if (hoveredGroupHasPanel) return;
 
     const clickWorld: THREE.Vector3 = e.point.clone();
     const group = faceGroups[hoveredGroupIndex];
