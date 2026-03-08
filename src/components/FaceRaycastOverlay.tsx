@@ -575,6 +575,7 @@ interface PendingPreview {
   geo: THREE.BufferGeometry;
   edgeGeo: THREE.BufferGeometry;
   virtualFace: VirtualFace;
+  cornersLocal: THREE.Vector3[];
 }
 
 function collectVirtualFaceObstacleEdgesWorld(
@@ -784,6 +785,7 @@ function buildPreview(
     geo,
     edgeGeo,
     virtualFace,
+    cornersLocal,
   };
 }
 
@@ -833,6 +835,30 @@ const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position 
   </mesh>
 ));
 OriginDot.displayName = 'OriginDot';
+
+const CornerDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <mesh
+      position={[position.x, position.y, position.z]}
+      onPointerOver={(e) => { e.stopPropagation(); setHovered(true); }}
+      onPointerOut={(e) => { e.stopPropagation(); setHovered(false); }}
+    >
+      <sphereGeometry args={[8, 32, 32]} />
+      <meshStandardMaterial
+        color={hovered ? 0x1d4ed8 : 0x3b82f6}
+        depthTest={false}
+        transparent
+        opacity={hovered ? 1.0 : 0.85}
+        roughness={0.15}
+        metalness={0.15}
+        emissive={hovered ? 0x3b82f6 : 0x1e3a5f}
+        emissiveIntensity={hovered ? 0.5 : 0.2}
+      />
+    </mesh>
+  );
+});
+CornerDot.displayName = 'CornerDot';
 
 export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, allShapes = [] }) => {
   const { raycastMode, addVirtualFace, virtualFaces } = useAppStore();
@@ -1014,6 +1040,9 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
           <lineSegments geometry={pending.edgeGeo}>
             <lineBasicMaterial color={0x16a34a} linewidth={2} depthTest={false} transparent opacity={0.9} />
           </lineSegments>
+          {pending.cornersLocal.map((corner, i) => (
+            <CornerDot key={`corner-${i}`} position={corner} />
+          ))}
         </>
       )}
     </>
