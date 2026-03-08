@@ -7,6 +7,7 @@ import {
   groupCoplanarFaces,
   createFaceHighlightGeometry,
   createFaceDescriptor,
+  findFaceByDescriptor,
   FaceData,
   CoplanarFaceGroup,
 } from './FaceEditor';
@@ -925,76 +926,87 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     setFaces(extractedFaces);
     setFaceGroups(newFaceGroups);
 
-    const groupIndex = pendingGroupIndexRef.current;
     const normUV = selectedCornerNormUVRef.current;
+    const descriptor = pending?.virtualFace?.raycastRecipe?.faceGroupDescriptor;
 
-    if (groupIndex !== null && normUV && newFaceGroups[groupIndex]) {
-      const currentLocalToWorld = getShapeMatrix(shape);
-      const currentWorldToLocal = currentLocalToWorld.clone().invert();
-      const currentChildPanels = allShapes.filter(
-        s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id
-      );
-      const currentVirtualFaces = virtualFaces.filter(vf => vf.shapeId === shape.id);
+    if (normUV && descriptor) {
+      const matchedFace = findFaceByDescriptor(descriptor, extractedFaces, shape.geometry);
+      const matchedGroup = matchedFace
+        ? newFaceGroups.find(g => g.faceIndices.includes(matchedFace.faceIndex))
+        : null;
 
-      const grp = newFaceGroups[groupIndex];
-      const localNormal = grp.normal.clone().normalize();
-      const normalMatrix = new THREE.Matrix3().getNormalMatrix(currentLocalToWorld);
-      const worldNormal = localNormal.clone().applyMatrix3(normalMatrix).normalize();
-      const { u, v } = getFacePlaneAxes(worldNormal);
+      if (matchedGroup) {
+        const matchedGroupIndex = newFaceGroups.indexOf(matchedGroup);
+        pendingGroupIndexRef.current = matchedGroupIndex;
 
-      const faceWorldVerts: THREE.Vector3[] = [];
-      grp.faceIndices.forEach(fi => {
-        const face = extractedFaces[fi];
-        if (!face) return;
-        face.vertices.forEach(vt => faceWorldVerts.push(vt.clone().applyMatrix4(currentLocalToWorld)));
-      });
+        const currentLocalToWorld = getShapeMatrix(shape);
+        const currentWorldToLocal = currentLocalToWorld.clone().invert();
+        const currentChildPanels = allShapes.filter(
+          s => s.type === 'panel' && s.parameters?.parentShapeId === shape.id
+        );
+        const currentVirtualFaces = virtualFaces.filter(vf => vf.shapeId === shape.id);
 
-      if (faceWorldVerts.length > 0) {
-        const faceVertsU = faceWorldVerts.map(vw => vw.dot(u));
-        const faceVertsV = faceWorldVerts.map(vw => vw.dot(v));
-        const uMin = Math.min(...faceVertsU);
-        const uMax = Math.max(...faceVertsU);
-        const vMin = Math.min(...faceVertsV);
-        const vMax = Math.max(...faceVertsV);
-        const uSpan = uMax - uMin;
-        const vSpan = vMax - vMin;
+        const localNormal = matchedGroup.normal.clone().normalize();
+        const normalMatrix = new THREE.Matrix3().getNormalMatrix(currentLocalToWorld);
+        const worldNormal = localNormal.clone().applyMatrix3(normalMatrix).normalize();
+        const { u, v } = getFacePlaneAxes(worldNormal);
 
-        if (uSpan > 0 && vSpan > 0) {
-          const targetU = uMin + normUV[0] * uSpan;
-          const targetV = vMin + normUV[1] * vSpan;
+        const faceWorldVerts: THREE.Vector3[] = [];
+        matchedGroup.faceIndices.forEach(fi => {
+          const face = extractedFaces[fi];
+          if (!face) return;
+          face.vertices.forEach(vt => faceWorldVerts.push(vt.clone().applyMatrix4(currentLocalToWorld)));
+        });
 
-          const faceCenter = new THREE.Vector3();
-          faceWorldVerts.forEach(p => faceCenter.add(p));
-          faceCenter.divideScalar(faceWorldVerts.length);
+        if (faceWorldVerts.length > 0) {
+          const faceVertsU = faceWorldVerts.map(vw => vw.dot(u));
+          const faceVertsV = faceWorldVerts.map(vw => vw.dot(v));
+          const uMin = Math.min(...faceVertsU);
+          const uMax = Math.max(...faceVertsU);
+          const vMin = Math.min(...faceVertsV);
+          const vMax = Math.max(...faceVertsV);
+          const uSpan = uMax - uMin;
+          const vSpan = vMax - vMin;
 
-          const centerU = faceCenter.dot(u);
-          const centerV = faceCenter.dot(v);
+          if (uSpan > 0 && vSpan > 0) {
+            const targetU = uMin + normUV[0] * uSpan;
+            const targetV = vMin + normUV[1] * vSpan;
 
-          const clickWorld = faceCenter.clone()
-            .addScaledVector(u, targetU - centerU)
-            .addScaledVector(v, targetV - centerV);
+            const faceCenter = new THREE.Vector3();
+            faceWorldVerts.forEach(p => faceCenter.add(p));
+            faceCenter.divideScalar(faceWorldVerts.length);
 
-          const preview = buildPreview(
-            clickWorld,
-            grp,
-            extractedFaces,
-            currentLocalToWorld,
-            currentWorldToLocal,
-            currentChildPanels,
-            shape.id,
-            shape.subtractionGeometries || [],
-            shape.geometry,
-            currentVirtualFaces,
-            groupIndex
-          );
-          setPending(preview);
+            const centerU = faceCenter.dot(u);
+            const centerV = faceCenter.dot(v);
+
+            const clickWorld = faceCenter.clone()
+              .addScaledVector(u, targetU - centerU)
+              .addScaledVector(v, targetV - centerV);
+
+            const preview = buildPreview(
+              clickWorld,
+              matchedGroup,
+              extractedFaces,
+              currentLocalToWorld,
+              currentWorldToLocal,
+              currentChildPanels,
+              shape.id,
+              shape.subtractionGeometries || [],
+              shape.geometry,
+              currentVirtualFaces,
+              matchedGroupIndex
+            );
+            setPending(preview);
+          } else {
+            setPending(null);
+          }
         } else {
           setPending(null);
         }
       } else {
         setPending(null);
       }
-    } else {
+    } else if (pendingGroupIndexRef.current !== null) {
       setPending(null);
     }
   }, [shape.geometry, shape.id, geometryUuid]);
