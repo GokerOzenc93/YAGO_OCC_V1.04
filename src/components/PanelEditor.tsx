@@ -1191,7 +1191,7 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                             handleCustomRowAddSurface(customRow.id);
                           }}
                           className={`p-0.5 rounded transition-colors ${
-                            isWaitingForThisCustom
+                            isPaintModeForThis
                               ? 'bg-blue-600 text-white'
                               : 'text-blue-600 hover:bg-blue-50'
                           }`}
