@@ -567,13 +567,16 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                 if (!vf) return;
                 try {
                   const panelThickness = 18;
-                  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
-                  const replicadPanel = await createPanelFromVirtualFace(
+                  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
+                  let replicadPanel = await createPanelFromVirtualFace(
                     vf.vertices,
                     vf.normal,
                     panelThickness
                   );
                   if (!replicadPanel) return;
+                  if (selectedShape.subtractionGeometries?.length) {
+                    replicadPanel = await applyParentSubtractors(replicadPanel, selectedShape.subtractionGeometries);
+                  }
                   const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
                   const bbox = new THREE.Box3().setFromBufferAttribute(geometry.getAttribute('position'));
