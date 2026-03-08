@@ -812,8 +812,8 @@ HitDot.displayName = 'HitDot';
 
 const OriginDot: React.FC<{ position: THREE.Vector3 }> = React.memo(({ position }) => (
   <mesh position={[position.x, position.y, position.z]}>
-    <sphereGeometry args={[3.5, 8, 8]} />
-    <meshBasicMaterial color={0xfbbf24} depthTest={false} transparent opacity={0.95} />
+    <sphereGeometry args={[4, 12, 12]} />
+    <meshBasicMaterial color={0x22c55e} depthTest={false} transparent opacity={1} />
   </mesh>
 ));
 OriginDot.displayName = 'OriginDot';

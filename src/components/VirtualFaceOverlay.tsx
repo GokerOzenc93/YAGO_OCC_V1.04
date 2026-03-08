@@ -103,8 +103,16 @@ function buildSurfaceMeshes(vf: VirtualFace): { geo: THREE.BufferGeometry; edgeG
   return { geo, edgeGeo };
 }
 
+const ClickCenterDot: React.FC<{ position: [number, number, number] }> = React.memo(({ position }) => (
+  <mesh position={position}>
+    <sphereGeometry args={[4, 12, 12]} />
+    <meshBasicMaterial color={0x22c55e} depthTest={false} transparent opacity={1} />
+  </mesh>
+));
+ClickCenterDot.displayName = 'ClickCenterDot';
+
 export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape }) => {
-  const { virtualFaces, showVirtualFaces, panelSurfaceSelectMode, waitingForSurfaceSelection, triggerPanelCreationForFace, setSelectedPanelRow, panelSelectMode } = useAppStore();
+  const { virtualFaces, showVirtualFaces, panelSurfaceSelectMode, waitingForSurfaceSelection, triggerPanelCreationForFace, setSelectedPanelRow, panelSelectMode, raycastMode } = useAppStore();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const shapeFaces = useMemo(
@@ -125,7 +133,7 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
     <>
       {meshes.map((surface, idx) => {
         const isHovered = hoveredId === surface.id;
-        const isWaitingForSelection = panelSurfaceSelectMode && !!waitingForSurfaceSelection;
+        const recipe = surface.vf.raycastRecipe;
 
         return (
           <React.Fragment key={surface.id}>
@@ -165,6 +173,9 @@ export const VirtualFaceOverlay: React.FC<VirtualFaceOverlayProps> = ({ shape })
             <lineSegments geometry={surface.edgeGeo}>
               <lineBasicMaterial color={0x16a34a} linewidth={2} depthTest={false} transparent opacity={0.9} />
             </lineSegments>
+            {raycastMode && recipe && (
+              <ClickCenterDot position={recipe.clickLocalPoint} />
+            )}
           </React.Fragment>
         );
       })}
