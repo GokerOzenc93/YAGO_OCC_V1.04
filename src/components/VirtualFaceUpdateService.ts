@@ -227,12 +227,17 @@ function findMatchingFaceGroup(
 function findMatchingBoundaryEdge(
   anchor: EdgeAnchor,
   boundaryEdgesLocal: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
-  tolerance: number = 5.0
+  faceNormalLocal: THREE.Vector3
 ): { edge: { v1: THREE.Vector3; v2: THREE.Vector3 }; t: number } | null {
   const aV1 = new THREE.Vector3(...anchor.edgeV1Local);
   const aV2 = new THREE.Vector3(...anchor.edgeV2Local);
-  const aMid = aV1.clone().add(aV2).multiplyScalar(0.5);
   const aDir = aV2.clone().sub(aV1).normalize();
+  const aMid = aV1.clone().add(aV2).multiplyScalar(0.5);
+  const aLen = aV1.distanceTo(aV2);
+
+  const aNormalComp = aMid.dot(faceNormalLocal);
+
+  const crossA = new THREE.Vector3().crossVectors(aDir, faceNormalLocal).normalize();
 
   let bestEdge: { v1: THREE.Vector3; v2: THREE.Vector3 } | null = null;
   let bestScore = Infinity;
@@ -240,15 +245,27 @@ function findMatchingBoundaryEdge(
 
   for (const edge of boundaryEdgesLocal) {
     const eDir = edge.v2.clone().sub(edge.v1).normalize();
-    const eMid = edge.v1.clone().add(edge.v2).multiplyScalar(0.5);
 
     const dirDot = Math.abs(aDir.dot(eDir));
-    if (dirDot < 0.8) continue;
+    if (dirDot < 0.7) continue;
 
-    const midDist = aMid.distanceTo(eMid);
-    const score = midDist + (1 - dirDot) * 100;
+    const crossE = new THREE.Vector3().crossVectors(eDir, faceNormalLocal).normalize();
+    const sideDot = crossA.dot(crossE);
+    if (Math.abs(sideDot) < 0.5) continue;
 
-    if (score < bestScore && score < tolerance * 10) {
+    const eMid = edge.v1.clone().add(edge.v2).multiplyScalar(0.5);
+    const eNormalComp = eMid.dot(faceNormalLocal);
+
+    const sameNormalPlane = Math.abs(eNormalComp - aNormalComp) < aLen * 0.5 + 50;
+    if (!sameNormalPlane) continue;
+
+    const eSidePos = eMid.dot(crossA);
+    const aSidePos = aMid.dot(crossA);
+    const sideDist = Math.abs(eSidePos - aSidePos);
+
+    const score = sideDist * (2 - dirDot);
+
+    if (score < bestScore) {
       bestScore = score;
       bestEdge = edge;
       bestFlipped = aDir.dot(eDir) < 0;
@@ -257,20 +274,22 @@ function findMatchingBoundaryEdge(
 
   if (!bestEdge) return null;
 
-  const t = bestFlipped ? (1 - anchor.t) : anchor.t;
-  return { edge: bestEdge, t };
+  const newT = bestFlipped ? (1 - anchor.t) : anchor.t;
+  return { edge: bestEdge, t: Math.max(0, Math.min(1, newT)) };
 }
 
 function reconstructHitPointsFromAnchors(
   anchors: EdgeAnchor[],
-  boundaryEdgesWorld: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
+  _boundaryEdgesWorld: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
   boundaryEdgesLocal: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
   localToWorld: THREE.Matrix4,
+  faceNormalLocal?: THREE.Vector3
 ): Map<string, THREE.Vector3> {
   const result = new Map<string, THREE.Vector3>();
+  const normal = faceNormalLocal || new THREE.Vector3(0, 0, 1);
 
   for (const anchor of anchors) {
-    const matched = findMatchingBoundaryEdge(anchor, boundaryEdgesLocal);
+    const matched = findMatchingBoundaryEdge(anchor, boundaryEdgesLocal, normal);
     if (!matched) continue;
 
     const hitLocal = matched.edge.v1.clone().lerp(matched.edge.v2, matched.t);
@@ -278,6 +297,34 @@ function reconstructHitPointsFromAnchors(
     result.set(anchor.direction, hitWorld);
   }
 
+  return result;
+}
+
+function extractUniqueBoundaryEdgesLocal(
+  faces: FaceData[],
+  faceIndices: number[]
+): Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> {
+  const edgeMap = new Map<string, { v1: THREE.Vector3; v2: THREE.Vector3; count: number }>();
+  faceIndices.forEach(fi => {
+    const face = faces[fi];
+    if (!face) return;
+    const verts = face.vertices;
+    for (let i = 0; i < 3; i++) {
+      const va = verts[i];
+      const vb = verts[(i + 1) % 3];
+      const ka = `${va.x.toFixed(2)},${va.y.toFixed(2)},${va.z.toFixed(2)}`;
+      const kb = `${vb.x.toFixed(2)},${vb.y.toFixed(2)},${vb.z.toFixed(2)}`;
+      const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
+      if (!edgeMap.has(key)) {
+        edgeMap.set(key, { v1: va.clone(), v2: vb.clone(), count: 0 });
+      }
+      edgeMap.get(key)!.count++;
+    }
+  });
+  const result: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
+  edgeMap.forEach(e => {
+    if (e.count === 1) result.push({ v1: e.v1, v2: e.v2 });
+  });
   return result;
 }
 
@@ -311,46 +358,174 @@ function reraycastVirtualFace(
 
   if (groupVerticesWorld.length === 0) return null;
 
-  const boundaryEdgesWorld = collectBoundaryEdgesWorld(faces, matchedGroup.faceIndices, localToWorld);
-
-  const boundaryEdgesLocal: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-  matchedGroup.faceIndices.forEach(fi => {
-    const face = faces[fi];
-    if (!face) return;
-    const verts = face.vertices;
-    for (let i = 0; i < 3; i++) {
-      const va = verts[i];
-      const vb = verts[(i + 1) % 3];
-      boundaryEdgesLocal.push({ v1: va.clone(), v2: vb.clone() });
-    }
-  });
-  const edgeMapLocal = new Map<string, { v1: THREE.Vector3; v2: THREE.Vector3; count: number }>();
-  for (const e of boundaryEdgesLocal) {
-    const ka = `${e.v1.x.toFixed(2)},${e.v1.y.toFixed(2)},${e.v1.z.toFixed(2)}`;
-    const kb = `${e.v2.x.toFixed(2)},${e.v2.y.toFixed(2)},${e.v2.z.toFixed(2)}`;
-    const key = ka < kb ? `${ka}|${kb}` : `${kb}|${ka}`;
-    if (!edgeMapLocal.has(key)) {
-      edgeMapLocal.set(key, { v1: e.v1, v2: e.v2, count: 0 });
-    }
-    edgeMapLocal.get(key)!.count++;
-  }
-  const uniqueBoundaryEdgesLocal: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }> = [];
-  edgeMapLocal.forEach(e => {
-    if (e.count === 1) uniqueBoundaryEdgesLocal.push({ v1: e.v1, v2: e.v2 });
-  });
+  const uniqueBoundaryEdgesLocal = extractUniqueBoundaryEdgesLocal(faces, matchedGroup.faceIndices);
 
   const edgeAnchors = vf.raycastRecipe.edgeAnchors;
-  let anchorHitPoints: Map<string, THREE.Vector3> | null = null;
 
   if (edgeAnchors && edgeAnchors.length === 4) {
-    anchorHitPoints = reconstructHitPointsFromAnchors(
-      edgeAnchors, boundaryEdgesWorld, uniqueBoundaryEdgesLocal, localToWorld
+    const anchorHitPoints = reconstructHitPointsFromAnchors(
+      edgeAnchors, [], uniqueBoundaryEdgesLocal, localToWorld, localNormal
     );
+
+    if (anchorHitPoints.size === 4) {
+      const uPosHitW = anchorHitPoints.get('u+')!;
+      const uNegHitW = anchorHitPoints.get('u-')!;
+      const vPosHitW = anchorHitPoints.get('v+')!;
+      const vNegHitW = anchorHitPoints.get('v-')!;
+
+      const cornersWorld = [
+        new THREE.Vector3(uPosHitW.dot(u), vPosHitW.dot(v), 0),
+        new THREE.Vector3(uNegHitW.dot(u), vPosHitW.dot(v), 0),
+        new THREE.Vector3(uNegHitW.dot(u), vNegHitW.dot(v), 0),
+        new THREE.Vector3(uPosHitW.dot(u), vNegHitW.dot(v), 0),
+      ];
+
+      const refPoint = groupVerticesWorld[0];
+      const nComp = refPoint.dot(worldNormal);
+
+      const realCornersWorld = cornersWorld.map(c => {
+        const w = new THREE.Vector3()
+          .addScaledVector(u, c.x)
+          .addScaledVector(v, c.y)
+          .addScaledVector(worldNormal, nComp);
+        return w;
+      });
+
+      const subtractions = shape.subtractionGeometries || [];
+      if (subtractions.length > 0) {
+        const planeOriginForClip = new THREE.Vector3();
+        realCornersWorld.forEach(c => planeOriginForClip.add(c));
+        planeOriginForClip.divideScalar(realCornersWorld.length);
+
+        const poly2D = realCornersWorld.map(c => projectTo2D(c, planeOriginForClip, u, v));
+        let clippedPoly = ensureCCW(poly2D);
+
+        const footprints = getSubtractorFootprints2D(
+          subtractions, localToWorld, worldNormal, planeOriginForClip, u, v, 50
+        );
+
+        for (const footprint of footprints) {
+          const ccwFootprint = ensureCCW(footprint);
+          const hasOverlap =
+            ccwFootprint.some(p => isPointInsidePolygon(p, clippedPoly)) ||
+            clippedPoly.some(p => isPointInsidePolygon(p, ccwFootprint));
+          if (hasOverlap) {
+            clippedPoly = subtractPolygon(clippedPoly, ccwFootprint);
+          }
+        }
+
+        if (clippedPoly.length < 3) return null;
+
+        const finalCornersWorld = clippedPoly.map(p =>
+          planeOriginForClip.clone().addScaledVector(u, p.x).addScaledVector(v, p.y)
+        );
+        const cornersLocal = finalCornersWorld.map(c => c.clone().applyMatrix4(worldToLocal));
+
+        const centerLocal = new THREE.Vector3();
+        cornersLocal.forEach(c => centerLocal.add(c));
+        centerLocal.divideScalar(cornersLocal.length);
+
+        const newAnchors = rebuildAnchorsFromHitPoints(anchorHitPoints, uniqueBoundaryEdgesLocal, worldToLocal);
+
+        return {
+          ...vf,
+          normal: [localNormal.x, localNormal.y, localNormal.z],
+          center: [centerLocal.x, centerLocal.y, centerLocal.z],
+          vertices: cornersLocal.map(c => [c.x, c.y, c.z] as [number, number, number]),
+          raycastRecipe: {
+            ...vf.raycastRecipe,
+            edgeAnchors: newAnchors.length === 4 ? newAnchors : vf.raycastRecipe.edgeAnchors,
+          },
+        };
+      }
+
+      const cornersLocal = realCornersWorld.map(c => c.clone().applyMatrix4(worldToLocal));
+
+      const centerLocal = new THREE.Vector3();
+      cornersLocal.forEach(c => centerLocal.add(c));
+      centerLocal.divideScalar(cornersLocal.length);
+
+      const newAnchors = rebuildAnchorsFromHitPoints(anchorHitPoints, uniqueBoundaryEdgesLocal, worldToLocal);
+
+      return {
+        ...vf,
+        normal: [localNormal.x, localNormal.y, localNormal.z],
+        center: [centerLocal.x, centerLocal.y, centerLocal.z],
+        vertices: cornersLocal.map(c => [c.x, c.y, c.z] as [number, number, number]),
+        raycastRecipe: {
+          ...vf.raycastRecipe,
+          edgeAnchors: newAnchors.length === 4 ? newAnchors : vf.raycastRecipe.edgeAnchors,
+        },
+      };
+    }
   }
 
+  return reraycastVirtualFaceFallback(
+    vf, shape, faces, matchedGroup, localToWorld, worldToLocal,
+    childPanels, shapeFaces, groupVerticesWorld, worldNormal, u, v
+  );
+}
+
+function rebuildAnchorsFromHitPoints(
+  anchorHitPoints: Map<string, THREE.Vector3>,
+  boundaryEdgesLocal: Array<{ v1: THREE.Vector3; v2: THREE.Vector3 }>,
+  worldToLocal: THREE.Matrix4
+): EdgeAnchor[] {
+  const newAnchors: EdgeAnchor[] = [];
+  const dirLabels: Array<'u+' | 'u-' | 'v+' | 'v-'> = ['u+', 'u-', 'v+', 'v-'];
+
+  for (const dirLabel of dirLabels) {
+    const hitW = anchorHitPoints.get(dirLabel);
+    if (!hitW) continue;
+    const hitL = hitW.clone().applyMatrix4(worldToLocal);
+
+    let bestEdge: { v1: THREE.Vector3; v2: THREE.Vector3 } | null = null;
+    let bestDist = Infinity;
+    let bestEdgeT = 0;
+
+    for (const edge of boundaryEdgesLocal) {
+      const closest = new THREE.Vector3();
+      const line = new THREE.Line3(edge.v1, edge.v2);
+      line.closestPointToPoint(hitL, true, closest);
+      const dist = closest.distanceTo(hitL);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestEdge = edge;
+        const eLen = edge.v1.distanceTo(edge.v2);
+        bestEdgeT = eLen > 1e-8 ? edge.v1.distanceTo(closest) / eLen : 0;
+      }
+    }
+
+    if (bestEdge) {
+      newAnchors.push({
+        edgeV1Local: [bestEdge.v1.x, bestEdge.v1.y, bestEdge.v1.z],
+        edgeV2Local: [bestEdge.v2.x, bestEdge.v2.y, bestEdge.v2.z],
+        t: Math.max(0, Math.min(1, bestEdgeT)),
+        direction: dirLabel,
+      });
+    }
+  }
+
+  return newAnchors;
+}
+
+function reraycastVirtualFaceFallback(
+  vf: VirtualFace,
+  shape: Shape,
+  faces: FaceData[],
+  matchedGroup: CoplanarFaceGroup,
+  localToWorld: THREE.Matrix4,
+  worldToLocal: THREE.Matrix4,
+  childPanels: any[],
+  shapeFaces: VirtualFace[],
+  groupVerticesWorld: THREE.Vector3[],
+  worldNormal: THREE.Vector3,
+  u: THREE.Vector3,
+  v: THREE.Vector3
+): VirtualFace | null {
   let clampedClickWorld: THREE.Vector3;
 
-  const normalizedUV = vf.raycastRecipe.normalizedClickUV;
+  const normalizedUV = vf.raycastRecipe!.normalizedClickUV;
   if (normalizedUV) {
     const faceVertsU = groupVerticesWorld.map(vw => vw.dot(u));
     const faceVertsV = groupVerticesWorld.map(vw => vw.dot(v));
@@ -371,9 +546,9 @@ function reraycastVirtualFace(
       .addScaledVector(v, worldV - groupCenter.dot(v));
   } else {
     const clickLocal = new THREE.Vector3(
-      vf.raycastRecipe.clickLocalPoint[0],
-      vf.raycastRecipe.clickLocalPoint[1],
-      vf.raycastRecipe.clickLocalPoint[2]
+      vf.raycastRecipe!.clickLocalPoint[0],
+      vf.raycastRecipe!.clickLocalPoint[1],
+      vf.raycastRecipe!.clickLocalPoint[2]
     );
     const clickWorld = clickLocal.clone().applyMatrix4(localToWorld);
     const groupBboxWorld = new THREE.Box3().setFromPoints(groupVerticesWorld);
@@ -383,64 +558,44 @@ function reraycastVirtualFace(
   const startWorld = clampedClickWorld.clone().addScaledVector(worldNormal, 0.5);
   const planeOrigin = startWorld.clone();
 
+  const boundaryEdgesWorld = collectBoundaryEdgesWorld(faces, matchedGroup.faceIndices, localToWorld);
   const subtractions = shape.subtractionGeometries || [];
 
-  let uPosT: number, uNegT: number, vPosT: number, vNegT: number;
-  let useAnchors = false;
+  const panelsExcludingSelf = childPanels.filter(
+    p => p.parameters?.virtualFaceId !== vf.id
+  );
+  const panelObstacleEdges = collectPanelObstacleEdgesWorld(
+    panelsExcludingSelf, worldNormal, planeOrigin, 20
+  );
+  const subObstacleEdges = collectSubtractionObstacleEdgesWorld(
+    subtractions, localToWorld, worldNormal, planeOrigin, 20
+  );
+  const vfObstacleEdges = collectVirtualFaceObstacleEdgesWorld(
+    shapeFaces, vf.id, localToWorld, worldNormal, planeOrigin, 20
+  );
+  const obstacleEdges = [...panelObstacleEdges, ...subObstacleEdges, ...vfObstacleEdges];
 
-  if (anchorHitPoints && anchorHitPoints.size === 4) {
-    const uPosHit = anchorHitPoints.get('u+')!;
-    const uNegHit = anchorHitPoints.get('u-')!;
-    const vPosHit = anchorHitPoints.get('v+')!;
-    const vNegHit = anchorHitPoints.get('v-')!;
+  const maxDist = 5000;
+  const directions = [u, u.clone().negate(), v, v.clone().negate()];
 
-    uPosT = projectTo2D(uPosHit, planeOrigin, u, v).x;
-    uNegT = -projectTo2D(uNegHit, planeOrigin, u, v).x;
-    vPosT = projectTo2D(vPosHit, planeOrigin, u, v).y;
-    vNegT = -projectTo2D(vNegHit, planeOrigin, u, v).y;
-
-    if (uPosT > 0 && uNegT > 0 && vPosT > 0 && vNegT > 0) {
-      useAnchors = true;
-    }
+  const hitPointsWorld: THREE.Vector3[] = [];
+  for (const dir of directions) {
+    const hit = castRayOnFaceWorld(startWorld, dir, boundaryEdgesWorld, obstacleEdges, u, v, planeOrigin, maxDist);
+    hitPointsWorld.push(hit);
   }
 
-  if (!useAnchors) {
-    const panelsExcludingSelf = childPanels.filter(
-      p => p.parameters?.virtualFaceId !== vf.id
-    );
-    const panelObstacleEdges = collectPanelObstacleEdgesWorld(
-      panelsExcludingSelf, worldNormal, planeOrigin, 20
-    );
-    const subObstacleEdges = collectSubtractionObstacleEdgesWorld(
-      subtractions, localToWorld, worldNormal, planeOrigin, 20
-    );
-    const vfObstacleEdges = collectVirtualFaceObstacleEdgesWorld(
-      shapeFaces, vf.id, localToWorld, worldNormal, planeOrigin, 20
-    );
-    const obstacleEdges = [...panelObstacleEdges, ...subObstacleEdges, ...vfObstacleEdges];
+  if (hitPointsWorld.length < 4) return null;
 
-    const maxDist = 5000;
-    const directions = [u, u.clone().negate(), v, v.clone().negate()];
-
-    const hitPointsWorld: THREE.Vector3[] = [];
-    for (const dir of directions) {
-      const hit = castRayOnFaceWorld(startWorld, dir, boundaryEdgesWorld, obstacleEdges, u, v, planeOrigin, maxDist);
-      hitPointsWorld.push(hit);
-    }
-
-    if (hitPointsWorld.length < 4) return null;
-
-    uPosT = hitPointsWorld[0].distanceTo(startWorld);
-    uNegT = hitPointsWorld[1].distanceTo(startWorld);
-    vPosT = hitPointsWorld[2].distanceTo(startWorld);
-    vNegT = hitPointsWorld[3].distanceTo(startWorld);
-  }
+  const uPosT = hitPointsWorld[0].distanceTo(startWorld);
+  const uNegT = hitPointsWorld[1].distanceTo(startWorld);
+  const vPosT = hitPointsWorld[2].distanceTo(startWorld);
+  const vNegT = hitPointsWorld[3].distanceTo(startWorld);
 
   let rect2D: Point2D[] = ensureCCW([
-    { x: uPosT!, y: vPosT! },
-    { x: -uNegT!, y: vPosT! },
-    { x: -uNegT!, y: -vNegT! },
-    { x: uPosT!, y: -vNegT! },
+    { x: uPosT, y: vPosT },
+    { x: -uNegT, y: vPosT },
+    { x: -uNegT, y: -vNegT },
+    { x: uPosT, y: -vNegT },
   ]);
 
   const footprints = getSubtractorFootprints2D(
@@ -469,49 +624,13 @@ function reraycastVirtualFace(
   cornersLocal.forEach(c => centerLocal.add(c));
   centerLocal.divideScalar(cornersLocal.length);
 
-  const newEdgeAnchors: EdgeAnchor[] = [];
-  if (useAnchors && anchorHitPoints) {
-    const dirLabels: Array<'u+' | 'u-' | 'v+' | 'v-'> = ['u+', 'u-', 'v+', 'v-'];
-    for (const dirLabel of dirLabels) {
-      const hitW = anchorHitPoints.get(dirLabel);
-      if (!hitW) continue;
-      const hitL = hitW.clone().applyMatrix4(worldToLocal);
-
-      let bestEdge: { v1: THREE.Vector3; v2: THREE.Vector3 } | null = null;
-      let bestDist = Infinity;
-      let bestEdgeT = 0;
-      for (const edge of uniqueBoundaryEdgesLocal) {
-        const closest = new THREE.Vector3();
-        const line = new THREE.Line3(edge.v1, edge.v2);
-        line.closestPointToPoint(hitL, true, closest);
-        const dist = closest.distanceTo(hitL);
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestEdge = edge;
-          const eLen = edge.v1.distanceTo(edge.v2);
-          bestEdgeT = eLen > 1e-8 ? edge.v1.distanceTo(closest) / eLen : 0;
-        }
-      }
-      if (bestEdge) {
-        newEdgeAnchors.push({
-          edgeV1Local: [bestEdge.v1.x, bestEdge.v1.y, bestEdge.v1.z],
-          edgeV2Local: [bestEdge.v2.x, bestEdge.v2.y, bestEdge.v2.z],
-          t: Math.max(0, Math.min(1, bestEdgeT)),
-          direction: dirLabel,
-        });
-      }
-    }
-  }
+  const localNormal = matchedGroup.normal.clone().normalize();
 
   return {
     ...vf,
     normal: [localNormal.x, localNormal.y, localNormal.z],
     center: [centerLocal.x, centerLocal.y, centerLocal.z],
     vertices: cornersLocal.map(c => [c.x, c.y, c.z] as [number, number, number]),
-    raycastRecipe: {
-      ...vf.raycastRecipe,
-      edgeAnchors: newEdgeAnchors.length === 4 ? newEdgeAnchors : vf.raycastRecipe.edgeAnchors,
-    },
   };
 }
 
