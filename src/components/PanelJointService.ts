@@ -401,62 +401,27 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   const parentShape = state.shapes.find(s => s.id === parentShapeId);
   if (!parentShape || !parentShape.replicadShape || !parentShape.geometry) return;
 
-  const childPanels = state.shapes.filter(
+  const facePanels = state.shapes.filter(
     s => s.type === 'panel' &&
     s.parameters?.parentShapeId === parentShapeId &&
-    !s.parameters?.isBaza
+    !s.parameters?.isBaza &&
+    !s.parameters?.virtualFaceId
   );
-  if (childPanels.length === 0) return;
+  if (facePanels.length === 0) return;
 
-  console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
+  console.log(`Rebuilding ${facePanels.length} face-based panels for parent ${parentShapeId}...`);
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
-  const { createPanelFromFace, createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
+  const { createPanelFromFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
 
   const faces = extractFacesFromGeometry(parentShape.geometry);
   const faceGroups = groupCoplanarFaces(faces);
 
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
-  const currentVirtualFaces = useAppStore.getState().virtualFaces;
-  const parentSubtractions = parentShape.subtractionGeometries || [];
-
-  for (const panel of childPanels) {
+  for (const panel of facePanels) {
     const faceIndex = panel.parameters?.faceIndex;
     if (faceIndex === undefined) continue;
-
-    const virtualFaceId = panel.parameters?.virtualFaceId;
-    if (virtualFaceId) {
-      const vf = currentVirtualFaces.find(f => f.id === virtualFaceId);
-      if (!vf || vf.vertices.length < 3) continue;
-
-      const panelThickness = panel.parameters?.depth || 18;
-      try {
-        let replicadPanel = await createPanelFromVirtualFace(
-          vf.vertices,
-          vf.normal,
-          panelThickness
-        );
-        if (!replicadPanel) continue;
-
-        const geometry = convertReplicadToThreeGeometry(replicadPanel);
-
-        updates.push({
-          id: panel.id,
-          geometry,
-          replicadShape: replicadPanel,
-          parameters: {
-            ...panel.parameters,
-            faceRole: vf.role,
-            originalReplicadShape: null,
-            jointTrimmed: false,
-          }
-        });
-      } catch (error) {
-        console.error(`Failed to rebuild virtual face panel ${panel.id}:`, error);
-      }
-      continue;
-    }
 
     if (faceIndex < 0 || faceIndex >= faceGroups.length) continue;
 
@@ -521,7 +486,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
         return s;
       })
     }));
-    console.log(`Rebuilt ${updates.length} panels successfully`);
+    console.log(`Rebuilt ${updates.length} face-based panels successfully`);
   }
 }
 
@@ -696,6 +661,13 @@ export async function resolveAllPanelJoints(
           currentState.shapes
         );
         useAppStore.setState({ virtualFaces: updatedFaces });
+
+        const hasVirtualPanels = updatedFaces.some(
+          vf => vf.shapeId === parentShapeId && vf.hasPanel
+        );
+        if (hasVirtualPanels) {
+          await rebuildVirtualFacePanels(parentShapeId, updatedFaces);
+        }
       }
     }
   }
