@@ -411,7 +411,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   console.log(`Rebuilding ${childPanels.length} panels for parent ${parentShapeId}...`);
 
   const { extractFacesFromGeometry, groupCoplanarFaces } = await import('./FaceEditor');
-  const { createPanelFromFace, createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+  const { createPanelFromFace, createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
 
   const faces = extractFacesFromGeometry(parentShape.geometry);
   const faceGroups = groupCoplanarFaces(faces);
@@ -419,6 +419,7 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
   const currentVirtualFaces = useAppStore.getState().virtualFaces;
+  const parentSubtractions = parentShape.subtractionGeometries || [];
 
   for (const panel of childPanels) {
     const faceIndex = panel.parameters?.faceIndex;
@@ -431,12 +432,15 @@ export async function rebuildAllPanels(parentShapeId: string): Promise<void> {
 
       const panelThickness = panel.parameters?.depth || 18;
       try {
-        const replicadPanel = await createPanelFromVirtualFace(
+        let replicadPanel = await createPanelFromVirtualFace(
           vf.vertices,
           vf.normal,
           panelThickness
         );
         if (!replicadPanel) continue;
+        if (parentSubtractions.length > 0) {
+          replicadPanel = await applyParentSubtractors(replicadPanel, parentSubtractions);
+        }
 
         const geometry = convertReplicadToThreeGeometry(replicadPanel);
 
@@ -813,8 +817,9 @@ async function rebuildVirtualFacePanels(
   );
   if (virtualPanels.length === 0) return;
 
-  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry } = await import('./ReplicadService');
+  const { createPanelFromVirtualFace, convertReplicadToThreeGeometry, applyParentSubtractors } = await import('./ReplicadService');
 
+  const parentSubtractions = parentShape.subtractionGeometries || [];
   const updates: Array<{ id: string; geometry: any; replicadShape: any; parameters: any }> = [];
 
   for (const panel of virtualPanels) {
@@ -824,12 +829,15 @@ async function rebuildVirtualFacePanels(
 
     const panelThickness = panel.parameters?.depth || 18;
     try {
-      const replicadPanel = await createPanelFromVirtualFace(
+      let replicadPanel = await createPanelFromVirtualFace(
         vf.vertices,
         vf.normal,
         panelThickness
       );
       if (!replicadPanel) continue;
+      if (parentSubtractions.length > 0) {
+        replicadPanel = await applyParentSubtractors(replicadPanel, parentSubtractions);
+      }
 
       const geometry = convertReplicadToThreeGeometry(replicadPanel);
 

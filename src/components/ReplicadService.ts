@@ -1,6 +1,7 @@
 import { setOC } from 'replicad';
 import initOpenCascade from 'opencascade.js';
 import * as THREE from 'three';
+import type { SubtractedGeometry } from '../store';
 
 let ocInstance: any = null;
 let isInitializing = false;
@@ -439,4 +440,42 @@ export const createPanelFromVirtualFace = async (
   const panel = sketched.extrude(-panelThickness);
 
   return panel;
+};
+
+export const applyParentSubtractors = async (
+  panelShape: any,
+  subtractionGeometries: SubtractedGeometry[]
+): Promise<any> => {
+  if (!subtractionGeometries || subtractionGeometries.length === 0) return panelShape;
+
+  await initReplicad();
+
+  let result = panelShape;
+
+  for (const sub of subtractionGeometries) {
+    if (!sub.parameters) continue;
+
+    const w = parseFloat(sub.parameters.width);
+    const h = parseFloat(sub.parameters.height);
+    const d = parseFloat(sub.parameters.depth);
+    if (isNaN(w) || isNaN(h) || isNaN(d) || w <= 0 || h <= 0 || d <= 0) continue;
+
+    try {
+      const cuttingBox = await createReplicadBox({ width: w, height: h, depth: d });
+      result = await performBooleanCut(
+        result,
+        cuttingBox,
+        undefined,
+        sub.relativeOffset,
+        undefined,
+        sub.relativeRotation,
+        undefined,
+        sub.scale
+      );
+    } catch (err) {
+      console.error('Failed to apply subtractor to panel:', err);
+    }
+  }
+
+  return result;
 };
