@@ -818,16 +818,19 @@ const RayLine3D: React.FC<{
   start: THREE.Vector3;
   end: THREE.Vector3;
   color?: number;
-  onContextMenu?: (e: any) => void;
+  hoverColor?: number;
+  onClick?: (e: any) => void;
+  onHoverChange?: (hovered: boolean) => void;
+  interactive?: boolean;
 }> = React.memo(
-  ({ start, end, color = 0xf97316, onContextMenu }) => {
+  ({ start, end, color = 0xf97316, hoverColor, onClick, onHoverChange, interactive = false }) => {
     const geometry = useMemo(() => {
       return new THREE.BufferGeometry().setFromPoints([start, end]);
     }, [start.x, start.y, start.z, end.x, end.y, end.z]);
 
     const tubeGeo = useMemo(() => {
       const path = new THREE.LineCurve3(start, end);
-      return new THREE.TubeGeometry(path, 1, 1.5, 6, false);
+      return new THREE.TubeGeometry(path, 1, 2.5, 6, false);
     }, [start.x, start.y, start.z, end.x, end.y, end.z]);
 
     return (
@@ -835,11 +838,22 @@ const RayLine3D: React.FC<{
         <lineSegments geometry={geometry}>
           <lineBasicMaterial color={color} linewidth={2} depthTest={false} transparent opacity={0.9} />
         </lineSegments>
-        {onContextMenu && (
+        {interactive && (
           <mesh
             geometry={tubeGeo}
             visible={false}
-            onContextMenu={onContextMenu}
+            onClick={(e: any) => {
+              e.stopPropagation();
+              onClick?.(e);
+            }}
+            onPointerOver={(e: any) => {
+              e.stopPropagation();
+              onHoverChange?.(true);
+            }}
+            onPointerOut={(e: any) => {
+              e.stopPropagation();
+              onHoverChange?.(false);
+            }}
           />
         )}
       </group>
@@ -877,6 +891,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
   const [hoveredGroupIndex, setHoveredGroupIndex] = useState<number | null>(null);
   const [pending, setPending] = useState<PendingPreview | null>(null);
   const [selectedEdges, setSelectedEdges] = useState<EdgeDirection[]>([]);
+  const [hoveredEdge, setHoveredEdge] = useState<EdgeDirection | null>(null);
 
   const shapeVirtualFaces = useMemo(
     () => virtualFaces.filter(vf => vf.shapeId === shape.id),
@@ -900,6 +915,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     setFaceGroups(groupCoplanarFaces(extractedFaces));
     setPending(null);
     setSelectedEdges([]);
+    setHoveredEdge(null);
   }, [shape.geometry, shape.id, geometryUuid]);
 
   useEffect(() => {
@@ -907,6 +923,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       setHoveredGroupIndex(null);
       setPending(null);
       setSelectedEdges([]);
+      setHoveredEdge(null);
     }
   }, [raycastMode]);
 
@@ -942,6 +959,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const handlePointerMove = (e: any) => {
     if (!raycastMode || faces.length === 0) return;
+    if (pending) return;
     e.stopPropagation();
     const fi = e.faceIndex;
     if (fi !== undefined) {
@@ -952,7 +970,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
   const handlePointerOut = (e: any) => {
     e.stopPropagation();
-    setHoveredGroupIndex(null);
+    if (!pending) setHoveredGroupIndex(null);
   };
 
   const handleEdgeSelect = (direction: EdgeDirection) => {
@@ -974,7 +992,7 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     });
   };
 
-  useEffect(() => {
+  const confirmWithEdgeAnchor = () => {
     if (!pending || !isValidEdgePair(selectedEdges)) return;
 
     const edge1 = selectedEdges[0];
@@ -998,7 +1016,8 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     addVirtualFace(updatedVF);
     setPending(null);
     setSelectedEdges([]);
-  }, [selectedEdges, pending, addVirtualFace]);
+    setHoveredEdge(null);
+  };
 
   const handlePointerDown = (e: any) => {
     if (!raycastMode) return;
@@ -1006,10 +1025,14 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
     if (e.button === 2) {
       e.stopPropagation();
       e.nativeEvent?.preventDefault?.();
+      if (pending && isValidEdgePair(selectedEdges)) {
+        confirmWithEdgeAnchor();
+      }
       return;
     }
 
     if (e.button !== 0) return;
+    if (pending) return;
     e.stopPropagation();
 
     if (hoveredGroupIndex === null || !faceGroups[hoveredGroupIndex]) return;
@@ -1033,11 +1056,15 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
 
     setPending(preview);
     setSelectedEdges([]);
+    setHoveredEdge(null);
   };
 
   const handleContextMenu = (e: any) => {
     e.stopPropagation();
     e.nativeEvent?.preventDefault?.();
+    if (pending && isValidEdgePair(selectedEdges)) {
+      confirmWithEdgeAnchor();
+    }
   };
 
   if (!raycastMode) return null;
@@ -1070,10 +1097,11 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
       {pending && (
         <>
           <OriginDot position={pending.originLocal} />
-          {pending.rayHits.map((hit, i) => {
+          {pending.rayHits.map((hit) => {
             const isSelected = selectedEdges.includes(hit.direction);
-            const lineColor = isSelected ? 0x3b82f6 : 0xf97316;
-            const dotColor = isSelected ? 0x3b82f6 : 0xef4444;
+            const isHovered = hoveredEdge === hit.direction;
+            const lineColor = isSelected ? 0x3b82f6 : isHovered ? 0x60a5fa : 0xf97316;
+            const dotColor = isSelected ? 0x3b82f6 : isHovered ? 0x60a5fa : 0xef4444;
 
             return (
               <React.Fragment key={hit.direction}>
@@ -1081,11 +1109,9 @@ export const FaceRaycastOverlay: React.FC<FaceRaycastOverlayProps> = ({ shape, a
                   start={hit.line.start}
                   end={hit.line.end}
                   color={lineColor}
-                  onContextMenu={(e: any) => {
-                    e.stopPropagation();
-                    e.nativeEvent?.preventDefault?.();
-                    handleEdgeSelect(hit.direction);
-                  }}
+                  interactive
+                  onClick={() => handleEdgeSelect(hit.direction)}
+                  onHoverChange={(hovered) => setHoveredEdge(hovered ? hit.direction : null)}
                 />
                 <HitDot position={hit.line.end} color={dotColor} />
               </React.Fragment>
