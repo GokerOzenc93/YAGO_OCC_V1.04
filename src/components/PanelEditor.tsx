@@ -1052,12 +1052,27 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                           tabIndex={-1}
                           className="w-[48px] px-1 py-0.5 text-xs font-mono border rounded text-center bg-green-50 text-gray-800 border-green-300 font-semibold"
                         />
-                        <div className="w-4" />
+                        <input
+                          type="checkbox"
+                          disabled
+                          className="w-4 h-4 text-stone-300 cursor-not-allowed border-gray-300 rounded"
+                          title="Toggle panel"
+                        />
                         <button
-                          className="p-0.5 rounded transition-colors text-slate-500 hover:bg-stone-100"
+                          disabled
+                          className="p-0.5 rounded transition-colors text-stone-300 cursor-not-allowed"
                           title="Rotate arrow direction"
                         >
                           <RotateCw size={13} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                          className="p-0.5 rounded transition-colors text-slate-500 hover:bg-stone-100"
+                          title="Show surfaces"
+                        >
+                          <Scan size={13} />
                         </button>
                         <button
                           onClick={(e) => {
