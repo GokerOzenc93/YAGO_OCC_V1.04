@@ -477,7 +477,15 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     addFilletFaceData,
     panelSurfaceSelectMode,
     waitingForSurfaceSelection,
-    triggerPanelCreationForFace
+    triggerPanelCreationForFace,
+    customFacePaintMode,
+    customFacePaintRowId,
+    pendingCustomFace,
+    setPendingCustomFace,
+    setConfirmedCustomFace,
+    setCustomFacePaintMode,
+    setCustomFacePaintRowId,
+    confirmedCustomFaces
   } = useAppStore();
 
   const [faces, setFaces] = useState<FaceData[]>([]);
@@ -538,6 +546,32 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
   const handlePointerDown = (e: any) => {
     e.stopPropagation();
 
+    if (customFacePaintMode && customFacePaintRowId && hoveredGroupIndex !== null) {
+      const group = faceGroups[hoveredGroupIndex];
+      if (!group) return;
+
+      if (e.button === 2) {
+        if (pendingCustomFace && pendingCustomFace.groupIndex === hoveredGroupIndex) {
+          setConfirmedCustomFace(customFacePaintRowId, {
+            groupIndex: hoveredGroupIndex,
+            normal: [group.normal.x, group.normal.y, group.normal.z],
+            center: [group.center.x, group.center.y, group.center.z]
+          });
+          setPendingCustomFace(null);
+          setCustomFacePaintMode(false);
+          setCustomFacePaintRowId(null);
+        }
+      } else {
+        setPendingCustomFace({
+          groupIndex: hoveredGroupIndex,
+          normal: [group.normal.x, group.normal.y, group.normal.z],
+          center: [group.center.x, group.center.y, group.center.z],
+          confirmed: false
+        });
+      }
+      return;
+    }
+
     if (panelSurfaceSelectMode && waitingForSurfaceSelection && hoveredGroupIndex !== null) {
       console.log('🎯 Surface clicked for panel creation, faceIndex:', hoveredGroupIndex);
       triggerPanelCreationForFace(hoveredGroupIndex);
@@ -570,6 +604,22 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
     if (faces.length === 0 || faceGroups.length === 0) return null;
     return createGroupBoundaryEdges(faces, faceGroups);
   }, [faces, faceGroups]);
+
+  const pendingCustomFaceGeometry = useMemo(() => {
+    if (!customFacePaintMode || pendingCustomFace === null) return null;
+    const group = faceGroups[pendingCustomFace.groupIndex];
+    if (!group) return null;
+    return createFaceHighlightGeometry(faces, group.faceIndices);
+  }, [customFacePaintMode, pendingCustomFace, faceGroups, faces]);
+
+  const confirmedCustomFaceGeometries = useMemo(() => {
+    if (!customFacePaintRowId && Object.keys(confirmedCustomFaces).length === 0) return [];
+    return Object.entries(confirmedCustomFaces).map(([rowId, faceData]) => {
+      const group = faceGroups[faceData.groupIndex];
+      if (!group) return null;
+      return { rowId, geom: createFaceHighlightGeometry(faces, group.faceIndices) };
+    }).filter(Boolean);
+  }, [confirmedCustomFaces, faceGroups, faces, customFacePaintRowId]);
 
   if (!isActive) return null;
 
@@ -609,6 +659,39 @@ export const FaceEditor: React.FC<FaceEditorProps> = ({ shape, isActive }) => {
             color={0xff0000}
             transparent
             opacity={0.5}
+            side={THREE.DoubleSide}
+            polygonOffset
+            polygonOffsetFactor={-1}
+            polygonOffsetUnits={-1}
+          />
+        </mesh>
+      )}
+
+      {confirmedCustomFaceGeometries.map((item: any) => (
+        <mesh
+          key={`confirmed-custom-${item.rowId}`}
+          geometry={item.geom}
+        >
+          <meshBasicMaterial
+            color={0x16a34a}
+            transparent
+            opacity={0.55}
+            side={THREE.DoubleSide}
+            polygonOffset
+            polygonOffsetFactor={-2}
+            polygonOffsetUnits={-2}
+          />
+        </mesh>
+      ))}
+
+      {pendingCustomFaceGeometry && (
+        <mesh
+          geometry={pendingCustomFaceGeometry}
+        >
+          <meshBasicMaterial
+            color={0x2563eb}
+            transparent
+            opacity={0.55}
             side={THREE.DoubleSide}
             polygonOffset
             polygonOffsetFactor={-1}

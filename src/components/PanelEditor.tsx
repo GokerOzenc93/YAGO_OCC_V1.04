@@ -13,7 +13,7 @@ interface PanelEditorProps {
 }
 
 export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
-  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, panelSurfaceSelectMode, setPanelSurfaceSelectMode, waitingForSurfaceSelection, setWaitingForSurfaceSelection, pendingPanelCreation } = useAppStore();
+  const { selectedShapeId, shapes, updateShape, addShape, showOutlines, setShowOutlines, showRoleNumbers, setShowRoleNumbers, selectShape, selectedPanelRow, selectedPanelRowExtraId, setSelectedPanelRow, panelSelectMode, setPanelSelectMode, panelSurfaceSelectMode, setPanelSurfaceSelectMode, waitingForSurfaceSelection, setWaitingForSurfaceSelection, pendingPanelCreation, customFacePaintMode, setCustomFacePaintMode, customFacePaintRowId, setCustomFacePaintRowId, confirmedCustomFaces, setConfirmedCustomFace, clearConfirmedCustomFace } = useAppStore();
   const [position, setPosition] = useState({ x: 100, y: 100 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
@@ -416,8 +416,47 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
   };
 
   const handleCustomRowAddSurface = (customRowId: string) => {
-    setPanelSurfaceSelectMode(true);
-    setWaitingForSurfaceSelection({ extraRowId: customRowId, sourceFaceIndex: -1, customRowId });
+    if (customFacePaintMode && customFacePaintRowId === customRowId) {
+      setCustomFacePaintMode(false);
+      setCustomFacePaintRowId(null);
+      return;
+    }
+    setCustomFacePaintMode(true);
+    setCustomFacePaintRowId(customRowId);
+  };
+
+  const handleCustomRowTogglePanel = async (customRowId: string, enabled: boolean) => {
+    if (!selectedShape) return;
+    const confirmedFace = confirmedCustomFaces[customRowId];
+
+    if (!enabled) {
+      const panelToRemove = shapes.find(s =>
+        s.type === 'panel' &&
+        s.parameters?.parentShapeId === selectedShape.id &&
+        s.parameters?.extraRowId === customRowId
+      );
+      if (panelToRemove) {
+        const { deleteShape } = useAppStore.getState();
+        deleteShape(panelToRemove.id);
+      }
+      setCustomFaceRows(prev => prev.map(r => r.id === customRowId ? { ...r, hasSurface: false } : r));
+      return;
+    }
+
+    if (!confirmedFace) return;
+
+    const geometry = selectedShape.geometry;
+    if (!geometry) return;
+
+    const faces = extractFacesFromGeometry(geometry);
+    const faceGroups = groupCoplanarFaces(faces);
+    const faceGroup = faceGroups[confirmedFace.groupIndex];
+    if (!faceGroup) return;
+
+    await createPanelForFace(faceGroup, faces, confirmedFace.groupIndex, customRowId, undefined);
+    setCustomFaceRows(prev => prev.map(r =>
+      r.id === customRowId ? { ...r, faceIndex: confirmedFace.groupIndex, hasSurface: true } : r
+    ));
   };
 
   const getCustomRowPanel = (customRowId: string) => {
@@ -1065,11 +1104,13 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                   {customFaceRows.map((customRow) => {
                     const customPanel = getCustomRowPanel(customRow.id);
                     const customDims = getCustomPanelDimensions(customRow.id);
-                    const isWaitingForThisCustom = waitingForSurfaceSelection?.customRowId === customRow.id;
+                    const isPaintModeForThis = customFacePaintMode && customFacePaintRowId === customRow.id;
+                    const confirmedFace = confirmedCustomFaces[customRow.id];
+                    const hasSurface = !!confirmedFace;
                     return (
                       <div
                         key={customRow.id}
-                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ${isWaitingForThisCustom ? 'bg-blue-50 ring-1 ring-blue-400' : 'bg-stone-50 ring-1 ring-stone-300'}`}
+                        className={`flex gap-0.5 items-center p-0.5 rounded transition-colors hover:bg-gray-50 ${isPaintModeForThis ? 'bg-blue-50 ring-1 ring-blue-400' : hasSurface ? 'bg-green-50 ring-1 ring-green-300' : 'bg-stone-50 ring-1 ring-stone-300'}`}
                       >
                         <input
                           type="radio"
@@ -1079,11 +1120,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         />
                         <input
                           type="text"
-                          value={customRow.faceIndex != null ? customRow.faceIndex + 1 : ''}
+                          value={confirmedFace ? confirmedFace.groupIndex + 1 : ''}
                           placeholder="C"
                           readOnly
                           tabIndex={-1}
-                          className="w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-white text-gray-800 border-gray-300"
+                          className={`w-7 px-1 py-0.5 text-xs font-mono border rounded text-center bg-white text-gray-800 ${hasSurface ? 'border-green-400' : 'border-gray-300'}`}
                         />
                         <select
                           value={customPanel?.parameters?.faceRole || ''}
@@ -1131,9 +1172,11 @@ export function PanelEditor({ isOpen, onClose }: PanelEditorProps) {
                         />
                         <input
                           type="checkbox"
-                          disabled
-                          className="w-4 h-4 text-stone-300 cursor-not-allowed border-gray-300 rounded"
-                          title="Toggle panel"
+                          checked={!!customPanel}
+                          disabled={!hasSurface}
+                          onChange={(e) => handleCustomRowTogglePanel(customRow.id, e.target.checked)}
+                          className={`w-4 h-4 border-gray-300 rounded ${hasSurface ? 'cursor-pointer text-orange-600' : 'text-stone-300 cursor-not-allowed'}`}
+                          title={hasSurface ? 'Toggle panel' : 'Select a surface first'}
                         />
                         <button
                           disabled

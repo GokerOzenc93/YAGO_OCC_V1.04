@@ -289,6 +289,35 @@ interface AppState {
   setRoleEditMode: (enabled: boolean) => void;
   updateFaceRole: (shapeId: string, faceIndex: number, role: FaceRole) => void;
 
+  // Custom Face Paint Modu (Add Surface - sol tık önizleme, sağ tık onay)
+  customFacePaintMode: boolean;
+  setCustomFacePaintMode: (enabled: boolean) => void;
+  customFacePaintRowId: string | null;
+  setCustomFacePaintRowId: (rowId: string | null) => void;
+  pendingCustomFace: {
+    groupIndex: number;
+    normal: [number, number, number];
+    center: [number, number, number];
+    confirmed: boolean;
+  } | null;
+  setPendingCustomFace: (face: {
+    groupIndex: number;
+    normal: [number, number, number];
+    center: [number, number, number];
+    confirmed: boolean;
+  } | null) => void;
+  confirmedCustomFaces: Record<string, {
+    groupIndex: number;
+    normal: [number, number, number];
+    center: [number, number, number];
+  }>;
+  setConfirmedCustomFace: (rowId: string, face: {
+    groupIndex: number;
+    normal: [number, number, number];
+    center: [number, number, number];
+  }) => void;
+  clearConfirmedCustomFace: (rowId: string) => void;
+
   // Baza Ayarları
   bazaHeight: number;
   setBazaHeight: (height: number) => void;
@@ -447,6 +476,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       };
     })
   })),
+
+  // Custom Face Paint Modu
+  customFacePaintMode: false,
+  setCustomFacePaintMode: (enabled) => set({ customFacePaintMode: enabled }),
+  customFacePaintRowId: null,
+  setCustomFacePaintRowId: (rowId) => set({ customFacePaintRowId: rowId }),
+  pendingCustomFace: null,
+  setPendingCustomFace: (face) => set({ pendingCustomFace: face }),
+  confirmedCustomFaces: {},
+  setConfirmedCustomFace: (rowId, face) => set((state) => ({
+    confirmedCustomFaces: { ...state.confirmedCustomFaces, [rowId]: face }
+  })),
+  clearConfirmedCustomFace: (rowId) => set((state) => {
+    const next = { ...state.confirmedCustomFaces };
+    delete next[rowId];
+    return { confirmedCustomFaces: next };
+  }),
 
   // Baza Ayarları
   bazaHeight: 100,
