@@ -282,9 +282,7 @@ const Toolbar: React.FC<ToolbarProps> = ({ onOpenCatalog }) => {
               </button>
             );
           })}
-          <button onClick={() => setPanelSurfaceSelectMode(!panelSurfaceSelectMode)} className={`p-1.5 rounded transition-all ${panelSurfaceSelectMode ? 'bg-blue-100 text-blue-700 border border-blue-300' : 'hover:bg-stone-50 text-stone-600 hover:text-slate-800'}`} title="Panel Surface Selection">
-            <Scan size={11} />
-          </button>
+
         </div>
 
         <div className="w-px h-7 bg-stone-300" />
